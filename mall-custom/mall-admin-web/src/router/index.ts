@@ -285,6 +285,22 @@ export const asyncRouterMap: RouteRecordExt[] = [
     ],
   },
   {
+    path: '/p0',
+    component: Layout,
+    redirect: '/p0/members',
+    name: 'p0',
+    meta: { title: '会员运营', icon: 'ums' },
+    children: [
+      { path: 'members', name: 'p0Members', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员管理' } },
+      { path: 'partner', name: 'p0Partner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理' } },
+      { path: 'cofounder', name: 'p0Cofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理' } },
+      { path: 'points', name: 'p0Points', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '双积分管理' } },
+      { path: 'finance', name: 'p0Finance', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '财务中心' } },
+      { path: 'dividend', name: 'p0Dividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池' } },
+      { path: 'settings', name: 'p0Settings', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '系统配置与日志' } },
+    ],
+  },
+  {
     path: '/ums',
     component: Layout,
     redirect: '/ums/admin',

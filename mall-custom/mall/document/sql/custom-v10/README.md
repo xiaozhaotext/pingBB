@@ -2,6 +2,8 @@
 
 > 本目录为「电商平台 V1.0」新增模块的统一数据库契约。所有新增表均为**独立、可回滚**脚本，不修改 `mall.sql` 中原有表结构。
 
+**执行警告：01–09 当前含 `DROP TABLE IF EXISTS`，只能在全新、可丢弃的测试库首次运行；不能对已有 P0 数据库重放，更不能用于生产在线迁移。10 号管理后台脚本无 DROP，可重复执行。**
+
 ## 应用顺序（必须按编号执行）
 
 ```bash
@@ -14,11 +16,12 @@ mysql -u<user> -p<pass> mall < 06_earnings_withdraw.sql
 mysql -u<user> -p<pass> mall < 07_system_log.sql
 mysql -u<user> -p<pass> mall < 08_dividend_pool.sql
 mysql -u<user> -p<pass> mall < 09_mall_experience.sql
+mysql -u<user> -p<pass> mall < 10_admin_p0.sql
 ```
 
 一键执行（bash）：
 ```bash
-for f in 0*.sql; do mysql -u<user> -p<pass> mall < "$f"; done
+for f in 0*.sql 10_admin_p0.sql; do mysql -u<user> -p<pass> mall < "$f"; done
 ```
 
 ## 回滚
@@ -40,6 +43,7 @@ mysql -u<user> -p<pass> mall < rollback_all.sql
 | G 系统配置/审计 | 07 | `sys_config`, `sys_audit_log`, `sys_finance_audit` |
 | 分红池 | 08 | `dividend_contribution_event`, `dividend_daily_stat`, `dividend_snapshot`, `dividend_allocate_detail`, `dividend_exception_audit` |
 | H 商城体验 | 09 | `biz_consult_message`, `biz_share_log` |
+| P0 管理后台 | 10 | `p0_points_adjust_request`，后台 RBAC 资源与菜单 |
 
 ## 关键设计约束（来自需求）
 
