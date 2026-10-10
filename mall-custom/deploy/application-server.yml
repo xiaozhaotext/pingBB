@@ -1,0 +1,34 @@
+# 原生 Linux 部署配置（不用 Docker 时使用）
+# 启动方式（见 deploy/start-backend.sh）：
+#   SPRING_PROFILES_ACTIVE=server SPRING_CONFIG_ADDITIONAL_LOCATION=./ java -jar mall-portal-1.0-SNAPSHOT.jar
+# 本文件由 start-backend.sh 复制到 jar 同目录后自动加载，覆盖 base application.yml 的数据源主机名。
+#
+# 注意：以下 MySQL/Redis/RabbitMQ 主机名全部为 localhost（原生部署在本机）。
+#       请把 mysql.password / redis 等改成你本地真实安装的账号密码，且必须与 deploy/import-sql.sh 导入时所用账号一致。
+
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    # 改成你本地 MySQL 的 root 密码（import-sql.sh 默认用 root 导入）
+    password: 123456
+  data:
+    mongodb:
+      host: 127.0.0.1
+      port: 27017
+      database: mall-port
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password:
+    rabbitmq:
+      host: 127.0.0.1
+      port: 5672
+      virtual-host: /mall
+      username: guest
+      password: guest
+logstash:
+  host: 127.0.0.1

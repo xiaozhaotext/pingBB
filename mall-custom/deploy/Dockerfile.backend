@@ -1,0 +1,17 @@
+# 后端镜像：多阶段构建
+# 阶段1 用 Maven 从源码打包 mall-portal 可执行 jar
+# 阶段2 用 JRE17 运行
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+# 构建上下文为 mall-custom，源码在 mall/ 下
+COPY mall /build/mall
+RUN cd /build/mall && mvn -q -B clean package -pl mall-portal -am -DskipTests -Dmaven.test.skip=true
+
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=build /build/mall/mall-portal/target/mall-portal-1.0-SNAPSHOT.jar /app/app.jar
+# 挂载外部配置目录（application-docker.yml 放在这里）
+EXPOSE 8085
+ENV SPRING_PROFILES_ACTIVE=docker
+ENV SPRING_CONFIG_ADDITIONAL_LOCATION=/app/config/
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

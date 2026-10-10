@@ -1,0 +1,82 @@
+# 电商平台 V1.0 —— 一键部署（Docker Compose）
+# 用法（在 mall-custom/deploy 目录）：
+#   docker compose up -d --build
+# 首次构建后端会下载 Maven 依赖，较慢（数分钟），属正常。
+# 浏览器访问： http://服务器IP:8080
+# 后端 API 基址（前端已写死 /portal）：http://服务器IP:8085
+services:
+  db:
+    image: mysql:8.0
+    container_name: mall-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mall123456}
+      MYSQL_DATABASE: mall
+      MYSQL_USER: reader
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d:ro   # 01_mall.sql(基础表) + 02~10(新模块表)，按文件名顺序执行
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-mall123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [mall]
+
+  redis:
+    image: redis:7-alpine
+    container_name: mall-redis
+    ports: ["6379:6379"]
+    networks: [mall]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: mall-rabbit
+    environment:
+      RABBITMQ_DEFAULT_USER: mall
+      RABBITMQ_DEFAULT_PASS: mall
+      RABBITMQ_DEFAULT_VHOST: /mall
+    ports: ["5672:5672", "15672:15672"]
+    networks: [mall]
+
+  mongo:
+    image: mongo:7
+    container_name: mall-mongo
+    ports: ["27017:27017"]
+    networks: [mall]
+
+  backend:
+    build:
+      context: ..            # mall-custom 根目录（含 mall/ 与 mall-app-web/）
+      dockerfile: deploy/Dockerfile.backend
+    container_name: mall-backend
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+      rabbitmq: { condition: service_started }
+      mongo: { condition: service_started }
+    volumes:
+      - ./application-docker.yml:/app/config/application-docker.yml:ro
+    ports:
+      - "${BACKEND_PORT:-8085}:8085"
+    networks: [mall]
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: mall-frontend
+    depends_on: [backend]
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks: [mall]
+
+volumes:
+  db_data:
+
+networks:
+  mall:
+    driver: bridge

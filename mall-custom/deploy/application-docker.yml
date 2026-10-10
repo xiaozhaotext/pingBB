@@ -1,0 +1,31 @@
+# Spring Boot 的 docker 环境覆盖配置
+# 作用：把 application-prod.yml 里的服务主机名改成与 docker-compose 网络一致，
+#       并把 logstash 指向 127.0.0.1（无 logstash 服务时不会崩溃，仅日志告警）。
+# 通过 SPRING_CONFIG_ADDITIONAL_LOCATION 挂载生效，配合 SPRING_PROFILES_ACTIVE=docker。
+
+# 关键：base application.yml 未设 server.port，docker 下必须显式指定 8085，
+#       否则后端会默认监听 8080，与 nginx 代理的 backend:8085 对不上（502）。
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: jdbc:mysql://db:3306/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: reader
+    password: 123456
+  data:
+    mongodb:
+      host: mongo
+      port: 27017
+      database: mall-port
+    redis:
+      host: redis
+      port: 6379
+    rabbitmq:
+      host: rabbitmq
+      port: 5672
+      virtual-host: /mall
+      username: mall
+      password: mall
+logstash:
+  host: 127.0.0.1
