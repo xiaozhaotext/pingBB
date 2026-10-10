@@ -31,6 +31,9 @@ public interface DividendPoolService {
     /** 查询某日模拟分配快照 */
     List<DividendSnapshot> getSnapshot(Date statDate);
 
+    /** Consumer-safe query limited to the authenticated member. */
+    List<DividendSnapshot> getMySnapshot(Date statDate, Long memberId);
+
     /** 查询某日模拟分配明细 */
     List<DividendAllocateDetail> getAllocateDetail(Date statDate);
 }

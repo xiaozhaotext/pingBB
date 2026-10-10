@@ -21,4 +21,8 @@ public interface DividendSnapshotMapper {
 
     @Select("SELECT * FROM dividend_snapshot WHERE stat_date=#{statDate} ORDER BY estimated_amount DESC")
     List<DividendSnapshot> selectByStatDate(@Param("statDate") Date statDate);
+
+    @Select("SELECT * FROM dividend_snapshot WHERE stat_date=#{statDate} AND member_id=#{memberId} ORDER BY id DESC")
+    List<DividendSnapshot> selectByStatDateAndMember(@Param("statDate") Date statDate,
+                                                      @Param("memberId") Long memberId);
 }

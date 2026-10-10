@@ -10,11 +10,8 @@
       <view class="row"><text>已提现</text><text class="v">{{ account.withdrawn }}</text></view>
     </view>
 
-    <view class="card">
-      <text class="title">模拟发放收益（演示/测试用）</text>
-      <input class="input" v-model="rewardAmount" placeholder="输入金额" type="digit" />
-      <button class="btn" @click="handleReward">发放</button>
-    </view>
+    <view class="card">收益由平台后台核对业务后记录，消费者不能自行发放。当前仅展示模拟账本。</view>
+    <view v-if="loadError" class="card error">{{ loadError }}</view>
 
     <view class="card">
       <text class="title">申请提现（模拟）</text>
@@ -37,25 +34,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getEarningsAccountAPI, getEarningsLedgerAPI, simulateRewardAPI, applyWithdrawAPI, getWithdrawListAPI } from '@/apis/member'
+import { getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI } from '@/apis/member'
 
 const account = ref<any>(null)
 const withdraws = ref<any[]>([])
-const rewardAmount = ref('')
 const withdrawAmount = ref('')
+const loadError = ref('')
 
 const loadData = async () => {
-  try { const r = await getEarningsAccountAPI(); account.value = r.data } catch (e) {}
-  try { const r = await getWithdrawListAPI(); withdraws.value = r.data || [] } catch (e) {}
-}
-
-const handleReward = async () => {
-  if (!rewardAmount.value) return
-  try {
-    await simulateRewardAPI({ amount: rewardAmount.value, bizId: 'R' + Date.now(), idempotencyKey: 'R' + Date.now() + '_' + Math.floor(Math.random() * 1000) })
-    uni.showToast({ title: '已模拟发放', icon: 'success' })
-    loadData()
-  } catch (e) {}
+  loadError.value = ''
+  try { const r = await getEarningsAccountAPI(); account.value = r.data }
+  catch (e) { account.value = null; loadError.value = '收益账户加载失败，请登录后重试。' }
+  try { const r = await getWithdrawListAPI(); withdraws.value = r.data || [] }
+  catch (e) { withdraws.value = []; loadError.value = '提现记录加载失败，请重试。' }
 }
 
 const handleWithdraw = async () => {
@@ -87,4 +78,5 @@ onMounted(loadData)
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
 .list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
 .tip { font-size: 24rpx; color: #909399; }
+.error { color: #b42318; }
 </style>

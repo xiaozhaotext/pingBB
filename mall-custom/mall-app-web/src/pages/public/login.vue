@@ -43,7 +43,7 @@ const memberStore = useMemberStore()
 // 登录用户名
 const username = ref(uni.getStorageSync('username') || '')
 // 登录密码
-const password = ref(uni.getStorageSync('password') || '')
+const password = ref('')
 // 登录加载状态
 const logining = ref(false)
 

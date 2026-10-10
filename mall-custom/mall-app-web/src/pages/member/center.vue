@@ -1,6 +1,7 @@
 <template>
   <view class="app">
     <view class="mock-banner">会员中心（身份 / 双积分 / 收益概览）。合伙人、联创、收益、分红均为模拟能力，不涉及真实资金。</view>
+    <view v-if="loadError" class="error-banner">{{ loadError }} <text @click="loadData">重试</text></view>
 
     <view class="card">
       <view class="row">
@@ -50,32 +51,32 @@
 import { ref, onMounted } from 'vue'
 import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI } from '@/apis/member'
 
-const identityText = ref('普通会员')
-const productPoints = ref(0)
-const repurchasePoints = ref(0)
-const earningsAvailable = ref('0.00')
+const identityText = ref('加载中')
+const productPoints = ref<string | number>('加载中')
+const repurchasePoints = ref<string | number>('加载中')
+const earningsAvailable = ref('加载中')
+const loadError = ref('')
 
 const IDENTITY_MAP: Record<number, string> = { 0: '普通会员', 1: '合伙人', 2: '联创' }
 
 const loadData = async () => {
+  loadError.value = ''
   try {
     const idRes = await getMyIdentityAPI()
-    if (idRes.data && idRes.data.identityType != null) {
-      identityText.value = IDENTITY_MAP[idRes.data.identityType] || '普通会员'
-    }
-  } catch (e) {}
+    identityText.value = idRes.data?.identityType == null ? '普通会员' : (IDENTITY_MAP[idRes.data.identityType] || '未知身份')
+  } catch (e) { identityText.value = '获取失败'; loadError.value = '会员信息加载失败，请确认已登录且后端可用。' }
   try {
     const p = await getPointsAccountAPI(1)
-    productPoints.value = p.data?.balance ?? 0
-  } catch (e) {}
+    productPoints.value = p.data?.balance ?? '未开户'
+  } catch (e) { productPoints.value = '获取失败'; loadError.value = '部分会员数据加载失败，请重试。' }
   try {
     const r = await getPointsAccountAPI(2)
-    repurchasePoints.value = r.data?.balance ?? 0
-  } catch (e) {}
+    repurchasePoints.value = r.data?.balance ?? '未开户'
+  } catch (e) { repurchasePoints.value = '获取失败'; loadError.value = '部分会员数据加载失败，请重试。' }
   try {
     const e = await getEarningsAccountAPI()
-    earningsAvailable.value = (e.data?.availableEarnings ?? '0.00').toString()
-  } catch (e) {}
+    earningsAvailable.value = e.data?.availableEarnings == null ? '未开户' : String(e.data.availableEarnings)
+  } catch (e) { earningsAvailable.value = '获取失败'; loadError.value = '部分会员数据加载失败，请重试。' }
 }
 
 const go = (url: string) => {
@@ -88,6 +89,8 @@ onMounted(loadData)
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
+.error-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff0f0; color: #b42318; font-size: 24rpx; }
+.error-banner text { margin-left: 16rpx; text-decoration: underline; }
 .card { background: #fff; border-radius: 16rpx; padding: 10rpx 24rpx; }
 .row { display: flex; justify-content: space-between; align-items: center; padding: 24rpx 0; border-bottom: 1rpx solid #f2f2f2; }
 .row:last-child { border-bottom: none; }

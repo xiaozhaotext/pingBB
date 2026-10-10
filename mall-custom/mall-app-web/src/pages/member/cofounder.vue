@@ -10,32 +10,21 @@
       <view class="row"><text>分红份数</text><text class="v">{{ config.dividendCount }} 份(规则草案)</text></view>
     </view>
 
-    <view class="card">
-      <button class="btn-primary" v-if="!paid" @click="handleBuy">模拟购买并升级为联创</button>
-      <view v-else class="paid">✓ 已模拟支付，身份已升级为联创（可在会员中心查看）</view>
-    </view>
+    <view class="card">模拟购买入口暂未对公网开放。权益方案来自后端配置；身份只能由授权后台调整。</view>
+    <view v-if="loadError" class="card error">{{ loadError }}</view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCofounderConfigAPI, createCofounderOrderAPI, payCofounderAPI } from '@/apis/member'
+import { getCofounderConfigAPI } from '@/apis/member'
 
 const config = ref<any>(null)
-const paid = ref(false)
+const loadError = ref('')
 
 const loadConfig = async () => {
-  try { const r = await getCofounderConfigAPI(); config.value = r.data } catch (e) {}
-}
-
-const handleBuy = async () => {
-  const bizId = 'COFOUNDER_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
-  try {
-    await createCofounderOrderAPI({ bizId })
-    await payCofounderAPI({ bizId })
-    paid.value = true
-    uni.showToast({ title: '已模拟升级为联创', icon: 'success' })
-  } catch (e) {}
+  try { const r = await getCofounderConfigAPI(); config.value = r.data; if (!r.data) loadError.value = '暂无已启用的权益方案。' }
+  catch (e) { loadError.value = '权益方案加载失败，请登录后重试。' }
 }
 
 onMounted(loadConfig)
@@ -50,4 +39,5 @@ onMounted(loadConfig)
 .row .v { color: #303133; font-weight: 600; }
 .btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
 .paid { color: #285b40; font-size: 28rpx; font-weight: 600; text-align: center; padding: 20rpx; }
+.error { color: #b42318; }
 </style>

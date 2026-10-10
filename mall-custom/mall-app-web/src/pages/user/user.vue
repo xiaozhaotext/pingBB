@@ -19,13 +19,13 @@
       </view>
       <view class="vip-card-box">
         <image class="card-bg" src="/static/vip-card-bg.png"></image>
-        <view class="b-btn">立即开通</view>
+        <view class="b-btn" @click="handleNavTo('/pages/member/center')">会员中心</view>
         <view class="tit">
           <text class="yticon icon-iLinkapp-"></text>
-          黄金会员
+          {{ identityLabel }}
         </view>
-        <text class="e-m">mall移动端商城</text>
-        <text class="e-b">黄金及以上会员可享有会员价优惠商品。</text>
+        <text class="e-m">优选商城</text>
+        <text class="e-b">会员权益以账户实际身份及平台公告为准。</text>
       </view>
     </view>
 
@@ -138,6 +138,7 @@ import { ref, computed } from 'vue'
 import { onShow, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
 import { getMemberCouponListAPI } from '@/apis/coupon'
+import { getMyIdentityAPI } from '@/apis/member'
 import mixListCell from '@/components/mix-list-cell.vue'
 
 // ===== Store 相关 =====
@@ -151,6 +152,7 @@ const memberInfo = computed(() => memberStore.memberInfo)
 // ===== 页面数据 =====
 // 优惠券数量
 const couponCount = ref<number | null>(null)
+const identityLabel = ref('会员身份加载中')
 // 遮罩层变换样式
 const coverTransform = ref('translateY(0px)')
 // 遮罩层过渡动画
@@ -169,6 +171,14 @@ let pageAtTop = true
 const loadData = async () => {
   if (hasLogin.value) {
     try {
+      const identity = await getMyIdentityAPI()
+      identityLabel.value = identity.data?.identityType == null
+        ? '普通会员'
+        : ({ 0: '普通会员', 1: '合伙人', 2: '联创' } as Record<number, string>)[identity.data.identityType] || '未知身份'
+    } catch {
+      identityLabel.value = '会员身份获取失败'
+    }
+    try {
       const res = await getMemberCouponListAPI(0)
       const list = res.data
       if (list && list.length > 0) {
@@ -178,6 +188,7 @@ const loadData = async () => {
       couponCount.value = null
     }
   } else {
+    identityLabel.value = '游客'
     couponCount.value = null
   }
 }

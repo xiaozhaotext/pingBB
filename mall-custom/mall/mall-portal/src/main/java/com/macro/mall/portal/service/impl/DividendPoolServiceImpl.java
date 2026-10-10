@@ -128,6 +128,11 @@ public class DividendPoolServiceImpl implements DividendPoolService {
     }
 
     @Override
+    public List<DividendSnapshot> getMySnapshot(Date statDate, Long memberId) {
+        return snapshotMapper.selectByStatDateAndMember(statDate, memberId);
+    }
+
+    @Override
     public List<DividendAllocateDetail> getAllocateDetail(Date statDate) {
         return allocateMapper.selectByStatDate(statDate);
     }

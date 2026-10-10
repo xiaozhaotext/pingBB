@@ -56,6 +56,13 @@ public class DividendPoolController {
         return CommonResult.success(dividendPoolService.getSnapshot(new Date(statDate)));
     }
 
+    @Operation(summary = "查询我自己的模拟分配快照")
+    @GetMapping("/mySnapshot")
+    public CommonResult<List<DividendSnapshot>> mySnapshot(@RequestParam Long statDate) {
+        Long memberId = memberService.getCurrentMember().getId();
+        return CommonResult.success(dividendPoolService.getMySnapshot(new Date(statDate), memberId));
+    }
+
     @Operation(summary = "查询某日模拟分配明细")
     @GetMapping("/detail")
     public CommonResult<List<DividendAllocateDetail>> detail(@RequestParam Long statDate) {
