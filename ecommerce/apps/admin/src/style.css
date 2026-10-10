@@ -1,0 +1,2 @@
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#243044}.login{width:360px;margin:12vh auto;display:grid;gap:16px}.layout{min-height:100vh}.el-aside{background:#f5f7fa;padding:16px}.el-header{border-bottom:1px solid #eee;line-height:60px}.right{float:right}.el-main{padding:28px}
+.error{color:#c33;min-height:1em}.el-checkbox-group{display:grid;grid-template-columns:repeat(3,1fr);margin:20px 0}

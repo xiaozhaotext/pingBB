@@ -1,0 +1,10 @@
+# 仅部署消费者 H5 静态前端。Spring Boot API 需单独部署并配置 HTTPS 地址。
+[build]
+  command = "npm run build:h5"
+  publish = "dist/build/h5"
+
+# 当前 uni-app 使用 hash 路由；保留刷新及未来 history 路由兼容。
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

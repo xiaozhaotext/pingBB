@@ -1,0 +1,61 @@
+# ========== 依赖 / 包管理 ==========
+node_modules/
+**/node_modules/
+.pnpm-store/
+.pnpm/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+
+# ========== 构建产物 ==========
+dist/
+build/
+out/
+.bin/
+target/
+**/target/
+*.jar
+*.war
+
+# ========== 本地工具 / 运行时（约 4.4GB 的 .tools 全排除）==========
+.tools/
+**/.tools/
+mysql-data/
+**/mysql-data/
+downloads/
+**/downloads/
+
+# ========== 数据库 / 缓存数据 ==========
+*.sqlite
+*.sqlite3
+*.db
+
+# ========== 日志 ==========
+*.log
+
+# ========== 环境变量 / 密钥（安全底线，绝不提交）==========
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+*password*.txt
+*password*.ini
+*.secret
+credentials.json
+*.pem
+*.key
+
+# ========== 安装包 / 大二进制 ==========
+*.zip
+*.tar.gz
+*.tar
+*.pdb
+*.lib
+
+# ========== 系统 / 编辑器 ==========
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

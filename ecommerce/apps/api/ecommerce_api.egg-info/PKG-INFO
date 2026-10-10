@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: ecommerce-api
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: uvicorn[standard]<1,>=0.30
+Requires-Dist: SQLAlchemy<3,>=2.0
+Requires-Dist: alembic<2,>=1.13
+Requires-Dist: pydantic-settings<3,>=2.4
+Requires-Dist: python-multipart>=0.0.9
+Requires-Dist: redis<7,>=5
+Requires-Dist: PyMySQL<2,>=1.1
+Requires-Dist: pwdlib[argon2]<1,>=0.2
+Provides-Extra: test
+Requires-Dist: pytest<9,>=8; extra == "test"
+Requires-Dist: httpx<1,>=0.27; extra == "test"

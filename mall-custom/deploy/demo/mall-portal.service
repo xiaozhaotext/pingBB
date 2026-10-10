@@ -1,0 +1,22 @@
+[Unit]
+Description=Mall demo portal API
+After=network-online.target mysql.service redis-server.service rabbitmq-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mall-demo
+Group=mall-demo
+WorkingDirectory=/opt/mall-demo
+EnvironmentFile=/etc/mall-demo/portal.env
+ExecStart=/usr/bin/java -Xms128m -Xmx512m -jar /opt/mall-demo/mall-portal.jar --spring.profiles.active=dev --server.address=127.0.0.1
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/mall-demo
+
+[Install]
+WantedBy=multi-user.target

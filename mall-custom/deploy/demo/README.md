@@ -1,0 +1,7 @@
+# Ubuntu demo deployment preparation
+
+These are templates, not evidence of a deployed server. Do not publish login forms over plain HTTP. After SSH access is available, inspect the Ubuntu release, disk, memory, existing packages and cloud firewall before installing or enabling services. Confirm the domain and TLS certificate before making admin and consumer authentication public.
+
+The server should run MySQL 8, Redis and RabbitMQ bound to loopback; both Java services must also listen only on `127.0.0.1`. Nginx serves storefront at `/`, admin at `/admin/`, and proxies `/portal/` and `/admin-api/`. The static builds use those same-origin prefixes. `mall-admin.service` and `mall-portal.service` are templates for a dedicated `mall-demo` service user. Their root-readable environment files under `/etc/mall-demo/` must contain unique test database and RabbitMQ credentials, and separate strong `JWT_SECRET` values. Disable Alipay and mock payment in the portal environment. Do not copy `.tools`, Windows test databases or password files to the server.
+
+Before activation, replace sample SQL data with a separately labelled demo data set and rotate all seeded admin credentials. Keep merchant operations unavailable: merchant API isolation and merchant workspace have not been implemented. Verify `nginx -t`, service health, login, product API, routing, restart recovery and database rollback in the server test environment; record failures explicitly.

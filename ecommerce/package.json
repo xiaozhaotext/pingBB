@@ -1,0 +1,1 @@
+{"name":"ecommerce-v1","private":true,"scripts":{"dev:admin":"pnpm --dir apps/admin dev","dev:merchant":"pnpm --dir apps/merchant dev","dev:storefront":"pnpm --dir apps/storefront dev","build":"pnpm --recursive build"}}

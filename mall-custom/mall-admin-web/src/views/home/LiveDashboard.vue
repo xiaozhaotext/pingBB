@@ -1,0 +1,65 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import VChart from 'vue-echarts'
+import { getDashboardOverviewAPI, type DashboardOverview } from '@/apis/dashboard'
+
+use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent])
+
+const loading = ref(false)
+const overview = ref<DashboardOverview | null>(null)
+const cards = computed(() => [
+  { title: '商品总数', value: overview.value?.productCount ?? '—' },
+  { title: '订单总数', value: overview.value?.orderCount ?? '—' },
+  { title: '会员总数', value: overview.value?.memberCount ?? '—' },
+  { title: '今日订单', value: overview.value?.todayOrderCount ?? '—' },
+  { title: '今日已支付金额', value: overview.value ? `¥${Number(overview.value.todayPaidAmount).toFixed(2)}` : '—' },
+  { title: '累计已支付金额', value: overview.value ? `¥${Number(overview.value.totalPaidAmount).toFixed(2)}` : '—' },
+])
+const chartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['已支付订单数', '已支付金额'] },
+  grid: { left: 52, right: 64, bottom: 28 },
+  xAxis: { type: 'category', data: overview.value?.paidTrend.map(item => item.day) ?? [] },
+  yAxis: [{ type: 'value', name: '订单数' }, { type: 'value', name: '金额（元）' }],
+  series: [
+    { name: '已支付订单数', type: 'line', data: overview.value?.paidTrend.map(item => item.orderCount) ?? [], smooth: true },
+    { name: '已支付金额', type: 'line', yAxisIndex: 1, data: overview.value?.paidTrend.map(item => item.paidAmount) ?? [], smooth: true },
+  ],
+}))
+
+async function refresh() {
+  loading.value = true
+  try {
+    const response = await getDashboardOverviewAPI()
+    overview.value = response.data
+  } catch {
+    overview.value = null
+    ElMessage.error('真实统计加载失败，请检查后台接口与权限')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(refresh)
+</script>
+
+<template>
+  <main class="dashboard" v-loading="loading">
+    <header class="heading"><div><p>优选商城 · 本地测试环境</p><h1>经营概览</h1></div><el-button @click="refresh">刷新数据</el-button></header>
+    <el-alert title="以下数据来自当前本地测试数据库，包含导入的官方示例数据；不得作为真实经营报表。" type="warning" :closable="false" show-icon />
+    <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}</span><strong>{{ card.value }}</strong></el-card></section>
+    <el-card shadow="never" class="trend"><template #header><div class="trend-head"><strong>最近 7 日已支付订单趋势</strong><small>{{ overview?.amountNote }}</small></div></template>
+      <v-chart v-if="overview?.paidTrend.length" :option="chartOption" autoresize class="chart" />
+      <el-empty v-else description="最近 7 日没有已支付订单数据" />
+    </el-card>
+  </main>
+</template>
+
+<style scoped>
+.dashboard{padding:28px;background:#f6f7f4;min-height:100vh}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading p{color:#53765e;font-size:13px}.heading h1{font-size:28px;color:#234a34;margin:4px 0}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.metric span{display:block;color:#75847b;font-size:14px}.metric strong{display:block;margin-top:14px;color:#214a34;font-size:27px}.trend-head{display:flex;justify-content:space-between;gap:20px}.trend-head small{color:#7b8d81}.chart{height:330px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
