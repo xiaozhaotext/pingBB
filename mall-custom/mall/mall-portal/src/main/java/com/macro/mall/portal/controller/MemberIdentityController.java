@@ -3,7 +3,7 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.UmsMemberIdentity;
 import com.macro.mall.portal.service.MemberIdentityService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ public class MemberIdentityController {
     @Autowired
     private MemberIdentityService identityService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "查询我的当前身份")
     @GetMapping("/current")

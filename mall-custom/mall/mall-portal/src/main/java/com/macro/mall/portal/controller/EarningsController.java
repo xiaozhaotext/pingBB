@@ -4,7 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.UmsEarnings;
 import com.macro.mall.portal.domain.UmsEarningsLedger;
 import com.macro.mall.portal.service.EarningsService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ public class EarningsController {
     @Autowired
     private EarningsService earningsService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "查询我的收益账户(模拟)")
     @GetMapping("/account")

@@ -4,7 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.BizCofounderConfig;
 import com.macro.mall.portal.domain.BizCofounderOrder;
 import com.macro.mall.portal.service.CofounderService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,7 @@ public class CofounderController {
     @Autowired
     private CofounderService cofounderService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "获取联创权益方案(模拟)")
     @GetMapping("/config")

@@ -3,7 +3,7 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.BizPartnerConfig;
 import com.macro.mall.portal.domain.BizPartnerOrder;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.PartnerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ public class PartnerController {
     @Autowired
     private PartnerService partnerService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "获取合伙人权益方案(模拟)")
     @GetMapping("/config")

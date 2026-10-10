@@ -3,7 +3,7 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.UmsWithdrawApply;
 import com.macro.mall.portal.service.EarningsService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class WithdrawController {
     @Autowired
     private EarningsService earningsService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "申请提现(模拟)：扣减可提现并冻结，生成待审核单")
     @PostMapping("/apply")

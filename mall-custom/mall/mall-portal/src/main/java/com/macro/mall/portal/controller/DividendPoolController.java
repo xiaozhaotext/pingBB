@@ -4,7 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.DividendAllocateDetail;
 import com.macro.mall.portal.domain.DividendSnapshot;
 import com.macro.mall.portal.service.DividendPoolService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,7 @@ public class DividendPoolController {
     @Autowired
     private DividendPoolService dividendPoolService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")
     @PostMapping("/contribution")

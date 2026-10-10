@@ -4,7 +4,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.domain.UmsPointsAccount;
 import com.macro.mall.portal.domain.UmsPointsLedger;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.PointsWalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +25,7 @@ public class PointsWalletController {
     @Autowired
     private PointsWalletService pointsWalletService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "查询某类积分账户")
     @GetMapping("/account")

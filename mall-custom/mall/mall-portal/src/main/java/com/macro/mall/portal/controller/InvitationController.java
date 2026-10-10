@@ -5,7 +5,7 @@ import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.domain.UmsInvitationCode;
 import com.macro.mall.portal.domain.UmsMemberRecommend;
 import com.macro.mall.portal.service.InvitationService;
-import com.macro.mall.portal.service.MemberService;
+import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class InvitationController {
     @Autowired
     private InvitationService invitationService;
     @Autowired
-    private MemberService memberService;
+    private UmsMemberService memberService;
 
     @Operation(summary = "获取我的邀请码(自动生成)")
     @GetMapping("/myCode")
