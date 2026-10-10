@@ -88,6 +88,13 @@
       </view>
       <!-- 浏览历史 -->
       <view class="history-section icon">
+        <!-- P0 新增：会员中心入口（身份/邀请/双积分/合伙人/联创/收益提现/每日分红池） -->
+        <mix-list-cell
+          icon="icon-iLinkapp-"
+          iconColor="#fa436a"
+          title="会员中心"
+          @eventClick="handleNavTo('/pages/member/center')"
+        ></mix-list-cell>
         <mix-list-cell
           icon="icon-dizhi"
           iconColor="#5fcda2"
