@@ -64,6 +64,10 @@ docker exec -it mall-db mysql -uroot -p mall   # 进数据库
 `deploy/init-db/` 目录已按执行顺序放好 SQL，MySQL 容器首次启动会自动执行：
 - `01_mall.sql`：mall 基础表（会员、商品、订单等）
 - `02~10_*.sql`：本次新增模块表（身份/邀请/双积分/合伙人/联创/收益提现/系统日志/分红池/商城体验），含乐观锁、幂等键、`simulate_flag=1` 模拟标记
+- `11_admin_p0.sql`：P0 管理后台表 `p0_points_adjust_request`（积分调整申请，带幂等键），
+  并给 role 5 授权 `/p0/**` 资源与「会员运营」菜单（会员/合伙人/联创/双积分/财务中心/贡献奖励池/系统配置）。
+  脚本无 DROP，仅 `INSERT ... WHERE NOT EXISTS`，可重复执行。
+  若你的后台登录账号不是 role 5，请改本文件里的 `role_id`，或改 `P0AdminAccess` 的 `mall.p0.admin-role-id`。
 
 如需重置数据库：`docker compose down -v` 会删除数据卷，下次启动重新初始化。
 
