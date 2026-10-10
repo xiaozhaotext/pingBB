@@ -18,6 +18,11 @@ mall:
   payment:
     alipay:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
+  p0:
+    # Public reverse-proxy requests also appear to originate from loopback.
+    # Keep consumer-created points, identity, earnings and contribution events disabled.
+    # Only isolated local tests may override this property explicitly.
+    consumer-simulation-enabled: false
 
 jwt:
   tokenHeader: Authorization #JWT存储的请求头
