@@ -260,6 +260,37 @@ public class P0AdminController {
         return CommonResult.success(null);
     }
 
+    /** Completes an approved withdrawal in the simulated ledger only. */
+    @PostMapping("/finance/withdraws/{applyId}/simulate-complete")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> simulateWithdrawComplete(Principal principal, @PathVariable long applyId) {
+        long operatorId = access.requireAuthorized(principal);
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT member_id,amount,status,simulate_flag FROM ums_withdraw_apply WHERE id=? FOR UPDATE", applyId);
+        if (rows.isEmpty()) return CommonResult.failed("申请不存在");
+        Map<String, Object> request = rows.get(0);
+        if (((Number) request.get("status")).intValue() != 1 ||
+                ((Number) request.get("simulate_flag")).intValue() != 1) {
+            return CommonResult.failed("仅审核通过的模拟申请可完成");
+        }
+        long memberId = ((Number) request.get("member_id")).longValue();
+        BigDecimal amount = (BigDecimal) request.get("amount");
+        int changed = jdbc.update("UPDATE ums_earnings SET frozen_earnings=frozen_earnings-?," +
+                "withdrawn=withdrawn+?,version=version+1 WHERE member_id=? AND frozen_earnings>=?",
+                amount, amount, memberId, amount);
+        if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "冻结金额不足");
+        BigDecimal available = jdbc.queryForObject(
+                "SELECT available_earnings FROM ums_earnings WHERE member_id=?", BigDecimal.class, memberId);
+        jdbc.update("INSERT INTO ums_earnings_ledger(member_id,change_type,amount,balance_after,biz_id," +
+                "idempotency_key,remark) VALUES(?,'withdraw_done',?,?,?,?,?)",
+                memberId, amount.negate(), available, "withdraw-" + applyId,
+                "p0-withdraw-done-" + applyId, "仅模拟记账，不触发真实打款");
+        jdbc.update("UPDATE ums_withdraw_apply SET status=2 WHERE id=?", applyId);
+        audit(operatorId, principal.getName(), "finance", "withdraw_simulated_complete", applyId,
+                "仅模拟记账，不触发真实打款");
+        return CommonResult.success(null);
+    }
+
     @GetMapping("/dividend")
     public CommonResult<Map<String, Object>> dividend(Principal principal) {
         access.requireAuthorized(principal);

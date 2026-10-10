@@ -11,6 +11,8 @@ import com.macro.mall.portal.service.PointsWalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Date;
 
@@ -65,6 +67,9 @@ public class PartnerServiceImpl implements PartnerService {
         if (o == null) {
             return CommonResult.failed("订单不存在");
         }
+        if (!memberId.equals(o.getMemberId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "不能操作其他会员的模拟订单");
+        }
         if (o.getPayStatus() != null && o.getPayStatus() == 1) {
             return CommonResult.failed("该订单已模拟支付，请勿重复操作");
         }
@@ -79,7 +84,7 @@ public class PartnerServiceImpl implements PartnerService {
         CommonResult<Void> r0 = identityService.changeIdentity(memberId,
                 MemberIdentityService.TYPE_PARTNER, memberId, "模拟购买合伙人权益", o.getId());
         if (r0.getCode() != 200) {
-            return CommonResult.failed(r0.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, r0.getMessage());
         }
 
         // 3) 赠送双积分（幂等由 idempotencyKey 保证）
@@ -88,13 +93,13 @@ public class PartnerServiceImpl implements PartnerService {
                 PointsWalletService.TYPE_PRODUCT, "partner_grant",
                 cfg.getProductPoints().longValue(), bizId, idem + "_p", memberId, "合伙人赠送商品积分(模拟)");
         if (r1.getCode() != 200) {
-            return CommonResult.failed(r1.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, r1.getMessage());
         }
         CommonResult<Void> r2 = pointsWalletService.changePoints(memberId,
                 PointsWalletService.TYPE_REPURCHASE, "partner_grant",
                 cfg.getRepurchasePoints().longValue(), bizId, idem + "_r", memberId, "合伙人赠送复购积分(模拟)");
         if (r2.getCode() != 200) {
-            return CommonResult.failed(r2.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, r2.getMessage());
         }
         return CommonResult.success(null);
     }

@@ -11,6 +11,8 @@ import com.macro.mall.portal.service.PointsWalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Date;
 
@@ -65,6 +67,9 @@ public class CofounderServiceImpl implements CofounderService {
         if (o == null) {
             return CommonResult.failed("订单不存在");
         }
+        if (!memberId.equals(o.getMemberId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "不能操作其他会员的模拟订单");
+        }
         if (o.getPayStatus() != null && o.getPayStatus() == 1) {
             return CommonResult.failed("该订单已模拟支付，请勿重复操作");
         }
@@ -79,7 +84,7 @@ public class CofounderServiceImpl implements CofounderService {
         CommonResult<Void> r0 = identityService.changeIdentity(memberId,
                 MemberIdentityService.TYPE_COFOLLOWER, memberId, "模拟购买联创权益", o.getId());
         if (r0.getCode() != 200) {
-            return CommonResult.failed(r0.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, r0.getMessage());
         }
 
         // 3) 赠送联创积分（计入复购积分钱包，幂等由 idempotencyKey 保证）
@@ -87,7 +92,7 @@ public class CofounderServiceImpl implements CofounderService {
                 PointsWalletService.TYPE_REPURCHASE, "cofounder_grant",
                 cfg.getCofounderPoints().longValue(), bizId, "cofounder_grant_" + bizId, memberId, "联创赠送积分(模拟)");
         if (r1.getCode() != 200) {
-            return CommonResult.failed(r1.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, r1.getMessage());
         }
         return CommonResult.success(null);
     }

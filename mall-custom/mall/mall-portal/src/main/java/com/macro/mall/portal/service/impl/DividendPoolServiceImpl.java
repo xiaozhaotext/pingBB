@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
 
@@ -63,8 +64,17 @@ public class DividendPoolServiceImpl implements DividendPoolService {
         BigDecimal totalContribution = BigDecimal.ZERO;
         for (DividendDailyStat s : stats) {
             if (s.getContributionValue() == null) s.setContributionValue(BigDecimal.ZERO);
+            if (s.getContributionValue().signum() < 0) {
+                return CommonResult.failed("会员净贡献不能为负，请先核对退款冲回事件");
+            }
             totalContribution = totalContribution.add(s.getContributionValue());
         }
+        if (totalContribution.signum() <= 0) {
+            return CommonResult.failed("当日有效净贡献必须大于零");
+        }
+        boolean alreadyAllocated = stats.stream().allMatch(s ->
+                snapshotMapper.selectByDateMemberBatch(statDate, s.getMemberId(), calcBatch) != null);
+        if (alreadyAllocated) return CommonResult.success(0);
         // 模拟资金池：未提供则默认等于总贡献值（金额单位仅作演示）
         BigDecimal moneyPool = (poolTotal != null && poolTotal.compareTo(BigDecimal.ZERO) > 0)
                 ? poolTotal : totalContribution;
@@ -83,9 +93,8 @@ public class DividendPoolServiceImpl implements DividendPoolService {
         for (DividendDailyStat s : stats) {
             BigDecimal contribution = s.getContributionValue();
             // ratio = 个人贡献 / 当日总贡献；总贡献为0时比例记0
-            BigDecimal ratio = totalContribution.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
-                    : contribution.divide(totalContribution, SCALE, BigDecimal.ROUND_HALF_UP);
-            BigDecimal estimated = moneyPool.multiply(ratio).setScale(2, BigDecimal.ROUND_HALF_UP);
+            BigDecimal ratio = contribution.divide(totalContribution, SCALE, RoundingMode.HALF_UP);
+            BigDecimal estimated = moneyPool.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
 
             if (snapshotMapper.selectByDateMemberBatch(statDate, s.getMemberId(), calcBatch) == null) {
                 DividendSnapshot snap = new DividendSnapshot();
@@ -99,16 +108,16 @@ public class DividendPoolServiceImpl implements DividendPoolService {
                 snap.setCalcBatch(calcBatch);
                 snap.setCreateTime(new Date());
                 snapshotMapper.insert(snap);
+                DividendAllocateDetail d = new DividendAllocateDetail();
+                d.setStatDate(statDate);
+                d.setMemberId(s.getMemberId());
+                d.setRatio(ratio);
+                d.setEstimatedAmount(estimated);
+                d.setSimulateFlag(1);
+                d.setCreateTime(new Date());
+                allocateMapper.insert(d);
+                count++;
             }
-            DividendAllocateDetail d = new DividendAllocateDetail();
-            d.setStatDate(statDate);
-            d.setMemberId(s.getMemberId());
-            d.setRatio(ratio);
-            d.setEstimatedAmount(estimated);
-            d.setSimulateFlag(1);
-            d.setCreateTime(new Date());
-            allocateMapper.insert(d);
-            count++;
         }
         return CommonResult.success(count);
     }

@@ -107,6 +107,12 @@ async function reviewWithdraw(id: number, approve: boolean) {
   ElMessage.success('模拟审核状态已更新')
   await load()
 }
+async function completeSimulatedWithdraw(id: number) {
+  await ElMessageBox.confirm('仅在模拟账本中完成提现，确认不会发生真实打款。继续？', '完成模拟提现', { type: 'warning' })
+  await postP0(`finance/withdraws/${id}/simulate-complete`, {})
+  ElMessage.success('模拟提现已记账')
+  await load()
+}
 async function updateSetting() {
   if (!settingForm.value.value.trim()) return ElMessage.warning('请输入设置内容')
   await postP0('settings', settingForm.value)
@@ -157,7 +163,7 @@ const groupTitles: Record<string, string> = {
           </el-table-column>
           <el-table-column v-if="key === 'members'" label="操作" fixed="right" width="100"><template #default="scope"><el-button link type="primary" @click="openMember(Number(scope.row.id))">详情</el-button></template></el-table-column>
           <el-table-column v-if="key === 'adjustments'" label="审核" fixed="right" width="150"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewAdjustment(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewAdjustment(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>
-          <el-table-column v-if="key === 'withdraws'" label="模拟审核" fixed="right" width="155"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewWithdraw(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewWithdraw(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>
+          <el-table-column v-if="key === 'withdraws'" label="模拟审核" fixed="right" width="180"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewWithdraw(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewWithdraw(Number(scope.row.id), false)">拒绝</el-button></template><el-button v-else-if="Number(scope.row.status) === 1" link type="primary" @click="completeSimulatedWithdraw(Number(scope.row.id))">完成模拟记账</el-button><span v-else>已处理</span></template></el-table-column>
         </el-table>
         <el-empty v-else description="数据库中暂无记录" />
       </el-card>
