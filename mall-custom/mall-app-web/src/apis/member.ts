@@ -87,3 +87,44 @@ export const getWithdrawListAPI = () => http<any[]>({ method: 'GET', url: '/memb
 /** 仅查询当前登录会员自己的模拟分配结果 */
 export const getMyDividendSnapshotAPI = (statDate: number) =>
   http<any[]>({ method: 'GET', url: '/member/dividend/mySnapshot', params: { statDate } })
+
+// ===== 以下为「模拟业务动作」接口：全部真实调用后端、真实入库，仅资金来源为模拟，不涉及真实资金 =====
+
+/** 创建合伙人入驻订单（模拟下单） */
+export const createPartnerOrderAPI = (data: { bizId: string }) =>
+  http<any>({ method: 'POST', url: '/member/partner/order', data })
+/** 合伙人订单模拟支付 -> 身份升级为合伙人 + 双积分赠送（模拟支付、真实改数据） */
+export const payPartnerAPI = (data: { bizId: string }) =>
+  http<any>({ method: 'POST', url: '/member/partner/pay', data })
+
+/** 创建联创入驻订单（模拟下单） */
+export const createCofounderOrderAPI = (data: { bizId: string }) =>
+  http<any>({ method: 'POST', url: '/member/cofounder/order', data })
+/** 联创订单模拟支付 -> 身份升级为联创 + 积分配送（模拟支付、真实改数据） */
+export const payCofounderAPI = (data: { bizId: string }) =>
+  http<any>({ method: 'POST', url: '/member/cofounder/pay', data })
+
+/** 收益流水（模拟） */
+export const getEarningsLedgerAPIAlready = undefined
+/** 模拟发放收益到收益账户（后台真实入库；幂等键防重复） */
+export const simulateRewardAPI = (data: {
+  amount: string
+  bizId?: string
+  idempotencyKey: string
+  remark?: string
+}) => http<any>({ method: 'POST', url: '/member/earnings/simulateReward', data })
+
+/** 记录贡献事件（可核验真实业务行为，幂等） */
+export const recordContributionAPI = (data: {
+  eventType: 'order_complete' | 'order_refund' | 'order_cancel'
+  bizId: string
+  contributionValue: string
+  statDate: number
+}) => http<any>({ method: 'POST', url: '/member/dividend/contribution', data })
+
+/** 模拟每日分红分配（ratio = 个人贡献/当日总贡献，幂等可复算） */
+export const allocateDividendAPI = (data: {
+  statDate: number
+  poolTotal?: string
+  calcBatch: string
+}) => http<any>({ method: 'POST', url: '/member/dividend/allocate', data })
