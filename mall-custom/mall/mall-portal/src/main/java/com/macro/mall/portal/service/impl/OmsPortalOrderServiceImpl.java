@@ -57,6 +57,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     private SmsCouponHistoryMapper couponHistoryMapper;
     @Autowired
     private RedisService redisService;
+    @Autowired
+    private PointsWalletService pointsWalletService;
     @Value("${redis.key.orderId}")
     private String REDIS_KEY_ORDER_ID;
     @Value("${redis.database}")
@@ -201,6 +203,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 }
             }
         }
+        //计算order_item的实付金额前：处理复购区30%复购积分+70%现金
+        handleRepurchasePoints(orderParam, orderItemList, currentMember);
         //计算order_item的实付金额
         handleRealAmount(orderItemList);
         //进行库存锁定
@@ -695,6 +699,53 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             return zeroAmount;
         }
         return integrationAmount;
+    }
+
+    /**
+     * 复购区30%复购积分+70%现金：仅当订单商品全部来自复购区(REBUY)且传入 useRepurchasePoints>0 时生效。
+     * 1复购积分=1元，最高抵扣订单金额的30%。积分通过 PointsWalletService 实时扣减。
+     */
+    private void handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember) {
+        Long usePoints = orderParam.getUseRepurchasePoints();
+        if (usePoints == null || usePoints <= 0) return;
+        // 校验订单商品是否全部来自复购区
+        for (OmsOrderItem item : orderItemList) {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM pms_product_zone WHERE zone_code='REBUY' AND product_id=?",
+                    Integer.class, item.getProductId());
+            if (count == null || count == 0) {
+                Asserts.fail("复购积分仅可用于复购区商品");
+            }
+        }
+        BigDecimal totalAmount = calcTotalAmount(orderItemList);
+        // 最高抵扣30%
+        BigDecimal maxDeduct = totalAmount.multiply(new BigDecimal("0.30")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal deductAmount = new BigDecimal(usePoints).setScale(2, RoundingMode.HALF_UP);
+        if (deductAmount.compareTo(maxDeduct) > 0) {
+            Asserts.fail("复购积分最多抵扣订单金额的30%");
+        }
+        // 校验余额并扣减（幂等键与订单绑定）
+        com.macro.mall.portal.domain.UmsPointsAccount account =
+                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_REPURCHASE);
+        long balance = account == null || account.getBalance() == null ? 0 : account.getBalance();
+        if (balance < usePoints) {
+            Asserts.fail("复购积分余额不足");
+        }
+        // 按商品金额比例分摊抵扣
+        for (OmsOrderItem orderItem : orderItemList) {
+            BigDecimal perAmount = orderItem.getProductPrice().divide(totalAmount, 3, RoundingMode.HALF_EVEN)
+                    .multiply(deductAmount);
+            // 复用 promotionAmount 字段记录复购积分抵扣（前端展示为优惠）
+            orderItem.setPromotionAmount(orderItem.getPromotionAmount().add(perAmount));
+        }
+        // 实际扣减积分（下单成功后执行，失败则整个事务回滚）
+        String idempotencyKey = "order:repurchase:" + currentMember.getId() + ":" + System.currentTimeMillis();
+        com.macro.mall.common.api.CommonResult<Void> result = pointsWalletService.changePoints(
+                currentMember.getId(), PointsWalletService.TYPE_REPURCHASE, "consume", -usePoints,
+                "order", idempotencyKey, null, "复购区订单抵扣");
+        if (result.getCode() != 200) {
+            Asserts.fail("复购积分扣减失败: " + result.getMessage());
+        }
     }
 
     /**

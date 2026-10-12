@@ -19,6 +19,8 @@ public class OrderParam {
     private Long couponId;
     @Schema(title = "使用的积分数")
     private Integer useIntegration;
+    @Schema(title = "使用的复购积分数（仅复购区商品，最高抵扣30%）")
+    private Long useRepurchasePoints;
     @Schema(title = "支付方式")
     private Integer payType;
     @Schema(title = "被选中的购物车商品ID")
