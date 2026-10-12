@@ -66,7 +66,7 @@ onMounted(refresh)
 
 <style scoped>
 .dashboard { background: #f7f3eb; }
-.heading { padding: 28px 32px; min-height: 170px; border-radius: 22px; background: #f6e8c6 url('../../assets/images/travel-landscape.svg') right center/cover; box-shadow: 0 10px 30px #7b725313; }
+.heading { padding: 28px 32px; min-height: 170px; border-radius: 22px; background: linear-gradient(90deg,#254236dc,#25423620),url('../../assets/images/travel-photo/coastal-retreat.jpg') center 55%/cover; box-shadow: 0 10px 30px #7b725313; }
 .heading h1 { font-size: 32px; letter-spacing: 2px; }
 .heading-note { display: block; margin-top: 12px; color: #697863; font-size: 14px; }
 .metric { border-top: 3px solid #d3b275; }
@@ -75,3 +75,5 @@ onMounted(refresh)
 .trend { margin-top: 26px; }
 @media(max-width:600px) { .heading { padding: 22px; } .heading h1 { font-size: 27px; } }
 </style>
+
+<style scoped>.heading p,.heading h1,.heading-note{color:#fff}.heading p{letter-spacing:2px;color:#ece1bd}.heading-note{color:#e2e9dc}.heading{min-height:190px}.metric{box-shadow:0 5px 20px #66553708!important}</style>

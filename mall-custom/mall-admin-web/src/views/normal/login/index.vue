@@ -124,19 +124,19 @@ const handleLogin = () => {
   justify-content: center;
   gap: 7vw;
   padding: 40px;
-  background: #f6ead0 url('../../../assets/images/travel-landscape.svg') center / cover;
+  background: linear-gradient(90deg,#102b38b8,#18374120), url('../../../assets/images/travel-photo/alpine-lake.jpg') center / cover;
   box-sizing: border-box;
 }
-.login-intro { max-width: 440px; color: #23533b; }
+.login-intro { max-width: 440px; color: #fff; text-shadow: 0 2px 18px #112c3870; }
 .login-eyebrow { font-size: 14px; letter-spacing: 3px; font-weight: 700; }
 .login-intro h1 { font-size: 48px; line-height: 1.22; margin: 22px 0; }
-.login-intro p { color: #66776b; font-size: 17px; }
+.login-intro p { color: #e7ebdf; font-size: 17px; }
 .login-form-layout {
   width: 390px;
-  border: 1px solid #dfebe0;
-  border-radius: 14px;
-  border-top: 6px solid #285b40;
-  box-shadow: 0 20px 50px #2547341c;
+  border: 1px solid #fff9e2;
+  border-radius: 22px;
+  border-top: 4px solid #baa16c; background: #fffffff2;
+  box-shadow: 0 24px 70px #102b3859;
 }
 
 .login-title {

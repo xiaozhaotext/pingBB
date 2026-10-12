@@ -1,0 +1,12 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+BACKUP=/opt/mall-demo/backups/photo-20261012-134249
+active
+active
+active
+13709532bf58f149affae8b8251ca0699ed2c44c3d8efe4b1ed5332d41afd60e  /opt/mall-demo/storefront/index.html
+58516ce25daf00b1686c82f050eca30ecb3ee2dba06ffe0f1abef732e02511f4  /opt/mall-demo/admin/index.html
+4cb5d88c1d84890595120a17d28b67895f1d834df07b79de05aea83dea3e4f0a  /opt/mall-demo/storefront/static/travel-photo/alpine-lake.jpg
+bc535ff6f5824b4eb89242bf38b01342b51a63b9d751e472a5442b0179d5e949  /opt/mall-demo/storefront/static/travel-photo/coastal-retreat.jpg
+e67f02cec336d802b281ec9403fc4e89866c1df13bf96941c94e46dae4b667cf  /opt/mall-demo/storefront/static/travel-photo/ocean-terrace.jpg
+e33b47b6a6cb24367117d19e06370819afae23aa8e3d6b551bccc694cee55840  /opt/mall-demo/storefront/static/travel-photo/slow-morning.jpg

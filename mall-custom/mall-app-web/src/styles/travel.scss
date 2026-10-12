@@ -18,7 +18,7 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .user-info-box .username { color: #304d40; font-weight: 700; }
 .travel-brand { font-size: 36rpx; font-weight: 700; color: #36584b; display: block; }
 .travel-search { margin-top: 22rpx; padding: 20rpx 28rpx; background: #fffdf5; border-radius: 48rpx; color: #8b8b77; font-size: 26rpx; }
-.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: #f9dfa0 url('/static/travel-landscape.svg') center/cover; }
+.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: linear-gradient(90deg,#142b36a0,#142b3620), url('/static/travel-photo/alpine-lake.jpg') center/cover; }
 .travel-hero-title { display: block; color: #2d5041; font-size: 46rpx; font-weight: 700; }
 .travel-hero-sub { display: block; color: #586d58; font-size: 25rpx; margin-top: 14rpx; }
 .travel-entry-grid { margin: 22rpx 24rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
@@ -36,12 +36,12 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .tj-sction, .order-section, .history-section { border-radius: 24rpx !important; background: #fffdf8 !important; }
 .order-section .yticon { color: #b78235 !important; }
 .uni-tabbar { border-top: 1px solid #e7dcc7 !important; background: #fffdf8 !important; }
-.zone-head { background: #f5e5b9 url('/static/travel-landscape.svg') right center/cover !important; }
+.zone-head { background: linear-gradient(90deg,#203c36c9,#203c3625), url('/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
 .zone-card { border-radius: 18px !important; box-shadow: 0 7px 22px #806f4b0a; }
 @media(min-width:900px) {
   body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #f7f3eb !important; }
   .desktop-topline { background: #365d50 !important; }
-  .desktop-hero { height: 370px !important; background: #f9dfa0 url('/static/travel-landscape.svg') right center/cover !important; border-radius: 24px !important; }
+  .desktop-hero { height: 370px !important; background: linear-gradient(90deg,#142b36aa,#142b3615), url('/static/travel-photo/alpine-lake.jpg') center/cover !important; border-radius: 24px !important; }
   .desktop-hero-copy { width: 68% !important; background: linear-gradient(90deg,#fff5dded,transparent); }
   .desktop-hero-media { display:none; }
   .desktop-hero-title { font-weight: 700 !important; }
@@ -52,3 +52,17 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .travel-hero-title { max-width: none; font-size: 42rpx; }
 body:has(.travel-intro) .uni-page-head { display: none !important; }
 .mobile-home .price { color: #a57932 !important; font-weight: 600; }
+
+/* 真实旅行摄影，覆盖原插画主题。 */
+page,body,.zone-page{background:#f5f2eb;color:#263b34}
+.zone-head .zone-title,.zone-head .zone-description,.zone-head .zone-kicker,.zone-head .zone-actions{color:#fff!important}
+.zone-head{min-height:190px;box-shadow:0 10px 30px #263a3020}
+.zone-title{font-family:"Songti SC","Noto Serif SC",serif;letter-spacing:3px}
+.user-section{background:#284a43;height:auto!important;padding-bottom:30rpx!important}
+.cover-container{margin-top:0!important;padding-top:24rpx!important}
+.cover-container .arc{display:none}
+.vip-card-box{height:auto!important;min-height:190rpx}
+.user-section .bg{filter:brightness(.72)}
+.user-info-box .username{color:#fff!important;text-shadow:0 2px 10px #102a36aa}
+.vip-card-box{background:linear-gradient(115deg,#233e34ed,#4b6553ef)!important;border:1px solid #e8d6a160;box-shadow:0 10px 25px #102a362b}
+.tj-sction,.order-section,.history-section{box-shadow:0 5px 20px #6b5c3f08;border:1px solid #ebe5d9}
