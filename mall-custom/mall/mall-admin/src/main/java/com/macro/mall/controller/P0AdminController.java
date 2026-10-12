@@ -320,6 +320,27 @@ public class P0AdminController {
         return CommonResult.success(data);
     }
 
+    @GetMapping("/notices")
+    public CommonResult<List<Map<String, Object>>> notices(Principal principal) {
+        access.requireAuthorized(principal);
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT id,title,type,status,publish_time,create_time FROM sys_notice ORDER BY id DESC LIMIT 100"));
+    }
+
+    @PostMapping("/notices")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> publishNotice(Principal principal, @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        String title = requiredText(body, "title", 1, 128);
+        String content = requiredText(body, "content", 1, 10000);
+        String type = body.get("type") == null ? "SYSTEM" : String.valueOf(body.get("type"));
+        jdbc.update("INSERT INTO sys_notice(title,content,type,status,publish_time)"
+                        + " VALUES(?,?,?,1,CURRENT_TIMESTAMP)",
+                title, content, type);
+        audit(operatorId, principal.getName(), "notice", "publish", null, "发布通知: " + title);
+        return CommonResult.success(null);
+    }
+
     @GetMapping("/settings")
     public CommonResult<Map<String, Object>> settings(Principal principal) {
         access.requireAuthorized(principal);
