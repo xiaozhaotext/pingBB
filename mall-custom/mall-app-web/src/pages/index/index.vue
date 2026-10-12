@@ -1,9 +1,9 @@
 <template>
   <view class="container zone-home">
-    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uni.switchTab({url:'/pages/index/index'})">优选商城</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uni.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
+    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uni.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uni.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
     <view class="zone-home-width">
       <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
-      <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">优选商城 · 品质好物，悦享生活</text></view>
+      <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">智美游 · 品质好物，悦享生活</text></view>
       <view class="home-zones">
         <view class="home-zone brand-zone" @click="uni.navigateTo({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">品牌区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
         <view class="home-zone rebuy-zone" @click="uni.navigateTo({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>

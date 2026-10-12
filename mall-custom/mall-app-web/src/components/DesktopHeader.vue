@@ -2,7 +2,7 @@
   <!-- #ifdef H5 -->
   <view class="desktop-site-header">
     <view class="desktop-header-inner">
-      <text class="desktop-brand" @click="goTab('/pages/index/index')">优选<span>商城</span></text>
+      <text class="desktop-brand" @click="goTab('/pages/index/index')">智美<span>游</span></text>
       <view class="desktop-links">
         <text @click="goTab('/pages/index/index')">首页</text>
         <text @click="goPage('/pages/zone/pick')">品牌区</text>

@@ -9,7 +9,7 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "优选商城",
+        "navigationBarTitleText": "智美游",
         "navigationStyle": "custom",
         "enablePullDownRefresh": true,
         "app-plus": {
@@ -327,7 +327,7 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "优选商城",
+    "navigationBarTitleText": "智美游",
     "navigationBarBackgroundColor": "#FFFFFF",
     "backgroundColor": "#f8f8f8"
   },
