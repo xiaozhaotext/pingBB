@@ -15,21 +15,21 @@ class MembershipReferralRewardTest {
     @Test
     void cofounderRewardCappedAt200() {
         assertEquals(new BigDecimal("200.00"),
-                MembershipVerifiedPaymentHandler.calculateReferralCash(
+                MembershipReferralRewardService.calculateCash(
                         new BigDecimal("10000.00"), new BigDecimal("0.10"), new BigDecimal("200.00")));
     }
 
     @Test
     void partnerRewardHasNoCap() {
         assertEquals(new BigDecimal("399.90"),
-                MembershipVerifiedPaymentHandler.calculateReferralCash(
+                MembershipReferralRewardService.calculateCash(
                         new BigDecimal("3999.00"), new BigDecimal("0.10"), null));
     }
 
     @Test
     void rewardBelowCapKeepsFullAmount() {
         assertEquals(new BigDecimal("100.00"),
-                MembershipVerifiedPaymentHandler.calculateReferralCash(
+                MembershipReferralRewardService.calculateCash(
                         new BigDecimal("1000.00"), new BigDecimal("0.10"), new BigDecimal("200.00")));
     }
 }

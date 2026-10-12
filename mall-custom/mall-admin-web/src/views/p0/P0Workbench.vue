@@ -12,7 +12,7 @@ const sections: Record<SectionKey, { title: string; path: string; note: string }
   p0Points: { title: '双积分管理', path: 'points', note: '调整先申请后审核，余额和流水在同一数据库事务中更新。' },
   p0Finance: { title: '财务中心', path: 'finance', note: '提现审核仅改变模拟状态；审核通过不触发打款。' },
   p0Dividend: { title: '每日贡献奖励池', path: 'dividend', note: '展示数据库中的贡献、模拟快照和异常；自动核验与实际分红未启用。' },
-  p0Settings: { title: '系统配置与日志', path: 'settings', note: '仅站点标题和公告可改，资金及会员规则保持锁定。' },
+  p0Settings: { title: '系统配置与日志', path: 'settings', note: '平台管理员可调整会员购买与直推奖励参数，保存前后值均写入审计。' },
 }
 const route = useRoute()
 const sectionKey = computed(() => (typeof route.name === 'string' && route.name in sections ? route.name : 'p0Members') as SectionKey)
@@ -27,6 +27,20 @@ const identityType = ref(0)
 const identityReason = ref('')
 const pointsForm = ref({ memberId: 0, pointsType: 1, delta: 0, reason: '', idempotencyKey: '' })
 const settingForm = ref({ key: 'site.title', value: '' })
+const settingOptions = [
+  { key: 'site.title', label: '站点标题' }, { key: 'site.notice', label: '站点公告' },
+  { key: 'membership.partner.price', label: '合伙人价格（元）' },
+  { key: 'membership.partner.product_points', label: '合伙人赠送产品积分' },
+  { key: 'membership.partner.repurchase_points', label: '合伙人赠送复购积分' },
+  { key: 'membership.cofounder.price', label: '联创价格（元）' },
+  { key: 'membership.cofounder.product_points', label: '联创赠送产品积分' },
+  { key: 'membership.cofounder.repurchase_points', label: '联创赠送复购积分' },
+  { key: 'membership.referral.cash_rate', label: '直推现金奖励比例（0–1）' },
+  { key: 'membership.referral.partner.cash_cap', label: '合伙人直推现金封顶（空为不封顶）' },
+  { key: 'membership.referral.cofounder.cash_cap', label: '联创直推现金封顶（元）' },
+  { key: 'membership.referral.partner.repurchase_points', label: '合伙人直推复购积分' },
+  { key: 'membership.referral.cofounder.repurchase_points', label: '联创直推复购积分' },
+]
 const labels: Record<string, string> = {
   id: '编号', member_id: '会员编号', username: '账号', nickname: '昵称', phone: '手机', status: '状态',
   identity_type: '身份', inviter_id: '推荐人', points_type: '积分类型', balance: '余额', available: '可用',
@@ -44,11 +58,16 @@ async function load() {
     const response = await getP0(section.value.path, params)
     const value = response.data
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
+    if (sectionKey.value === 'p0Settings') selectSetting(settingForm.value.key)
   } catch {
     data.value = {}
   } finally {
     loading.value = false
   }
+}
+function selectSetting(key: string) {
+  const current = rows(data.value.configs).find(row => row.config_key === key)
+  settingForm.value.value = current?.config_value == null ? '' : String(current.config_value)
 }
 watch(sectionKey, load, { immediate: true })
 
@@ -114,9 +133,9 @@ async function completeSimulatedWithdraw(id: number) {
   await load()
 }
 async function updateSetting() {
-  if (!settingForm.value.value.trim()) return ElMessage.warning('请输入设置内容')
+  if (!settingForm.value.value.trim() && settingForm.value.key !== 'membership.referral.partner.cash_cap') return ElMessage.warning('请输入设置内容')
   await postP0('settings', settingForm.value)
-  ElMessage.success('站点设置已保存')
+  ElMessage.success('配置已保存并记录审计')
   await load()
 }
 const groupTitles: Record<string, string> = {
@@ -133,7 +152,7 @@ const groupTitles: Record<string, string> = {
       <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ section.title }}</h1><p>{{ section.note }}</p></div>
       <el-button @click="load">刷新真实数据</el-button>
     </div>
-    <el-alert title="当前为演示环境：权益购买、收益、提现和贡献分配都不涉及真实资金。" type="warning" show-icon :closable="false" />
+    <el-alert title="会员真实支付默认关闭；直推规则必须先配置。提现和分红仍为模拟，尚未真实打款。" type="warning" show-icon :closable="false" />
 
     <el-card v-if="sectionKey === 'p0Members'" class="action-card" shadow="never">
       <el-input v-model="memberKeyword" placeholder="按账号、昵称或手机号查找会员" clearable @keyup.enter="load" />
@@ -148,9 +167,9 @@ const groupTitles: Record<string, string> = {
       <el-button type="primary" @click="requestAdjustment">提交待审核</el-button>
     </el-card>
     <el-card v-if="sectionKey === 'p0Settings'" class="action-card" shadow="never">
-      <strong>修改基础展示设置</strong>
-      <el-select v-model="settingForm.key" style="width:140px"><el-option label="站点标题" value="site.title" /><el-option label="站点公告" value="site.notice" /></el-select>
-      <el-input v-model="settingForm.value" placeholder="新的展示内容" />
+      <strong>平台参数</strong>
+      <el-select v-model="settingForm.key" style="width:290px" @change="selectSetting"><el-option v-for="option in settingOptions" :key="option.key" :label="option.label" :value="option.key" /></el-select>
+      <el-input v-model="settingForm.value" placeholder="配置值；积分填非负整数" />
       <el-button type="primary" @click="updateSetting">保存</el-button>
     </el-card>
 

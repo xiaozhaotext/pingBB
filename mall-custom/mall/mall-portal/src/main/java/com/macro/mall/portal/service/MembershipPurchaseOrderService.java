@@ -20,12 +20,15 @@ public class MembershipPurchaseOrderService {
     private final JdbcTemplate jdbc;
     private final MemberIdentityService identityService;
     private final MembershipPaymentGateway gateway;
+    private final MembershipReferralRewardService referralRewards;
 
     public MembershipPurchaseOrderService(JdbcTemplate jdbc, MemberIdentityService identityService,
-                                          MembershipPaymentGateway gateway) {
+                                          MembershipPaymentGateway gateway,
+                                          MembershipReferralRewardService referralRewards) {
         this.jdbc = jdbc;
         this.identityService = identityService;
         this.gateway = gateway;
+        this.referralRewards = referralRewards;
     }
 
     public Map<String, Object> create(Long authenticatedMemberId, MembershipPurchaseRequest request, String clientIp) {
@@ -48,13 +51,21 @@ public class MembershipPurchaseOrderService {
             if (price.signum() <= 0 || price.scale() > 2) {
                 throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
             }
+            MembershipReferralRewardService.Snapshot reward =
+                    referralRewards.snapshotFor(authenticatedMemberId, request.level());
             String merchantNo = "MP" + UUID.randomUUID().toString().replace("-", "");
             try {
                 jdbc.update("INSERT INTO membership_purchase_order"
-                                + "(merchant_order_no,request_id,member_id,level,amount,product_points,repurchase_points,pay_channel,pay_mode,status)"
-                                + " VALUES(?,?,?,?,?,?,?,?,?,'PENDING')",
+                                + "(merchant_order_no,request_id,member_id,level,amount,product_points,repurchase_points,"
+                                + "pay_channel,pay_mode,referrer_member_id,referral_cash_rate,referral_cash_cap,"
+                                + "referral_repurchase_points,status)"
+                                + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING')",
                         merchantNo, request.requestId(), authenticatedMemberId, request.level(), price,
-                        productPoints, repurchasePoints, request.payChannel(), request.payMode());
+                        productPoints, repurchasePoints, request.payChannel(), request.payMode(),
+                        reward == null ? null : reward.referrerMemberId(),
+                        reward == null ? null : reward.cashRate(),
+                        reward == null ? null : reward.cashCap(),
+                        reward == null ? null : reward.repurchasePoints());
             } catch (DuplicateKeyException ignored) {
                 // A concurrent retry won the unique (member_id,request_id) race.
             }

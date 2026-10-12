@@ -6,7 +6,7 @@
 
 ## P0-1a 真实会员购买数据库迁移
 
-现有商城库已包含 `ums_member` 后，单独执行 `12_membership_real_payment.sql`。此脚本只新增表、扩充现有 `sys_audit_log` 字段、插入缺失的 `sys_config` 键，不运行本目录的 01–09 旧脚本。`12_membership_real_payment_DRAFT.sql` 仅为历史设计草案，不能与正式脚本混用。
+现有商城库已包含 `ums_member` 后，单独执行 `12_membership_real_payment.sql`。此脚本只新增表、扩充现有 `sys_audit_log` 字段、插入缺失的 `sys_config` 键，不运行本目录的 01–09 旧脚本。旧版 DRAFT 草案已移除，勿使用本地旧副本。
 
 ```bash
 mysql --default-character-set=utf8mb4 -u<user> -p <database> < 12_membership_real_payment.sql
@@ -16,7 +16,17 @@ mysql --default-character-set=utf8mb4 -u<user> -p <database> < 12_membership_rea
 
 新规则键位于 `sys_config` 的 `membership.*` 命名空间；`INSERT IGNORE` 保留管理员已有配置。`membership.purchase.enabled` 初始为 `0`。直推复购积分数量尚未得到业务确认，两个配置值留空；支付与发奖代码必须在配置完整且真实通道验签通过后才允许启用。本次不建立或启用每日分红规则。
 
-当前代码包含微信/支付宝下单与验签回调框架，以及购买成功后的事务入账逻辑；均保持默认关闭。尚未取得商户资料做真实回调联调，事务链路也未完成数据库集成测试。直推奖励、分红、前端正式入口与服务器部署不在本次提交的已验收范围内，请勿直接开启支付开关用于生产。
+最初的 P0-1b/c 提交包含微信/支付宝下单与验签回调框架，以及购买成功后的事务入账逻辑；均保持默认关闭。其后的数据库集成验证和直推奖励见下节。商户资料仍未取得，请勿直接开启支付开关用于生产。
+
+## P0-1c/e 后续增量
+
+在 12 号脚本之后执行 `13_membership_referral_snapshot.sql`，为每笔待支付订单保存下单时的直属推荐人、现金比例、封顶和复购积分数量。脚本只增加字段；在隔离 MySQL 8 中首次执行和重复执行均已验证。旧订单不会被推断补填奖励。
+
+`membership.referral.partner.repurchase_points` 与 `membership.referral.cofounder.repurchase_points` 初始为空。平台管理员需在后台“系统配置与日志”中明确填入非负整数（0 表示不赠送该积分项）；有直属推荐人的会员在规则未配齐前无法发起新的真实支付。支付成功后，直推现金进入独立的 `member_cash_account`，非零复购积分写入现有积分钱包；两类账户、各自流水、奖励记录与订单、身份在同一事务提交。联创现金封顶初始为 200 元，管理员可调整。
+
+隔离 MySQL 集成测试：设置 `MALL_MEMBERSHIP_TEST_JDBC_URL` 为本机测试库连接，库内先有 `ums_member`、`ums_member_identity`、`ums_member_identity_log`、`ums_points_account`、`ums_points_ledger`、`ums_member_recommend`，并执行 12、13 号脚本，再运行 `MembershipVerifiedPaymentHandlerMysqlTest`。测试涵盖重复回调、后段失败整体回滚及联创直推封顶入账。不得将该测试连接到线上库。
+
+商户资料和公网回调域名仍未到位，微信/支付宝真实验签、生产部署和提现打款未验收。支付总开关继续保持关闭，分红保持关闭，前端四个“模拟”标题继续保留。
 
 ## 应用顺序（必须按编号执行）
 

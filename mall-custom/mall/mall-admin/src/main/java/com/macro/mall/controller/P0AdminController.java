@@ -322,14 +322,56 @@ public class P0AdminController {
     public CommonResult<Void> updateSetting(Principal principal, @RequestBody Map<String, Object> body) {
         long operatorId = access.requireAuthorized(principal);
         String key = requiredText(body, "key", 5, 64);
-        String value = requiredText(body, "value", 1, 512);
-        if (!"site.title".equals(key) && !"site.notice".equals(key)) {
-            return CommonResult.failed("仅开放站点标题和公告设置；资金及会员规则不可修改");
-        }
+        String value = body.get("value") == null ? "" : String.valueOf(body.get("value")).trim();
+        if (value.length() > 512) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "value 过长");
+        validateEditableSetting(key, value);
+        List<String> old = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? FOR UPDATE",
+                (rs, n) -> rs.getString(1), key);
         jdbc.update("INSERT INTO sys_config(config_key,config_value,config_group,remark) " +
-                "VALUES(?,?,'site','平台基础展示设置') ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)", key, value);
-        audit(operatorId, principal.getName(), "settings", "update", null, key);
+                "VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)",
+                key, value.isEmpty() ? null : value,
+                key.startsWith("membership.") ? "membership" : "site", "平台管理员配置");
+        jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,detail,"
+                        + "`operator`,target_type,old_value,new_value) VALUES(?,?, 'settings','update',?,?,?,?,?)",
+                operatorId, principal.getName(), key, principal.getName(), "sys_config:" + key,
+                old.isEmpty() ? null : old.get(0), value.isEmpty() ? null : value);
         return CommonResult.success(null);
+    }
+
+    private void validateEditableSetting(String key, String value) {
+        if ("site.title".equals(key) || "site.notice".equals(key)) {
+            if (value.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "设置内容不能为空");
+            return;
+        }
+        boolean priceOrCap = key.equals("membership.partner.price")
+                || key.equals("membership.cofounder.price")
+                || key.equals("membership.referral.partner.cash_cap")
+                || key.equals("membership.referral.cofounder.cash_cap");
+        boolean points = key.equals("membership.partner.product_points")
+                || key.equals("membership.partner.repurchase_points")
+                || key.equals("membership.cofounder.product_points")
+                || key.equals("membership.cofounder.repurchase_points")
+                || key.equals("membership.referral.partner.repurchase_points")
+                || key.equals("membership.referral.cofounder.repurchase_points");
+        if (priceOrCap) {
+            if (value.isEmpty() && key.equals("membership.referral.partner.cash_cap")) return;
+            try {
+                BigDecimal amount = new BigDecimal(value);
+                if (amount.signum() > 0 && amount.scale() <= 2
+                        && amount.compareTo(new BigDecimal("9999999999.99")) <= 0) return;
+            } catch (NumberFormatException ignored) { }
+        } else if (points) {
+            try { if (Long.parseLong(value) >= 0) return; }
+            catch (NumberFormatException ignored) { }
+        } else if (key.equals("membership.referral.cash_rate")) {
+            try {
+                BigDecimal rate = new BigDecimal(value);
+                if (rate.signum() > 0 && rate.compareTo(BigDecimal.ONE) <= 0 && rate.scale() <= 6) return;
+            } catch (NumberFormatException ignored) { }
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "此配置项不可修改");
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "配置值无效");
     }
 
     private void audit(long operatorId, String name, String module, String action, Long targetId, String detail) {
