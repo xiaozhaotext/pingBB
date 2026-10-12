@@ -40,6 +40,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      // 商品图片统一走 /oss 相对路径，本地开发时反代到阿里云 OSS，
+      // 并去掉 Referer 以绕过 OSS 防盗链（否则浏览器直接访问会 403）。
+      '/oss': {
+        target: 'http://macro-oss.oss-cn-shenzhen.aliyuncs.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/oss/, ''),
+        headers: { Referer: '' },
+      },
+    },
+  },
   css: {
     preprocessorOptions: {
       scss: {
