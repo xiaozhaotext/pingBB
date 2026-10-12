@@ -4,7 +4,7 @@
     <view class="zone-wrap">
       <view class="zone-head">
         <view><text class="zone-kicker">优选商城 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
-        <view class="zone-actions"><text @click="uni.navigateTo({ url: '/pages/cart/cart' })">购物车</text><text @click="uni.navigateTo({ url: '/pages/order/order?state=-1' })">我的订单</text></view>
+        <view class="zone-actions"><text @click="uni.switchTab({url:'/pages/cart/cart'})">购物车</text><text @click="uni.navigateTo({ url: '/pages/order/order?state=-1' })">我的订单</text></view>
       </view>
       <view class="zone-tip">本地测试环境：专区仅展示已分配商品。积分与现金组合规则尚未确认，当前不提供专区积分结算。</view>
       <view class="zone-filters">

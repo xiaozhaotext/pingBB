@@ -66,3 +66,6 @@ page,body,.zone-page{background:#f5f2eb;color:#263b34}
 .user-info-box .username{color:#fff!important;text-shadow:0 2px 10px #102a36aa}
 .vip-card-box{background:linear-gradient(115deg,#233e34ed,#4b6553ef)!important;border:1px solid #e8d6a160;box-shadow:0 10px 25px #102a362b}
 .tj-sction,.order-section,.history-section{box-shadow:0 5px 20px #6b5c3f08;border:1px solid #ebe5d9}
+
+/* 海岸与森林色系：覆盖早期金黄色主题。 */
+page,body,.zone-page{background:#f2f6f5!important;color:#284b51}.cover-container{background:#f2f6f5!important}.uni-tabbar{background:#fff!important;border-color:#dce8e5!important}.uni-tabbar .uni-tabbar__item img{filter:grayscale(1)}.uni-tabbar .uni-tabbar__item.uni-tabbar__item--active img{filter:grayscale(1) sepia(.7) hue-rotate(125deg) saturate(2)}.order-section .yticon{color:#278786!important}.desktop-topline{background:#286f67!important}.reserved{background:#edf4f1!important}.reserved-tag{color:#347e75!important}.zone-card{border-color:#dce8e1!important}

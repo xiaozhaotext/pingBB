@@ -25,7 +25,7 @@
             "buttons": [
               {
                 "fontSrc": "/static/yticon.ttf",
-                "text": "\ue60d",
+                "text": "",
                 "fontSize": "26",
                 "color": "#ffffff",
                 "float": "left",
@@ -33,7 +33,7 @@
               },
               {
                 "fontSrc": "/static/yticon.ttf",
-                "text": "\ue744",
+                "text": "",
                 "fontSize": "27",
                 "color": "#ffffff",
                 "background": "rgba(0,0,0,0)",
@@ -80,7 +80,7 @@
             "buttons": [
               {
                 "fontSrc": "/static/yticon.ttf",
-                "text": "\ue60f",
+                "text": "",
                 "fontSize": "24",
                 "color": "#ffffff",
                 "width": "46px",
@@ -88,7 +88,7 @@
               },
               {
                 "fontSrc": "/static/yticon.ttf",
-                "text": "\ue744",
+                "text": "",
                 "fontSize": "28",
                 "color": "#ffffff",
                 "background": "rgba(0,0,0,0)",
@@ -314,7 +314,9 @@
     },
     {
       "path": "pages/zone/consume",
-      "style": {"navigationBarTitleText": "消费区"}
+      "style": {
+        "navigationBarTitleText": "消费区"
+      }
     },
     {
       "path": "pages/member/dividend",
@@ -331,7 +333,7 @@
   },
   "tabBar": {
     "color": "#C0C4CC",
-    "selectedColor": "#285b40",
+    "selectedColor": "#167a80",
     "borderStyle": "black",
     "backgroundColor": "#ffffff",
     "list": [
@@ -342,16 +344,16 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/zone/pick",
+        "pagePath": "pages/category/category",
         "iconPath": "static/tab-cate.png",
         "selectedIconPath": "static/tab-cate-current.png",
-        "text": "品牌区"
+        "text": "分类"
       },
       {
-        "pagePath": "pages/zone/rebuy",
+        "pagePath": "pages/cart/cart",
         "iconPath": "static/tab-cart.png",
         "selectedIconPath": "static/tab-cart-current.png",
-        "text": "复购区"
+        "text": "购物车"
       },
       {
         "pagePath": "pages/user/user",
