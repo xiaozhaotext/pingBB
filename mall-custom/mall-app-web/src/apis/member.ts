@@ -67,11 +67,46 @@ export const getPointsAccountAPI = (pointsType: number) =>
 export const getPointsLedgerAPI = (pointsType?: number) =>
   http<any[]>({ method: 'GET', url: '/member/points/ledger', params: pointsType ? { pointsType } : {} })
 
-/** 获取合伙人权益方案（模拟） */
-export const getPartnerConfigAPI = () => http<any>({ method: 'GET', url: '/member/partner/config' })
+// ===================== 会员购买（真实支付链路） =====================
+// 后端：MembershipPaymentController
+//   POST /member/membership/orders         统一下单（价格/积分快照 + 支付网关下单）
+//   POST /member/membership/notify/alipay   支付宝异步回调（由支付平台调用，前端不调）
+//   POST /member/membership/notify/wechat   微信支付异步回调（由支付平台调用，前端不调）
+// 业务错误码：56001 参数不合法 / 56002 支付渠道未配置 / 56003 购买规则未启用 /
+//             56004 已拥有该身份 / 56005 请求号冲突 / 56008 支付渠道异常
 
-/** 获取联创权益方案（模拟） */
-export const getCofounderConfigAPI = () => http<any>({ method: 'GET', url: '/member/cofounder/config' })
+export type MembershipLevel = 'PARTNER' | 'COFOUNDER'
+export type MembershipPayMode = 'WECHAT_H5' | 'WECHAT_JSAPI' | 'ALIPAY_WAP'
+
+export interface MembershipPurchaseParams {
+  /** 必须与登录会员一致，后端会校验 */
+  memberId: number
+  level: MembershipLevel
+  payChannel: 'WECHAT' | 'ALIPAY'
+  payMode: MembershipPayMode
+  /** 幂等键：8-64 位字母数字 */
+  requestId: string
+  /** 微信 JSAPI 支付时必填 */
+  wechatOpenId?: string
+}
+
+export interface MembershipOrderData {
+  orderId: number
+  merchantOrderNo: string
+  amount: number | string
+  payChannel: string
+  payMode: string
+  /**
+   * 支付网关返回的支付参数：
+   * - 微信 H5：{ type: 'WECHAT_H5_URL', h5Url }
+   * - 支付宝 WAP：{ type: 'ALIPAY_FORM', formHtml }
+   */
+  payment: Record<string, string>
+}
+
+/** 创建会员购买订单（真实链路） */
+export const createMembershipOrderAPI = (data: MembershipPurchaseParams) =>
+  http<MembershipOrderData>({ method: 'POST', url: '/member/membership/orders', data })
 
 /** 查询收益账户（模拟） */
 export const getEarningsAccountAPI = () => http<any>({ method: 'GET', url: '/member/earnings/account' })
@@ -88,21 +123,7 @@ export const getWithdrawListAPI = () => http<any[]>({ method: 'GET', url: '/memb
 export const getMyDividendSnapshotAPI = (statDate: number) =>
   http<any[]>({ method: 'GET', url: '/member/dividend/mySnapshot', params: { statDate } })
 
-// ===== 以下为「模拟业务动作」接口：全部真实调用后端、真实入库，仅资金来源为模拟，不涉及真实资金 =====
-
-/** 创建合伙人入驻订单（模拟下单） */
-export const createPartnerOrderAPI = (data: { bizId: string }) =>
-  http<any>({ method: 'POST', url: '/member/partner/order', data })
-/** 合伙人订单模拟支付 -> 身份升级为合伙人 + 双积分赠送（模拟支付、真实改数据） */
-export const payPartnerAPI = (data: { bizId: string }) =>
-  http<any>({ method: 'POST', url: '/member/partner/pay', data })
-
-/** 创建联创入驻订单（模拟下单） */
-export const createCofounderOrderAPI = (data: { bizId: string }) =>
-  http<any>({ method: 'POST', url: '/member/cofounder/order', data })
-/** 联创订单模拟支付 -> 身份升级为联创 + 积分配送（模拟支付、真实改数据） */
-export const payCofounderAPI = (data: { bizId: string }) =>
-  http<any>({ method: 'POST', url: '/member/cofounder/pay', data })
+// ===== 以下旧模拟购买接口已下线，统一走上方真实链路 createMembershipOrderAPI =====
 
 /** 收益流水（模拟） */
 export const getEarningsLedgerAPIAlready = undefined

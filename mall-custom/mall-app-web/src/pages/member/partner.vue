@@ -1,81 +1,138 @@
 <template>
   <view class="app">
-    <view class="mock-banner">合伙人权益为模拟方案：下单与支付均为模拟，不会产生真实扣款，也不会自动发放真实奖励。身份升级与积分赠送为可核验的系统行为。</view>
-
-    <view class="card" v-if="config">
-      <text class="title">合伙人 3999 权益方案（模拟）</text>
-      <view class="row"><text>权益价格</text><text class="v">{{ config.price }} 元(模拟)</text></view>
-      <view class="row"><text>赠送商品积分</text><text class="v">{{ config.productPoints }}</text></view>
-      <view class="row"><text>赠送复购积分</text><text class="v">{{ config.repurchasePoints }}</text></view>
-      <view class="row"><text>直接分享奖励比例</text><text class="v">{{ (config.directShareRate * 100).toFixed(0) }}%（待确认）</text></view>
+    <view class="card">
+      <text class="title">合伙人权益</text>
+      <view class="row"><text>权益价格</text><text class="v">3999 元</text></view>
+      <view class="row"><text>赠送商品积分</text><text class="v">3999</text></view>
+      <view class="row"><text>赠送复购积分</text><text class="v">3999</text></view>
+      <view class="row"><text>直接分享奖励</text><text class="v">10% 现金奖励</text></view>
+      <view class="row"><text>每日分红</text><text class="v">1 份</text></view>
     </view>
 
     <view class="card">
-      <text class="title">模拟下单与支付（真实写入数据库）</text>
-      <view class="row"><text>业务单号 bizId</text><input class="input" v-model="bizId" placeholder="如 PARTNER-1001" /></view>
-      <view class="row"><text>订单状态</text><text class="v">{{ orderStatus || '未下单' }}</text></view>
-      <button class="btn-primary mt" @click="handleCreateOrder">1. 创建模拟入驻订单</button>
-      <button class="btn-primary mt" @click="handlePay">2. 模拟支付并完成身份升级</button>
-      <view v-if="payResult" class="result">{{ payResult }}</view>
+      <text class="title">选择支付方式</text>
+      <view class="pay-methods">
+        <view class="pay-item" :class="{ active: payChannel === 'WECHAT' }" @click="payChannel = 'WECHAT'">
+          <text>微信支付</text>
+        </view>
+        <view class="pay-item" :class="{ active: payChannel === 'ALIPAY' }" @click="payChannel = 'ALIPAY'">
+          <text>支付宝</text>
+        </view>
+      </view>
+      <button class="btn-primary mt" :disabled="submitting" @click="handleBuy">立即购买</button>
+      <view v-if="orderInfo" class="result">
+        下单成功：订单号 {{ orderInfo.merchantOrderNo }}，金额 {{ orderInfo.amount }} 元。{{ payHint }}
+      </view>
       <view v-if="actionError" class="result error">{{ actionError }}</view>
-      <view class="hint">说明：支付为模拟，不产生真实扣款；身份升级与积分赠送是真实、可核验的系统行为。</view>
+      <view class="hint">下单后将跳转到支付平台完成付款；支付结果以实际到账通知为准，身份与积分在支付成功后自动发放。</view>
     </view>
-    <view v-if="loadError" class="card error">{{ loadError }}</view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getPartnerConfigAPI, createPartnerOrderAPI, payPartnerAPI, getMyIdentityAPI } from '@/apis/member'
+import { ref } from 'vue'
+import { useMemberStore } from '@/stores/member'
+import { createMembershipOrderAPI, getMemberInfoAPI } from '@/apis/member'
 
-const config = ref<any>(null)
-const loadError = ref('')
-const bizId = ref('')
-const orderStatus = ref('')
-const payResult = ref('')
+const payChannel = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
+const submitting = ref(false)
+const orderInfo = ref<any>(null)
+const payHint = ref('')
 const actionError = ref('')
 
-const loadConfig = async () => {
-  try { const r = await getPartnerConfigAPI(); config.value = r.data; if (!r.data) loadError.value = '暂无已启用的权益方案。' }
-  catch (e) { loadError.value = '权益方案加载失败，请登录后重试。' }
+/** 生成幂等键：8-64 位字母数字 */
+const genRequestId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let s = 'MP'
+  for (let i = 0; i < 24; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
 }
 
-const handleCreateOrder = async () => {
-  actionError.value = ''; payResult.value = ''
-  if (!bizId.value) { actionError.value = '请先填写业务单号'; return }
+const resolveMemberId = async (): Promise<number | undefined> => {
+  const cached = useMemberStore().memberInfo?.id
+  if (cached) return cached
   try {
-    const r: any = await createPartnerOrderAPI({ bizId: bizId.value })
-    if (r && r.code && r.code !== 200) { actionError.value = '下单失败：' + (r.message || r.code); return }
-    if (r && r.code && r.code !== 200) { return }
-    const o = r.data || r
-    orderStatus.value = '已创建（orderId=' + (o.id ?? '-') + '，金额 ' + (o.amount ?? '-') + '）'
-  } catch (e: any) { actionError.value = '下单异常：' + (e?.message || e) }
+    const r = await getMemberInfoAPI()
+    return r.data?.id
+  } catch {
+    return undefined
+  }
 }
 
-const handlePay = async () => {
-  actionError.value = ''; payResult.value = ''
-  if (!bizId.value) { actionError.value = '请先填写业务单号并完成下单'; return }
+const handleBuy = async () => {
+  actionError.value = ''
+  orderInfo.value = null
+  payHint.value = ''
+  const memberId = await resolveMemberId()
+  if (!memberId) {
+    actionError.value = '请先登录后再购买。'
+    return
+  }
+  submitting.value = true
   try {
-    const r: any = await payPartnerAPI({ bizId: bizId.value })
-    if (r && r.code && r.code !== 200) { actionError.value = '模拟支付失败：' + (r.message || r.code); return }
-    const id: any = await getMyIdentityAPI()
-    payResult.value = '模拟支付成功。当前身份类型=' + (id.data ?? id) + '（0普通会员 / 1合伙人 / 2联创）；积分已入库。'
-    orderStatus.value = '已支付'
-  } catch (e: any) { actionError.value = '模拟支付异常：' + (e?.message || e) }
+    const r = await createMembershipOrderAPI({
+      memberId,
+      level: 'PARTNER',
+      payChannel: payChannel.value,
+      payMode: payChannel.value === 'WECHAT' ? 'WECHAT_H5' : 'ALIPAY_WAP',
+      requestId: genRequestId(),
+    })
+    const o = r.data
+    orderInfo.value = o
+    const payment = o.payment || {}
+    if (payment.type === 'WECHAT_H5_URL' && payment.h5Url) {
+      payHint.value = '正在跳转微信支付…'
+      // #ifdef H5
+      window.location.href = payment.h5Url
+      // #endif
+      // #ifndef H5
+      uni.setClipboardData({ data: payment.h5Url })
+      payHint.value = '支付链接已复制，请粘贴到浏览器完成支付。'
+      // #endif
+    } else if (payment.type === 'ALIPAY_FORM' && payment.formHtml) {
+      payHint.value = '正在跳转支付宝…'
+      // #ifdef H5
+      const div = document.createElement('div')
+      div.innerHTML = payment.formHtml
+      document.body.appendChild(div)
+      const form = div.querySelector('form')
+      if (form) form.submit()
+      // #endif
+      // #ifndef H5
+      payHint.value = '订单已创建，请在支付宝内完成支付。'
+      // #endif
+    } else {
+      payHint.value = '订单已创建，请按提示完成支付。'
+    }
+  } catch (e: any) {
+    const code = e?.data?.code
+    const msg = e?.data?.message
+    if (code === 56003) {
+      actionError.value = '会员购买暂未开放，敬请期待。'
+    } else if (code === 56004) {
+      actionError.value = '您已是合伙人，无需重复购买。'
+    } else if (code === 56002) {
+      actionError.value = '支付渠道尚未开通，请稍后再试。'
+    } else {
+      actionError.value = '下单失败：' + (msg || '请稍后重试')
+    }
+  } finally {
+    submitting.value = false
+  }
 }
-
-onMounted(loadConfig)
 </script>
 
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
-.mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .title { font-size: 32rpx; font-weight: 700; color: #303133; display: block; margin-bottom: 16rpx; }
 .row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #606266; }
 .row .v { color: #303133; font-weight: 600; }
-.input { flex: 1; margin-left: 20rpx; border: 1rpx solid #ddd; border-radius: 8rpx; padding: 12rpx; font-size: 26rpx; }
+.pay-methods { display: flex; gap: 20rpx; margin: 8rpx 0 8rpx; }
+.pay-item { flex: 1; text-align: center; padding: 24rpx 0; border: 2rpx solid #e5e5e5; border-radius: 12rpx; font-size: 28rpx; color: #606266; }
+.pay-item.active { border-color: #285b40; color: #285b40; font-weight: 700; background: #f0f7f3; }
 .btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
+.btn-primary[disabled] { opacity: 0.6; }
 .mt { margin-top: 16rpx; }
 .result { margin-top: 16rpx; font-size: 26rpx; color: #285b40; line-height: 1.6; }
 .hint { margin-top: 16rpx; font-size: 22rpx; color: #909399; line-height: 1.6; }
