@@ -223,6 +223,12 @@
       }
     },
     {
+      "path": "pages/consultation/consultation",
+      "style": {
+        "navigationBarTitleText": "在线咨询"
+      }
+    },
+    {
       "path": "pages/user/readHistory",
       "style": {
         "navigationBarTitleText": "我的足迹",

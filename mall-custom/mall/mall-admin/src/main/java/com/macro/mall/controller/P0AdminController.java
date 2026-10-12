@@ -329,8 +329,7 @@ public class P0AdminController {
 
     @PostMapping("/notices")
     @Transactional(rollbackFor = Exception.class)
-    public CommonResult<Void> publishNotice(Principal principal, @RequestBody Map<String, Object> body) {
-        long operatorId = access.requireAuthorized(principal);
+    public CommonResult<Void> publishNotice(Principal principal, @RequestBody Map<String, Object> body) {        long operatorId = access.requireAuthorized(principal);
         String title = requiredText(body, "title", 1, 128);
         String content = requiredText(body, "content", 1, 10000);
         String type = body.get("type") == null ? "SYSTEM" : String.valueOf(body.get("type"));
@@ -338,6 +337,30 @@ public class P0AdminController {
                         + " VALUES(?,?,?,1,CURRENT_TIMESTAMP)",
                 title, content, type);
         audit(operatorId, principal.getName(), "notice", "publish", null, "发布通知: " + title);
+        return CommonResult.success(null);
+    }
+
+    @GetMapping("/consultations")
+    public CommonResult<List<Map<String, Object>>> consultations(Principal principal) {
+        access.requireAuthorized(principal);
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT c.id,c.subject,c.content,c.contact,c.status,c.reply,c.reply_time,c.create_time,"
+                        + " m.username AS member_name FROM sys_consultation c"
+                        + " LEFT JOIN ums_member m ON m.id=c.member_id ORDER BY c.id DESC LIMIT 100"));
+    }
+
+    @PostMapping("/consultations/{id}/reply")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> replyConsultation(Principal principal,
+                                                @PathVariable Long id,
+                                                @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        String reply = requiredText(body, "reply", 1, 5000);
+        int updated = jdbc.update("UPDATE sys_consultation SET reply=?,reply_time=CURRENT_TIMESTAMP,status=1"
+                        + " WHERE id=? AND status=0",
+                reply, id);
+        if (updated != 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "咨询不存在或已回复");
+        audit(operatorId, principal.getName(), "consultation", "reply", id, "回复咨询 #" + id);
         return CommonResult.success(null);
     }
 
