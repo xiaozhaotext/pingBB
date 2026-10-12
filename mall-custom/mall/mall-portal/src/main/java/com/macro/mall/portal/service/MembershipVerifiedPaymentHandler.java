@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 
@@ -96,6 +97,36 @@ public class MembershipVerifiedPaymentHandler {
                 (BigDecimal) order.get("referral_cash_rate"),
                 (BigDecimal) order.get("referral_cash_cap"),
                 referralPoints == null ? null : referralPoints.longValue());
+        fundDividendPool(orderId, payment.amount());
+    }
+
+    /** Fund the dividend pool with a configurable portion of the membership purchase amount. */
+    private void fundDividendPool(long orderId, BigDecimal paidAmount) {
+        BigDecimal ratio = configDecimal("dividend.pool.ratio", new BigDecimal("0.10"));
+        if (ratio.signum() <= 0 || paidAmount.signum() <= 0) return;
+        BigDecimal contribution = paidAmount.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+        if (contribution.signum() <= 0) return;
+        // Idempotent: unique source prevents double funding on retry.
+        int inserted = jdbc.update("INSERT IGNORE INTO dividend_pool_ledger"
+                        + "(change_amount,balance_after,source_type,source_id,remark)"
+                        + " SELECT ?,pool_balance+?, 'MEMBERSHIP_PURCHASE', ?, ? FROM dividend_pool WHERE id=1",
+                contribution, contribution, orderId, "会员订单 " + orderId + " 按 " + ratio + " 注入分红池");
+        if (inserted == 1) {
+            jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance+?,total_in=total_in+? WHERE id=1",
+                    contribution, contribution);
+        }
+    }
+
+    private BigDecimal configDecimal(String key, BigDecimal fallback) {
+        try {
+            List<String> rows = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? LIMIT 1",
+                    (rs, n) -> rs.getString(1), key);
+            if (!rows.isEmpty() && rows.get(0) != null) {
+                BigDecimal v = new BigDecimal(rows.get(0).trim());
+                if (v.signum() >= 0) return v;
+            }
+        } catch (Exception ignored) { }
+        return fallback;
     }
 
     private void creditPoints(long memberId, long orderId, int walletType,
@@ -114,6 +145,10 @@ public class MembershipVerifiedPaymentHandler {
                         + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
                         + " VALUES(?,?,?,?,'PURCHASE_GRANT',?)",
                 memberId, ledgerType, amount, account.getBalance(), orderId);
+        // 产品积分同步到 ums_member.integration，复用下单时的 useIntegration 抵扣链路（等额抵扣）
+        if (walletType == 1) {
+            jdbc.update("UPDATE ums_member SET integration=integration+? WHERE id=?", amount, memberId);
+        }
     }
 
     private String label(int type) {

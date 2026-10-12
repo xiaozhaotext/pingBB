@@ -3,11 +3,13 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.DividendAllocateDetail;
 import com.macro.mall.portal.domain.DividendSnapshot;
+import com.macro.mall.portal.service.DividendDistributionService;
 import com.macro.mall.portal.service.DividendPoolService;
 import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -28,7 +30,30 @@ public class DividendPoolController {
     @Autowired
     private DividendPoolService dividendPoolService;
     @Autowired
+    private DividendDistributionService dividendDistributionService;
+    @Autowired
     private UmsMemberService memberService;
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Operation(summary = "执行每日分红分配（真实入账，幂等）")
+    @PostMapping("/distribute")
+    public CommonResult<Integer> distribute(@RequestBody Map<String, Object> body) {
+        String dateStr = body.get("statDate") == null ? null : String.valueOf(body.get("statDate"));
+        java.time.LocalDate statDate = dateStr == null || dateStr.isEmpty()
+                ? java.time.LocalDate.now().minusDays(1)
+                : java.time.LocalDate.parse(dateStr);
+        int paid = dividendDistributionService.distributeDaily(statDate);
+        return CommonResult.success(paid);
+    }
+
+    @Operation(summary = "查询分红池余额")
+    @GetMapping("/pool")
+    public CommonResult<Map<String, Object>> pool() {
+        Map<String, Object> info = jdbc.queryForMap(
+                "SELECT pool_balance,total_in,total_out,update_time FROM dividend_pool WHERE id=1");
+        return CommonResult.success(info);
+    }
 
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")
     @PostMapping("/contribution")

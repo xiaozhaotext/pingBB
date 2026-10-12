@@ -42,6 +42,19 @@ const settingOptions = [
   { key: 'membership.referral.cofounder.cash_cap', label: '联创直推现金封顶（元）' },
   { key: 'membership.referral.partner.repurchase_points', label: '合伙人直推复购积分' },
   { key: 'membership.referral.cofounder.repurchase_points', label: '联创直推复购积分' },
+  { key: 'pay.wechat.mch_id', label: '微信支付商户号' },
+  { key: 'pay.wechat.api_key', label: '微信支付 API 密钥（敏感）' },
+  { key: 'pay.wechat.app_id', label: '微信支付 AppID' },
+  { key: 'pay.alipay.app_id', label: '支付宝 AppID' },
+  { key: 'pay.alipay.private_key', label: '支付宝应用私钥（敏感）' },
+  { key: 'pay.alipay.public_key', label: '支付宝公钥（敏感）' },
+  { key: 'sms.provider', label: '短信服务商（aliyun/tencent）' },
+  { key: 'sms.access_key', label: '短信 AccessKey' },
+  { key: 'sms.access_secret', label: '短信 AccessSecret（敏感）' },
+  { key: 'sms.sign_name', label: '短信签名' },
+  { key: 'sms.template_code', label: '短信模板 Code' },
+  { key: 'dividend.pool.ratio', label: '分红池比例（0–1）' },
+  { key: 'dividend.daily.base', label: '每日每份分红基数（元）' },
 ]
 const labels: Record<string, string> = {
   id: '编号', member_id: '会员编号', username: '账号', nickname: '昵称', phone: '手机', status: '状态',
@@ -71,6 +84,7 @@ function selectSetting(key: string) {
   const current = rows(data.value.configs).find(row => row.config_key === key)
   settingForm.value.value = current?.config_value == null ? '' : String(current.config_value)
 }
+const isMaskedSettingValue = computed(() => String(settingForm.value.value || '').includes('****'))
 watch(sectionKey, load, { immediate: true })
 
 function rows(value: unknown): P0Row[] {
@@ -188,6 +202,7 @@ const groupTitles: Record<string, string> = {
       <el-select v-model="settingForm.key" style="width:290px" @change="selectSetting"><el-option v-for="option in settingOptions" :key="option.key" :label="option.label" :value="option.key" /></el-select>
       <el-input v-model="settingForm.value" placeholder="配置值；积分填非负整数" />
       <el-button type="primary" @click="updateSetting">保存</el-button>
+      <el-text v-if="isMaskedSettingValue" type="warning" size="small">敏感信息已脱敏显示；如需修改请直接输入新值后保存，不修改请勿提交。</el-text>
     </el-card>
 
     <section v-for="(value, key) in data" :key="key" class="data-section">

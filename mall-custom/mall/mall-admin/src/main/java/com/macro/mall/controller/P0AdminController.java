@@ -324,8 +324,15 @@ public class P0AdminController {
     public CommonResult<Map<String, Object>> settings(Principal principal) {
         access.requireAuthorized(principal);
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("configs", jdbc.queryForList("SELECT config_key,config_value,config_group,remark,update_time " +
-                "FROM sys_config ORDER BY config_group,config_key LIMIT 100"));
+        List<Map<String, Object>> configs = jdbc.queryForList("SELECT config_key,config_value,config_group,remark,update_time " +
+                "FROM sys_config ORDER BY config_group,config_key LIMIT 100");
+        for (Map<String, Object> row : configs) {
+            String key = String.valueOf(row.get("config_key"));
+            if (isSensitiveKey(key) && row.get("config_value") != null) {
+                row.put("config_value", maskSecret(String.valueOf(row.get("config_value"))));
+            }
+        }
+        data.put("configs", configs);
         data.put("audit", jdbc.queryForList("SELECT id,operator_id,operator_name,module,action,target_id,detail," +
                 "create_time FROM sys_audit_log ORDER BY id DESC LIMIT 100"));
         return CommonResult.success(data);
@@ -337,18 +344,24 @@ public class P0AdminController {
         long operatorId = access.requireAuthorized(principal);
         String key = requiredText(body, "key", 5, 64);
         String value = body.get("value") == null ? "" : String.valueOf(body.get("value")).trim();
-        if (value.length() > 512) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "value 过长");
+        // Sensitive keys: submitting the masked display value (containing ****) means "keep existing".
+        if (isSensitiveKey(key) && value.contains("****")) {
+            return CommonResult.success(null);
+        }
+        int maxLen = maxValueLength(key);
+        if (value.length() > maxLen) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "value 过长");
         validateEditableSetting(key, value);
         List<String> old = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? FOR UPDATE",
                 (rs, n) -> rs.getString(1), key);
         jdbc.update("INSERT INTO sys_config(config_key,config_value,config_group,remark) " +
                 "VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)",
                 key, value.isEmpty() ? null : value,
-                key.startsWith("membership.") ? "membership" : "site", "平台管理员配置");
+                configGroup(key), "平台管理员配置");
         jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,detail,"
                         + "`operator`,target_type,old_value,new_value) VALUES(?,?, 'settings','update',?,?,?,?,?)",
                 operatorId, principal.getName(), key, principal.getName(), "sys_config:" + key,
-                old.isEmpty() ? null : old.get(0), value.isEmpty() ? null : value);
+                maskIfSensitive(key, old.isEmpty() ? null : old.get(0)),
+                maskIfSensitive(key, value.isEmpty() ? null : value));
         return CommonResult.success(null);
     }
 
@@ -382,10 +395,66 @@ public class P0AdminController {
                 BigDecimal rate = new BigDecimal(value);
                 if (rate.signum() > 0 && rate.compareTo(BigDecimal.ONE) <= 0 && rate.scale() <= 6) return;
             } catch (NumberFormatException ignored) { }
+        } else if (key.equals("pay.wechat.mch_id") || key.equals("pay.wechat.app_id")
+                || key.equals("pay.alipay.app_id")) {
+            if (!value.isEmpty() && value.length() <= 64) return;
+        } else if (key.equals("pay.wechat.api_key")) {
+            if (!value.isEmpty() && value.length() <= 128) return;
+        } else if (key.equals("pay.alipay.private_key") || key.equals("pay.alipay.public_key")) {
+            if (!value.isEmpty() && value.length() <= 4096) return;
+        } else if (key.equals("sms.provider")) {
+            if (value.isEmpty() || value.equals("aliyun") || value.equals("tencent")) return;
+        } else if (key.equals("sms.access_key") || key.equals("sms.access_secret")) {
+            if (value.length() <= 128) return;
+        } else if (key.equals("sms.sign_name")) {
+            if (value.length() <= 32) return;
+        } else if (key.equals("sms.template_code")) {
+            if (value.length() <= 64) return;
+        } else if (key.equals("dividend.pool.ratio")) {
+            try {
+                BigDecimal ratio = new BigDecimal(value);
+                if (ratio.signum() >= 0 && ratio.compareTo(BigDecimal.ONE) <= 0 && ratio.scale() <= 4) return;
+            } catch (NumberFormatException ignored) { }
+        } else if (key.equals("dividend.daily.base")) {
+            try {
+                BigDecimal base = new BigDecimal(value);
+                if (base.signum() >= 0) return;
+            } catch (NumberFormatException ignored) { }
         } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "此配置项不可修改");
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "配置值无效");
+    }
+
+    private boolean isSensitiveKey(String key) {
+        return "pay.wechat.api_key".equals(key)
+                || "pay.alipay.private_key".equals(key)
+                || "pay.alipay.public_key".equals(key)
+                || "sms.access_secret".equals(key);
+    }
+
+    private String maskSecret(String value) {
+        if (value == null || value.isEmpty()) return value;
+        int len = value.length();
+        if (len <= 8) return "****";
+        return value.substring(0, 4) + "****" + value.substring(len - 4);
+    }
+
+    private String maskIfSensitive(String key, String value) {
+        return isSensitiveKey(key) ? maskSecret(value) : value;
+    }
+
+    private int maxValueLength(String key) {
+        if ("pay.alipay.private_key".equals(key) || "pay.alipay.public_key".equals(key)) return 4096;
+        return 512;
+    }
+
+    private String configGroup(String key) {
+        if (key.startsWith("membership.")) return "membership";
+        if (key.startsWith("pay.")) return "pay";
+        if (key.startsWith("sms.")) return "sms";
+        if (key.startsWith("dividend.")) return "dividend";
+        return "site";
     }
 
     private void audit(long operatorId, String name, String module, String action, Long targetId, String detail) {
