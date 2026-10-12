@@ -9,6 +9,21 @@ import type { CommonResult } from '@/types/common'
 
 // 请求基地址（从环境变量读取）
 const baseURL = import.meta.env.VITE_API_BASE_URL
+let loginRedirectPending = false
+
+const handleExpiredSession = (requestToken: string) => {
+  const currentToken = uni.getStorageSync('token')
+  // An old in-flight response must not log out a newly authenticated session.
+  if (currentToken && currentToken !== requestToken) return
+  if (loginRedirectPending) return
+  loginRedirectPending = true
+  useMemberStore().memberLogout()
+  const pages = getCurrentPages()
+  if (pages[pages.length - 1]?.route !== 'pages/public/login') {
+    uni.showToast({ icon: 'none', title: '登录已失效，请重新登录' })
+    uni.navigateTo({ url: '/pages/public/login' })
+  }
+}
 
 const httpInterceptor = {
   invoke(options: UniApp.RequestOptions) {
@@ -79,6 +94,7 @@ export interface HttpRequestOptions extends UniApp.RequestOptions {
  *    3.3 网络错误 -> 提示用户换网络
  */
 export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> => {
+  const requestToken = uni.getStorageSync('token') || ''
   // 处理 params 参数，拼接到 URL?
   if (options.params) {
     const queryString = buildQueryString(options.params)
@@ -94,18 +110,19 @@ export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> =
       ...options,
       // 响应成功
       success(res) {
+        const body = res.data as CommonResult<T>
+        if (res.statusCode === 401 || body?.code === 401) {
+          handleExpiredSession(requestToken)
+          reject(res)
+          return
+        }
         // 状态码 2xx，参考 axios 的设计
         if (res.statusCode >= 200 && res.statusCode < 300) {
           // 2.1 提取核心数据 res.data
           const data = res.data as CommonResult<T>
           if (data.code === 200) {
+            if (options.url.endsWith('/sso/login')) loginRedirectPending = false
             resolve(data)
-          } else if (data.code === 401) {
-            // 401错误  -> 清理用户信息，跳转到登录页
-            const memberStore = useMemberStore()
-            memberStore.memberLogout()
-            uni.navigateTo({ url: '/pages/public/login' })
-            reject(res)
           } else {
             // 其他错误 -> 根据后端错误信息轻提示
             uni.showToast({

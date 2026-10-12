@@ -57,6 +57,10 @@ const loadData = async () => {
   accountError.value=''; productBalance.value='—'; rebuyBalance.value='—'; inviteCount.value='—'
   if (hasLogin.value) {
     const results=await Promise.allSettled([getPointsAccountAPI(1),getPointsAccountAPI(2),getMyInviteesAPI()])
+    if (!hasLogin.value) {
+      identityLabel.value='游客'; couponCount.value=null
+      return
+    }
     results.forEach((result,index)=>{if(result.status==='fulfilled'){const data=result.value.data;if(index===0)productBalance.value=data?.balance??'未开户';if(index===1)rebuyBalance.value=data?.balance??'未开户';if(index===2)inviteCount.value=Array.isArray(data)?data.length:'—'}else{accountError.value='部分账户信息暂不可用'}})
 
     try {
@@ -70,9 +74,7 @@ const loadData = async () => {
     try {
       const res = await getMemberCouponListAPI(0)
       const list = res.data
-      if (list && list.length > 0) {
-        couponCount.value = list.length
-      }
+      couponCount.value = Array.isArray(list) ? list.length : null
     } catch {
       couponCount.value = null
     }

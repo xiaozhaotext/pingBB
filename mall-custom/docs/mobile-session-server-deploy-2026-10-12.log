@@ -1,0 +1,7 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+BACKUP=/opt/mall-demo/backups/video-layout-20261012-174932
+278435fb3dd4aa3c3cb489303bcf3e6f714b06e571324d072b7bd823eaba5098  /opt/mall-demo/storefront/index.html
+active
+active
+active
