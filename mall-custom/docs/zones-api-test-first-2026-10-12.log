@@ -1,0 +1,20 @@
+PASS admin-login
+PASS anonymous-denied
+PASS zone-products-database-read
+PASS assign-existing-product
+PASS assignment-persisted
+PASS write-audited
+PASS duplicate-assignment-idempotent
+PASS sort-persisted
+PASS portal-rebuy-matches-live-database
+PASS reserved-consumption-write-denied
+PASS remove-only-zone-assignment
+PASS repeat-removal-idempotent
+Traceback (most recent call last):
+  File "/opt/mall-demo/zones-server-test.py", line 45, in <module>
+    check('invalid-product-input-denied',s==400)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/mall-demo/zones-server-test.py", line 16, in check
+    assert condition,name
+           ^^^^^^^^^
+AssertionError: invalid-product-input-denied

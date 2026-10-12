@@ -1,0 +1,19 @@
+PASS admin-login
+PASS anonymous-denied
+PASS zone-products-database-read
+PASS assign-existing-product
+PASS assignment-persisted
+PASS write-audited
+PASS duplicate-assignment-idempotent
+PASS sort-persisted
+PASS portal-rebuy-matches-live-database
+PASS reserved-consumption-write-denied
+PASS invalid-product-input-denied
+PASS invalid-sort-input-denied
+PASS brand-zone-uses-pick
+PASS consumer-login
+PASS consumer-cannot-administer-zone
+PASS denied-write-no-side-effects
+PASS remove-only-zone-assignment
+PASS repeat-removal-idempotent
+RESULT 18 PASS, 0 FAIL

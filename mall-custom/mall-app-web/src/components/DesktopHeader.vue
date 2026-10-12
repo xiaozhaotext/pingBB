@@ -5,7 +5,7 @@
       <text class="desktop-brand" @click="goTab('/pages/index/index')">优选<span>商城</span></text>
       <view class="desktop-links">
         <text @click="goTab('/pages/index/index')">首页</text>
-        <text @click="goTab('/pages/zone/pick')">自选区</text>
+        <text @click="goTab('/pages/zone/pick')">品牌区</text>
         <text @click="goTab('/pages/zone/rebuy')">复购区</text>
         <text @click="goPage('/pages/category/category')">商品分类</text>
         <text @click="goSearch">搜索商品</text>

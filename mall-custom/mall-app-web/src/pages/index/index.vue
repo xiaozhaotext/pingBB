@@ -1,259 +1,26 @@
 <template>
-  <view class="container">
-    <!-- #ifdef H5 -->
-    <view class="desktop-home">
-      <view class="desktop-topline"><view class="desktop-width">本地演示环境 · 当前商品及广告来自官方示例测试库，请勿作为真实经营数据</view></view>
-      <view class="desktop-header desktop-width">
-        <view class="desktop-logo" @click="uni.switchTab({ url: '/pages/index/index' })">优选<span>商城</span></view>
-        <view class="desktop-search" @click="handleSearch">搜索商品、品牌与分类 <text>搜索</text></view>
-        <view class="desktop-actions">
-          <text @click="uni.navigateTo({ url: '/pages/cart/cart' })">购物车</text>
-          <text @click="uni.switchTab({ url: '/pages/user/user' })">我的账户</text>
-        </view>
+  <view class="container zone-home">
+    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uni.switchTab({url:'/pages/index/index'})">优选商城 · 旅途与生活</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uni.navigateTo({url:'/pages/cart/cart'})">购物车 →</text></view></view>
+    <view class="zone-home-width">
+      <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view>
+      <view class="home-announcement"><text class="announcement-label">提示</text><text>演示环境 · 专区商品由后台统一配置</text></view>
+      <view class="home-zones">
+        <view class="home-zone brand-zone" @click="uni.switchTab({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">品牌区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone rebuy-zone" @click="uni.switchTab({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone consume-zone" @click="uni.navigateTo({url:'/pages/zone/consume'})"><text class="home-zone-title">消费区</text><text class="home-zone-caption">预留专区 · 暂未开放</text><text class="reserve-badge">预留</text></view>
       </view>
-      <view class="desktop-nav"><view class="desktop-width desktop-nav-inner">
-        <text @click="uni.switchTab({ url: '/pages/index/index' })">首页</text>
-        <text @click="uni.switchTab({ url: '/pages/zone/pick' })">自选区</text>
-        <text @click="uni.switchTab({ url: '/pages/zone/rebuy' })">复购区</text>
-        <text @click="uni.navigateTo({ url: '/pages/category/category' })">全部分类</text>
-        <text @click="handleNavToNewProductListPage">新品上架</text>
-        <text @click="handleNavToHotProductListPage">热销商品</text>
-      </view></view>
-      <view class="desktop-main desktop-width">
-        <view class="desktop-hero">
-          <view class="desktop-hero-copy">
-            <text class="desktop-eyebrow">山水之间 · 发现好物</text>
-            <text class="desktop-hero-title">把美好带入旅途</text>
-            <text class="desktop-hero-subtitle">在山水与日常之间，挑选心仪好物</text>
-            <button @click="uni.navigateTo({ url: '/pages/category/category' })">浏览全部商品 →</button>
-          </view>
-          <view class="desktop-hero-media" v-if="advertiseList.length && advertiseList[0]?.pic">
-            <image :src="advertiseList[0].pic" mode="aspectFill"></image>
-          </view>
-        </view>
-        <view class="desktop-section" v-if="newProductList.length">
-          <view class="desktop-section-title"><view><text>新品上架</text><small>最近更新的商品</small></view><text class="desktop-more" @click="handleNavToNewProductListPage">查看更多 →</text></view>
-          <view class="desktop-products"><view class="desktop-product" v-for="item in newProductList.slice(0, 8)" :key="item.id" @click="handleNavToDetailPage(item)"><image :src="item.pic" mode="aspectFill"></image><text class="desktop-product-name">{{ item.name }}</text><text class="desktop-product-price">¥{{ item.price }}</text></view></view>
-        </view>
-        <view class="desktop-section" v-if="hotProductList.length">
-          <view class="desktop-section-title"><view><text>人气推荐</text><small>本地示例数据</small></view><text class="desktop-more" @click="handleNavToHotProductListPage">查看更多 →</text></view>
-          <view class="desktop-products"><view class="desktop-product" v-for="item in hotProductList.slice(0, 8)" :key="item.id" @click="handleNavToDetailPage(item)"><image :src="item.pic" mode="aspectFill"></image><text class="desktop-product-name">{{ item.name }}</text><text class="desktop-product-price">¥{{ item.price }}</text></view></view>
-        </view>
-        <view class="desktop-section" v-if="recommendProductList.length">
-          <view class="desktop-section-title"><view><text>更多好物</text><small>继续探索</small></view></view>
-          <view class="desktop-products"><view class="desktop-product" v-for="item in recommendProductList" :key="item.id" @click="handleNavToDetailPage(item)"><image :src="item.pic" mode="aspectFill"></image><text class="desktop-product-name">{{ item.name }}</text><text class="desktop-product-price">¥{{ item.price }}</text></view></view>
-        </view>
-        <view class="desktop-empty" v-if="!newProductList.length && !hotProductList.length && !recommendProductList.length">当前没有可展示的商品，请检查本地商城接口与商品数据。</view>
-      </view>
-    </view>
-    <!-- #endif -->
-    <view class="mobile-home">
-    <view class="travel-intro"><text class="travel-brand">优选商城 · 旅途与生活</text><view class="travel-search" @click="handleSearch">⌕ 搜索心仪商品</view></view>
-    <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">发现日常之美，开启轻松旅途</text></view>
-    <view class="travel-entry-grid">
-      <view class="travel-entry" @click="uni.navigateTo({ url: '/pages/category/category' })"><text>探索好物 →</text><small>按分类浏览真实在售商品</small></view>
-      <view class="travel-entry" @click="uni.switchTab({ url: '/pages/zone/pick' })"><text>自选区</text><small>精选心仪好物</small></view>
-      <view class="travel-entry" @click="uni.switchTab({ url: '/pages/zone/rebuy' })"><text>复购区</text><small>再次遇见所爱</small></view>
-    </view>
-    <view class="demo-note">本地演示环境：当前商品及广告为示例测试数据</view>
-    <!-- 小程序头部兼容 -->
-    <!-- #ifdef MP -->
-    <view class="mp-search-box">
-      <text class="yticon icon-saomiao nav-icon" @click="handleScan"></text>
-      <input class="ser-input" type="text" value="输入关键字搜索" disabled @click="handleSearch" />
-      <text class="yticon icon-icon-- nav-icon" @click="handleNavToNotice"></text>
-    </view>
-    <!-- #endif -->
-
-    <!-- 头部轮播 -->
-    <view class="carousel-section">
-      <!-- 标题栏和状态栏占位符 -->
-      <view class="titleNview-placing"></view>
-      <!-- 背景色区域 -->
-      <view class="titleNview-background" :style="{ backgroundColor: titleNViewBackground }"></view>
-      <swiper class="carousel" circular @change="handleSwiperChange">
-        <swiper-item
-          v-for="(item, index) in advertiseList"
-          :key="index"
-          class="carousel-item"
-          @click="handleNavToAdvertisePage(item)"
-        >
-          <image :src="item.pic" mode="aspectFill" />
-        </swiper-item>
-      </swiper>
-      <!-- 自定义swiper指示器 -->
-      <view class="swiper-dots">
-        <text class="num">{{ swiperCurrent + 1 }}</text>
-        <text class="sign">/</text>
-        <text class="num">{{ swiperLength }}</text>
-      </view>
-    </view>
-
-    <!-- 头部功能区 -->
-    <view class="cate-section">
-      <view class="cate-item" @click="handleNavToTopicPage">
-        <image src="/static/temp/c3.png"></image>
-        <text>专题</text>
-      </view>
-      <view class="cate-item" @click="handleNavToTopicPage">
-        <image src="/static/temp/c5.png"></image>
-        <text>话题</text>
-      </view>
-      <view class="cate-item" @click="handleNavToRecommendBrandPage">
-        <image src="/static/temp/c6.png"></image>
-        <text>优选</text>
-      </view>
-      <view class="cate-item" @click="handleNavToHotProductListPage">
-        <image src="/static/temp/c7.png"></image>
-        <text>特惠</text>
-      </view>
-    </view>
-
-    <!-- 品牌制造商直供 -->
-    <view class="f-header m-t" @click="handleNavToRecommendBrandPage">
-      <image src="/static/icon_home_brand.png"></image>
-      <view class="tit-box">
-        <text class="tit">精选品牌</text>
-        <text class="tit2">按品牌浏览在售商品</text>
-      </view>
-      <text class="yticon icon-you"></text>
-    </view>
-    <view class="guess-section">
-      <view
-        v-for="(item, index) in brandList"
-        :key="index"
-        class="guess-item"
-        @click="handleNavToBrandDetailPage(item)"
-      >
-        <view class="image-wrapper-brand">
-          <image :src="item.logo" mode="aspectFit"></image>
-        </view>
-        <text class="title clamp">{{ item.name }}</text>
-        <text class="title2">商品数量：{{ item.productCount }}</text>
-      </view>
-    </view>
-
-    <!-- 秒杀专区 -->
-    <view class="f-header m-t" v-if="homeFlashPromotion">
-      <image src="/static/icon_flash_promotion.png"></image>
-      <view class="tit-box">
-        <text class="tit">秒杀专区</text>
-        <text class="tit2">下一场 {{ formatTime(homeFlashPromotion?.nextStartTime) }} 开始</text>
-      </view>
-      <view class="tit-box">
-        <text class="tit2" style="text-align: right">本场结束剩余：</text>
-        <view style="text-align: right">
-          <text class="hour timer">{{ cutDownTime.endHour }}</text>
-          <text>:</text>
-          <text class="minute timer">{{ cutDownTime.endMinute }}</text>
-          <text>:</text>
-          <text class="second timer">{{ cutDownTime.endSecond }}</text>
-        </view>
-      </view>
-    </view>
-    <view class="guess-section" v-if="homeFlashPromotion">
-      <view
-        v-for="(item, index) in homeFlashPromotion.productList"
-        :key="index"
-        class="guess-item"
-        @click="handleNavToDetailPage(item)"
-      >
-        <view class="image-wrapper">
-          <image :src="item.pic" mode="aspectFill"></image>
-        </view>
-        <text class="title clamp">{{ item.name }}</text>
-        <text class="title2 clamp">{{ item.subTitle }}</text>
-        <text class="price">￥{{ item.flashPromotionPrice || item.price }}</text>
-      </view>
-    </view>
-
-    <!-- 新鲜好物 -->
-    <view class="f-header m-t" @click="handleNavToNewProductListPage">
-      <image src="/static/icon_new_product.png"></image>
-      <view class="tit-box">
-        <text class="tit">新鲜好物</text>
-        <text class="tit2">为你寻觅世间好物</text>
-      </view>
-      <text class="yticon icon-you"></text>
-    </view>
-    <view class="seckill-section">
-      <scroll-view class="floor-list" scroll-x>
-        <view class="scoll-wrapper">
-          <view
-            v-for="(item, index) in newProductList"
-            :key="index"
-            class="floor-item"
-            @click="handleNavToDetailPage(item)"
-          >
-            <image :src="item.pic" mode="aspectFill"></image>
-            <text class="title clamp">{{ item.name }}</text>
-            <text class="title2 clamp">{{ item.subTitle }}</text>
-            <text class="price">￥{{ item.price }}</text>
-          </view>
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- 人气推荐楼层 -->
-    <view class="f-header m-t" @click="handleNavToHotProductListPage">
-      <image src="/static/icon_hot_product.png"></image>
-      <view class="tit-box">
-        <text class="tit">人气推荐</text>
-        <text class="tit2">大家都赞不绝口的</text>
-      </view>
-      <text class="yticon icon-you"></text>
-    </view>
-
-    <view class="hot-section">
-      <view
-        v-for="(item, index) in hotProductList"
-        :key="index"
-        class="guess-item"
-        @click="handleNavToDetailPage(item)"
-      >
-        <view class="image-wrapper">
-          <image :src="item.pic" mode="aspectFill"></image>
-        </view>
-        <view class="txt">
-          <text class="title clamp">{{ item.name }}</text>
-          <text class="title2">{{ item.subTitle }}</text>
-          <text class="price">￥{{ item.price }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 猜你喜欢 -->
-    <view class="f-header m-t">
-      <image src="/static/icon_recommend_product.png"></image>
-      <view class="tit-box">
-        <text class="tit">猜你喜欢</text>
-        <text class="tit2">你喜欢的都在这里了</text>
-      </view>
-      <text class="yticon icon-you" v-show="false"></text>
-    </view>
-
-    <view class="guess-section">
-      <view
-        v-for="(item, index) in recommendProductList"
-        :key="index"
-        class="guess-item"
-        @click="handleNavToDetailPage(item)"
-      >
-        <view class="image-wrapper">
-          <image :src="item.pic" mode="aspectFill"></image>
-        </view>
-        <text class="title clamp">{{ item.name }}</text>
-        <text class="title2 clamp">{{ item.subTitle }}</text>
-        <text class="price">￥{{ item.price }}</text>
-      </view>
-    </view>
-    <uni-load-more :status="loadingType"></uni-load-more>
+      <view class="home-product-heading"><view><text>为你优选</text><small>复购区好物 · 品质之选</small></view><text @click="uni.switchTab({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
+      <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
+      <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
+      <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text></view></view></view></view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
 import {
   onLoad,
   onPullDownRefresh,
@@ -267,6 +34,11 @@ import type { SmsHomeAdvertise, HomeFlashPromotion } from '@/types/home'
 import type { PmsProduct } from '@/types/product'
 import type { PmsBrand } from '@/types/brand'
 import type { PageParam } from '@/types/common'
+
+const rebuyProducts=ref<ZoneProduct[]>([])
+const rebuyLoading=ref(false),rebuyError=ref(false)
+const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
+const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
 
 // ===== 页面数据 =====
 // 标题栏背景色
@@ -323,26 +95,7 @@ const cutDownTime = computed(() => {
 
 // ===== 数据加载 =====
 // 加载首页数据
-const loadData = async () => {
-  try {
-    const res = await getHomeContentAPI()
-    const data = res.data
-    advertiseList.value = data?.advertiseList || []
-    brandList.value = data?.brandList || []
-    homeFlashPromotion.value = data?.homeFlashPromotion || null
-    newProductList.value = data?.newProductList || []
-    hotProductList.value = data?.hotProductList || []
-    swiperLength.value = advertiseList.value.length
-    titleNViewBackground.value = titleNViewBackgroundList[0]
-    // 加载推荐商品
-    const recommendRes = await getRecommendProductListAPI(recommendPageParam.value)
-    recommendProductList.value = recommendRes.data || []
-    uni.stopPullDownRefresh()
-  } catch (err) {
-    console.error('加载首页数据失败', err)
-    uni.stopPullDownRefresh()
-  }
-}
+const loadData = async () => { await loadRebuy(); uni.stopPullDownRefresh() }
 
 // ===== 生命周期 =====
 // 页面加载时执行
@@ -357,23 +110,7 @@ onPullDownRefresh(() => {
 })
 
 // 上拉加载更多时执行
-onReachBottom(async () => {
-  recommendPageParam.value.pageNum++
-  loadingType.value = 'loading'
-  try {
-    const res = await getRecommendProductListAPI(recommendPageParam.value)
-    const list = res.data as PmsProduct[]
-    if (!list || list.length === 0) {
-      recommendPageParam.value.pageNum--
-      loadingType.value = 'noMore'
-    } else {
-      recommendProductList.value = recommendProductList.value.concat(list)
-      loadingType.value = 'more'
-    }
-  } catch (err) {
-    loadingType.value = 'more'
-  }
-})
+onReachBottom(() => {})
 
 // 页面滚动监听 - 改变导航栏按钮颜色
 // @ts-ignore
@@ -1077,4 +814,9 @@ page {
     padding-left: 40rpx;
   }
 }
+</style>
+
+<style scoped>
+.zone-home{background:#f7f3eb;min-height:100vh;padding-bottom:90px}.zone-home-width{max-width:1160px;margin:auto;padding:0 20px}.zone-home-header{background:linear-gradient(120deg,#fff1bf,#edd68e);padding:20px 0 24px;border-radius:0 0 24px 24px}.zone-home-header .zone-home-width{position:relative}.travel-brand{font-size:20px}.travel-search{margin-top:14px;padding:12px 18px;font-size:14px}.home-cart{position:absolute;right:20px;top:4px;color:#5a6953;font-size:13px}.travel-hero{margin:18px 0 0;padding:28px 24px;min-height:155px;border-radius:20px;background-position:center 58%;box-shadow:0 10px 24px #81734c12}.travel-hero-title{font-size:26px}.travel-hero-sub{font-size:13px;margin-top:8px}.home-announcement{display:flex;gap:12px;align-items:center;padding:16px;margin:20px 0;background:#fffdf8;border-radius:16px;font-size:12px;color:#787360}.announcement-label{background:#b78235;color:white;padding:4px 8px;border-radius:5px}.home-zones{padding:12px;background:white;border-radius:22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;box-shadow:0 12px 28px #8a73470c}.home-zone{position:relative;padding:25px 18px;min-height:132px;border-radius:16px;overflow:hidden;cursor:pointer}.brand-zone{grid-column:1/-1;min-height:176px;background:#e3ebd7 url('/static/travel-landscape.svg') right center/cover}.home-zone-title{display:block;font-size:29px;font-weight:700;color:#345441;letter-spacing:3px}.zone-eyebrow{display:block;margin-bottom:14px;color:#7a825d;font-size:12px}.home-zone-caption{display:block;font-size:11px;color:#6a795f;margin-top:10px}.rebuy-zone{background:linear-gradient(130deg,#f8edd4,#e1e8d6)}.consume-zone{background:linear-gradient(130deg,#fff7e9,#eae3d1);border:1px dashed #dfcfac}.zone-arrow{position:absolute;right:18px;bottom:17px;color:#536c50;font-size:22px}.reserve-badge{position:absolute;top:12px;right:12px;background:#ffffffb0;color:#958571;padding:3px 8px;border-radius:20px;font-size:10px}.home-product-heading{display:flex;justify-content:space-between;align-items:center;margin:28px 0 16px}.home-product-heading view>text{display:block;font-size:22px;font-weight:700;color:#30483e}.home-product-heading small{display:block;font-size:12px;color:#998d78;margin-top:7px}.home-product-heading>text{font-size:12px;color:#a27630;cursor:pointer}.home-rebuy-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.home-rebuy-product{background:white;border-radius:18px;overflow:hidden;cursor:pointer;border:1px solid #f0e8db}.home-rebuy-product image{width:100%;height:180px}.home-product-copy{padding:14px}.home-product-name{display:block;font-size:14px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.home-product-sub{display:block;color:#988f7d;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:8px 0}.home-product-copy>view{display:flex;align-items:center;justify-content:space-between}.home-product-price{color:#b17f31;font-size:17px;font-weight:700}.rebuy-label{font-size:10px;color:#809178;border:1px solid #e1eadc;border-radius:4px;padding:2px 4px}.home-zone-status{padding:35px 18px;text-align:center;background:#fffdf8;border-radius:18px;color:#998d78;font-size:13px}
+@media(min-width:900px){.zone-home-header .zone-home-width{display:flex;align-items:center;gap:65px}.travel-search{flex:1;margin:0}.home-cart{position:static}.travel-brand{font-size:26px}.travel-hero{min-height:290px;padding:60px 45px}.travel-hero-title{font-size:44px}.travel-hero-sub{font-size:17px}.brand-zone{min-height:245px;padding:40px}.home-zone-title{font-size:38px}.home-zone-caption{font-size:15px}.home-zone{padding:30px}.home-rebuy-grid{grid-template-columns:repeat(4,1fr)}.home-rebuy-product image{height:250px}.home-product-name{font-size:16px}.zone-home{padding-bottom:60px}}
 </style>

@@ -55,6 +55,12 @@ export const asyncRouterMap: RouteRecordExt[] = [
         hidden: true,
       },
       {
+        path: 'zones',
+        name: 'productZones',
+        component: () => import('@/views/pms/zones/index.vue'),
+        meta: { title: '专区商品管理', icon: 'product-list' },
+      },
+      {
         path: 'productCate',
         name: 'productCate',
         component: () => import('@/views/pms/productCate/index.vue'),
