@@ -6,7 +6,7 @@ import { getP0, postP0, type P0Row } from '@/apis/p0'
 
 type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings'
 const sections: Record<SectionKey, { title: string; path: string; note: string }> = {
-  p0Members: { title: '会员管理', path: 'members', note: '会员身份变更写入操作审计，推荐关系只读展示。' },
+  p0Members: { title: '会员管理', path: 'members', note: '平台管理员可调整会员身份与直属推荐人，操作写入审计。' },
   p0Partner: { title: '合伙人管理', path: 'partner', note: '权益方案与购买记录均来自测试数据库；模拟购买入口尚未开放给消费者。' },
   p0Cofounder: { title: '联创管理', path: 'cofounder', note: '所有金额与权益仅用于模拟展示，不产生真实分红。' },
   p0Points: { title: '双积分管理', path: 'points', note: '调整先申请后审核，余额和流水在同一数据库事务中更新。' },
@@ -25,6 +25,8 @@ const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
 const identityType = ref(0)
 const identityReason = ref('')
+const referrerId = ref<number | null>(null)
+const referrerReason = ref('')
 const pointsForm = ref({ memberId: 0, pointsType: 1, delta: 0, reason: '', idempotencyKey: '' })
 const settingForm = ref({ key: 'site.title', value: '' })
 const settingOptions = [
@@ -93,6 +95,9 @@ async function openMember(id: number) {
     const current = rows(response.data.identity)[0]
     identityType.value = Number(current?.identity_type ?? 0)
     identityReason.value = ''
+    const inviter = rows(response.data.inviter)[0]
+    referrerId.value = inviter?.inviter_id == null ? null : Number(inviter.inviter_id)
+    referrerReason.value = ''
   } finally { loading.value = false }
 }
 async function changeIdentity() {
@@ -100,6 +105,18 @@ async function changeIdentity() {
   await ElMessageBox.confirm('确认调整会员身份并写入审计日志？', '身份调整', { type: 'warning' })
   await postP0(`members/${memberId.value}/identity`, { identityType: identityType.value, reason: identityReason.value })
   ElMessage.success('身份已更新')
+  await load()
+  await openMember(memberId.value)
+}
+async function changeReferrer() {
+  if (!memberId.value || !referrerId.value || referrerReason.value.trim().length < 5) {
+    return ElMessage.warning('请填写推荐人 ID 和至少 5 个字的变更原因')
+  }
+  await ElMessageBox.confirm('确认调整直属推荐人及所有下级的推荐路径？', '调整推荐关系', { type: 'warning' })
+  await postP0(`members/${memberId.value}/referrer`, {
+    inviterId: referrerId.value, reason: referrerReason.value,
+  })
+  ElMessage.success('推荐关系已更新并记录审计')
   await load()
   await openMember(memberId.value)
 }
@@ -192,6 +209,9 @@ const groupTitles: Record<string, string> = {
       <template v-if="memberDetail">
         <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
         <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
+        <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
+        <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />
+        <el-button type="primary" style="margin-top:12px" @click="changeReferrer">保存推荐人并审计</el-button>
         <h3>调整身份</h3>
         <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
         <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />

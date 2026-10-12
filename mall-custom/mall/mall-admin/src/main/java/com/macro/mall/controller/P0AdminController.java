@@ -2,6 +2,7 @@ package com.macro.mall.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.service.P0AdminAccess;
+import com.macro.mall.service.P0ReferralAdminService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,10 +22,13 @@ import java.util.Map;
 public class P0AdminController {
     private final JdbcTemplate jdbc;
     private final P0AdminAccess access;
+    private final P0ReferralAdminService referrals;
 
-    public P0AdminController(JdbcTemplate jdbc, P0AdminAccess access) {
+    public P0AdminController(JdbcTemplate jdbc, P0AdminAccess access,
+                             P0ReferralAdminService referrals) {
         this.jdbc = jdbc;
         this.access = access;
+        this.referrals = referrals;
     }
 
     @GetMapping("/members")
@@ -64,6 +68,16 @@ public class P0AdminController {
                 "SELECT r.member_id,m.username,r.bind_time FROM ums_member_recommend r " +
                 "JOIN ums_member m ON m.id=r.member_id WHERE r.inviter_id=? ORDER BY r.id DESC LIMIT 100", memberId));
         return CommonResult.success(data);
+    }
+
+    @PostMapping("/members/{memberId}/referrer")
+    public CommonResult<Void> reassignReferrer(Principal principal, @PathVariable long memberId,
+                                                @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        long inviterId = longValue(body, "inviterId");
+        String reason = requiredText(body, "reason", 5, 200);
+        referrals.reassign(memberId, inviterId, operatorId, principal.getName(), reason);
+        return CommonResult.success(null);
     }
 
     @PostMapping("/members/{memberId}/identity")
