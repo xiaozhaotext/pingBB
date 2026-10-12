@@ -43,8 +43,8 @@ public class MembershipPurchaseOrderService {
         if (order == null) {
             String prefix = "PARTNER".equals(request.level()) ? "membership.partner." : "membership.cofounder.";
             BigDecimal price = decimal(config(prefix + "price"));
-            long productPoints = positiveLong(config(prefix + "product_points"));
-            long repurchasePoints = positiveLong(config(prefix + "repurchase_points"));
+            long productPoints = nonNegativeLong(config(prefix + "product_points"));
+            long repurchasePoints = nonNegativeLong(config(prefix + "repurchase_points"));
             if (price.signum() <= 0 || price.scale() > 2) {
                 throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
             }
@@ -115,10 +115,13 @@ public class MembershipPurchaseOrderService {
         catch (Exception ex) { throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE); }
     }
 
-    private long positiveLong(String text) {
+    /**
+     * 积分配额：允许 0（表示不赠送该积分项，下单/入账时跳过），拒绝负数与非法值。
+     */
+    private long nonNegativeLong(String text) {
         try {
             long value = Long.parseLong(text);
-            if (value > 0) return value;
+            if (value >= 0) return value;
         } catch (Exception ignored) { }
         throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
     }
