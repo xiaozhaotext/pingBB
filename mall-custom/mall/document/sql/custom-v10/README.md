@@ -4,6 +4,20 @@
 
 **执行警告：01–09 当前含 `DROP TABLE IF EXISTS`，只能在全新、可丢弃的测试库首次运行；不能对已有 P0 数据库重放，更不能用于生产在线迁移。10 号管理后台脚本无 DROP，可重复执行。**
 
+## P0-1a 真实会员购买数据库迁移
+
+现有商城库已包含 `ums_member` 后，单独执行 `12_membership_real_payment.sql`。此脚本只新增表、扩充现有 `sys_audit_log` 字段、插入缺失的 `sys_config` 键，不运行本目录的 01–09 旧脚本。`12_membership_real_payment_DRAFT.sql` 仅为历史设计草案，不能与正式脚本混用。
+
+```bash
+mysql --default-character-set=utf8mb4 -u<user> -p <database> < 12_membership_real_payment.sql
+```
+
+该迁移为 P0-1b/c/e 保留真实订单、积分流水、身份变更、直推奖励和独立现金账本。旧 `ums_earnings` 与 `ums_earnings_ledger` 是模拟数据，不能作为真实可提现余额。订单记录创建时的实付金额及赠送积分，后续配置修改不能改写历史订单。`transaction_id`、平台订单号、积分来源和直推订单均有唯一索引，业务事务仍需同时更新现有 `ums_points_account` / `ums_points_ledger` 与新增流水。
+
+新规则键位于 `sys_config` 的 `membership.*` 命名空间；`INSERT IGNORE` 保留管理员已有配置。`membership.purchase.enabled` 初始为 `0`。直推复购积分数量尚未得到业务确认，两个配置值留空；支付与发奖代码必须在配置完整且真实通道验签通过后才允许启用。本次不建立或启用每日分红规则。
+
+当前代码包含微信/支付宝下单与验签回调框架，以及购买成功后的事务入账逻辑；均保持默认关闭。尚未取得商户资料做真实回调联调，事务链路也未完成数据库集成测试。直推奖励、分红、前端正式入口与服务器部署不在本次提交的已验收范围内，请勿直接开启支付开关用于生产。
+
 ## 应用顺序（必须按编号执行）
 
 ```bash

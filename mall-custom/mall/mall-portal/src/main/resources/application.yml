@@ -15,6 +15,26 @@ mybatis:
     - classpath*:com/**/mapper/*.xml
 
 mall:
+  membership:
+    payment:
+      enabled: false
+      wechat:
+        enabled: false
+        app-id: ${MEMBERSHIP_WECHAT_APP_ID:}
+        merchant-id: ${MEMBERSHIP_WECHAT_MERCHANT_ID:}
+        merchant-serial-number: ${MEMBERSHIP_WECHAT_MERCHANT_SERIAL:}
+        private-key-path: ${MEMBERSHIP_WECHAT_PRIVATE_KEY_PATH:}
+        api-v3-key: ${MEMBERSHIP_WECHAT_API_V3_KEY:}
+        notify-url: ${MEMBERSHIP_WECHAT_NOTIFY_URL:}
+      alipay:
+        enabled: false
+        app-id: ${MEMBERSHIP_ALIPAY_APP_ID:}
+        seller-id: ${MEMBERSHIP_ALIPAY_SELLER_ID:}
+        private-key-path: ${MEMBERSHIP_ALIPAY_PRIVATE_KEY_PATH:}
+        public-key-path: ${MEMBERSHIP_ALIPAY_PUBLIC_KEY_PATH:}
+        gateway-url: ${MEMBERSHIP_ALIPAY_GATEWAY_URL:}
+        notify-url: ${MEMBERSHIP_ALIPAY_NOTIFY_URL:}
+        return-url: ${MEMBERSHIP_ALIPAY_RETURN_URL:}
   payment:
     alipay:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
@@ -47,6 +67,8 @@ secure:
       - /product/**
       - /brand/**
       - /alipay/notify
+      - /member/membership/notify/alipay
+      - /member/membership/notify/wechat
 
 springdoc:
   swagger-ui:
