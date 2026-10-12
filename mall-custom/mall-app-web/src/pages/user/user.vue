@@ -1,133 +1,15 @@
 <template>
   <DesktopHeader />
-  <view class="container">
-    <view class="user-section">
-      <image class="bg" src="/static/travel-photo/alpine-lake.jpg"></image>
-      <!-- #ifdef MP -->
-      <view class="mp-nav-btns">
-        <text class="yticon icon-shezhi nav-btn" @click="handleNavTo('/pages/set/set')"></text>
-        <text class="yticon icon-icon-- nav-btn" @click="handleNavToNotice"></text>
-      </view>
-      <!-- #endif -->
-      <view class="user-info-box">
-        <view class="portrait-box">
-          <image class="portrait" :src="memberInfo?.icon || '/static/missing-face.png'"></image>
-        </view>
-        <view class="info-box">
-          <text class="username">{{ memberInfo?.nickname || memberInfo?.username || '游客' }}</text>
-        </view>
-      </view>
-      <view class="vip-card-box">
-        <image class="card-bg" src="/static/vip-card-bg.png"></image>
-        <view class="b-btn" @click="handleNavTo('/pages/member/center')">会员中心</view>
-        <view class="tit">
-          <text class="yticon icon-iLinkapp-"></text>
-          {{ identityLabel }}
-        </view>
-        <text class="e-m">优选商城</text>
-        <text class="e-b">会员权益以账户实际身份及平台公告为准。</text>
-      </view>
-    </view>
-
-    <view
-      class="cover-container"
-      :style="[{ transform: coverTransform, transition: coverTransition }]"
-      @touchstart="handleCoverTouchstart"
-      @touchmove="handleCoverTouchmove"
-      @touchend="handleCoverTouchend"
-    >
-      <image class="arc" src="/static/arc.png"></image>
-
-      <view class="tj-sction">
-        <view class="tj-item">
-          <text class="num">{{ memberInfo?.integration || '暂无' }}</text>
-          <text>积分</text>
-        </view>
-        <view class="tj-item">
-          <text class="num">{{ memberInfo?.growth || '暂无' }}</text>
-          <text>成长值</text>
-        </view>
-        <view class="tj-item" @click="handleNavTo('/pages/coupon/couponList')">
-          <text class="num">{{ couponCount || '暂无' }}</text>
-          <text>优惠券</text>
-        </view>
-      </view>
-      <!-- 订单 -->
-      <view class="order-section">
-        <view
-          class="order-item"
-          @click="handleNavTo('/pages/order/order?state=0')"
-          hover-class="common-hover"
-          :hover-stay-time="50"
-        >
-          <text class="yticon icon-shouye"></text>
-          <text>全部订单</text>
-        </view>
-        <view
-          class="order-item"
-          @click="handleNavTo('/pages/order/order?state=1')"
-          hover-class="common-hover"
-          :hover-stay-time="50"
-        >
-          <text class="yticon icon-daifukuan"></text>
-          <text>待付款</text>
-        </view>
-        <view
-          class="order-item"
-          @click="handleNavTo('/pages/order/order?state=2')"
-          hover-class="common-hover"
-          :hover-stay-time="50"
-        >
-          <text class="yticon icon-yishouhuo"></text>
-          <text>待收货</text>
-        </view>
-        <view class="order-item" hover-class="common-hover" :hover-stay-time="50">
-          <text class="yticon icon-shouhoutuikuan"></text>
-          <text>退款/售后</text>
-        </view>
-      </view>
-      <!-- 浏览历史 -->
-      <view class="history-section icon">
-        <!-- P0 新增：会员中心入口（身份/邀请/双积分/合伙人/联创/收益提现/每日分红池） -->
-        <mix-list-cell
-          icon="icon-iLinkapp-"
-          iconColor="#fa436a"
-          title="会员中心"
-          @eventClick="handleNavTo('/pages/member/center')"
-        ></mix-list-cell>
-        <mix-list-cell
-          icon="icon-dizhi"
-          iconColor="#5fcda2"
-          title="地址管理"
-          @eventClick="handleNavTo('/pages/address/address')"
-        ></mix-list-cell>
-        <mix-list-cell
-          icon="icon-lishijilu"
-          iconColor="#e07472"
-          title="我的足迹"
-          @eventClick="handleNavTo('/pages/user/readHistory')"
-        ></mix-list-cell>
-        <mix-list-cell
-          icon="icon-shoucang"
-          iconColor="#5fcda2"
-          title="我的关注"
-          @eventClick="handleNavTo('/pages/user/brandAttention')"
-        ></mix-list-cell>
-        <mix-list-cell
-          icon="icon-shoucang_xuanzhongzhuangtai"
-          iconColor="#54b4ef"
-          title="我的收藏"
-          @eventClick="handleNavTo('/pages/user/productCollection')"
-        ></mix-list-cell>
-        <mix-list-cell icon="icon-pingjia" iconColor="#ee883b" title="我的评价"></mix-list-cell>
-        <mix-list-cell
-          icon="icon-shezhi1"
-          iconColor="#e07472"
-          title="设置"
-          border=""
-          @eventClick="handleNavTo('/pages/set/set')"
-        ></mix-list-cell>
-      </view>
+  <view class="account-reference">
+    <view class="account-top"><text>我的</text><text class="account-settings" @click="handleNavTo('/pages/set/set')">设置</text></view>
+    <view class="account-profile" @click="!hasLogin && handleNavTo('/pages/public/login')"><image :src="memberInfo?.icon || '/static/missing-face.png'"/><view><view class="account-name">{{ memberInfo?.nickname || memberInfo?.username || '点击登录' }}<text>{{ identityLabel }}</text></view><text class="account-id">{{ hasLogin ? '会员 ID：' + memberInfo?.id : '登录后查看您的账户与订单' }}</text></view></view>
+    <view class="account-panels">
+      <view class="account-panel"><view class="account-section-title">数据资产<small>账户实际数据</small></view><view class="account-assets"><view><text>{{ productBalance }}</text><small>商品积分</small></view><view><text>{{ rebuyBalance }}</text><small>复购积分</small></view><view><text>{{ couponCount ?? '—' }}</text><small>优惠券</small></view></view></view>
+      <view class="account-panel"><view class="account-section-title">数据看板<small>会员概览</small></view><view class="account-stat-grid"><view><text>{{ inviteCount }}</text><small>我的推荐人数</small></view><view><text>{{ identityLabel }}</text><small>会员身份</small></view><view><text>{{ memberInfo?.growth ?? '—' }}</text><small>成长值</small></view><view><text>未开放</text><small>团队业绩与奖励</small></view></view></view>
+      <view class="account-panel"><view class="account-section-title">推荐进度<small>奖励规则未启用</small></view><view class="recommend-layout"><view class="recommend-stage" v-for="stage in ['邀请记录','关系确认','奖励规则']" :key="stage"><view class="stage-dot">{{ stage === '邀请记录' ? '1' : stage === '关系确认' ? '2' : '3' }}</view><text>{{ stage }}</text><small>{{ stage === '奖励规则' ? '待确认' : '查看记录' }}</small></view><view class="recommend-count"><text>{{ inviteCount }}</text><small>推荐人数</small></view></view><view class="account-section-footer"><text>展示推荐关系，不启用推广计酬</text><text @click="handleNavTo('/pages/member/invitation')">查看推荐 ›</text></view></view>
+      <view class="account-panel"><view class="account-section-title">我的订单<small @click="handleNavTo('/pages/order/order?state=0')">查看全部 »</small></view><view class="account-services"><view v-for="item in orderEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{ item.label }}</text></view></view></view>
+      <view class="account-panel"><view class="account-section-title">我的服务</view><view class="account-services service-grid"><view v-for="item in serviceEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{ item.label }}</text></view></view></view>
+      <view v-if="accountError" class="account-error" @click="loadData">{{ accountError }}，点击重试</view>
     </view>
   </view>
 </template>
@@ -138,7 +20,7 @@ import { ref, computed } from 'vue'
 import { onShow, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
 import { getMemberCouponListAPI } from '@/apis/coupon'
-import { getMyIdentityAPI } from '@/apis/member'
+import { getMyIdentityAPI, getPointsAccountAPI, getMyInviteesAPI } from '@/apis/member'
 import mixListCell from '@/components/mix-list-cell.vue'
 
 // ===== Store 相关 =====
@@ -153,6 +35,9 @@ const memberInfo = computed(() => memberStore.memberInfo)
 // 优惠券数量
 const couponCount = ref<number | null>(null)
 const identityLabel = ref('会员身份加载中')
+const productBalance=ref<string | number>('—'),rebuyBalance=ref<string | number>('—'),inviteCount=ref<string | number>('—'),accountError=ref('')
+const orderEntries=[{label:'全部订单',icon:'icon-shouye',url:'/pages/order/order?state=0'},{label:'待付款',icon:'icon-daifukuan',url:'/pages/order/order?state=1'},{label:'待收货',icon:'icon-yishouhuo',url:'/pages/order/order?state=2'},{label:'已完成',icon:'icon-shouhoutuikuan',url:'/pages/order/order?state=3'}]
+const serviceEntries=[{label:'会员中心',icon:'icon-iLinkapp-',url:'/pages/member/center'},{label:'收货地址',icon:'icon-dizhi',url:'/pages/address/address'},{label:'我的推荐',icon:'icon-shoucang',url:'/pages/member/invitation'},{label:'我的足迹',icon:'icon-lishijilu',url:'/pages/user/readHistory'},{label:'我的收藏',icon:'icon-shoucang_xuanzhongzhuangtai',url:'/pages/user/productCollection'},{label:'品牌关注',icon:'icon-shoucang',url:'/pages/user/brandAttention'},{label:'设置',icon:'icon-shezhi1',url:'/pages/set/set'}]
 // 遮罩层变换样式
 const coverTransform = ref('translateY(0px)')
 // 遮罩层过渡动画
@@ -169,7 +54,11 @@ let pageAtTop = true
 // ===== 数据加载 =====
 // 加载优惠券数据
 const loadData = async () => {
+  accountError.value=''; productBalance.value='—'; rebuyBalance.value='—'; inviteCount.value='—'
   if (hasLogin.value) {
+    const results=await Promise.allSettled([getPointsAccountAPI(1),getPointsAccountAPI(2),getMyInviteesAPI()])
+    results.forEach((result,index)=>{if(result.status==='fulfilled'){const data=result.value.data;if(index===0)productBalance.value=data?.balance??'未开户';if(index===1)rebuyBalance.value=data?.balance??'未开户';if(index===2)inviteCount.value=Array.isArray(data)?data.length:'—'}else{accountError.value='部分账户信息暂不可用'}})
+
     try {
       const identity = await getMyIdentityAPI()
       identityLabel.value = identity.data?.identityType == null
@@ -462,4 +351,9 @@ const handleCoverTouchend = () => {
   background: #fff;
   border-radius: 10rpx;
 }
+</style>
+
+<style scoped>
+.account-reference{background:#f8f5f0;min-height:100vh;padding-bottom:85px}.account-top{position:sticky;top:0;z-index:10;text-align:center;padding:13px;color:#fff;background:#d8ad50;font-size:18px;font-weight:600}.account-settings{position:absolute;right:18px;font-size:12px;top:16px}.account-profile{height:153px;background:linear-gradient(90deg,#244b36cc,#9f865e44),url('/static/travel-photo/alpine-lake.jpg') center/cover;display:flex;align-items:flex-start;padding:26px 22px;gap:14px;color:#fff}.account-profile image{width:66px;height:66px;border-radius:22px;background:#fff;border:2px solid #ffffffa0}.account-name{font-size:20px;font-weight:700;padding-top:6px}.account-name text{font-size:10px;margin-left:8px;background:#fff3c85c;border-radius:12px;padding:3px 7px;font-weight:400}.account-id{display:block;font-size:11px;margin-top:12px;color:#fff3d8}.account-panels{position:relative;margin:-29px 12px 0}.account-panel{background:#fffefb;border-radius:18px;padding:17px 13px;margin-bottom:13px;box-shadow:0 6px 20px #9e895c06}.account-section-title{display:flex;justify-content:space-between;align-items:center;font-size:17px;font-weight:700;color:#39372f;padding-left:8px;border-left:3px solid #c99455;margin-bottom:17px}.account-section-title small{font-size:10px;color:#a19c92;font-weight:400}.account-assets{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:9px 0 5px}.account-assets text{display:block;font-size:19px;color:#b45e35;font-weight:700}.account-assets small{display:block;font-size:11px;color:#89857c;margin-top:7px}.account-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.account-stat-grid>view{background:#fcfaf3;border-radius:7px;padding:13px 10px}.account-stat-grid text{display:block;font-size:16px;font-weight:700;color:#887240}.account-stat-grid small{display:block;font-size:11px;color:#a19a8a;margin-top:8px}.recommend-layout{display:grid;grid-template-columns:repeat(3,1fr) .9fr;gap:5px;text-align:center}.recommend-stage{background:#fcfbf7;border-radius:10px;padding:9px 3px}.stage-dot{width:29px;height:29px;border-radius:50%;background:#f0ede4;color:#979184;margin:0 auto 10px;line-height:29px;font-size:13px}.recommend-stage text{display:block;font-size:11px;font-weight:600;color:#45413a}.recommend-stage small{display:block;font-size:9px;color:#b0a99b;margin-top:8px}.recommend-count{background:#f6f2e9;border-radius:10px;padding:21px 0}.recommend-count text{display:block;font-size:20px;font-weight:700;color:#887240}.recommend-count small{font-size:9px;color:#938a7a}.account-section-footer{display:flex;justify-content:space-between;margin-top:15px;font-size:10px;color:#a8a18f;gap:7px}.account-section-footer text:last-child{color:#b36a3c;cursor:pointer}.account-services{display:grid;grid-template-columns:repeat(4,1fr);row-gap:22px;text-align:center}.account-services>view{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:11px;color:#514c43}.account-services .yticon{font-size:23px;color:#bb8b58}.service-grid{padding:5px 0 10px}.account-error{font-size:12px;color:#ae5c32;padding:12px;text-align:center}
+@media(min-width:900px){.account-reference{max-width:1240px;margin:auto}.account-profile{height:215px;padding:40px}.account-profile image{width:85px;height:85px}.account-name{font-size:27px}.account-panels{margin:-35px 30px 0;display:grid;grid-template-columns:1fr 1fr;gap:18px}.account-panel{margin:0;padding:23px}.account-panel:last-of-type{grid-column:1/-1}.account-section-title{font-size:20px}.account-stat-grid>view{padding:18px}.account-services{padding:12px}.account-assets{padding:20px}.account-error{grid-column:1/-1}}
 </style>

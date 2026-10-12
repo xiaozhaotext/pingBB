@@ -71,6 +71,7 @@
     {
       "path": "pages/user/user",
       "style": {
+        "navigationStyle": "custom",
         "navigationBarTitleText": "我的",
         "app-plus": {
           "bounce": "none",
