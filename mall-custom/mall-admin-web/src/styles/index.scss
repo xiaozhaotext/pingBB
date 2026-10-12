@@ -170,3 +170,16 @@ a:hover {
 .color-info {
   color: #909399;
 }
+
+/* 旅途主题工作台 */
+body { background: #f7f3eb; color: #30483e; }
+.app-main { background: #f7f3eb; }
+.el-card { border-radius: 16px !important; border-color: #eee3cf !important; box-shadow: 0 6px 24px #735f3508 !important; }
+.el-table { --el-table-header-bg-color: #f7f1e4; --el-table-row-hover-bg-color: #fffbf2; }
+.el-button { border-radius: 9px; }
+.navbar { background: #fffdf8 !important; border-bottom: 1px solid #e9dfca; box-shadow: none !important; }
+.el-dialog { border-radius: 16px; }
+.sidebar-container .el-menu, .sidebar-container .el-sub-menu__title, .sidebar-container .el-menu-item { background-color: #304f45 !important; color: #e9ebdf !important; }
+.sidebar-container .el-menu-item.is-active { color: #f5d58c !important; background-color: #416252 !important; }
+.sidebar-container .el-menu-item:hover, .sidebar-container .el-sub-menu__title:hover { background-color: #416252 !important; }
+.color-main { color: #a57932 !important; }

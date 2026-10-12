@@ -78,8 +78,8 @@ const handleLogin = () => {
   <div class="login-page">
     <div class="login-intro">
       <span class="login-eyebrow">优选商城 · 管理后台</span>
-      <h1>让每一笔经营<br>清晰可见</h1>
-      <p>商品、订单与用户管理，从这里开始。</p>
+      <h1>山水相伴<br>经营有序</h1>
+      <p>在旅途与生活之间，管理每一份美好。</p>
     </div>
     <el-card class="login-form-layout">
       <el-form autoComplete="on" :model="loginForm" :rules="loginRules" ref="loginFormRef" label-position="left">
@@ -124,7 +124,7 @@ const handleLogin = () => {
   justify-content: center;
   gap: 7vw;
   padding: 40px;
-  background: linear-gradient(135deg, #e9f1e8 0%, #f7f8f3 55%, #f2eadc 100%);
+  background: #f6ead0 url('../../../assets/images/travel-landscape.svg') center / cover;
   box-sizing: border-box;
 }
 .login-intro { max-width: 440px; color: #23533b; }

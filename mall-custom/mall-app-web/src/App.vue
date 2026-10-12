@@ -14,6 +14,7 @@ onHide(() => {
 
 <style lang="scss">
 @use '@/styles/fonts.scss';
+@use '@/styles/travel.scss';
 /* #ifdef H5 */
 @media (min-width: 900px) {
   body:has(.desktop-home, .desktop-site-header) { background: #f6f7f4; }

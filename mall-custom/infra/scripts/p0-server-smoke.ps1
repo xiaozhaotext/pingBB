@@ -1,4 +1,5 @@
 param(
+  [string]$AdminUsername = 'admin',
   [string]$AdminBase = 'http://127.0.0.1:18880',
   [string]$PortalBase = 'http://127.0.0.1:18885',
   [string]$PublicBase = 'http://122.51.105.107'
@@ -19,7 +20,7 @@ function Check([string]$Name, [scriptblock]$Action) {
 }
 $adminPassword = (Get-Content (Join-Path $passDir 'deploy-demo-admin-password.txt') -Raw).Trim()
 $memberPassword = (Get-Content (Join-Path $passDir 'deploy-demo-member-password.txt') -Raw).Trim()
-$adminLogin = Invoke-RestMethod -Method Post -Uri "$AdminBase/admin/login" -ContentType 'application/json' -Body (@{username='demo_admin';password=$adminPassword}|ConvertTo-Json)
+$adminLogin = Invoke-RestMethod -Method Post -Uri "$AdminBase/admin/login" -ContentType 'application/json' -Body (@{username=$AdminUsername;password=$adminPassword}|ConvertTo-Json)
 Check 'admin-login' { $adminLogin.code -eq 200 -and [bool]$adminLogin.data.token }
 $adminHeaders = @{Authorization=($adminLogin.data.tokenHead+$adminLogin.data.token)}
 foreach ($module in @('members','partner','cofounder','points','finance','dividend','settings')) {

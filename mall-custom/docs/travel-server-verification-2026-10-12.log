@@ -1,0 +1,15 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+/ 200
+/admin/ 200
+/static/travel-landscape.svg 200
+ADMIN_LOGIN_CODE 200
+ADMIN_INFO_CODE 200
+products	38
+orders	90
+members	17
+d42155ca3fe6407c16adeadb9cd590dc8c7d43bd5d231dae3e0cf0dffc0fd97b  /opt/mall-demo/storefront/index.html
+24cdc8b3bb2eb3fb9c8cfd16ae1bd0886abdea8744280ad0266334ad0affbae3  /opt/mall-demo/admin/index.html
+active
+active
+active

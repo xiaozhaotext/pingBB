@@ -2,7 +2,7 @@
   <DesktopHeader />
   <view class="container">
     <view class="user-section">
-      <image class="bg" src="/static/user-bg.jpg"></image>
+      <image class="bg" src="/static/travel-landscape.svg"></image>
       <!-- #ifdef MP -->
       <view class="mp-nav-btns">
         <text class="yticon icon-shezhi nav-btn" @click="handleNavTo('/pages/set/set')"></text>

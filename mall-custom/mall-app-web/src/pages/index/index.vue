@@ -22,9 +22,9 @@
       <view class="desktop-main desktop-width">
         <view class="desktop-hero">
           <view class="desktop-hero-copy">
-            <text class="desktop-eyebrow">精选好物 · 安心选购</text>
-            <text class="desktop-hero-title">发现日常所爱</text>
-            <text class="desktop-hero-subtitle">浏览真实商品，选择适合自己的好物</text>
+            <text class="desktop-eyebrow">山水之间 · 发现好物</text>
+            <text class="desktop-hero-title">把美好带入旅途</text>
+            <text class="desktop-hero-subtitle">在山水与日常之间，挑选心仪好物</text>
             <button @click="uni.navigateTo({ url: '/pages/category/category' })">浏览全部商品 →</button>
           </view>
           <view class="desktop-hero-media" v-if="advertiseList.length && advertiseList[0]?.pic">
@@ -48,6 +48,13 @@
     </view>
     <!-- #endif -->
     <view class="mobile-home">
+    <view class="travel-intro"><text class="travel-brand">优选商城 · 旅途与生活</text><view class="travel-search" @click="handleSearch">⌕ 搜索心仪商品</view></view>
+    <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">发现日常之美，开启轻松旅途</text></view>
+    <view class="travel-entry-grid">
+      <view class="travel-entry" @click="uni.navigateTo({ url: '/pages/category/category' })"><text>探索好物 →</text><small>按分类浏览真实在售商品</small></view>
+      <view class="travel-entry" @click="uni.switchTab({ url: '/pages/zone/pick' })"><text>自选区</text><small>精选心仪好物</small></view>
+      <view class="travel-entry" @click="uni.switchTab({ url: '/pages/zone/rebuy' })"><text>复购区</text><small>再次遇见所爱</small></view>
+    </view>
     <view class="demo-note">本地演示环境：当前商品及广告为示例测试数据</view>
     <!-- 小程序头部兼容 -->
     <!-- #ifdef MP -->

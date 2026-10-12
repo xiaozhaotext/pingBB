@@ -1,0 +1,54 @@
+/* 旅游视觉主题：业务数据和操作仍由原 API 提供。 */
+page, body, .zone-page { background: #f7f3eb; color: #30483e; }
+.travel-intro { margin: 24rpx; padding: 32rpx; border-radius: 28rpx; background: #f6e6bb; }
+.travel-intro { margin: 0; padding: 32rpx 28rpx 38rpx; border-radius: 0 0 40rpx 40rpx; background: linear-gradient(135deg,#fff4cf,#f3d482); }
+.travel-hero { position: relative; margin-top: -10rpx; box-shadow: 0 18rpx 36rpx #6e795825; border: 2rpx solid #fff9e7; }
+.travel-hero-title { max-width: 420rpx; line-height: 1.4; letter-spacing: 2rpx; }
+.travel-entry-grid { position: relative; margin-top: 28rpx; }
+.travel-entry { box-shadow: 0 8rpx 20rpx #a8916610; padding: 32rpx; }
+.travel-entry:first-child { padding: 38rpx 32rpx; background: linear-gradient(100deg,#edf1e3,#dde8d3); border-left: 8rpx solid #6d947b; }
+.travel-entry:nth-child(2) { background: linear-gradient(135deg,#fffaf0,#f6e6c7); }
+.travel-entry:nth-child(3) { background: linear-gradient(135deg,#fffaf0,#e6efe4); }
+.mobile-home .f-header .tit { font-weight: 700; font-size: 34rpx; }
+.mobile-home .f-header .tit2 { color: #9a8b73; margin-top: 8rpx; }
+.mobile-home .image-wrapper, .mobile-home .floor-item image { border-radius: 18rpx !important; }
+.mobile-home .demo-note { margin: 20rpx 28rpx; padding: 12rpx 18rpx; border-radius: 12rpx; font-size: 21rpx; background: #eee8db; color: #877a64; }
+.cover-container { background: #f7f3eb !important; }
+.tj-sction, .order-section, .history-section { box-shadow: 0 10rpx 30rpx #9478490c; border: 1px solid #efe5d6; }
+.user-info-box .username { color: #304d40; font-weight: 700; }
+.travel-brand { font-size: 36rpx; font-weight: 700; color: #36584b; display: block; }
+.travel-search { margin-top: 22rpx; padding: 20rpx 28rpx; background: #fffdf5; border-radius: 48rpx; color: #8b8b77; font-size: 26rpx; }
+.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: #f9dfa0 url('/static/travel-landscape.svg') center/cover; }
+.travel-hero-title { display: block; color: #2d5041; font-size: 46rpx; font-weight: 700; }
+.travel-hero-sub { display: block; color: #586d58; font-size: 25rpx; margin-top: 14rpx; }
+.travel-entry-grid { margin: 22rpx 24rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
+.travel-entry { border-radius: 24rpx; padding: 28rpx; background: #fffaf0; border: 1px solid #eee1c5; }
+.travel-entry:first-child { grid-column: 1 / -1; background: #ecf0e3; }
+.travel-entry text { display: block; font-size: 32rpx; font-weight: 700; color: #3d5d4d; }
+.travel-entry small { display: block; font-size: 23rpx; color: #8c816b; margin-top: 8rpx; }
+.mobile-home .carousel-section, .mobile-home .cate-section { display: none; }
+.mobile-home .f-header, .mobile-home .guess-section, .mobile-home .hot-section, .mobile-home .seckill-section { margin-left: 24rpx; margin-right: 24rpx; background: #fffdf8; }
+.mobile-home .f-header { margin-top: 24rpx; border-radius: 24rpx 24rpx 0 0; }
+.mobile-home .guess-section, .mobile-home .hot-section, .mobile-home .seckill-section { border-radius: 0 0 24rpx 24rpx; }
+.user-section .bg { object-fit: cover; }
+.vip-card-box { background: linear-gradient(115deg, #365d50, #78967c) !important; border-radius: 24rpx !important; }
+.vip-card-box .card-bg { opacity: 0 !important; }
+.tj-sction, .order-section, .history-section { border-radius: 24rpx !important; background: #fffdf8 !important; }
+.order-section .yticon { color: #b78235 !important; }
+.uni-tabbar { border-top: 1px solid #e7dcc7 !important; background: #fffdf8 !important; }
+.zone-head { background: #f5e5b9 url('/static/travel-landscape.svg') right center/cover !important; }
+.zone-card { border-radius: 18px !important; box-shadow: 0 7px 22px #806f4b0a; }
+@media(min-width:900px) {
+  body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #f7f3eb !important; }
+  .desktop-topline { background: #365d50 !important; }
+  .desktop-hero { height: 370px !important; background: #f9dfa0 url('/static/travel-landscape.svg') right center/cover !important; border-radius: 24px !important; }
+  .desktop-hero-copy { width: 68% !important; background: linear-gradient(90deg,#fff5dded,transparent); }
+  .desktop-hero-media { display:none; }
+  .desktop-hero-title { font-weight: 700 !important; }
+  .desktop-product { border-radius: 18px !important; border: 1px solid #eee5d6; }
+}
+
+.mobile-home .carousel-section, .mobile-home .cate-section { display: none !important; }
+.travel-hero-title { max-width: none; font-size: 42rpx; }
+body:has(.travel-intro) .uni-page-head { display: none !important; }
+.mobile-home .price { color: #a57932 !important; font-weight: 600; }

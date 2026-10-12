@@ -50,7 +50,7 @@ onMounted(refresh)
 
 <template>
   <main class="dashboard" v-loading="loading">
-    <header class="heading"><div><p>优选商城 · 本地测试环境</p><h1>经营概览</h1></div><el-button @click="refresh">刷新数据</el-button></header>
+    <header class="heading"><div><p>优选商城 · 演示环境</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
     <el-alert title="以下数据来自当前本地测试数据库，包含导入的官方示例数据；不得作为真实经营报表。" type="warning" :closable="false" show-icon />
     <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}</span><strong>{{ card.value }}</strong></el-card></section>
     <el-card shadow="never" class="trend"><template #header><div class="trend-head"><strong>最近 7 日已支付订单趋势</strong><small>{{ overview?.amountNote }}</small></div></template>
@@ -62,4 +62,16 @@ onMounted(refresh)
 
 <style scoped>
 .dashboard{padding:28px;background:#f6f7f4;min-height:100vh}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading p{color:#53765e;font-size:13px}.heading h1{font-size:28px;color:#234a34;margin:4px 0}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.metric span{display:block;color:#75847b;font-size:14px}.metric strong{display:block;margin-top:14px;color:#214a34;font-size:27px}.trend-head{display:flex;justify-content:space-between;gap:20px}.trend-head small{color:#7b8d81}.chart{height:330px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<style scoped>
+.dashboard { background: #f7f3eb; }
+.heading { padding: 28px 32px; min-height: 170px; border-radius: 22px; background: #f6e8c6 url('../../assets/images/travel-landscape.svg') right center/cover; box-shadow: 0 10px 30px #7b725313; }
+.heading h1 { font-size: 32px; letter-spacing: 2px; }
+.heading-note { display: block; margin-top: 12px; color: #697863; font-size: 14px; }
+.metric { border-top: 3px solid #d3b275; }
+.metric:nth-child(2n) { border-top-color: #719680; }
+.metric strong { font-size: 32px; }
+.trend { margin-top: 26px; }
+@media(max-width:600px) { .heading { padding: 22px; } .heading h1 { font-size: 27px; } }
 </style>
