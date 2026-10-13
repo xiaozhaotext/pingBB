@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-13",
+  "junit": {
+    "passed": 36,
+    "failed": 0,
+    "skipped": 0
+  },
+  "isolated_api": {
+    "passed": 45,
+    "failed": 1,
+    "failure": "4 legacy sample SKU stock invariant violations"
+  },
+  "isolated_trade": {
+    "passed": 38,
+    "failed": 0
+  },
+  "registration_api": {
+    "passed": 10,
+    "failed": 0
+  },
+  "local_browser": {
+    "passed": 16,
+    "failed": 0
+  },
+  "public_https_api": {
+    "passed": 12,
+    "failed": 0
+  },
+  "public_browser": "BLOCKED: Chromium ERR_TIMED_OUT; curl and HTTPS API verified",
+  "requirements": {
+    "PARTIAL": 91,
+    "PASS": 4,
+    "BLOCKED": 23,
+    "NOT_STARTED": 16
+  },
+  "codeCommit": "6f9929ebca3dbe64053c5c6f49b8146fb04937fd"
+}
