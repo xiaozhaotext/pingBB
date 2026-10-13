@@ -77,10 +77,8 @@ const toLogin = async () => {
       }
     }, 1000)
   } catch (error) {
-    uni.showToast({
-      title: '登录失败，请检查账号密码',
-      icon: 'none',
-    })
+    // http 工具已按后端 message 弹过提示（例如账号被禁止登录），这里不再重复
+    console.error('登录失败', error)
   } finally {
     logining.value = false
   }
