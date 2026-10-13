@@ -3,6 +3,8 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.DividendDistributionService;
+import com.macro.mall.portal.service.impl.UmsMemberServiceImpl;
+import com.macro.mall.common.exception.ApiException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -14,6 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class GapSecurityTest {
+    @Test void invalidRegistrationNeverReachesDatabaseOrOtpStorage() {
+        UmsMemberServiceImpl service = new UmsMemberServiceImpl();
+        assertThrows(ApiException.class, () -> service.register("", "StrongPass123", "13900000000", "123456"));
+        assertThrows(ApiException.class, () -> service.register("member", "short", "13900000000", "123456"));
+        assertThrows(ApiException.class, () -> service.register("member", "StrongPass123", "bad-phone", "123456"));
+        assertThrows(ApiException.class, () -> service.register("member", "中".repeat(25), "13900000000", "123456"));
+    }
     @Test void profileNeverSerializesPasswordAndDoesNotMutateCachedPrincipal() {
         UmsMember m = new UmsMember(); m.setId(7L); m.setUsername("member"); m.setPassword("HASH-MUST-NOT-LEAK");
         UmsMemberService service = mock(UmsMemberService.class); when(service.getCurrentMember()).thenReturn(m);
