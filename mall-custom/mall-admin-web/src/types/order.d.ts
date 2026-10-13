@@ -221,3 +221,21 @@ export type OmsMoneyInfoParam = {
   /** 订单状态：0->待付款；1->待发货；2->已发货；3->已完成；4->已关闭；5->无效订单 */
   status: number
 }
+
+/** 物流轨迹节点 */
+export type OmsLogisticsTrackNode = {
+  time: string
+  context: string
+}
+
+/** 物流轨迹查询结果 */
+export type OmsLogisticsTrackResult = {
+  /** 是否已接入承运商查询通道 */
+  available: boolean
+  /** 本次查询是否成功 */
+  success: boolean
+  message?: string | null
+  state?: string | null
+  stateText?: string | null
+  nodes: OmsLogisticsTrackNode[]
+}

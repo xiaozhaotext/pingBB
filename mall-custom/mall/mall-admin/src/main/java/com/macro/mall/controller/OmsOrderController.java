@@ -5,6 +5,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.dto.*;
 import com.macro.mall.model.OmsOrder;
 import com.macro.mall.service.OmsOrderService;
+import com.macro.mall.service.LogisticsTrackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,17 @@ import java.util.List;
 public class OmsOrderController {
     @Autowired
     private OmsOrderService orderService;
+    @Autowired
+    private LogisticsTrackService logisticsTrackService;
+
+    @Operation(summary = "查询订单物流轨迹")
+    @RequestMapping(value = "/logistics", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<LogisticsTrackService.TrackResult> logistics(@RequestParam String deliveryCompany,
+                                                                     @RequestParam String deliverySn,
+                                                                     @RequestParam(required = false) String receiverPhone) {
+        return CommonResult.success(logisticsTrackService.query(deliveryCompany, deliverySn, receiverPhone));
+    }
 
     @Operation(summary = "查询订单")
     @RequestMapping(value = "/list", method = RequestMethod.GET)

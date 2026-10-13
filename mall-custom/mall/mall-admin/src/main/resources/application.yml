@@ -88,3 +88,9 @@ mall:
     refund:
       enabled: ${MALL_PAYMENT_REFUND_ENABLED:false} # 未配置渠道凭证并通过退款验收前禁止启用
       channels: ALIPAY
+  logistics:
+    enabled: ${MALL_LOGISTICS_ENABLED:false} # 未配置承运商凭证前保持关闭，物流接口如实返回"未接入"
+    url: ${MALL_LOGISTICS_URL:https://poll.kuaidi100.com/poll/query.do}
+    customer: ${MALL_LOGISTICS_CUSTOMER:}
+    key: ${MALL_LOGISTICS_KEY:}
+    timeout-millis: ${MALL_LOGISTICS_TIMEOUT_MILLIS:5000}

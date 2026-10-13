@@ -4,6 +4,7 @@ import type {
   OmsOrder,
   OmsOrderDeliveryParam,
   OmsOrderDetail,
+  OmsLogisticsTrackResult,
   OmsReceiverInfoParam,
   OrderQueryParam,
 } from '@/types/order'
@@ -92,6 +93,21 @@ export function orderUpdateNoteAPI(params: { id: number; note: string; status: n
   return http({
     url: '/order/update/note',
     method: 'post',
+    params: params,
+  })
+}
+
+/**
+ * 查询订单物流轨迹
+ */
+export function getOrderLogisticsAPI(params: {
+  deliveryCompany: string
+  deliverySn: string
+  receiverPhone?: string
+}) {
+  return http<OmsLogisticsTrackResult>({
+    url: '/order/logistics',
+    method: 'get',
     params: params,
   })
 }
