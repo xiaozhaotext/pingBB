@@ -2,9 +2,10 @@ param(
   [string]$AdminUsername = 'admin',
   [string]$AdminBase = 'http://127.0.0.1:18880',
   [string]$PortalBase = 'http://127.0.0.1:18885',
-  [string]$PublicBase = 'http://122.51.105.107'
+  [string]$PublicBase = 'https://122.51.105.107'
 )
 $ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $passDir = Join-Path $projectRoot '.tools'
 $passed = 0

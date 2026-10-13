@@ -18,7 +18,7 @@
 | 后端 | `mall/mall-portal`（Spring Boot 3.5.14 / Java 17） |
 | 消费者前端 | `mall-app-web`（uni-app + Vue3 + Vite，H5） |
 | 管理后台前端 | `mall-admin-web` |
-| 线上站点 | 前台 `http://122.51.105.107`（nginx → `/opt/mall-demo/storefront`）；后台 `http://122.51.105.107/admin/`（→ `/opt/mall-demo/admin`） |
+| 线上站点 | 前台 `https://122.51.105.107`（nginx → `/opt/mall-demo/storefront`）；后台 `https://122.51.105.107/admin/`（→ `/opt/mall-demo/admin`） |
 | 线上后端 | `mall-portal.jar`(8085) / `mall-admin.jar`(8080)，systemd 管理，仅绑 `127.0.0.1` |
 
 ---
@@ -68,7 +68,7 @@ utils/http.ts
 ## 四、接口实际测试结果（HTTP 状态码 + 响应 + 数据库变化）
 
 测试账号：本次自动注册 `autou174549`（会员 ID 17），第二会员 `autov174549`（ID 18）。
-全部请求经 `http://122.51.105.107/portal/**`（公网路径）与 `127.0.0.1:8085`（内网）双向验证，结果一致。
+全部请求经 `https://122.51.105.107/portal/**`（公网路径）与 `127.0.0.1:8085`（内网）双向验证，结果一致。
 
 | # | 功能 | 请求 | HTTP | 数据库变化证据 | 结论 |
 |---|---|---|---|---|---|
@@ -109,7 +109,7 @@ utils/http.ts
 |---|---|
 | 后端编译 | `mvn -B compile -pl mall-portal -am` → **BUILD SUCCESS**（153 classes） |
 | 前端构建 | `uni build` → **DONE Build complete.** |
-| 线上前端版本 | `http://122.51.105.107/index.html` 引用 `assets/index-Muxd93-g.js`（本次新构建） |
+| 线上前端版本 | `https://122.51.105.107/index.html` 引用 `assets/index-Muxd93-g.js`（本次新构建） |
 | 线上关键 chunk | `pages-member-partner.DiVDHIZZ.js`、`pages-member-cofounder.9pgzttlH.js`、`pages-member-dividend.YxgxIPlk.js` |
 | 后端参数 | systemd drop-in `/etc/systemd/system/mall-portal.service.d/override.conf` 追加 `--mall.p0.consumer-simulation-enabled=true` |
 | 旧版备份 | `/opt/mall-demo/storefront_bak_*`（可回滚） |
