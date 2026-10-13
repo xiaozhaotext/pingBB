@@ -78,7 +78,7 @@ const toLogin = async () => {
     }, 1000)
   } catch (error) {
     // http 工具已按后端 message 弹过提示（例如账号被禁止登录），这里不再重复
-    console.error('登录失败', error)
+    console.error('登录失败，请查看接口提示')
   } finally {
     logining.value = false
   }

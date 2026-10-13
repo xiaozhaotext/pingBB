@@ -121,18 +121,9 @@ const handleGetAuthCode = async () => {
     })
     // 开始60秒倒计时
     startCountdown()
-<<<<<<< HEAD
   } catch (error) {
+    // Keep the server's message visible; http already displays the transient toast.
     registrationError.value = errorMessage(error)
-    uni.showToast({
-      title: registrationError.value,
-      icon: 'none',
-    })
-=======
-  } catch (e) {
-    // http 工具已按后端 message 弹过提示，这里不再重复
-    console.error('获取验证码失败', e)
->>>>>>> origin/main
   }
 }
 
@@ -170,9 +161,8 @@ const handleRegister = async () => {
     setTimeout(() => {
       uni.redirectTo({ url: '/pages/public/login' })
     }, 1500)
-  } catch (e: any) {
-    // http 工具已按后端 message 弹过提示，这里不再重复
-    console.error('注册失败', e)
+  } catch (error) {
+    registrationError.value = errorMessage(error)
   } finally {
     registering.value = false
   }
