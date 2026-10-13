@@ -2,7 +2,7 @@
 -- 只在配置缺失或为空时写入，绝不覆盖后台已经修改过的值。
 INSERT INTO sys_config(config_key, config_value, config_group, remark) VALUES
   ('distribution.enabled','1','distribution','分销体系总开关(0关闭/1开启)'),
-  ('dividend.distribution.enabled','1','distribution','每日分红发放开关(0关闭/1开启)'),
+  ('dividend.distribution.enabled','0','distribution','每日分红发放开关(0关闭/1开启，规则未定稿前保持关闭)'),
   ('dividend.pool.ratio','0.30','distribution','购买金额进入分红池的比例(0-1)'),
   ('dividend.daily.base','1200.00','distribution','每日每份分红基数(元)，作为上限；池余额不足时按比例缩水'),
   ('dividend.cap.base','1200.00','distribution','无分享时的分红封顶(元)'),

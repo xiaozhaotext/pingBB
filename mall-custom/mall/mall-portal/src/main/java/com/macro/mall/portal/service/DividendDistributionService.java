@@ -1,6 +1,7 @@
 package com.macro.mall.portal.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,10 @@ public class DividendDistributionService {
     private final PointsWalletService pointsWallet;
     private final MemberEarningsCreditService earningsCreditService;
 
+    // 规则未定稿前，部署配置和后台开关必须同时开启才能真实入账。
+    @Value("${mall.dividend.payout.enabled:false}")
+    private boolean payoutEnabled;
+
     public DividendDistributionService(JdbcTemplate jdbc, PointsWalletService pointsWallet,
                                        MemberEarningsCreditService earningsCreditService) {
         this.jdbc = jdbc;
@@ -39,7 +44,7 @@ public class DividendDistributionService {
     @Transactional(rollbackFor = Exception.class)
     public int distributeDaily(LocalDate statDate) {
         // No config or consumer request can enable cash posting before business/compliance review.
-        if (!distributionApproved()) throw new IllegalStateException("\u5206\u7ea2\u5206\u914d\u5df2\u5728\u540e\u53f0\u5173\u95ed\uff08dividend.distribution.enabled=0\uff09");
+        if (!payoutEnabled || !distributionApproved()) throw new IllegalStateException("每日分红发放未启用");
         BigDecimal poolBalance = jdbc.queryForObject(
                 "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
         if (poolBalance == null || poolBalance.signum() <= 0) return 0;
@@ -130,9 +135,9 @@ public class DividendDistributionService {
         return paid;
     }
 
-    /** 分红发放开关：由后台配置 dividend.distribution.enabled 控制，默认开启。 */
+    /** 后台分红发放开关，缺失时保持关闭。 */
     private boolean distributionApproved() {
-        return configBool("dividend.distribution.enabled", true);
+        return configBool("dividend.distribution.enabled", false);
     }
 
     private boolean configBool(String key, boolean fallback) {

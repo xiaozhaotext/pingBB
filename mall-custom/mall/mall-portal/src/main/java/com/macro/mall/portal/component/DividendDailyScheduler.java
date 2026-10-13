@@ -23,7 +23,7 @@ public class DividendDailyScheduler {
 
     private final DividendDistributionService distributionService;
 
-    @Value("${mall.dividend.schedule.enabled:true}")
+    @Value("${mall.dividend.schedule.enabled:false}")
     private boolean scheduleEnabled;
 
     public DividendDailyScheduler(DividendDistributionService distributionService) {

@@ -66,6 +66,15 @@ class GapSecurityTest {
                 new DividendDistributionService(jdbc, null, new MemberEarningsCreditService(jdbc));
         assertThrows(IllegalStateException.class, () -> service.distributeDaily(LocalDate.now()));
     }
+    @Test void dividendPostingStaysOffEvenIfExistingDatabaseSwitchIsOn() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(java.util.List.of("1"));
+        DividendDistributionService service =
+                new DividendDistributionService(jdbc, null, new MemberEarningsCreditService(jdbc));
+        assertThrows(IllegalStateException.class, () -> service.distributeDaily(LocalDate.now()));
+        verifyNoInteractions(jdbc);
+    }
     private ConsultationController consultation() {
         UmsMember m = new UmsMember(); m.setId(7L);
         UmsMemberService service = mock(UmsMemberService.class); when(service.getCurrentMember()).thenReturn(m);
