@@ -523,6 +523,131 @@ public class P0AdminController {
         return "site";
     }
 
+    // ===== 登录日志（ums_admin_login_log）=====
+
+    @GetMapping("/login-logs")
+    public CommonResult<Map<String, Object>> loginLogs(Principal principal,
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        access.requireAuthorized(principal);
+        int limit = Math.min(Math.max(size, 1), 100);
+        int offset = (Math.max(page, 1) - 1) * limit;
+        String like = "%" + keyword.trim() + "%";
+        List<Map<String, Object>> list = jdbc.queryForList(
+                "SELECT l.id,l.admin_id,COALESCE(a.username,'') AS username,l.ip,l.address,l.user_agent,l.create_time "
+                        + "FROM ums_admin_login_log l LEFT JOIN ums_admin a ON a.id=l.admin_id "
+                        + "WHERE COALESCE(a.username,'') LIKE ? OR l.ip LIKE ? ORDER BY l.id DESC LIMIT ? OFFSET ?",
+                like, like, limit, offset);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("list", list);
+        data.put("total", jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ums_admin_login_log l LEFT JOIN ums_admin a ON a.id=l.admin_id "
+                        + "WHERE COALESCE(a.username,'') LIKE ? OR l.ip LIKE ?", Integer.class, like, like));
+        data.put("page", Math.max(page, 1));
+        data.put("size", limit);
+        return CommonResult.success(data);
+    }
+
+    // ===== 部门管理（ums_department）=====
+
+    @GetMapping("/departments")
+    public CommonResult<List<Map<String, Object>>> departments(Principal principal) {
+        access.requireAuthorized(principal);
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT d.id,d.parent_id,d.name,d.leader,d.phone,d.role_id,d.sort,d.status,d.remark,d.create_time,"
+                        + "(SELECT COUNT(*) FROM ums_admin a WHERE a.dept_id=d.id) AS admin_count "
+                        + "FROM ums_department d ORDER BY d.parent_id,d.sort,d.id"));
+    }
+
+    @PostMapping("/departments")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Map<String, Object>> createDepartment(Principal principal, @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        String name = requiredText(body, "name", 1, 64);
+        long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
+        jdbc.update("INSERT INTO ums_department(parent_id,name,leader,phone,role_id,sort,status,remark,create_time) "
+                        + "VALUES(?,?,?,?,?,?,?,?,NOW())",
+                parentId, name, optional(body, "leader", 64), optional(body, "phone", 32),
+                body.get("roleId") == null ? null : longValue(body, "roleId"),
+                body.get("sort") == null ? 0 : integer(body, "sort"),
+                body.get("status") == null ? 1 : integer(body, "status"),
+                optional(body, "remark", 255));
+        Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        audit(operatorId, principal.getName(), "department", "create", id, name);
+        Map<String, Object> created = new LinkedHashMap<>();
+        created.put("id", id);
+        return CommonResult.success(created);
+    }
+
+    @PostMapping("/departments/{id}")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> updateDepartment(Principal principal, @PathVariable long id, @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        String name = requiredText(body, "name", 1, 64);
+        long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
+        if (parentId == id) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "上级部门不能是自己");
+        }
+        jdbc.update("UPDATE ums_department SET parent_id=?,name=?,leader=?,phone=?,role_id=?,sort=?,status=?,remark=? WHERE id=?",
+                parentId, name, optional(body, "leader", 64), optional(body, "phone", 32),
+                body.get("roleId") == null ? null : longValue(body, "roleId"),
+                body.get("sort") == null ? 0 : integer(body, "sort"),
+                body.get("status") == null ? 1 : integer(body, "status"),
+                optional(body, "remark", 255), id);
+        audit(operatorId, principal.getName(), "department", "update", id, name);
+        return CommonResult.success(null);
+    }
+
+    @PostMapping("/departments/{id}/delete")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> deleteDepartment(Principal principal, @PathVariable long id) {
+        long operatorId = access.requireAuthorized(principal);
+        Integer children = jdbc.queryForObject("SELECT COUNT(*) FROM ums_department WHERE parent_id=?", Integer.class, id);
+        if (children != null && children > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先删除下级部门");
+        }
+        jdbc.update("UPDATE ums_admin SET dept_id=NULL WHERE dept_id=?", id);
+        jdbc.update("DELETE FROM ums_department WHERE id=?", id);
+        audit(operatorId, principal.getName(), "department", "delete", id, null);
+        return CommonResult.success(null);
+    }
+
+    @GetMapping("/departments/{id}/admins")
+    public CommonResult<List<Map<String, Object>>> departmentAdmins(Principal principal, @PathVariable long id) {
+        access.requireAuthorized(principal);
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT id,username,nick_name,email,status FROM ums_admin WHERE dept_id=? ORDER BY id", id));
+    }
+
+    @PostMapping("/departments/{id}/admins")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> assignDepartmentAdmins(Principal principal, @PathVariable long id,
+                                                    @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        List<Long> adminIds = new java.util.ArrayList<>();
+        Object raw = body.get("adminIds");
+        if (raw instanceof List<?> list) {
+            for (Object item : list) {
+                adminIds.add(Long.parseLong(String.valueOf(item)));
+            }
+        }
+        jdbc.update("UPDATE ums_admin SET dept_id=NULL WHERE dept_id=?", id);
+        for (Long adminId : adminIds) {
+            jdbc.update("UPDATE ums_admin SET dept_id=? WHERE id=?", id, adminId);
+        }
+        audit(operatorId, principal.getName(), "department", "assign-admins", id, adminIds.toString());
+        return CommonResult.success(null);
+    }
+
+    private String optional(Map<String, Object> body, String key, int max) {
+        String value = body.get(key) == null ? "" : String.valueOf(body.get(key)).trim();
+        if (value.length() > max) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, key + " 长度无效");
+        }
+        return value;
+    }
+
     private void audit(long operatorId, String name, String module, String action, Long targetId, String detail) {
         jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,target_id,detail) " +
                 "VALUES(?,?,?,?,?,?)", operatorId, name, module, action, targetId, detail);

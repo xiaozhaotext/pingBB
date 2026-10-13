@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -49,6 +50,8 @@ public class UmsMemberServiceImpl implements UmsMemberService {
     private UmsMemberLevelMapper memberLevelMapper;
     @Autowired
     private UmsMemberCacheService memberCacheService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
     @Value("${redis.key.authCode}")
     private String REDIS_KEY_PREFIX_AUTH_CODE;
     @Value("${redis.expire.authCode}")
@@ -108,6 +111,17 @@ public class UmsMemberServiceImpl implements UmsMemberService {
             umsMember.setMemberLevelId(memberLevelList.get(0).getId());
         }
         memberMapper.insert(umsMember);
+        // 注册通知：写入消息记录，后台“发送记录/消息中心”可查（短信/推送渠道未接入时不外发）。
+        try {
+            Long memberId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM ums_member WHERE username=? ORDER BY id DESC LIMIT 1", Long.class, username);
+            jdbcTemplate.update("INSERT INTO sys_message_record(channel,target,content,biz_type,biz_id,status,create_time) "
+                            + "VALUES(?,?,?,?,?,?,NOW())",
+                    "notice", telephone, "新会员注册：" + username + "（ID " + memberId + "）",
+                    "member_register", memberId, "success");
+        } catch (Exception e) {
+            LOGGER.warn("注册通知写入失败：{}", e.getMessage());
+        }
         umsMember.setPassword(null);
     }
 

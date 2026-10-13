@@ -9,10 +9,14 @@ import com.macro.mall.service.LogisticsTrackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 订单管理Controller
@@ -26,6 +30,8 @@ public class OmsOrderController {
     private OmsOrderService orderService;
     @Autowired
     private LogisticsTrackService logisticsTrackService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Operation(summary = "查询订单物流轨迹")
     @RequestMapping(value = "/logistics", method = RequestMethod.GET)
@@ -107,6 +113,33 @@ public class OmsOrderController {
             return CommonResult.success(count);
         }
         return CommonResult.failed();
+    }
+
+    @Operation(summary = "订单销量汇总")
+    @RequestMapping(value = "/summary", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<Map<String, Object>> summary() {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("totalOrderCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0"));
+        data.put("paidOrderCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status IN (1,2,3)"));
+        data.put("pendingDeliveryCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 1"));
+        data.put("pendingReceiveCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 2"));
+        data.put("completedCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 3"));
+        data.put("closedCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 4"));
+        data.put("returnApplyCount", scalar("SELECT COUNT(*) FROM oms_order_return_apply"));
+        data.put("totalSalesAmount", money("SELECT COALESCE(SUM(pay_amount),0) FROM oms_order WHERE delete_status = 0 AND status IN (1,2,3) AND payment_time IS NOT NULL"));
+        data.put("totalProductQuantity", scalar("SELECT COALESCE(SUM(i.product_quantity),0) FROM oms_order_item i JOIN oms_order o ON o.id = i.order_id WHERE o.delete_status = 0 AND o.status IN (1,2,3)"));
+        return CommonResult.success(data);
+    }
+
+    private long scalar(String sql) {
+        Long value = jdbcTemplate.queryForObject(sql, Long.class);
+        return value == null ? 0L : value;
+    }
+
+    private BigDecimal money(String sql) {
+        BigDecimal value = jdbcTemplate.queryForObject(sql, BigDecimal.class);
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     @Operation(summary = "备注订单")

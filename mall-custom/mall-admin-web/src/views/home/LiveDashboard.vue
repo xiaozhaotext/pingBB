@@ -3,12 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { getDashboardOverviewAPI, type DashboardOverview } from '@/apis/dashboard'
 
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent])
+use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
 
 const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
@@ -19,7 +19,10 @@ const cards = computed(() => [
   { title: '库存预警SKU', value: overview.value?.lowStockSkuCount ?? '—' },
   { title: '订单总数', value: overview.value?.orderCount ?? '—' },
   { title: '待发货订单', value: overview.value?.pendingDeliveryCount ?? '—' },
-  { title: '会员总数', value: overview.value?.memberCount ?? '—' },
+  { title: '总用户数', value: overview.value?.totalUser ?? '—' },
+  { title: '活跃用户(近30日)', value: overview.value?.activeUserCount ?? '—' },
+  { title: '新增用户(近30日)', value: overview.value?.newUserCount ?? '—' },
+  { title: '今日新增用户', value: overview.value?.todayNewMemberCount ?? '—' },
   { title: '今日订单', value: overview.value?.todayOrderCount ?? '—' },
   { title: '今日已支付金额', value: overview.value ? `¥${Number(overview.value.todayPaidAmount).toFixed(2)}` : '—' },
   { title: '累计已支付金额', value: overview.value ? `¥${Number(overview.value.totalPaidAmount).toFixed(2)}` : '—' },
@@ -36,6 +39,38 @@ const chartOption = computed(() => ({
     { name: '已支付订单数', type: 'line', data: overview.value?.paidTrend.map(item => item.orderCount) ?? [], smooth: true },
     { name: '已支付金额', type: 'line', yAxisIndex: 1, data: overview.value?.paidTrend.map(item => item.paidAmount) ?? [], smooth: true },
   ],
+}))
+const userTrend = computed(() => overview.value?.userTrend ?? [])
+const regionData = computed(() => overview.value?.memberRegionStats ?? [])
+const genderData = computed(() => overview.value?.memberGenderStats ?? [])
+const userChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['总用户', '活跃用户', '新增用户'] },
+  grid: { left: 52, right: 24, bottom: 28 },
+  xAxis: { type: 'category', data: userTrend.value.map(item => item.day) },
+  yAxis: { type: 'value', name: '人数' },
+  series: [
+    { name: '总用户', type: 'line', data: userTrend.value.map(item => item.totalUser), smooth: true },
+    { name: '活跃用户', type: 'line', data: userTrend.value.map(item => item.activeUser), smooth: true },
+    { name: '新增用户', type: 'line', data: userTrend.value.map(item => item.newUser), smooth: true },
+  ],
+}))
+const regionOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: 52, right: 24, bottom: 40 },
+  xAxis: { type: 'category', data: regionData.value.map(item => item.name), axisLabel: { interval: 0, rotate: 30 } },
+  yAxis: { type: 'value', name: '人数' },
+  series: [{ name: '用户数', type: 'bar', barMaxWidth: 36, data: regionData.value.map(item => item.cnt), itemStyle: { color: '#719680' } }],
+}))
+const genderOption = computed(() => ({
+  tooltip: { trigger: 'item' },
+  legend: { bottom: 0 },
+  series: [{
+    name: '性别分布',
+    type: 'pie',
+    radius: ['40%', '66%'],
+    data: genderData.value.map(item => ({ name: item.name, value: item.cnt })),
+  }],
 }))
 
 async function refresh() {
@@ -63,11 +98,28 @@ onMounted(refresh)
       <v-chart v-if="overview?.paidTrend.length" :option="chartOption" autoresize class="chart" />
       <el-empty v-else description="最近 7 日没有已支付订单数据" />
     </el-card>
+    <section class="user-grid">
+      <el-card shadow="never" class="user-chart">
+        <template #header><div class="trend-head"><strong>近 14 日用户趋势</strong><small>{{ overview?.userMetricNote }}</small></div></template>
+        <v-chart v-if="userTrend.length" :option="userChartOption" autoresize class="chart" />
+        <el-empty v-else description="暂无用户趋势数据" />
+      </el-card>
+      <el-card shadow="never" class="user-chart">
+        <template #header><strong>用户区域分布</strong></template>
+        <v-chart v-if="regionData.length" :option="regionOption" autoresize class="chart" />
+        <el-empty v-else description="暂无区域数据" />
+      </el-card>
+      <el-card shadow="never" class="user-chart">
+        <template #header><strong>用户性别分布</strong></template>
+        <v-chart v-if="genderData.length" :option="genderOption" autoresize class="chart" />
+        <el-empty v-else description="暂无性别数据" />
+      </el-card>
+    </section>
   </main>
 </template>
 
 <style scoped>
-.dashboard{padding:28px;background:#f6f7f4;min-height:100vh}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading p{color:#53765e;font-size:13px}.heading h1{font-size:28px;color:#234a34;margin:4px 0}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.metric span{display:block;color:#75847b;font-size:14px}.metric strong{display:block;margin-top:14px;color:#214a34;font-size:27px}.trend-head{display:flex;justify-content:space-between;gap:20px}.trend-head small{color:#7b8d81}.chart{height:330px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+.dashboard{padding:28px;background:#f6f7f4;min-height:100vh}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading p{color:#53765e;font-size:13px}.heading h1{font-size:28px;color:#234a34;margin:4px 0}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.metric span{display:block;color:#75847b;font-size:14px}.metric strong{display:block;margin-top:14px;color:#214a34;font-size:27px}.trend-head{display:flex;justify-content:space-between;gap:20px}.trend-head small{color:#7b8d81}.chart{height:330px}.user-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;margin-top:20px}.user-chart .chart{height:300px}@media(max-width:1200px){.user-grid{grid-template-columns:1fr 1fr}}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.user-grid{grid-template-columns:1fr}}
 </style>
 
 <style scoped>

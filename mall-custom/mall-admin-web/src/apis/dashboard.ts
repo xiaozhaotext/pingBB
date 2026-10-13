@@ -6,6 +6,18 @@ export interface PaidTrendDay {
   paidAmount: number
 }
 
+export interface UserTrendDay {
+  day: string
+  totalUser: number
+  activeUser: number
+  newUser: number
+}
+
+export interface NameValue {
+  name: string
+  cnt: number
+}
+
 export interface DashboardOverview {
   productCount: number
   productOnSaleCount: number
@@ -23,6 +35,14 @@ export interface DashboardOverview {
   totalNetPaidAmount: number
   paidTrend: PaidTrendDay[]
   amountNote: string
+  totalUser: number
+  todayNewMemberCount: number
+  newUserCount: number
+  activeUserCount: number
+  userTrend: UserTrendDay[]
+  memberRegionStats: NameValue[]
+  memberGenderStats: NameValue[]
+  userMetricNote: string
 }
 
 export function getDashboardOverviewAPI() {

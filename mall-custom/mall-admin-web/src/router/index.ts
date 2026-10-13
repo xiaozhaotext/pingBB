@@ -330,6 +330,18 @@ export const asyncRouterMap: RouteRecordExt[] = [
         meta: { title: '用户列表', icon: 'ums-admin' },
       },
       {
+        path: 'department',
+        name: 'department',
+        component: () => import('@/views/p0/Department.vue'),
+        meta: { title: '部门管理', icon: 'ums' },
+      },
+      {
+        path: 'login-log',
+        name: 'loginLog',
+        component: () => import('@/views/p0/LoginLog.vue'),
+        meta: { title: '登录日志', icon: 'ums' },
+      },
+      {
         path: 'role',
         name: 'role',
         component: () => import('@/views/ums/role/index.vue'),

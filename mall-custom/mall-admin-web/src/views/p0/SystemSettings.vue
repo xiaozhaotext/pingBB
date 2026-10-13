@@ -9,12 +9,13 @@ type Groups = Record<string, Field[]>
 const tabs = [
   { name: 'company', label: '公司信息' },
   { name: 'watermark', label: '水印设置' },
+  { name: 'upload', label: '上传设置' },
   { name: 'miniapp', label: '小程序' },
   { name: 'ip_access', label: 'IP 访问设置' },
   { name: 'content', label: '服务内容' },
   { name: 'cache', label: '缓存维护' },
 ]
-const switches = ['watermark.enabled', 'ip.access.enabled']
+const switches = ['watermark.enabled', 'ip.access.enabled', 'upload.image_optimize']
 const selects: Record<string, { value: string; label: string }[]> = {
   'watermark.position': [
     { value: 'bottomRight', label: '右下角' }, { value: 'bottomLeft', label: '左下角' },

@@ -21,7 +21,8 @@
     >
       <swiper-item v-for="(tabItem, tabIndex) in navList" :key="tabIndex" class="tab-content">
         <scroll-view class="list-scroll-content" scroll-y @scrolltolower="loadData('add')">
-          <!-- 空白页 -->
+          <view v-if="!tabItem.afterSale">
+            <!-- 空白页 -->
           <empty v-if="orderList == null || orderList.length === 0"></empty>
 
           <!-- 订单列表 -->
@@ -75,6 +76,29 @@
             </view>
           </view>
 
+          </view>
+          <view v-else>
+            <!-- 退款/售后申请 -->
+            <empty v-if="afterSaleList.length === 0"></empty>
+            <view v-for="(item, index) in afterSaleList" :key="index" class="order-item">
+              <view class="i-top b-b">
+                <text class="time">{{ formatDateTime(item.create_time) }}</text>
+                <text class="state" :style="{ color: '#fa436a' }">{{ formatAfterSaleStatus(item.status) }}</text>
+              </view>
+              <view class="goods-box-single" @click="handleShowOrderDetail(item.order_id)">
+                <image class="goods-img" :src="item.product_pic" mode="aspectFill"></image>
+                <view class="right">
+                  <text class="title clamp">{{ item.product_name }}</text>
+                  <text class="attr-box">{{ item.reason || '退货/售后' }} x {{ item.product_count }}</text>
+                  <text class="price">{{ item.product_real_price }}</text>
+                </view>
+              </view>
+              <view class="price-box">
+                退款金额
+                <text class="price">{{ item.return_amount }}</text>
+              </view>
+            </view>
+          </view>
           <uni-load-more :status="loadingType"></uni-load-more>
         </scroll-view>
       </swiper-item>
@@ -95,15 +119,18 @@ import {
 } from '@/apis/order'
 import type { OmsOrderDetail } from '@/types/order'
 import type { PageParam } from '@/types/common'
+import { http } from '@/utils/http'
 
 // ===== 导航数据 =====
 // Tab 导航列表
 const navList = [
-  { state: -1, text: '全部' },
-  { state: 0, text: '待付款' },
-  { state: 2, text: '待收货' },
-  { state: 3, text: '已完成' },
-  { state: 4, text: '已取消' },
+  { state: -1, text: '全部', afterSale: false },
+  { state: 0, text: '待付款', afterSale: false },
+  { state: 1, text: '待发货', afterSale: false },
+  { state: 2, text: '待收货', afterSale: false },
+  { state: 3, text: '已完成', afterSale: false },
+  { state: 4, text: '已取消', afterSale: false },
+  { state: -2, text: '退款/售后', afterSale: true },
 ]
 
 // ===== 页面数据 =====
@@ -120,9 +147,65 @@ const searchParam = ref<PageParam & { status: number }>({
   pageSize: 5,
 })
 
+// 退款/售后申请列表
+type AfterSaleRow = {
+  id: number
+  order_id: number
+  order_sn: string
+  product_pic: string
+  product_name: string
+  product_count: number
+  product_real_price: number
+  return_amount: number
+  reason: string
+  description: string
+  status: number
+  create_time: string
+}
+const afterSaleList = ref<AfterSaleRow[]>([])
+const formatAfterSaleStatus = (status: number): string => {
+  const map: Record<number, string> = { 0: '待处理', 1: '退货中', 2: '已完成', 3: '已拒绝' }
+  return map[status] ?? '处理中'
+}
+// 加载退款/售后申请
+const loadAfterSale = async (type: 'refresh' | 'add' = 'refresh') => {
+  if (loadingType.value === 'loading') {
+    return
+  }
+  loadingType.value = 'loading'
+  if (type === 'refresh') {
+    searchParam.value.pageNum = 1
+  }
+  try {
+    const res = await http<{ list: AfterSaleRow[] }>({
+      url: '/returnApply/list',
+      method: 'GET',
+      data: { pageNum: searchParam.value.pageNum, pageSize: 10 },
+    })
+    const list = res.data?.list ?? []
+    afterSaleList.value = type === 'refresh' ? list : afterSaleList.value.concat(list)
+    if (list.length === 0 && type === 'add') {
+      searchParam.value.pageNum--
+      loadingType.value = 'noMore'
+    } else {
+      loadingType.value = 'more'
+    }
+  } catch (e) {
+    console.error('加载退款/售后失败', e)
+    loadingType.value = 'more'
+  }
+  if (type === 'refresh') {
+    uni.stopPullDownRefresh()
+  }
+}
+
 // ===== loadData =====
 // 加载订单列表数据
 const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
+  if (navList[tabCurrentIndex.value]?.afterSale) {
+    await loadAfterSale(type)
+    return
+  }
   if (type === 'refresh') {
     searchParam.value.pageNum = 1
   } else {

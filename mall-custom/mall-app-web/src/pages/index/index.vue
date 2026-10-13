@@ -2,6 +2,16 @@
   <view class="container zone-home">
     <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uniApi.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uniApi.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
     <view class="zone-home-width">
+      <view class="home-banner" v-if="advertiseList.length">
+        <swiper class="banner-swiper" :current="swiperCurrent" circular autoplay :interval="4000" :duration="500" @change="handleSwiperChange">
+          <swiper-item v-for="(item, index) in advertiseList" :key="item.id || index">
+            <image class="banner-image" :src="item.pic" mode="aspectFill" @click="handleNavToAdvertisePage(item)" />
+          </swiper-item>
+        </swiper>
+        <view class="banner-dots" v-if="advertiseList.length > 1">
+          <text v-for="(item, index) in advertiseList" :key="index" :class="{ active: index === swiperCurrent }"></text>
+        </view>
+      </view>
       <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
       <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text></view>
       <view class="home-zones">
@@ -42,8 +52,10 @@ import { http } from '@/utils/http'
 const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.[0]?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
 const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
-const loadRebuy=async()=>{void loadAnnouncement();rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
+const loadRebuy=async()=>{void loadAnnouncement();void loadBanner();rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
 const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
+// 后台 Banner（/home/content → advertiseList）：后台启用/停用后应用端即时生效
+const loadBanner=async()=>{try{const r=await getHomeContentAPI();const list=(r.data?.advertiseList||[]).filter(i=>!!i.pic);advertiseList.value=list;swiperLength.value=list.length;if(!brandList.value.length&&r.data?.brandList?.length){brandList.value=r.data.brandList}}catch{advertiseList.value=[];swiperLength.value=0}}
 
 // ===== 页面数据 =====
 // 标题栏背景色
@@ -169,9 +181,27 @@ const handleNavToDetailPage = (item: PmsProduct) => {
   })
 }
 
-// 跳转到广告详情页
+// 跳转到广告详情页（按后台配置的 url 跳转）
 const handleNavToAdvertisePage = (item: SmsHomeAdvertise) => {
-  // TODO: 实现广告详情页跳转逻辑
+  const target = item.url ? String(item.url).trim() : ''
+  if (!target) {
+    return
+  }
+  if (target.startsWith('/pages/')) {
+    uni.navigateTo({ url: target })
+  } else if (target.startsWith('http')) {
+    // #ifdef H5
+    window.open(target, '_blank')
+    // #endif
+    // #ifndef H5
+    uni.setClipboardData({
+      data: target,
+      success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
+    })
+    // #endif
+  } else {
+    uni.showToast({ title: '暂不支持的跳转地址', icon: 'none' })
+  }
 }
 
 // 跳转到品牌制造商直供页
@@ -843,4 +873,13 @@ page {
 
 <style scoped>
 .zone-home{background:#f2f6f5}.zone-home-header{background:linear-gradient(115deg,#e3f0ec,#edf5f7);box-shadow:0 2px 12px #385f5810;border-bottom:1px solid #dce8e5}.travel-brand{color:#285a62}.travel-search{background:#fff;border-color:#deebe8;color:#809497}.home-cart{color:#26777c}.hero-pagination text{border-color:#378d93}.home-announcement{background:#fff;border:1px solid #e4eeeb}.announcement-label{background:#277f80}.announcement-copy{color:#406364}.home-zones{border:1px solid #e5ede9;box-shadow:0 8px 25px #34584c07}.zone-eyebrow{color:#edf5ef}.zone-arrow{color:#e6f5f6}.reserve-badge{background:#edf8f4e0;color:#527c70}.home-product-heading view>text{color:#284c53}.home-product-heading small{color:#809a99}.home-product-heading>text{color:#248189}.home-rebuy-product{border-color:#e0eae7;background:#fff}.home-product-sub{color:#839793}.home-product-price{color:#167c81}.rebuy-label{color:#4a8670;border-color:#d3e8dc}.home-zone-status{background:#fff;color:#819697}
+</style>
+<style scoped>
+.home-banner{position:relative;margin-top:12px;border-radius:18px;overflow:hidden}
+.banner-swiper{width:100%;height:180px}
+.banner-image{width:100%;height:180px;display:block}
+.banner-dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:6px}
+.banner-dots text{width:7px;height:7px;border-radius:50%;background:#ffffff99}
+.banner-dots text.active{background:#fff}
+@media(min-width:900px){.banner-swiper{height:300px}.banner-image{height:300px}}
 </style>

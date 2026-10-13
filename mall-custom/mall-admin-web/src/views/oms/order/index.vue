@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
 import { getOrderListAPI, orderUpdateCloseAPI, orderDeleteByIdsAPI } from '@/apis/order'
+import http from '@/utils/http'
 import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import { formatDateTime } from '@/utils/datetime'
 import type { OmsOrder, OrderQueryParam } from '@/types/order'
@@ -26,6 +27,41 @@ const list = ref<OmsOrder[]>([])
 const listLoading = ref(true)
 // 分页组件参数
 const total = ref(0)
+// 销量汇总（REQ-ADM-ORDER-002）
+type OrderSummary = {
+  totalOrderCount: number
+  paidOrderCount: number
+  pendingDeliveryCount: number
+  pendingReceiveCount: number
+  completedCount: number
+  closedCount: number
+  returnApplyCount: number
+  totalSalesAmount: number
+  totalProductQuantity: number
+}
+const summary = ref<OrderSummary | null>(null)
+const summaryCards = [
+  { key: 'totalOrderCount', label: '订单总数', money: false },
+  { key: 'paidOrderCount', label: '已支付订单', money: false },
+  { key: 'pendingDeliveryCount', label: '待发货', money: false },
+  { key: 'pendingReceiveCount', label: '待收货', money: false },
+  { key: 'completedCount', label: '已完成', money: false },
+  { key: 'returnApplyCount', label: '退货申请', money: false },
+  { key: 'totalProductQuantity', label: '销售件数', money: false },
+] as const
+const summaryText = (key: keyof OrderSummary) => {
+  const value = summary.value?.[key]
+  return value === undefined || value === null ? '—' : String(value)
+}
+const getSummary = async () => {
+  try {
+    const response = await http<OrderSummary>({ url: '/order/summary', method: 'get' })
+    summary.value = response.data
+  } catch (error) {
+    summary.value = null
+    console.error('获取订单销量汇总失败:', error)
+  }
+}
 // 获取订单列表数据
 const getList = async () => {
   listLoading.value = true
@@ -43,6 +79,7 @@ const getList = async () => {
 // 组件挂载后初始化列表信息
 onMounted(() => {
   getList()
+  getSummary()
 })
 
 // 表格中被选中的行
@@ -299,6 +336,18 @@ const deleteOrderFn = async (ids: number[]) => {
 
 <template>
   <div class="app-container">
+    <el-card class="summary-container" shadow="never">
+      <div class="summary-head">
+        <span class="summary-title">订单销量汇总</span>
+        <span class="summary-total">累计销售额（已支付）￥{{ summary ? Number(summary.totalSalesAmount).toFixed(2) : '—' }}</span>
+      </div>
+      <div class="summary-grid">
+        <div v-for="card in summaryCards" :key="card.key" class="summary-item">
+          <span class="summary-label">{{ card.label }}</span>
+          <strong class="summary-value">{{ summaryText(card.key) }}</strong>
+        </div>
+      </div>
+    </el-card>
     <el-card class="filter-container" shadow="never">
       <div>
         <el-icon class="el-icon-middle">
@@ -429,4 +478,14 @@ const deleteOrderFn = async (ids: number[]) => {
 .input-width {
   width: 203px
 }
+
+.summary-container{margin-bottom:20px}
+.summary-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.summary-title{font-size:16px;font-weight:600;color:#303133}
+.summary-total{color:#c45656;font-size:14px}
+.summary-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
+.summary-item{background:#f7f7f7;border-radius:8px;padding:12px 14px}
+.summary-label{display:block;color:#909399;font-size:12px}
+.summary-value{display:block;margin-top:8px;font-size:20px;color:#303133}
+@media(max-width:1200px){.summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>

@@ -34,6 +34,7 @@ public class SystemSettingService {
     public static final String GROUP_WATERMARK = "watermark";
     public static final String GROUP_MINIAPP = "miniapp";
     public static final String GROUP_IP_ACCESS = "ip_access";
+    public static final String GROUP_UPLOAD = "upload";
 
     public static final String KEY_IP_ENABLED = "ip.access.enabled";
     public static final String KEY_IP_MODE = "ip.access.mode";
@@ -74,6 +75,11 @@ public class SystemSettingService {
         keys.put(KEY_IP_ENABLED, new KeySpec(GROUP_IP_ACCESS, "启用 IP 限制", false, SystemSettingService::validateSwitch));
         keys.put(KEY_IP_MODE, new KeySpec(GROUP_IP_ACCESS, "限制模式", false, SystemSettingService::validateIpMode));
         keys.put(KEY_IP_LIST, new KeySpec(GROUP_IP_ACCESS, "IP 列表", false, SystemSettingService::validateIpList));
+        keys.put("upload.image_max_size", new KeySpec(GROUP_UPLOAD, "图片大小上限(MB)", false, SystemSettingService::validatePositiveInt));
+        keys.put("upload.image_extensions", new KeySpec(GROUP_UPLOAD, "允许的图片格式", false, SystemSettingService::validateExtensionList));
+        keys.put("upload.image_max_width", new KeySpec(GROUP_UPLOAD, "图片最大宽度(px)", false, SystemSettingService::validatePositiveInt));
+        keys.put("upload.image_optimize", new KeySpec(GROUP_UPLOAD, "启用图片压缩优化", false, SystemSettingService::validateSwitch));
+        keys.put("upload.attachment_max_size", new KeySpec(GROUP_UPLOAD, "附件大小上限(MB)", false, SystemSettingService::validatePositiveInt));
         KEYS = Collections.unmodifiableMap(keys);
     }
 
@@ -106,6 +112,7 @@ public class SystemSettingService {
         groups.put(GROUP_WATERMARK, new ArrayList<>());
         groups.put(GROUP_MINIAPP, new ArrayList<>());
         groups.put(GROUP_IP_ACCESS, new ArrayList<>());
+        groups.put(GROUP_UPLOAD, new ArrayList<>());
         for (Map.Entry<String, KeySpec> entry : KEYS.entrySet()) {
             KeySpec spec = entry.getValue();
             String raw = stored.get(entry.getKey());
@@ -283,6 +290,32 @@ public class SystemSettingService {
             return "****";
         }
         return value.substring(0, 4) + "****" + value.substring(value.length() - 4);
+    }
+
+    private static void validatePositiveInt(String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed < 0 || parsed > 100000) {
+                throw new NumberFormatException();
+            }
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "需为 0-100000 的整数");
+        }
+    }
+
+    private static void validateExtensionList(String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        for (String part : value.split(",")) {
+            String ext = part.trim().toLowerCase(java.util.Locale.ROOT);
+            if (!ext.matches("[a-z0-9]{1,8}")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "格式列表需为逗号分隔的扩展名，如 jpg,png");
+            }
+        }
     }
 
     private static void validatePlain(String value) {
