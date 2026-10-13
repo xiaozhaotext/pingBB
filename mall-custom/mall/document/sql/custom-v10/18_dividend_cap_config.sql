@@ -3,5 +3,6 @@
 
 INSERT IGNORE INTO `sys_config` (`config_key`, `config_value`, `config_group`, `remark`) VALUES
   ('dividend.cap.base', '1200', 'dividend', '分红封顶基础金额（元，无分享时）'),
-  ('dividend.cap.per_referral', '1200', 'dividend', '每推荐1人增加的封顶金额（元，不限人数）'),
+  ('dividend.cap.per_referral', '1200', 'dividend', '每推荐1人增加的封顶金额（元）'),
+  ('dividend.cap.max_referrals', '999999', 'dividend', '封顶计算时最多计算的推荐人数（大数字=不限）'),
   ('dividend.cap.max', '12000', 'dividend', '分红封顶总上限（元）');

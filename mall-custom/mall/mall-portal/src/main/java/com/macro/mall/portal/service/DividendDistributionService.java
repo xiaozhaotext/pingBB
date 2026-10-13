@@ -58,6 +58,7 @@ public class DividendDistributionService {
         BigDecimal capBase = configDecimal("dividend.cap.base", new BigDecimal("1200.00"));
         BigDecimal capPerReferral = configDecimal("dividend.cap.per_referral", new BigDecimal("1200.00"));
         BigDecimal capMax = configDecimal("dividend.cap.max", new BigDecimal("12000.00"));
+        int maxReferrals = configInt("dividend.cap.max_referrals", 999999);
 
         int paid = 0;
         BigDecimal totalPaid = BigDecimal.ZERO;
@@ -77,7 +78,7 @@ public class DividendDistributionService {
                     "SELECT COUNT(*) FROM ums_member_recommend WHERE inviter_id=?",
                     Integer.class, memberId);
             int refs = refCount == null ? 0 : refCount;
-            BigDecimal cap = capBase.add(capPerReferral.multiply(new BigDecimal(refs)));
+            BigDecimal cap = capBase.add(capPerReferral.multiply(new BigDecimal(Math.min(refs, maxReferrals))));
             if (cap.compareTo(capMax) > 0) cap = capMax;
 
             // Already received (cumulative)
@@ -134,6 +135,18 @@ public class DividendDistributionService {
             if (!rows.isEmpty() && rows.get(0) != null) {
                 BigDecimal v = new BigDecimal(rows.get(0).trim());
                 if (v.signum() >= 0) return v;
+            }
+        } catch (Exception ignored) { }
+        return fallback;
+    }
+
+    private int configInt(String key, int fallback) {
+        try {
+            List<String> rows = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? LIMIT 1",
+                    (rs, n) -> rs.getString(1), key);
+            if (!rows.isEmpty() && rows.get(0) != null) {
+                int v = Integer.parseInt(rows.get(0).trim());
+                if (v >= 0) return v;
             }
         } catch (Exception ignored) { }
         return fallback;
