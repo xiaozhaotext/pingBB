@@ -81,7 +81,7 @@ const handleBuy = async () => {
     const o = r.data
     orderInfo.value = o
     const payment = o.payment || {}
-    if (payment.mock === 'true' || payment.mock === true) {
+    if (String(payment.mock) === 'true') {
       payHint.value = '正在确认本地演示支付…'
       await confirmMockMembershipPaymentAPI(o.orderId)
       payHint.value = '支付已完成，权益生效中…'

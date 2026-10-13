@@ -54,7 +54,7 @@
       </view>
     </view>
 
-    <view class="share-section" @click="uniApi.navigateTo({url:'/pages/consultation/consultation?productId='+product.id})">
+    <view class="share-section" @click="openConsultation">
       <text class="tit">在线咨询</text><text class="share-btn">咨询商品或订单 ›</text>
     </view>
     <!-- 商品规格、参数、优惠券等 -->
@@ -233,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-const uniApi = uni
+const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consultation?productId=' + product.value.id })
 
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import WatermarkOverlay from '@/components/WatermarkOverlay.vue'

@@ -9,7 +9,7 @@
         <button class="btn" size="mini" @click="copyCode">复制</button>
       </view>
       <image v-if="qrImage" :src="qrImage" mode="aspectFit" style="width:240px;height:240px;display:block;margin:16px auto" />
-      <button v-if="detail?.shortLink" class="btn" @click="uniApi.setClipboardData({data:detail.shortLink})">复制邀请链接</button>
+      <button v-if="detail?.shortLink" class="btn" @click="copyInviteLink">复制邀请链接</button>
       <text class="tip" v-if="detail">已邀请下级：{{ inviteeCount }} 人</text>
     </view>
 
@@ -34,8 +34,6 @@
 </template>
 
 <script setup lang="ts">
-const uniApi = uni
-
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import QRCode from 'qrcode'
@@ -50,6 +48,9 @@ import {
 const qrImage = ref('')
 const myCode = ref('')
 const detail = ref<any>(null)
+const copyInviteLink = () => {
+  if (detail.value?.shortLink) uni.setClipboardData({ data: detail.value.shortLink })
+}
 const inviteeCount = ref(0)
 const bindCode = ref('')
 onLoad((options) => { if (options?.inviteCode) { bindCode.value = String(options.inviteCode); uni.setStorageSync('pendingInviteCode',bindCode.value) } else bindCode.value=uni.getStorageSync('pendingInviteCode')||'' })
