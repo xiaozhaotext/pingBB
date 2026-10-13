@@ -114,6 +114,14 @@ async function openMember(id: number) {
     referrerReason.value = ''
   } finally { loading.value = false }
 }
+async function changeMemberStatus() {
+  if (!memberId.value || !memberDetail.value) return
+  const { value: reason } = await ElMessageBox.prompt('请输入至少5个字的变更原因', '登录权限', { inputValidator: value => value.trim().length >= 5 || '原因至少5个字' })
+  const status = Number((memberDetail.value.profile as P0Row).status) === 1 ? 0 : 1
+  await postP0(`members/${memberId.value}/status`, {status,reason})
+  await openMember(memberId.value)
+  ElMessage.success('登录权限已更新')
+}
 async function changeIdentity() {
   if (!memberId.value || identityReason.value.trim().length < 5) return ElMessage.warning('请填写至少 5 个字的变更原因')
   await ElMessageBox.confirm('确认调整会员身份并写入审计日志？', '身份调整', { type: 'warning' })
@@ -223,6 +231,10 @@ const groupTitles: Record<string, string> = {
     <el-drawer v-model="drawerOpen" title="会员详情与身份调整" size="520px" :modal="true" @closed="memberId = null">
       <template v-if="memberDetail">
         <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
+        <h3>登录权限</h3><el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
+        <h3>收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
+        <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
+        <h3>订单与专区</h3><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
         <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
         <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
         <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />

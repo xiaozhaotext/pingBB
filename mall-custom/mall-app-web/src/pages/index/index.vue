@@ -1,15 +1,15 @@
 <template>
   <view class="container zone-home">
-    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uni.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uni.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
+    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uniApi.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uniApi.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
     <view class="zone-home-width">
       <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
-      <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">智美游 · 品质好物，悦享生活</text></view>
+      <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text></view>
       <view class="home-zones">
-        <view class="home-zone brand-zone" @click="uni.navigateTo({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">品牌区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone rebuy-zone" @click="uni.navigateTo({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone consume-zone" @click="uni.navigateTo({url:'/pages/zone/consume'})"><text class="home-zone-title">消费区</text><text class="home-zone-caption">预留专区 · 暂未开放</text><text class="reserve-badge">预留</text></view>
+        <view class="home-zone brand-zone" @click="uniApi.navigateTo({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">品牌区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone rebuy-zone" @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone consume-zone" @click="uniApi.navigateTo({url:'/pages/zone/consume'})"><text class="home-zone-title">消费区</text><text class="home-zone-caption">预留专区 · 暂未开放</text><text class="reserve-badge">预留</text></view>
       </view>
-      <view class="home-product-heading"><view><text>为你优选</text><small>演示商品 · 复购区好物</small></view><text @click="uni.navigateTo({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
+      <view class="home-product-heading"><view><text>为你优选</text><small>演示商品 · 复购区好物</small></view><text @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
@@ -19,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+const uniApi = uni
+
 import { ref, computed } from 'vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
 import {
@@ -35,9 +37,12 @@ import type { PmsProduct } from '@/types/product'
 import type { PmsBrand } from '@/types/brand'
 import type { PageParam } from '@/types/common'
 
+const announcement=ref('暂无公告')
+import { http } from '@/utils/http'
+const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.[0]?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
 const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
-const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
+const loadRebuy=async()=>{void loadAnnouncement();rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
 const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
 
 // ===== 页面数据 =====

@@ -53,6 +53,9 @@
       </view>
     </view>
 
+    <view class="share-section" @click="uniApi.navigateTo({url:'/pages/consultation/consultation?productId='+product.id})">
+      <text class="tit">在线咨询</text><text class="share-btn">咨询商品或订单 ›</text>
+    </view>
     <!-- 商品规格、参数、优惠券等 -->
     <view class="c-list">
       <view class="c-row b-b" @click="handleToggleSpec">
@@ -225,6 +228,8 @@
 </template>
 
 <script setup lang="ts">
+const uniApi = uni
+
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref, computed } from 'vue'
 import { onLoad, onPageScroll } from '@dcloudio/uni-app'

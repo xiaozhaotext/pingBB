@@ -35,6 +35,8 @@ public class DividendDistributionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int distributeDaily(LocalDate statDate) {
+        // No config or consumer request can enable cash posting before business/compliance review.
+        if (!distributionApproved()) throw new IllegalStateException("分红入账未获批准，功能关闭");
         BigDecimal poolBalance = jdbc.queryForObject(
                 "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
         if (poolBalance == null || poolBalance.signum() <= 0) return 0;
@@ -127,6 +129,8 @@ public class DividendDistributionService {
         }
         return paid;
     }
+
+    private boolean distributionApproved() { return false; }
 
     private BigDecimal configDecimal(String key, BigDecimal fallback) {
         try {

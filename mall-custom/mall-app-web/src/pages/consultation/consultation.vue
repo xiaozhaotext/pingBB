@@ -1,9 +1,9 @@
 <template>
   <view class="consult-page">
     <view class="form">
-      <input v-model="subject" placeholder="请输入咨询标题" maxlength="128" class="input" />
-      <textarea v-model="content" placeholder="请描述您的问题（5000字以内）" maxlength="5000" class="textarea" />
-      <input v-model="contact" placeholder="联系方式（手机/微信，可选）" maxlength="128" class="input" />
+      <input v-model="subject" placeholder="请输入咨询标题" :maxlength="128" class="input" />
+      <textarea v-model="content" placeholder="请描述您的问题（5000字以内）" :maxlength="5000" class="textarea" />
+      <input v-model="contact" placeholder="联系方式（手机/微信，可选）" :maxlength="128" class="input" />
       <button @click="submit" class="btn" :disabled="submitting">提交咨询</button>
     </view>
     <view class="history">

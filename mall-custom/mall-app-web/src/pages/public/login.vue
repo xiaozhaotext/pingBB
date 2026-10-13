@@ -10,7 +10,7 @@
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
-          <input type="text" v-model="username" placeholder="请输入用户名" :maxlength="11" />
+          <input type="text" v-model="username" placeholder="请输入用户名" :maxlength="64" />
         </view>
         <view class="input-item">
           <text class="tit">密码</text>
@@ -18,7 +18,7 @@
             v-model="password"
             placeholder="8-18位不含特殊字符的数字、字母组合"
             placeholder-class="input-empty"
-            :maxlength="20"
+            :maxlength="72"
             password
             @confirm="toLogin"
           />

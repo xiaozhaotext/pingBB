@@ -60,13 +60,13 @@ public class JwtTokenUtil {
         try {
             // 验证token签名
             if (!JWTUtil.verify(token, getSigningKey())) {
-                LOGGER.info("JWT签名验证失败:{}", token);
+                LOGGER.info("JWT签名验证失败");
                 return null;
             }
             // 解析token payload
             return JWTUtil.parseToken(token).getPayloads();
         } catch (Exception e) {
-            LOGGER.info("JWT格式验证失败:{}", token);
+            LOGGER.info("JWT格式验证失败");
             return null;
         }
     }

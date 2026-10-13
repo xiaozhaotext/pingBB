@@ -151,7 +151,14 @@ public class UmsAdminController {
     @Operation(summary = "修改指定用户密码")
     @RequestMapping(value = "/updatePassword", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult updatePassword(@Validated @RequestBody UpdateAdminPasswordParam updatePasswordParam) {
+    public CommonResult updatePassword(@Validated @RequestBody UpdateAdminPasswordParam updatePasswordParam, Principal principal) {
+        if (principal == null || !principal.getName().equals(updatePasswordParam.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只能修改自己的密码");
+        }
+        if (updatePasswordParam.getNewPassword() == null || updatePasswordParam.getNewPassword().length() < 8
+                || updatePasswordParam.getNewPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            return CommonResult.validateFailed("新密码至少8个字符且最多72个UTF-8字节");
+        }
         int status = adminService.updatePassword(updatePasswordParam);
         if (status > 0) {
             return CommonResult.success(status);

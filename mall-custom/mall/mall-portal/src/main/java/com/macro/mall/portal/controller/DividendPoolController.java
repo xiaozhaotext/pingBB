@@ -39,12 +39,7 @@ public class DividendPoolController {
     @Operation(summary = "执行每日分红分配（真实入账，幂等）")
     @PostMapping("/distribute")
     public CommonResult<Integer> distribute(@RequestBody Map<String, Object> body) {
-        String dateStr = body.get("statDate") == null ? null : String.valueOf(body.get("statDate"));
-        java.time.LocalDate statDate = dateStr == null || dateStr.isEmpty()
-                ? java.time.LocalDate.now().minusDays(1)
-                : java.time.LocalDate.parse(dateStr);
-        int paid = dividendDistributionService.distributeDaily(statDate);
-        return CommonResult.success(paid);
+        return CommonResult.forbidden(null);
     }
 
     @Operation(summary = "查询分红池余额")
@@ -58,27 +53,19 @@ public class DividendPoolController {
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")
     @PostMapping("/contribution")
     public CommonResult<Void> contribution(@RequestBody Map<String, Object> body) {
-        Long memberId = memberService.getCurrentMember().getId();
-        String eventType = String.valueOf(body.get("eventType"));
-        String bizId = String.valueOf(body.get("bizId"));
-        BigDecimal value = new BigDecimal(String.valueOf(body.get("contributionValue")));
-        Date statDate = new Date(Long.parseLong(String.valueOf(body.get("statDate"))));
-        return dividendPoolService.recordContributionEvent(memberId, eventType, bizId, value, statDate);
+        return CommonResult.forbidden(null);
     }
 
     @Operation(summary = "模拟每日分红分配(基于贡献比例,幂等)")
     @PostMapping("/allocate")
     public CommonResult<Integer> allocate(@RequestBody Map<String, Object> body) {
-        Date statDate = new Date(Long.parseLong(String.valueOf(body.get("statDate"))));
-        BigDecimal poolTotal = body.get("poolTotal") == null ? null : new BigDecimal(String.valueOf(body.get("poolTotal")));
-        String calcBatch = String.valueOf(body.get("calcBatch"));
-        return dividendPoolService.simulateDailyAllocate(statDate, poolTotal, calcBatch);
+        return CommonResult.forbidden(null);
     }
 
     @Operation(summary = "查询某日模拟分配快照")
     @GetMapping("/snapshot")
     public CommonResult<List<DividendSnapshot>> snapshot(@RequestParam Long statDate) {
-        return CommonResult.success(dividendPoolService.getSnapshot(new Date(statDate)));
+        return CommonResult.success(dividendPoolService.getMySnapshot(new Date(statDate), memberService.getCurrentMember().getId()));
     }
 
     @Operation(summary = "查询我自己的模拟分配快照")
@@ -91,6 +78,8 @@ public class DividendPoolController {
     @Operation(summary = "查询某日模拟分配明细")
     @GetMapping("/detail")
     public CommonResult<List<DividendAllocateDetail>> detail(@RequestParam Long statDate) {
-        return CommonResult.success(dividendPoolService.getAllocateDetail(new Date(statDate)));
+        return CommonResult.success(dividendPoolService.getAllocateDetail(new Date(statDate)).stream()
+                .filter(item -> memberService.getCurrentMember().getId().equals(item.getMemberId()))
+                .collect(java.util.stream.Collectors.toList()));
     }
 }

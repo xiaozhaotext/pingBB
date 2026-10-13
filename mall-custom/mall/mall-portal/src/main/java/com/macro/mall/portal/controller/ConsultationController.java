@@ -27,12 +27,9 @@ public class ConsultationController {
     @Operation(summary = "提交咨询")
     @PostMapping("/submit")
     public CommonResult<Void> submit(@RequestBody Map<String, Object> body) {
-        Long memberId = null;
-        try {
-            memberId = memberService.getCurrentMember().getId();
-        } catch (Exception ignored) { }
-        String subject = String.valueOf(body.get("subject"));
-        String content = String.valueOf(body.get("content"));
+        Long memberId = memberService.getCurrentMember().getId();
+        String subject = body.get("subject") instanceof String ? (String) body.get("subject") : null;
+        String content = body.get("content") instanceof String ? (String) body.get("content") : null;
         String contact = body.get("contact") == null ? null : String.valueOf(body.get("contact"));
         if (subject == null || subject.trim().isEmpty() || subject.length() > 128) {
             return CommonResult.failed("标题不能为空且不超过128字");
@@ -40,6 +37,7 @@ public class ConsultationController {
         if (content == null || content.trim().isEmpty() || content.length() > 5000) {
             return CommonResult.failed("内容不能为空且不超过5000字");
         }
+        if (contact != null && contact.length() > 128) return CommonResult.validateFailed("联系方式不能超过128字");
         jdbc.update("INSERT INTO sys_consultation(member_id,contact,subject,content,status)"
                         + " VALUES(?,?,?,?,'0')",
                 memberId, contact, subject.trim(), content.trim());

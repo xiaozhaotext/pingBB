@@ -23,6 +23,18 @@ public class InvitationServiceImpl implements InvitationService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+    @org.springframework.beans.factory.annotation.Value("${mall.public-base-url:http://127.0.0.1:5174}")
+    private String publicBaseUrl;
+
+    private String invitationLink(String code) {
+        java.net.URI base = java.net.URI.create(publicBaseUrl);
+        if ((!"https".equals(base.getScheme()) && !"http".equals(base.getScheme())) || base.getHost() == null
+                || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null) {
+            throw new IllegalStateException("商城公开地址配置无效");
+        }
+        return publicBaseUrl.replaceAll("/+$", "") + "/#/pages/member/invitation?inviteCode=" + code;
+    }
+
     @Autowired
     private UmsInvitationCodeMapper codeMapper;
     @Autowired
@@ -41,8 +53,8 @@ public class InvitationServiceImpl implements InvitationService {
         UmsInvitationCode c = new UmsInvitationCode();
         c.setMemberId(memberId);
         c.setCode(code);
-        c.setQrContent("https://mall.example.com/invite?code=" + code);
-        c.setShortLink("https://mall.example.com/i/" + code);
+        c.setQrContent(invitationLink(code));
+        c.setShortLink(invitationLink(code));
         c.setStatus(1);
         c.setCreateTime(new Date());
         codeMapper.insert(c);
@@ -51,7 +63,9 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Override
     public UmsInvitationCode getMyCode(Long memberId) {
-        return codeMapper.selectByMember(memberId);
+        UmsInvitationCode detail = codeMapper.selectByMember(memberId);
+        if (detail != null) { detail.setQrContent(invitationLink(detail.getCode())); detail.setShortLink(invitationLink(detail.getCode())); }
+        return detail;
     }
 
     @Override

@@ -17,6 +17,7 @@ export const constantRouterMap: RouteRecordExt[] = [
         component: () => import('@/views/home/LiveDashboard.vue'),
         meta: { title: '首页', icon: 'dashboard' },
       },
+      { path: 'account', name: 'account', component: () => import('@/views/account/Account.vue'), meta: { title: '账户安全' }, hidden: true },
       // {
       //   path: 'test',
       //   name: 'test',
@@ -297,6 +298,8 @@ export const asyncRouterMap: RouteRecordExt[] = [
     name: 'p0',
     meta: { title: '会员运营', icon: 'ums' },
     children: [
+      { path: 'notices', name: 'p0Notices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理' } },
+      { path: 'consultations', name: 'p0Consultations', component: () => import('@/views/p0/Operations.vue'), meta: { title: '在线咨询' } },
       { path: 'members', name: 'p0Members', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员管理' } },
       { path: 'partner', name: 'p0Partner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理' } },
       { path: 'cofounder', name: 'p0Cofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理' } },

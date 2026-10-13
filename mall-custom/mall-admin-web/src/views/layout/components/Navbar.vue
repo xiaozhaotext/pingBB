@@ -48,6 +48,7 @@ const handleLogout = async () => {
               首页
             </el-dropdown-item>
           </router-link>
+          <router-link class="inlineBlock" to="/account"><el-dropdown-item>账户安全</el-dropdown-item></router-link>
           <el-dropdown-item divided>
             <span @click="handleLogout" style="display:block;">退出</span>
           </el-dropdown-item>

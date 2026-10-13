@@ -4,7 +4,7 @@
     <view class="zone-wrap">
       <view class="zone-head">
         <view><text class="zone-kicker">智美游 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
-        <view class="zone-actions"><text @click="uni.switchTab({url:'/pages/cart/cart'})">购物车</text><text @click="uni.navigateTo({ url: '/pages/order/order?state=-1' })">我的订单</text></view>
+        <view class="zone-actions"><text @click="uniApi.switchTab({url:'/pages/cart/cart'})">购物车</text><text @click="uniApi.navigateTo({ url: '/pages/order/order?state=-1' })">我的订单</text></view>
       </view>
       <view class="zone-tip">本地测试环境：专区仅展示已分配商品。积分与现金组合规则尚未确认，当前不提供专区积分结算。</view>
       <view class="zone-filters">
@@ -20,7 +20,7 @@
       <view v-else-if="error" class="zone-empty">商品加载失败，请稍后重试。<text @click="load">重试</text></view>
       <view v-else-if="products.length === 0" class="zone-empty">{{ keyword || categoryIndex ? '没有符合筛选条件的商品' : '当前专区暂无已上架商品' }}</view>
       <view v-else class="zone-grid">
-        <view v-for="item in products" :key="item.id" class="zone-card" @click="uni.navigateTo({ url: `/pages/product/product?id=${item.id}` })">
+        <view v-for="item in products" :key="item.id" class="zone-card" @click="uniApi.navigateTo({ url: `/pages/product/product?id=${item.id}` })">
           <image :src="item.pic" mode="aspectFill" />
           <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>¥{{ item.price }}</text><text>已售 {{ item.sale || 0 }}</text></view></view>
         </view>
@@ -30,6 +30,8 @@
 </template>
 
 <script setup lang="ts">
+const uniApi = uni
+
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import DesktopHeader from '@/components/DesktopHeader.vue'

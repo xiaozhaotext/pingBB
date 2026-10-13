@@ -57,6 +57,9 @@ public class P0AdminController {
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会员不存在");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("profile", rows.get(0));
+        data.put("addresses", jdbc.queryForList("SELECT id,name,phone_number,default_status,province,city,region,detail_address FROM ums_member_receive_address WHERE member_id=? ORDER BY id DESC", memberId));
+        data.put("orders", jdbc.queryForList("SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,GROUP_CONCAT(DISTINCT z.zone_code) AS product_zones FROM oms_order o LEFT JOIN oms_order_item i ON i.order_id=o.id LEFT JOIN pms_product_zone z ON z.product_id=i.product_id WHERE o.member_id=? AND o.delete_status=0 GROUP BY o.id ORDER BY o.id DESC LIMIT 100",memberId));
+        data.put("consumption", jdbc.queryForList("SELECT COUNT(*) AS order_count,COALESCE(SUM(CASE WHEN status IN(1,2,3) THEN pay_amount ELSE 0 END),0) AS paid_amount FROM oms_order WHERE member_id=? AND delete_status=0",memberId));
         data.put("identity", jdbc.queryForList(
                 "SELECT identity_type,status,become_time,expire_time,operator_id FROM ums_member_identity WHERE member_id=?", memberId));
         data.put("identityHistory", jdbc.queryForList(
@@ -68,6 +71,20 @@ public class P0AdminController {
                 "SELECT r.member_id,m.username,r.bind_time FROM ums_member_recommend r " +
                 "JOIN ums_member m ON m.id=r.member_id WHERE r.inviter_id=? ORDER BY r.id DESC LIMIT 100", memberId));
         return CommonResult.success(data);
+    }
+
+    @PostMapping("/members/{memberId}/status")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> changeStatus(Principal principal, @PathVariable long memberId,
+                                         @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        int status = integer(body,"status");
+        String reason = requiredText(body,"reason",5,200);
+        if (status != 0 && status != 1) return CommonResult.validateFailed("状态必须是0或1");
+        int changed = jdbc.update("UPDATE ums_member SET status=? WHERE id=?",status,memberId);
+        if (changed == 0) return CommonResult.failed("会员不存在");
+        audit(operatorId,principal.getName(),"member","status_change",memberId,status+": "+reason);
+        return CommonResult.success(null);
     }
 
     @PostMapping("/members/{memberId}/referrer")
@@ -324,7 +341,7 @@ public class P0AdminController {
     public CommonResult<List<Map<String, Object>>> notices(Principal principal) {
         access.requireAuthorized(principal);
         return CommonResult.success(jdbc.queryForList(
-                "SELECT id,title,type,status,publish_time,create_time FROM sys_notice ORDER BY id DESC LIMIT 100"));
+                "SELECT id,title,content,type,status,publish_time,create_time FROM sys_notice ORDER BY id DESC LIMIT 100"));
     }
 
     @PostMapping("/notices")

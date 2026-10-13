@@ -8,6 +8,8 @@
         <text class="code">{{ myCode || '—' }}</text>
         <button class="btn" size="mini" @click="copyCode">复制</button>
       </view>
+      <image v-if="qrImage" :src="qrImage" mode="aspectFit" style="width:240px;height:240px;display:block;margin:16px auto" />
+      <button v-if="detail?.shortLink" class="btn" @click="uniApi.setClipboardData({data:detail.shortLink})">复制邀请链接</button>
       <text class="tip" v-if="detail">已邀请下级：{{ inviteeCount }} 人</text>
     </view>
 
@@ -32,7 +34,11 @@
 </template>
 
 <script setup lang="ts">
+const uniApi = uni
+
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import QRCode from 'qrcode'
 import {
   getMyInviteCodeAPI,
   getInvitationDetailAPI,
@@ -41,16 +47,18 @@ import {
   getMyInviteesAPI,
 } from '@/apis/member'
 
+const qrImage = ref('')
 const myCode = ref('')
 const detail = ref<any>(null)
 const inviteeCount = ref(0)
 const bindCode = ref('')
+onLoad((options) => { if (options?.inviteCode) { bindCode.value = String(options.inviteCode); uni.setStorageSync('pendingInviteCode',bindCode.value) } else bindCode.value=uni.getStorageSync('pendingInviteCode')||'' })
 const inviter = ref<any>(null)
 const invitees = ref<any[]>([])
 
 const loadData = async () => {
   try { const r = await getMyInviteCodeAPI(); myCode.value = r.data || '' } catch (e) {}
-  try { const r = await getInvitationDetailAPI(); detail.value = r.data; inviteeCount.value = r.data?.inviteeCount ?? 0 } catch (e) {}
+  try { const r = await getInvitationDetailAPI(); detail.value = r.data; inviteeCount.value = r.data?.inviteeCount ?? 0; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
   try { const r = await getMyInviterAPI(); inviter.value = r.data || null } catch (e) {}
   try { const r = await getMyInviteesAPI(); invitees.value = r.data || [] } catch (e) {}
 }
@@ -64,6 +72,7 @@ const handleBind = async () => {
   if (!bindCode.value) { uni.showToast({ title: '请输入邀请码', icon: 'none' }); return }
   try {
     await bindInviterAPI({ code: bindCode.value })
+    uni.removeStorageSync('pendingInviteCode')
     uni.showToast({ title: '绑定成功', icon: 'success' })
     loadData()
   } catch (e) {}

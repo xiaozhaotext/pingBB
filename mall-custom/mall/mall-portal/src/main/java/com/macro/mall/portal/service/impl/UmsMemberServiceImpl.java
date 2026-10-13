@@ -56,8 +56,8 @@ public class UmsMemberServiceImpl implements UmsMemberService {
 
     @Override
     public UmsMember getByUsername(String username) {
-        UmsMember member = memberCacheService.getMember(username);
-        if(member!=null) return member;
+        // Authentication must observe disable/password changes immediately, not a cached profile.
+        UmsMember member;
         UmsMemberExample example = new UmsMemberExample();
         example.createCriteria().andUsernameEqualTo(username);
         List<UmsMember> memberList = memberMapper.selectByExample(example);
@@ -164,11 +164,13 @@ public class UmsMemberServiceImpl implements UmsMemberService {
 
     @Override
     public String login(String username, String password) {
+        if (username == null || username.isBlank() || username.length() > 64 || password == null
+                || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) return null;
         String token = null;
         //密码需要客户端加密后传递
         try {
             UserDetails userDetails = loadUserByUsername(username);
-            if(!passwordEncoder.matches(password,userDetails.getPassword())){
+            if(!userDetails.isEnabled() || !passwordEncoder.matches(password,userDetails.getPassword())){
                 throw new BadCredentialsException("密码不正确");
             }
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

@@ -24,6 +24,14 @@ import java.util.List;
 public class HomeController {
     @Autowired
     private HomeService homeService;
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @GetMapping("/announcements")
+    @ResponseBody
+    public CommonResult<java.util.List<java.util.Map<String,Object>>> announcements() {
+        return CommonResult.success(jdbc.queryForList("SELECT id,title,content,publish_time FROM sys_notice WHERE status=1 AND type='SYSTEM' ORDER BY publish_time DESC,id DESC LIMIT 5"));
+    }
 
     @Operation(summary = "首页内容信息展示")
     @RequestMapping(value = "/content", method = RequestMethod.GET)

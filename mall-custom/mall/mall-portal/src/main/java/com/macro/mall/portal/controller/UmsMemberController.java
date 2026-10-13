@@ -67,7 +67,20 @@ public class UmsMemberController {
             return CommonResult.unauthorized(null);
         }
         UmsMember member = memberService.getCurrentMember();
-        return CommonResult.success(member);
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", member.getId());
+        profile.put("username", member.getUsername());
+        profile.put("nickname", member.getNickname());
+        profile.put("phone", member.getPhone());
+        profile.put("icon", member.getIcon());
+        profile.put("gender", member.getGender());
+        profile.put("birthday", member.getBirthday());
+        profile.put("city", member.getCity());
+        profile.put("memberLevelId", member.getMemberLevelId());
+        profile.put("integration", member.getIntegration());
+        profile.put("growth", member.getGrowth());
+        profile.put("status", member.getStatus());
+        return CommonResult.success(profile);
     }
 
     @Operation(summary = "获取验证码")
