@@ -110,11 +110,9 @@ const handleGetAuthCode = async () => {
     })
     // 开始60秒倒计时
     startCountdown()
-  } catch {
-    uni.showToast({
-      title: '获取验证码失败',
-      icon: 'none',
-    })
+  } catch (e) {
+    // http 工具已按后端 message 弹过提示，这里不再重复
+    console.error('获取验证码失败', e)
   }
 }
 

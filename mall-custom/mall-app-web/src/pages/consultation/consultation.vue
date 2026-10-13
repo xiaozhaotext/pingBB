@@ -61,8 +61,9 @@ const submit = async () => {
     uni.showToast({ title: '提交成功' })
     subject.value = ''; content.value = ''; contact.value = ''
     loadList()
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } catch (e) {
+    // http 工具已按后端 message 弹过提示，这里不再重复
+    console.error('提交咨询失败', e)
   } finally {
     submitting.value = false
   }
