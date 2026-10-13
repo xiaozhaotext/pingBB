@@ -7,6 +7,7 @@ import com.macro.mall.model.OmsOrder;
 import com.macro.mall.model.OmsOrderItem;
 import com.macro.mall.model.OmsOrderItemExample;
 import com.macro.mall.model.OmsOrderReturnApply;
+import com.macro.mall.model.OmsOrderReturnApplyExample;
 import com.macro.mall.model.UmsMember;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.portal.domain.OmsOrderReturnApplyParam;
@@ -52,6 +53,13 @@ public class OmsPortalOrderReturnApplyServiceImpl implements OmsPortalOrderRetur
             Asserts.fail("退货商品不属于订单或数量无效");
         }
         OmsOrderItem item = items.get(0);
+        // 同一订单同一商品不允许同时存在多笔未结案申请，避免后台重复退款和重复归还库存。
+        OmsOrderReturnApplyExample pendingExample = new OmsOrderReturnApplyExample();
+        pendingExample.createCriteria().andOrderIdEqualTo(order.getId())
+                .andProductIdEqualTo(returnApply.getProductId()).andStatusIn(List.of(0, 1));
+        if (returnApplyMapper.countByExample(pendingExample) > 0) {
+            Asserts.fail("该商品已有售后申请正在处理中，请勿重复提交");
+        }
         OmsOrderReturnApply realApply = new OmsOrderReturnApply();
         BeanUtils.copyProperties(returnApply,realApply);
         // 商品、订单与价格快照只能来自数据库，不信任请求体中的字段。

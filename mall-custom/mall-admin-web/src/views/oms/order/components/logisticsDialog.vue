@@ -1,54 +1,76 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 
-// 定义组件的props
+// 订单信息由父组件传入；这里只展示订单自身的真实节点，不再伪造承运商扫描记录。
 const props = defineProps({
-  modelValue: Boolean
+  modelValue: Boolean,
+  order: {
+    type: Object as () => object | null,
+    default: null,
+  },
 })
 
-// 定义组件的emits
 const emit = defineEmits(['update:modelValue'])
 
-// 默认物流列表数据
-const defaultLogisticsList = [
-  { name: '订单已提交，等待付款', time: '2017-04-01 12:00:00 ' },
-  { name: '订单付款成功', time: '2017-04-01 12:00:00 ' },
-  { name: '在北京市进行下级地点扫描，等待付款', time: '2017-04-01 12:00:00 ' },
-  { name: '在分拨中心广东深圳公司进行卸车扫描，等待付款', time: '2017-04-01 12:00:00 ' },
-  { name: '在广东深圳公司进行发出扫描', time: '2017-04-01 12:00:00 ' },
-  { name: '到达目的地网点广东深圳公司，快件将很快进行派送', time: '2017-04-01 12:00:00 ' },
-  { name: '订单已签收，期待再次为您服务', time: '2017-04-01 12:00:00 ' }
-]
-
-// 物流列表数据
-const logisticsList = ref(Object.assign([], defaultLogisticsList))
-
-// 控制对话框显示的计算属性
 const visible = computed({
   get() {
     return props.modelValue
   },
-  set(visible) {
-    emit('update:modelValue', visible)
-  }
+  set(value: boolean) {
+    emit('update:modelValue', value)
+  },
 })
 
-// 发出输入事件
-const emitInput = (val: boolean) => {
-  emit('update:modelValue', val)
-}
+const text = (value: unknown) =>
+  value === null || value === undefined || value === '' ? '暂无' : String(value)
 
-// 处理关闭对话框
-const handleClose = () => {
-  emitInput(false)
-}
+const timeline = computed(() => {
+  const order = props.order as unknown as Record<string, unknown> | null
+  if (!order) {
+    return [] as { name: string; time: string }[]
+  }
+  const steps: { name: string; time: string }[] = []
+  if (order.createTime) {
+    steps.push({ name: '订单已提交', time: text(order.createTime) })
+  }
+  if (order.paymentTime) {
+    steps.push({ name: '订单付款成功', time: text(order.paymentTime) })
+  }
+  if (order.deliveryTime) {
+    steps.push({
+      name: '平台已发货：' + text(order.deliveryCompany) + ' ' + text(order.deliverySn),
+      time: text(order.deliveryTime),
+    })
+  }
+  if (order.receiveTime) {
+    steps.push({ name: '买家已收货', time: text(order.receiveTime) })
+  }
+  return steps
+})
 </script>
 
 <template>
-  <el-dialog title="订单跟踪" v-model="visible" :before-close="handleClose" width="40%">
-    <el-steps direction="vertical" :active="6" finish-status="success" space="50px">
-      <el-step v-for="item in logisticsList" :key="item.name" :title="item.name" :description="item.time"></el-step>
+  <el-dialog title="订单跟踪" v-model="visible" width="40%">
+    <el-steps
+      v-if="timeline.length"
+      direction="vertical"
+      :active="timeline.length"
+      finish-status="success"
+      space="50px"
+    >
+      <el-step
+        v-for="item in timeline"
+        :key="item.name"
+        :title="item.name"
+        :description="item.time"
+      ></el-step>
     </el-steps>
+    <el-empty v-else description="该订单暂无发货信息"></el-empty>
+    <el-alert
+      type="info"
+      :closable="false"
+      title="承运商轨迹查询尚未接入；如需逐条扫描记录，请按上面的运单号到物流公司官网或开放平台查询。"
+    ></el-alert>
   </el-dialog>
 </template>
 

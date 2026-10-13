@@ -59,6 +59,8 @@ const closeOrderData = ref({
 
 // 物流对话框可见性
 const logisticsDialogVisible = ref(false)
+// 当前查看物流的订单
+const logisticsOrder = ref<OmsOrder | null>(null)
 
 // 订单状态选项
 const statusOptions = [
@@ -196,6 +198,7 @@ const handleDeliveryOrder = (index: number, row: OmsOrder) => {
 
 // 处理查看物流
 const handleViewLogistics = (index: number, row: OmsOrder) => {
+  logisticsOrder.value = row
   logisticsDialogVisible.value = true
   console.log(index, row)
 }
@@ -418,7 +421,7 @@ const deleteOrderFn = async (ids: number[]) => {
         </span>
       </template>
     </el-dialog>
-    <logistics-dialog v-model="logisticsDialogVisible"></logistics-dialog>
+    <logistics-dialog v-model="logisticsDialogVisible" :order="logisticsOrder"></logistics-dialog>
   </div>
 </template>
 

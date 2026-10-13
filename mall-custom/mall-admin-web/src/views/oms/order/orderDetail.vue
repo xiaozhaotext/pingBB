@@ -698,7 +698,7 @@ const showLogisticsDialog = () => {
         </span>
       </template>
     </el-dialog>
-    <logistics-dialog v-model="logisticsDialogVisible"></logistics-dialog>
+    <logistics-dialog v-model="logisticsDialogVisible" :order="order"></logistics-dialog>
   </div>
 </template>
 
