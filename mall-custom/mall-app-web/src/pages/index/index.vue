@@ -23,12 +23,12 @@
       <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
       <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无可推荐商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view></view></view>
       <view class="home-product-heading"><view><text>为你优选</text><small>演示商品 · 复购区好物</small></view><text @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view></view></view>
     </view>
   </view>
 </template>
@@ -38,6 +38,7 @@ const uniApi = uni
 
 import { ref, computed } from 'vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
+import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import {
   onLoad,
   onPullDownRefresh,
@@ -63,6 +64,7 @@ const pickProducts=ref<ZoneProduct[]>([])
 const pickLoading=ref(false),pickError=ref(false)
 const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=(await getZoneProductsAPI('PICK')).data||[]}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
 const openPickProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=PICK`})
+const addCart=(item:ZoneProduct)=>{void addFirstAvailableSkuToCart(item.id)}
 // 后台 Banner（/home/content → advertiseList）：后台启用/停用后应用端即时生效
 const loadBanner=async()=>{try{const r=await getHomeContentAPI();const list=(r.data?.advertiseList||[]).filter(i=>!!i.pic);advertiseList.value=list;swiperLength.value=list.length;if(!brandList.value.length&&r.data?.brandList?.length){brandList.value=r.data.brandList}}catch{advertiseList.value=[];swiperLength.value=0}}
 
@@ -891,4 +893,8 @@ page {
 .banner-dots text{width:7px;height:7px;border-radius:50%;background:#ffffff99}
 .banner-dots text.active{background:#fff}
 @media(min-width:900px){.banner-swiper{height:300px}.banner-image{height:300px}}
+</style>
+
+<style scoped>
+.home-add-cart{margin-left:auto;padding:4px 10px;border-radius:14px;background:#285b40;color:#fff !important;font-size:12px;line-height:1.5;white-space:nowrap}
 </style>
