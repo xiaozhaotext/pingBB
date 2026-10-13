@@ -47,6 +47,21 @@ mall:
       api-v3-key: ${MALL_WECHAT_API_V3_KEY:}
       notify-url: ${MALL_WECHAT_NOTIFY_URL:}
       return-url: ${MALL_WECHAT_RETURN_URL:}
+  sms:
+    enabled: ${MALL_SMS_ENABLED:false} # 未配置短信服务商前保持关闭，验证码仅在接口返回（仅测试）
+    provider: ${MALL_SMS_PROVIDER:ALIYUN} # ALIYUN 或 HTTP
+    sign-name: ${MALL_SMS_SIGN_NAME:}
+    template-code: ${MALL_SMS_TEMPLATE_CODE:}
+    access-key-id: ${MALL_SMS_ACCESS_KEY_ID:}
+    access-key-secret: ${MALL_SMS_ACCESS_KEY_SECRET:}
+    region-id: ${MALL_SMS_REGION_ID:cn-hangzhou}
+    endpoint: ${MALL_SMS_ENDPOINT:https://dysmsapi.aliyuncs.com}
+    generic-url: ${MALL_SMS_GENERIC_URL:}
+    generic-method: ${MALL_SMS_GENERIC_METHOD:GET}
+    generic-params: ${MALL_SMS_GENERIC_PARAMS:}
+    generic-success-keyword: ${MALL_SMS_GENERIC_SUCCESS_KEYWORD:}
+    dev-return-code: ${MALL_SMS_DEV_RETURN_CODE:false} # 生产必须为 false；启用短信后默认不回显验证码
+    timeout-millis: ${MALL_SMS_TIMEOUT_MILLIS:5000}
   p0:
     # Public reverse-proxy requests also appear to originate from loopback.
     # Keep consumer-created points, identity, earnings and contribution events disabled.

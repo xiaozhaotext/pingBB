@@ -3,12 +3,15 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.component.MessageRecorder;
+import com.macro.mall.portal.service.SmsSendService;
 import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,6 +38,8 @@ public class UmsMemberController {
     private UmsMemberService memberService;
     @Autowired
     private MessageRecorder messageRecorder;
+    @Autowired
+    private SmsSendService smsSendService;
 
     @Operation(summary = "会员注册")
     @RequestMapping(value = "/register", method = RequestMethod.POST)
@@ -91,9 +96,16 @@ public class UmsMemberController {
     @ResponseBody
     public CommonResult getAuthCode(@RequestParam String telephone) {
         String authCode = memberService.generateAuthCode(telephone);
+        SmsSendService.SmsSendResult result = smsSendService.sendCode(telephone, authCode);
         messageRecorder.record("SMS", telephone, "登录/注册验证码", "AUTH_CODE", telephone,
-                "SKIPPED", "未配置短信通道，验证码仅在接口返回");
-        return CommonResult.success(authCode,"获取验证码成功");
+                result.status(), result.errorMessage());
+        if (!result.sent() && "FAILED".equals(result.status())) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "短信发送失败，请稍后重试");
+        }
+        // 通道未启用时仅在接口返回（仅测试）；通道启用后默认不回显，避免生产泄露验证码。
+        Object data = result.codeEchoAllowed() ? authCode : null;
+        String message = result.sent() ? "验证码已发送" : "未配置短信通道，验证码仅在接口返回（仅测试）";
+        return CommonResult.success(data, message);
     }
 
     @Operation(summary = "会员修改密码")
