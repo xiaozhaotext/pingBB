@@ -8,21 +8,24 @@
     <view class="wrapper">
       <view class="left-top-sign">REGISTER</view>
       <view class="welcome">注册账号！</view>
+      <view class="registration-note">当前是功能测试环境；验证码为演示验证码，不会发送真实短信。</view>
+      <view v-if="demoCode" class="registration-note">本次演示验证码：{{ demoCode }}</view>
+      <view v-if="registrationError" class="registration-error">{{ registrationError }}</view>
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
           <input
             type="text"
-            v-model="formData.username"
+            v-model="formData.username" @blur="formData.username = $event.detail.value"
             placeholder="请输入用户名"
-            :maxlength="20"
+            :maxlength="64"
           />
         </view>
         <view class="input-item">
           <text class="tit">手机号</text>
           <input
             type="number"
-            v-model="formData.telephone"
+            v-model="formData.telephone" @blur="formData.telephone = $event.detail.value"
             placeholder="请输入手机号"
             :maxlength="11"
           />
@@ -30,10 +33,10 @@
         <view class="input-item">
           <text class="tit">密码</text>
           <input
-            v-model="formData.password"
-            placeholder="8-18位不含特殊字符的数字、字母组合"
+            v-model="formData.password" @blur="formData.password = $event.detail.value"
+            placeholder="设置至少8位的登录密码"
             placeholder-class="input-empty"
-            :maxlength="20"
+            :maxlength="72"
             password
           />
         </view>
@@ -42,7 +45,7 @@
           <view class="auth-code-row">
             <input
               type="text"
-              v-model="formData.authCode"
+              v-model="formData.authCode" @blur="formData.authCode = $event.detail.value"
               placeholder="请输入验证码"
               :maxlength="6"
             />
@@ -77,6 +80,12 @@ const formData = ref<RegisterParam>({
 })
 // 注册加载状态
 const registering = ref(false)
+const demoCode = ref('')
+const registrationError = ref('')
+function errorMessage(error: unknown): string {
+  const value=error as {data?:{message?:string};errMsg?:string;message?:string}
+  return value?.data?.message || value?.message || (value?.errMsg ? '网络连接失败，请重试' : '请求失败，请重试')
+}
 // 验证码倒计时（秒）
 const countdown = ref(0)
 // 倒计时定时器
@@ -103,6 +112,8 @@ const handleGetAuthCode = async () => {
     const res = await getAuthCodeAPI(formData.value.telephone)
     // 模拟验证码展示：弹出5秒toast让用户获取验证码
     const code = res.data || '验证码已发送'
+    demoCode.value = /^\d{6}$/.test(String(res.data)) ? String(res.data) : ''
+    registrationError.value = ''
     uni.showToast({
       title: `验证码：${code}`,
       icon: 'none',
@@ -110,9 +121,10 @@ const handleGetAuthCode = async () => {
     })
     // 开始60秒倒计时
     startCountdown()
-  } catch {
+  } catch (error) {
+    registrationError.value = errorMessage(error)
     uni.showToast({
-      title: '获取验证码失败',
+      title: registrationError.value,
       icon: 'none',
     })
   }
@@ -138,6 +150,10 @@ const handleRegister = async () => {
     return
   }
 
+  if (!/^1[3-9]\d{9}$/.test(telephone)) { registrationError.value='手机号格式不正确'; return }
+  if (password.length<8) { registrationError.value='密码至少8位'; return }
+  if (!/^\d{6}$/.test(authCode)) { registrationError.value='请输入6位验证码'; return }
+  registrationError.value=''
   registering.value = true
   try {
     await registerAPI(formData.value)
@@ -381,3 +397,5 @@ page {
   }
 }
 </style>
+
+<style scoped>.registration-note{font-size:12px;color:#557f87;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}</style>

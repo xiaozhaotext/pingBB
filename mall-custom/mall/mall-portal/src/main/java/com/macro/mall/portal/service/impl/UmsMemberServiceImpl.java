@@ -76,6 +76,11 @@ public class UmsMemberServiceImpl implements UmsMemberService {
 
     @Override
     public void register(String username, String password, String telephone, String authCode) {
+        if (username == null || username.isBlank() || username.length()>64 || telephone == null
+                || !telephone.matches("1[3-9][0-9]{9}") || password == null || password.length()<8
+                || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72) {
+            Asserts.fail("注册信息无效：账号最多64字，密码至少8位且最多72字节，手机号为11位");
+        }
         //验证验证码
         if(!verifyAuthCode(authCode,telephone)){
             Asserts.fail("验证码错误");
@@ -110,7 +115,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
     public String generateAuthCode(String telephone) {
         // 此处使用模拟生成验证码逻辑，真实环境应接入短信服务，可使用SMS4J来实现
         StringBuilder sb = new StringBuilder();
-        Random random = new Random();
+        java.security.SecureRandom random = new java.security.SecureRandom();
         for(int i=0;i<6;i++){
             sb.append(random.nextInt(10));
         }
