@@ -9,6 +9,18 @@ export const useAppStore = defineStore('app', () => {
   })
   // 设备状态
   const device = ref('desktop')
+  // 系统锁屏状态：锁定后必须重新校验登录密码才能继续操作
+  const locked = ref(false)
+
+  // 锁定屏幕
+  function lock() {
+    locked.value = true
+  }
+
+  // 解除锁屏
+  function unlock() {
+    locked.value = false
+  }
 
   // 切换侧边栏
   function toggleSideBar() {
@@ -29,8 +41,11 @@ export const useAppStore = defineStore('app', () => {
   return {
     sidebar,
     device,
+    locked,
     toggleSideBar,
     closeSideBar,
     toggleDevice,
+    lock,
+    unlock,
   }
 })

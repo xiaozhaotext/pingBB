@@ -58,6 +58,7 @@ declare module 'vue' {
     ElTransfer: typeof import('element-plus/es')['ElTransfer']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     Hamburger: typeof import('./src/components/Hamburger/index.vue')['default']
+    LockScreen: typeof import('./src/components/LockScreen/index.vue')['default']
     MultiUpload: typeof import('./src/components/Upload/multiUpload.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

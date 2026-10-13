@@ -6,6 +6,8 @@ import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import { ArrowDown } from '@element-plus/icons-vue'
 import defaultAvatar from '@/assets/default-avatar.svg'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { postP0 } from '@/apis/p0'
 
 // 定义组件名称
 defineOptions({
@@ -35,6 +37,18 @@ const handleLogout = async () => {
   // 为了重新实例化vue-router对象 避免bug
   location.reload()
 }
+
+// 系统锁屏：锁定后需重新校验登录密码
+const handleLock = () => {
+  appStore.lock()
+}
+
+// 清除后台权限缓存
+const handleClearCache = async () => {
+  await ElMessageBox.confirm('将清除后台权限缓存（ums:admin、ums:resourceList）；登录状态与交易幂等键不受影响。', '清除缓存', { type: 'warning' })
+  const response = await postP0<Record<string, unknown>>('system-settings/cache/clear', {})
+  ElMessage.success(`已清理 ${response.data?.deleted ?? 0} 个缓存键`)
+}
 </script>
 
 <template>
@@ -56,6 +70,8 @@ const handleLogout = async () => {
             </el-dropdown-item>
           </router-link>
           <router-link class="inlineBlock" to="/account"><el-dropdown-item>账户安全</el-dropdown-item></router-link>
+          <el-dropdown-item @click="handleLock">系统锁屏</el-dropdown-item>
+          <el-dropdown-item @click="handleClearCache">清除缓存</el-dropdown-item>
           <el-dropdown-item divided>
             <span @click="handleLogout" style="display:block;">退出</span>
           </el-dropdown-item>
