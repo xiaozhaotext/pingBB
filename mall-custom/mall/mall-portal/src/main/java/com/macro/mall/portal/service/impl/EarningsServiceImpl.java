@@ -44,6 +44,20 @@ public class EarningsServiceImpl implements EarningsService {
         return DEFAULT_FEE_RATE;
     }
 
+    /** 单笔最低提现金额，来自后台配置 withdraw.min_amount，缺省 1 元。 */
+    private BigDecimal minWithdrawAmount() {
+        try {
+            List<String> rows = jdbc.query(
+                    "SELECT config_value FROM sys_config WHERE config_key='withdraw.min_amount' LIMIT 1",
+                    (rs, n) -> rs.getString(1));
+            if (!rows.isEmpty() && rows.get(0) != null && !rows.get(0).isBlank()) {
+                BigDecimal v = new BigDecimal(rows.get(0).trim());
+                if (v.signum() >= 0) return v;
+            }
+        } catch (Exception ignored) { }
+        return BigDecimal.ONE;
+    }
+
     @Autowired
     private UmsEarningsMapper earningsMapper;
     @Autowired
@@ -103,6 +117,10 @@ public class EarningsServiceImpl implements EarningsService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return CommonResult.failed("提现金额必须大于0");
         }
+        BigDecimal minAmount = minWithdrawAmount();
+        if (minAmount.signum() > 0 && amount.compareTo(minAmount) < 0) {
+            return CommonResult.failed("单笔提现金额不得低于 " + minAmount.stripTrailingZeros().toPlainString() + " 元");
+        }
         for (int attempt = 0; attempt < 5; attempt++) {
             UmsEarnings e = getOrInit(memberId);
             if (e.getAvailableEarnings().compareTo(amount) < 0) {
@@ -122,7 +140,9 @@ public class EarningsServiceImpl implements EarningsService {
                 a.setFeeAmount(fee);
                 a.setActualAmount(actual);
                 a.setStatus(0);
-                a.setSimulateFlag(0);
+                // 标记为「模拟提现单」：当前未接入真实打款通道，
+                // 后台审核接口据此放行；接入真实代付后再改为 0。
+                a.setSimulateFlag(1);
                 withdrawMapper.insert(a);
                 return CommonResult.success(withdrawMapper.selectById(a.getId()));
             }

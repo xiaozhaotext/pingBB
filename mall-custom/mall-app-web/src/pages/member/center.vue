@@ -1,6 +1,6 @@
 <template>
   <view class="app">
-    <view class="mock-banner">会员中心（身份 / 双积分 / 收益概览）。合伙人、联创、收益、分红均为模拟能力，不涉及真实资金。</view>
+    <view class="mock-banner">会员中心（身份 / 双积分 / 收益概览）。合伙人、联创、收益、分红按后台配置实时记账；提现需后台人工审核，打款通道尚未接入。</view>
     <view v-if="loadError" class="error-banner">{{ loadError }} <text @click="loadData">重试</text></view>
 
     <view class="card">
@@ -17,7 +17,7 @@
         <text class="value">{{ repurchasePoints }} 分</text>
       </view>
       <view class="row">
-        <text class="label">可提现收益(模拟)</text>
+        <text class="label">可提现收益</text>
         <text class="value">{{ earningsAvailable }}</text>
       </view>
     </view>
@@ -28,19 +28,19 @@
         <text class="s">我的邀请码 / 下级</text>
       </view>
       <view class="grid-item" @click="go('/pages/member/partner')">
-        <text class="t">合伙人(模拟)</text>
+        <text class="t">合伙人权益</text>
         <text class="s">3999 权益方案</text>
       </view>
       <view class="grid-item" @click="go('/pages/member/cofounder')">
-        <text class="t">联创(模拟)</text>
+        <text class="t">联创权益</text>
         <text class="s">10000 权益方案</text>
       </view>
       <view class="grid-item" @click="go('/pages/member/earnings')">
-        <text class="t">收益与提现(模拟)</text>
+        <text class="t">收益与提现</text>
         <text class="s">收益 / 申请提现</text>
       </view>
       <view class="grid-item" @click="go('/pages/member/dividend')">
-        <text class="t">每日分红池(模拟)</text>
+        <text class="t">每日分红池</text>
         <text class="s">多劳多得分配</text>
       </view>
     </view>

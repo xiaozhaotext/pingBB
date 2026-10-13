@@ -254,6 +254,22 @@ public class P0AdminController {
                 "FROM ums_withdraw_apply w JOIN ums_member m ON m.id=w.member_id ORDER BY w.id DESC LIMIT 100"));
         data.put("ledger", jdbc.queryForList("SELECT id,member_id,change_type,amount,balance_after,biz_id," +
                 "remark,create_time FROM ums_earnings_ledger ORDER BY id DESC LIMIT 100"));
+        // 佣金汇总：可提现佣金余额 / 冻结中 / 已提现佣金 / 累计佣金
+        data.put("summary", jdbc.queryForMap("SELECT COUNT(*) member_count," +
+                "COALESCE(SUM(total_earnings),0) total_commission," +
+                "COALESCE(SUM(available_earnings),0) available_commission," +
+                "COALESCE(SUM(frozen_earnings),0) frozen_commission," +
+                "COALESCE(SUM(withdrawn),0) withdrawn_commission FROM ums_earnings"));
+        // 提现单统计：待审核/已通过/已完成/已拒绝/累计打款
+        data.put("withdrawStats", jdbc.queryForMap("SELECT COUNT(*) total," +
+                "COALESCE(SUM(status=0),0) pending," +
+                "COALESCE(SUM(status=1),0) approved," +
+                "COALESCE(SUM(status=2),0) completed," +
+                "COALESCE(SUM(status=4),0) rejected," +
+                "COALESCE(SUM(CASE WHEN status=2 THEN amount ELSE 0 END),0) paid_out FROM ums_withdraw_apply"));
+        // 佣金来源构成（直推奖励/每日分红/分享奖励/模拟发放等）
+        data.put("commissionByType", jdbc.queryForList("SELECT change_type,COUNT(*) entries," +
+                "COALESCE(SUM(amount),0) amount FROM ums_earnings_ledger GROUP BY change_type ORDER BY amount DESC"));
         return CommonResult.success(data);
     }
 

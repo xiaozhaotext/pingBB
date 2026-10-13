@@ -23,10 +23,13 @@ public class DividendDistributionService {
 
     private final JdbcTemplate jdbc;
     private final PointsWalletService pointsWallet;
+    private final MemberEarningsCreditService earningsCreditService;
 
-    public DividendDistributionService(JdbcTemplate jdbc, PointsWalletService pointsWallet) {
+    public DividendDistributionService(JdbcTemplate jdbc, PointsWalletService pointsWallet,
+                                       MemberEarningsCreditService earningsCreditService) {
         this.jdbc = jdbc;
         this.pointsWallet = pointsWallet;
+        this.earningsCreditService = earningsCreditService;
     }
 
     /**
@@ -36,7 +39,7 @@ public class DividendDistributionService {
     @Transactional(rollbackFor = Exception.class)
     public int distributeDaily(LocalDate statDate) {
         // No config or consumer request can enable cash posting before business/compliance review.
-        if (!distributionApproved()) throw new IllegalStateException("分红入账未获批准，功能关闭");
+        if (!distributionApproved()) throw new IllegalStateException("\u5206\u7ea2\u5206\u914d\u5df2\u5728\u540e\u53f0\u5173\u95ed\uff08dividend.distribution.enabled=0\uff09");
         BigDecimal poolBalance = jdbc.queryForObject(
                 "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
         if (poolBalance == null || poolBalance.signum() <= 0) return 0;
@@ -54,7 +57,13 @@ public class DividendDistributionService {
         }
         if (totalShares <= 0) return 0;
 
+        // 每份分红：默认按池余额等比分配；若后台配置了「每日每份分红基数」，
+        // 则以该基数为上限（池余额不足时自动缩水到池能支撑的金额）。
         BigDecimal perShare = poolBalance.divide(new BigDecimal(totalShares), 2, RoundingMode.HALF_UP);
+        BigDecimal dailyBase = configDecimal("dividend.daily.base", BigDecimal.ZERO);
+        if (dailyBase.signum() > 0 && dailyBase.compareTo(perShare) < 0) {
+            perShare = dailyBase.setScale(2, RoundingMode.HALF_UP);
+        }
         if (perShare.signum() <= 0) return 0;
 
         BigDecimal capBase = configDecimal("dividend.cap.base", new BigDecimal("1200.00"));
@@ -102,18 +111,9 @@ public class DividendDistributionService {
                             + " VALUES(?,?,?,?,?,?,?)",
                     memberId, statDate, shares, amount, cap, cumulative, statDate.toString());
 
-            // Credit to member earnings (available balance)
-            jdbc.update("INSERT INTO member_cash_account(member_id,available_balance) VALUES(?,0)"
-                    + " ON DUPLICATE KEY UPDATE member_id=member_id", memberId);
-            BigDecimal before = jdbc.queryForObject(
-                    "SELECT available_balance FROM member_cash_account WHERE member_id=? FOR UPDATE",
-                    BigDecimal.class, memberId);
-            BigDecimal after = (before == null ? BigDecimal.ZERO : before).add(amount);
-            jdbc.update("UPDATE member_cash_account SET available_balance=?,version=version+1 WHERE member_id=?",
-                    after, memberId);
-            jdbc.update("INSERT INTO member_cash_ledger(member_id,change_amount,balance_after,source_type,source_id)"
-                            + " VALUES(?,?,?,'DIVIDEND',?)",
-                    memberId, amount, after, statDate.toString());
+            // 入账到统一收益账本 ums_earnings：消费者端「我的收益/提现」与后台「佣金」读的都是这一套账本
+            earningsCreditService.credit(memberId, amount, "dividend", statDate.toString(),
+                    "dividend:" + memberId + ":" + statDate, "每日分红 " + statDate);
 
             totalPaid = totalPaid.add(amount);
             paid++;
@@ -130,7 +130,23 @@ public class DividendDistributionService {
         return paid;
     }
 
-    private boolean distributionApproved() { return false; }
+    /** 分红发放开关：由后台配置 dividend.distribution.enabled 控制，默认开启。 */
+    private boolean distributionApproved() {
+        return configBool("dividend.distribution.enabled", true);
+    }
+
+    private boolean configBool(String key, boolean fallback) {
+        try {
+            List<String> rows = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? LIMIT 1",
+                    (rs, n) -> rs.getString(1), key);
+            if (!rows.isEmpty() && rows.get(0) != null) {
+                String v = rows.get(0).trim();
+                if ("1".equals(v) || "true".equalsIgnoreCase(v)) return true;
+                if ("0".equals(v) || "false".equalsIgnoreCase(v)) return false;
+            }
+        } catch (Exception ignored) { }
+        return fallback;
+    }
 
     private BigDecimal configDecimal(String key, BigDecimal fallback) {
         try {

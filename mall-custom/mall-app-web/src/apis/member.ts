@@ -108,6 +108,13 @@ export interface MembershipOrderData {
 export const createMembershipOrderAPI = (data: MembershipPurchaseParams) =>
   http<MembershipOrderData>({ method: 'POST', url: '/member/membership/orders', data })
 
+/**
+ * 确认本地支付桩订单（仅 dev 环境下后端返回 payment.mock=true 时调用）。
+ * 上线后对接真实支付渠道，该入口不可用。
+ */
+export const confirmMockMembershipPaymentAPI = (orderId: number | string) =>
+  http<string>({ method: 'POST', url: '/mockPayment/membership/confirm', params: { orderId } })
+
 /** 查询收益账户（模拟） */
 export const getEarningsAccountAPI = () => http<any>({ method: 'GET', url: '/member/earnings/account' })
 /** 查询收益流水（模拟） */

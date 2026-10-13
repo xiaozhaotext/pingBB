@@ -32,7 +32,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useMemberStore } from '@/stores/member'
-import { createMembershipOrderAPI, getMemberInfoAPI } from '@/apis/member'
+import { createMembershipOrderAPI,
+  confirmMockMembershipPaymentAPI, getMemberInfoAPI } from '@/apis/member'
 
 const payChannel = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
 const submitting = ref(false)
@@ -80,6 +81,16 @@ const handleBuy = async () => {
     const o = r.data
     orderInfo.value = o
     const payment = o.payment || {}
+    if (payment.mock === 'true' || payment.mock === true) {
+      payHint.value = '正在确认本地演示支付…'
+      await confirmMockMembershipPaymentAPI(o.orderId)
+      payHint.value = '支付已完成，权益生效中…'
+      uni.showToast({ icon: 'success', title: '支付成功' })
+      setTimeout(() => {
+        uni.redirectTo({ url: '/pages/member/center' })
+      }, 800)
+      return
+    }
     if (payment.type === 'WECHAT_H5_URL' && payment.h5Url) {
       payHint.value = '正在跳转微信支付…'
       // #ifdef H5

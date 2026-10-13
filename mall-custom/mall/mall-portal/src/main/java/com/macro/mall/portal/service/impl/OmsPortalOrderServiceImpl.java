@@ -75,6 +75,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     private CancelOrderSender cancelOrderSender;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private ShareOrderBonusService shareOrderBonusService;
 
     @Override
     public ConfirmOrderResult generateConfirmOrder(List<Long> cartIds) {
@@ -204,7 +206,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
         }
         //计算order_item的实付金额前：处理复购区30%复购积分+70%现金
-        handleRepurchasePoints(orderParam, orderItemList, currentMember);
+        handleRepurchasePoints(orderParam, orderItemList, currentMember, idempotencyKey);
         //计算order_item的实付金额
         handleRealAmount(orderItemList);
         //进行库存锁定
@@ -325,6 +327,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 Asserts.fail("库存预占异常，支付确认已回滚");
             }
         }
+        // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）
+        shareOrderBonusService.postForOrder(orderId, orderDetail.getMemberId(), orderDetail.getPayAmount());
         return orderDetail.getOrderItemList().size();
     }
 
@@ -705,7 +709,23 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      * 复购区30%复购积分+70%现金：仅当订单商品全部来自复购区(REBUY)且传入 useRepurchasePoints>0 时生效。
      * 1复购积分=1元，最高抵扣订单金额的30%。积分通过 PointsWalletService 实时扣减。
      */
-    private void handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember) {
+    /** 复购区积分抵扣比例，来自后台配置 rebuy.points.ratio（默认 30%）。 */
+    private BigDecimal repurchasePointsRatio() {
+        BigDecimal fallback = new BigDecimal("0.30");
+        try {
+            String raw = jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM sys_config WHERE config_key='rebuy.points.ratio'", String.class);
+            if (raw != null && !raw.isBlank() && !"NULL".equalsIgnoreCase(raw.trim())) {
+                BigDecimal ratio = new BigDecimal(raw.trim());
+                if (ratio.signum() >= 0 && ratio.compareTo(BigDecimal.ONE) <= 0) return ratio;
+            }
+        } catch (Exception ignored) {
+            // 配置缺失/非法时回退默认值
+        }
+        return fallback;
+    }
+
+    private void handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember, String orderIdempotencyKey) {
         Long usePoints = orderParam.getUseRepurchasePoints();
         if (usePoints == null || usePoints <= 0) return;
         // 校验订单商品是否全部来自复购区
@@ -718,11 +738,12 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
         }
         BigDecimal totalAmount = calcTotalAmount(orderItemList);
-        // 最高抵扣30%
-        BigDecimal maxDeduct = totalAmount.multiply(new BigDecimal("0.30")).setScale(2, RoundingMode.HALF_UP);
+        // 抵扣比例由后台配置 rebuy.points.ratio 决定（默认 0.30 = 30% 积分 + 70% 现金）
+        BigDecimal ratio = repurchasePointsRatio();
+        BigDecimal maxDeduct = totalAmount.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
         BigDecimal deductAmount = new BigDecimal(usePoints).setScale(2, RoundingMode.HALF_UP);
         if (deductAmount.compareTo(maxDeduct) > 0) {
-            Asserts.fail("复购积分最多抵扣订单金额的30%");
+            Asserts.fail("复购积分最多抵扣订单金额的 " + ratio.multiply(new BigDecimal("100")).stripTrailingZeros().toPlainString() + "%");
         }
         // 校验余额并扣减（幂等键与订单绑定）
         com.macro.mall.portal.domain.UmsPointsAccount account =
@@ -733,13 +754,20 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         }
         // 按商品金额比例分摊抵扣
         for (OmsOrderItem orderItem : orderItemList) {
-            BigDecimal perAmount = orderItem.getProductPrice().divide(totalAmount, 3, RoundingMode.HALF_EVEN)
+            // 分摊基数必须是「单价 x 数量」的行小计，否则多件商品会分错
+            BigDecimal lineAmount = orderItem.getProductPrice()
+                    .multiply(new BigDecimal(orderItem.getProductQuantity()));
+            BigDecimal perAmount = lineAmount.divide(totalAmount, 6, RoundingMode.HALF_EVEN)
                     .multiply(deductAmount);
             // 复用 promotionAmount 字段记录复购积分抵扣（前端展示为优惠）
             orderItem.setPromotionAmount(orderItem.getPromotionAmount().add(perAmount));
         }
         // 实际扣减积分（下单成功后执行，失败则整个事务回滚）
-        String idempotencyKey = "order:repurchase:" + currentMember.getId() + ":" + System.currentTimeMillis();
+        // 幂等键由下单幂等键派生（不掺时间戳），保证重试不会重复扣减复购积分
+        String idempotencyKey = "order:repurchase:"
+                + (orderIdempotencyKey == null || orderIdempotencyKey.isBlank()
+                    ? currentMember.getId() + ":" + usePoints + ":" + deductAmount
+                    : orderIdempotencyKey);
         com.macro.mall.common.api.CommonResult<Void> result = pointsWalletService.changePoints(
                 currentMember.getId(), PointsWalletService.TYPE_REPURCHASE, "consume", -usePoints,
                 "order", idempotencyKey, null, "复购区订单抵扣");

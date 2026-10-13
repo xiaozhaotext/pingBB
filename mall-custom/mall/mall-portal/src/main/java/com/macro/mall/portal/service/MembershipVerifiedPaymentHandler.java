@@ -141,10 +141,6 @@ public class MembershipVerifiedPaymentHandler {
         if (account == null || account.getBalance() == null) {
             throw new IllegalStateException("积分余额读取失败");
         }
-        jdbc.update("INSERT INTO member_point_ledger"
-                        + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
-                        + " VALUES(?,?,?,?,'PURCHASE_GRANT',?)",
-                memberId, ledgerType, amount, account.getBalance(), orderId);
         // 产品积分同步到 ums_member.integration，复用下单时的 useIntegration 抵扣链路（等额抵扣）
         if (walletType == 1) {
             jdbc.update("UPDATE ums_member SET integration=integration+? WHERE id=?", amount, memberId);

@@ -35,6 +35,7 @@ public class SystemSettingService {
     public static final String GROUP_MINIAPP = "miniapp";
     public static final String GROUP_IP_ACCESS = "ip_access";
     public static final String GROUP_UPLOAD = "upload";
+    public static final String GROUP_DISTRIBUTION = "distribution";
 
     public static final String KEY_IP_ENABLED = "ip.access.enabled";
     public static final String KEY_IP_MODE = "ip.access.mode";
@@ -80,6 +81,23 @@ public class SystemSettingService {
         keys.put("upload.image_max_width", new KeySpec(GROUP_UPLOAD, "图片最大宽度(px)", false, SystemSettingService::validatePositiveInt));
         keys.put("upload.image_optimize", new KeySpec(GROUP_UPLOAD, "启用图片压缩优化", false, SystemSettingService::validateSwitch));
         keys.put("upload.attachment_max_size", new KeySpec(GROUP_UPLOAD, "附件大小上限(MB)", false, SystemSettingService::validatePositiveInt));
+        keys.put("distribution.enabled", new KeySpec(GROUP_DISTRIBUTION, "分销体系总开关", false, SystemSettingService::validateSwitch));
+        keys.put("dividend.distribution.enabled", new KeySpec(GROUP_DISTRIBUTION, "每日分红发放开关", false, SystemSettingService::validateSwitch));
+        keys.put("dividend.pool.ratio", new KeySpec(GROUP_DISTRIBUTION, "购买金额进分红池比例(0-1)", false, SystemSettingService::validateRatio));
+        keys.put("dividend.daily.base", new KeySpec(GROUP_DISTRIBUTION, "每日每份分红基数(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("dividend.cap.base", new KeySpec(GROUP_DISTRIBUTION, "无分享时分红封顶(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("dividend.cap.per_referral", new KeySpec(GROUP_DISTRIBUTION, "每推荐1人封顶增加(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("dividend.cap.max", new KeySpec(GROUP_DISTRIBUTION, "分红封顶上限(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("membership.referral.cash_rate", new KeySpec(GROUP_DISTRIBUTION, "直推现金奖励比例(0-1)", false, SystemSettingService::validateRatio));
+        keys.put("membership.referral.partner.cash_cap", new KeySpec(GROUP_DISTRIBUTION, "合伙人直推现金封顶(元,空=不限)", false, SystemSettingService::validateDecimalOrBlank));
+        keys.put("membership.referral.cofounder.cash_cap", new KeySpec(GROUP_DISTRIBUTION, "联创直推现金封顶(元,空=不限)", false, SystemSettingService::validateDecimalOrBlank));
+        keys.put("membership.referral.partner.repurchase_points", new KeySpec(GROUP_DISTRIBUTION, "合伙人直推赠送复购积分", false, SystemSettingService::validateNonNegativeLong));
+        keys.put("membership.referral.cofounder.repurchase_points", new KeySpec(GROUP_DISTRIBUTION, "联创直推赠送复购积分", false, SystemSettingService::validateNonNegativeLong));
+        keys.put("share.order.bonus.enabled", new KeySpec(GROUP_DISTRIBUTION, "分享下单奖励开关", false, SystemSettingService::validateSwitch));
+        keys.put("share.order.bonus", new KeySpec(GROUP_DISTRIBUTION, "分享每单奖励(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("rebuy.points.ratio", new KeySpec(GROUP_DISTRIBUTION, "复购区积分抵扣比例(0-1)", false, SystemSettingService::validateRatio));
+        keys.put("withdraw.fee_rate", new KeySpec(GROUP_DISTRIBUTION, "提现手续费率(0-1)", false, SystemSettingService::validateRatio));
+        keys.put("withdraw.min_amount", new KeySpec(GROUP_DISTRIBUTION, "单笔提现最低金额(元)", false, SystemSettingService::validateNonNegativeDecimal));
         KEYS = Collections.unmodifiableMap(keys);
     }
 
@@ -113,6 +131,7 @@ public class SystemSettingService {
         groups.put(GROUP_MINIAPP, new ArrayList<>());
         groups.put(GROUP_IP_ACCESS, new ArrayList<>());
         groups.put(GROUP_UPLOAD, new ArrayList<>());
+        groups.put(GROUP_DISTRIBUTION, new ArrayList<>());
         for (Map.Entry<String, KeySpec> entry : KEYS.entrySet()) {
             KeySpec spec = entry.getValue();
             String raw = stored.get(entry.getKey());
@@ -304,6 +323,59 @@ public class SystemSettingService {
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "需为 0-100000 的整数");
         }
+    }
+
+    private static void validateRatio(String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        try {
+            java.math.BigDecimal ratio = new java.math.BigDecimal(value);
+            if (ratio.signum() >= 0 && ratio.compareTo(java.math.BigDecimal.ONE) <= 0 && ratio.scale() <= 6) {
+                return;
+            }
+        } catch (NumberFormatException ignored) {
+            // fall through
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "比例必须为 0-1 之间的小数");
+    }
+
+    private static void validateNonNegativeDecimal(String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        try {
+            java.math.BigDecimal v = new java.math.BigDecimal(value);
+            if (v.signum() >= 0 && v.scale() <= 2
+                    && v.compareTo(new java.math.BigDecimal("100000000")) <= 0) {
+                return;
+            }
+        } catch (NumberFormatException ignored) {
+            // fall through
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "必须为不小于 0 的金额（最多 2 位小数）");
+    }
+
+    private static void validateDecimalOrBlank(String value) {
+        if (value == null || value.isEmpty() || "NULL".equalsIgnoreCase(value.trim())) {
+            return;
+        }
+        validateNonNegativeDecimal(value);
+    }
+
+    private static void validateNonNegativeLong(String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        try {
+            long v = Long.parseLong(value);
+            if (v >= 0 && v <= 100000000L) {
+                return;
+            }
+        } catch (NumberFormatException ignored) {
+            // fall through
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "必须为 0-100000000 之间的整数");
     }
 
     private static void validateExtensionList(String value) {

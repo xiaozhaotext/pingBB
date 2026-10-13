@@ -5,6 +5,7 @@ import com.macro.mall.portal.domain.MembershipPaymentException;
 import com.macro.mall.portal.domain.MembershipPurchaseRequest;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -21,14 +22,17 @@ public class MembershipPurchaseOrderService {
     private final MemberIdentityService identityService;
     private final MembershipPaymentGateway gateway;
     private final MembershipReferralRewardService referralRewards;
+    private final boolean mockPaymentEnabled;
 
     public MembershipPurchaseOrderService(JdbcTemplate jdbc, MemberIdentityService identityService,
                                           MembershipPaymentGateway gateway,
-                                          MembershipReferralRewardService referralRewards) {
+                                          MembershipReferralRewardService referralRewards,
+                                          @Value("${mall.payment.mock.enabled:false}") boolean mockPaymentEnabled) {
         this.jdbc = jdbc;
         this.identityService = identityService;
         this.gateway = gateway;
         this.referralRewards = referralRewards;
+        this.mockPaymentEnabled = mockPaymentEnabled;
     }
 
     public Map<String, Object> create(Long authenticatedMemberId, MembershipPurchaseRequest request, String clientIp) {
@@ -36,7 +40,8 @@ public class MembershipPurchaseOrderService {
         if (!"1".equals(config("membership.purchase.enabled"))) {
             throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
         }
-        gateway.requireReady(request.payChannel());
+        // 本地演示支付桩：跳过真实渠道凭证校验，改由本机 /mockPayment/membership/confirm 完成入账。
+        if (!mockPaymentEnabled) gateway.requireReady(request.payChannel());
         Integer identity = identityService.getIdentity(authenticatedMemberId) == null ? 0
                 : identityService.getIdentity(authenticatedMemberId).getIdentityType();
         if (identity != null && (identity >= 2 || (identity >= 1 && "PARTNER".equals(request.level())))) {
@@ -79,8 +84,17 @@ public class MembershipPurchaseOrderService {
         }
         String no = (String) order.get("merchant_order_no");
         BigDecimal price = (BigDecimal) order.get("amount");
-        Map<String, String> payment = gateway.start(no, request.level(), price, request.payChannel(),
-                request.payMode(), request.wechatOpenId(), clientIp);
+        Map<String, String> payment;
+        if (mockPaymentEnabled) {
+            // 不伪造渠道响应：只返回本地桩的确认入口，由 /mockPayment/membership/confirm 触发履约。
+            payment = new LinkedHashMap<>();
+            payment.put("mock", "true");
+            payment.put("confirmPath",
+                    "/mockPayment/membership/confirm?orderId=" + ((Number) order.get("id")).longValue());
+        } else {
+            payment = gateway.start(no, request.level(), price, request.payChannel(),
+                    request.payMode(), request.wechatOpenId(), clientIp);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("orderId", ((Number) order.get("id")).longValue());
         result.put("merchantOrderNo", no);

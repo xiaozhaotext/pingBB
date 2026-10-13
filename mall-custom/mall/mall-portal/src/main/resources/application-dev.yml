@@ -50,3 +50,15 @@ alipay:
   returnUrl: http://localhost:5173/#/pages/money/paySuccess
   notifyUrl:
 
+# 本地演示专用支付桩（仅 dev profile 生效，application-prod.yml 不放行）：
+# 开启后 /mockPayment/** 可用，且仅允许 127.0.0.1 调用，
+# 用于在没有真实支付宝/微信商户凭证时跑通「下单 -> 支付 -> 发货/退款」与会员权益购买全链路。
+mall:
+  payment:
+    mock:
+      enabled: true
+  dividend:
+    schedule:
+      # 未配置时使用代码默认：每天 01:10 结算前一天
+      cron: "0 10 1 * * ?"
+      enabled: true

@@ -3,17 +3,20 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.DividendDistributionService;
+import com.macro.mall.portal.service.MemberEarningsCreditService;
 import com.macro.mall.portal.service.impl.UmsMemberServiceImpl;
 import com.macro.mall.common.exception.ApiException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Map;
 import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 class GapSecurityTest {
     @Test void invalidRegistrationNeverReachesDatabaseOrOtpStorage() {
@@ -54,11 +57,14 @@ class GapSecurityTest {
         assertEquals(403,c.allocate(Map.of()).getCode());
         assertEquals(403,c.contribution(Map.of()).getCode());
     }
-    @Test void internalDividendPostingFrozenBeforeDatabaseAccess() {
+    @Test void dividendPostingHonoursOperatorSwitch() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        DividendDistributionService service = new DividendDistributionService(jdbc,null);
-        assertThrows(IllegalStateException.class,() -> service.distributeDaily(LocalDate.now()));
-        verifyNoInteractions(jdbc);
+        // 后台把 dividend.distribution.enabled 关掉后，分红发放必须直接拒绝
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(java.util.List.of("0"));
+        DividendDistributionService service =
+                new DividendDistributionService(jdbc, null, new MemberEarningsCreditService(jdbc));
+        assertThrows(IllegalStateException.class, () -> service.distributeDaily(LocalDate.now()));
     }
     private ConsultationController consultation() {
         UmsMember m = new UmsMember(); m.setId(7L);

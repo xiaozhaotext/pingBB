@@ -17,13 +17,16 @@ import java.util.Map;
 public class MembershipReferralRewardService {
     private final JdbcTemplate jdbc;
     private final PointsWalletService pointsWallet;
+    private final MemberEarningsCreditService earningsCreditService;
 
     public record Snapshot(long referrerMemberId, BigDecimal cashRate, BigDecimal cashCap,
                            long repurchasePoints) { }
 
-    public MembershipReferralRewardService(JdbcTemplate jdbc, PointsWalletService pointsWallet) {
+    public MembershipReferralRewardService(JdbcTemplate jdbc, PointsWalletService pointsWallet,
+                                           MemberEarningsCreditService earningsCreditService) {
         this.jdbc = jdbc;
         this.pointsWallet = pointsWallet;
+        this.earningsCreditService = earningsCreditService;
     }
 
     /** Snapshot the real direct parent and configured reward before asking for payment. */
@@ -60,16 +63,11 @@ public class MembershipReferralRewardService {
                         + " VALUES(?,?,?,?,?,?,?,?,'POSTED')",
                 referrerId, buyingMemberId, orderId, paidAmount, rate, cap, cash, repurchasePoints);
 
-        jdbc.update("INSERT INTO member_cash_account(member_id,available_balance) VALUES(?,0)"
-                + " ON DUPLICATE KEY UPDATE member_id=member_id", referrerId);
-        BigDecimal before = jdbc.queryForObject("SELECT available_balance FROM member_cash_account"
-                + " WHERE member_id=? FOR UPDATE", BigDecimal.class, referrerId);
-        if (before == null) throw new IllegalStateException("推荐人现金账户不存在");
-        BigDecimal after = before.add(cash);
-        jdbc.update("UPDATE member_cash_account SET available_balance=?,version=version+1 WHERE member_id=?",
-                after, referrerId);
-        jdbc.update("INSERT INTO member_cash_ledger(member_id,change_amount,balance_after,source_type,source_id)"
-                + " VALUES(?,?,?,'REFERRAL_REWARD',?)", referrerId, cash, after, orderId);
+        BigDecimal before = earningsCreditService.availableBalance(referrerId);
+        boolean posted = earningsCreditService.credit(referrerId, cash, "referral_reward",
+                Long.toString(orderId), "membership:referral:" + orderId, "直属会员支付权益奖励");
+        if (!posted) throw new IllegalStateException("直推现金奖励入账失败（幂等或金额异常）");
+        BigDecimal after = earningsCreditService.availableBalance(referrerId);
 
         String pointsBefore = "unchanged";
         String pointsAfter = "unchanged";
@@ -80,9 +78,6 @@ public class MembershipReferralRewardService {
             if (result.getCode() != 200) throw new IllegalStateException("直推复购积分入账失败: " + result.getMessage());
             UmsPointsAccount account = pointsWallet.getAccount(referrerId, PointsWalletService.TYPE_REPURCHASE);
             if (account == null || account.getBalance() == null) throw new IllegalStateException("直推复购积分余额读取失败");
-            jdbc.update("INSERT INTO member_point_ledger(member_id,point_type,change_amount,balance_after,"
-                            + "source_type,source_id) VALUES(?,'REPURCHASE',?,?,'REFERRAL_REWARD',?)",
-                    referrerId, repurchasePoints, account.getBalance(), orderId);
             pointsBefore = Long.toString(account.getBalance() - repurchasePoints);
             pointsAfter = Long.toString(account.getBalance());
         }
@@ -111,9 +106,11 @@ public class MembershipReferralRewardService {
         catch (Exception ex) { throw unavailable(); }
     }
 
+    /** 未配置或配置为 NULL/空 时按 0 处理（即不发放积分），而不是让整笔奖励失败。 */
     private long nonNegativeLong(String text) {
+        if (text == null || text.isBlank() || "NULL".equalsIgnoreCase(text.trim())) return 0;
         try {
-            long value = Long.parseLong(text);
+            long value = Long.parseLong(text.trim());
             if (value >= 0) return value;
         } catch (Exception ignored) { }
         throw unavailable();

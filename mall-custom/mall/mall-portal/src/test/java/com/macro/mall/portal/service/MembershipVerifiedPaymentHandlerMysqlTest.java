@@ -51,7 +51,7 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
         MemberIdentityServiceImpl identities = new MemberIdentityServiceImpl();
         ReflectionTestUtils.setField(identities, "identityMapper", sqlSession.getMapper(UmsMemberIdentityMapper.class));
         ReflectionTestUtils.setField(identities, "identityLogMapper", sqlSession.getMapper(UmsMemberIdentityLogMapper.class));
-        MembershipReferralRewardService referral = new MembershipReferralRewardService(jdbc, points);
+        MembershipReferralRewardService referral = new MembershipReferralRewardService(jdbc, points, new MemberEarningsCreditService(jdbc));
         handler = new MembershipVerifiedPaymentHandler(jdbc, points, identities, referral);
     }
 
@@ -69,7 +69,7 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
         assertEquals(3999, count("SELECT balance FROM ums_points_account WHERE member_id=? AND points_type=1", memberId));
         assertEquals(3999, count("SELECT balance FROM ums_points_account WHERE member_id=? AND points_type=2", memberId));
         assertEquals(2, count("SELECT COUNT(*) FROM ums_points_ledger WHERE member_id=?", memberId));
-        assertEquals(2, count("SELECT COUNT(*) FROM member_point_ledger WHERE member_id=?", memberId));
+        assertEquals(0, count("SELECT COUNT(*) FROM member_point_ledger WHERE member_id=?", memberId)); // 已统一到 ums_points_ledger，不再双写
         assertEquals(1, count("SELECT identity_type FROM ums_member_identity WHERE member_id=?", memberId));
         assertEquals(1, count("SELECT COUNT(*) FROM member_level_change_log WHERE order_id=?", orderId));
         assertEquals(1, count("SELECT COUNT(*) FROM sys_audit_log WHERE target_type='membership_purchase_order' AND target_id=?", orderId));
@@ -87,7 +87,6 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
         assertEquals("PENDING", text("SELECT status FROM membership_purchase_order WHERE id=?", orderId));
         assertEquals(0, count("SELECT COUNT(*) FROM ums_points_account WHERE member_id=?", memberId));
         assertEquals(0, count("SELECT COUNT(*) FROM ums_points_ledger WHERE member_id=?", memberId));
-        assertEquals(0, count("SELECT COUNT(*) FROM member_point_ledger WHERE member_id=?", memberId));
         assertEquals(0, count("SELECT COUNT(*) FROM ums_member_identity WHERE member_id=?", memberId));
         assertEquals(0, count("SELECT COUNT(*) FROM sys_audit_log WHERE target_type='membership_purchase_order' AND target_id=?", orderId));
     }
@@ -100,7 +99,7 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
                 buyerId, referrerId, "/" + referrerId + "/" + buyerId);
         jdbc.update("UPDATE sys_config SET config_value='1000' WHERE config_key='membership.referral.cofounder.repurchase_points'");
         PointsWalletService wallet = (PointsWalletService) ReflectionTestUtils.getField(handler, "pointsWallet");
-        MembershipReferralRewardService rewards = new MembershipReferralRewardService(jdbc, wallet);
+        MembershipReferralRewardService rewards = new MembershipReferralRewardService(jdbc, wallet, new MemberEarningsCreditService(jdbc));
         var snapshot = rewards.snapshotFor(buyerId, "COFOUNDER");
         assertNotNull(snapshot);
         long orderId = order(buyerId, "COFOUNDER", "10000.00", 10000);
@@ -113,10 +112,10 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
         transaction.executeWithoutResult(status -> handler.accept(verified));
 
         assertEquals(new BigDecimal("200.00"), jdbc.queryForObject(
-                "SELECT available_balance FROM member_cash_account WHERE member_id=?", BigDecimal.class, referrerId));
-        assertEquals(1, count("SELECT COUNT(*) FROM member_cash_ledger WHERE member_id=? AND source_id=?", referrerId, orderId));
+                "SELECT available_earnings FROM ums_earnings WHERE member_id=?", BigDecimal.class, referrerId));
+        assertEquals(1, count("SELECT COUNT(*) FROM ums_earnings_ledger WHERE member_id=? AND change_type='referral_reward'", referrerId));
         assertEquals(1000, count("SELECT balance FROM ums_points_account WHERE member_id=? AND points_type=2", referrerId));
-        assertEquals(1, count("SELECT COUNT(*) FROM member_point_ledger WHERE member_id=? AND source_type='REFERRAL_REWARD'", referrerId));
+        assertEquals(0, count("SELECT COUNT(*) FROM member_cash_account WHERE member_id=?", referrerId)); // 第二套账本已弃用
         assertEquals(1, count("SELECT COUNT(*) FROM member_referral_reward WHERE order_id=? AND reward_amount=200.00 AND reward_points=1000", orderId));
         assertEquals(1, count("SELECT COUNT(*) FROM sys_audit_log WHERE target_type='member_referral_reward' AND target_id=?", orderId));
     }
