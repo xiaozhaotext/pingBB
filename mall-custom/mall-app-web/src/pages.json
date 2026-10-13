@@ -325,6 +325,12 @@
       }
     },
     {
+      "path": "pages/member/pointsLedger",
+      "style": {
+        "navigationBarTitleText": "积分明细"
+      }
+    },
+    {
       "path": "pages/zone/consume",
       "style": {
         "navigationBarTitleText": "消费区"
