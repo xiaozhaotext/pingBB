@@ -3,6 +3,7 @@ package com.macro.mall.portal.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +14,7 @@ import java.util.List;
  * 分享下单奖励：订单支付成功后，给下单人的直推分享人发放固定奖励。
  *
  * 规则全部来自后台配置，默认值仅用于本地闭环演示：
- * - share.order.bonus.enabled：开关（默认开启）
+ * - share.order.bonus.enabled：开关（默认关闭，需业务规则确认后由管理员开启）
  * - share.order.bonus：每单奖励金额（默认 200 元）
  * 幂等：同一订单只会发放一次（idempotencyKey = share:order:{orderId}）。
  */
@@ -25,6 +26,9 @@ public class ShareOrderBonusService {
     private final JdbcTemplate jdbc;
     private final MemberEarningsCreditService earningsCreditService;
 
+    @Value("${mall.share.order.bonus.payout.enabled:false}")
+    private boolean payoutEnabled;
+
     public ShareOrderBonusService(JdbcTemplate jdbc, MemberEarningsCreditService earningsCreditService) {
         this.jdbc = jdbc;
         this.earningsCreditService = earningsCreditService;
@@ -33,7 +37,8 @@ public class ShareOrderBonusService {
     /** @return 实际发放给分享人的金额，未发放时返回 0。 */
     @Transactional(rollbackFor = Exception.class)
     public BigDecimal postForOrder(long orderId, long buyerMemberId, BigDecimal paidAmount) {
-        if (!configBool("share.order.bonus.enabled", true)) return BigDecimal.ZERO;
+        if (!payoutEnabled) return BigDecimal.ZERO;
+        if (!configBool("share.order.bonus.enabled", false)) return BigDecimal.ZERO;
         BigDecimal bonus = configDecimal("share.order.bonus", new BigDecimal("200.00"));
         if (bonus.signum() <= 0) return BigDecimal.ZERO;
 

@@ -4,6 +4,7 @@ import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.DividendDistributionService;
 import com.macro.mall.portal.service.MemberEarningsCreditService;
+import com.macro.mall.portal.service.ShareOrderBonusService;
 import com.macro.mall.portal.service.impl.UmsMemberServiceImpl;
 import com.macro.mall.common.exception.ApiException;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Map;
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -74,6 +76,13 @@ class GapSecurityTest {
                 new DividendDistributionService(jdbc, null, new MemberEarningsCreditService(jdbc));
         assertThrows(IllegalStateException.class, () -> service.distributeDaily(LocalDate.now()));
         verifyNoInteractions(jdbc);
+    }
+    @Test void ordinaryOrderShareBonusStaysOffUntilRuleIsApproved() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        MemberEarningsCreditService credit = mock(MemberEarningsCreditService.class);
+        ShareOrderBonusService service = new ShareOrderBonusService(jdbc, credit);
+        assertEquals(BigDecimal.ZERO, service.postForOrder(9L, 7L, new BigDecimal("100.00")));
+        verifyNoInteractions(jdbc, credit);
     }
     private ConsultationController consultation() {
         UmsMember m = new UmsMember(); m.setId(7L);
