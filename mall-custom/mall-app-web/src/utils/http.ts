@@ -8,7 +8,7 @@ import { useMemberStore } from '@/stores/member'
 import type { CommonResult } from '@/types/common'
 
 // 请求基地址（从环境变量读取）
-const baseURL = import.meta.env.VITE_API_BASE_URL
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/portal'
 let loginRedirectPending = false
 
 const handleExpiredSession = (requestToken: string) => {

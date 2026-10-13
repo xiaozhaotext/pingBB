@@ -329,6 +329,12 @@
       "style": {
         "navigationBarTitleText": "每日分红池(模拟)"
       }
+    },
+    {
+      "path": "pages/support/privacy",
+      "style": {
+        "navigationBarTitleText": "隐私政策"
+      }
     }
   ],
   "globalStyle": {

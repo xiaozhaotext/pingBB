@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 创建axios实例
 const http = axios.create({
-  baseURL: import.meta.env.VITE_BASE_SERVER_URL,
+  baseURL: import.meta.env.VITE_BASE_SERVER_URL || '/admin-api',
   timeout: 5000,
 })
 
