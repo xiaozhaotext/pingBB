@@ -1,0 +1,29 @@
+{
+  "codeCommit": "364f6fe93bac53c508ac5ddc74f913a7f93aa594",
+  "junit": {
+    "pass": 42,
+    "fail": 0,
+    "skip": 0
+  },
+  "isolatedApi": {
+    "pass": 27,
+    "fail": 0
+  },
+  "localBrowser": {
+    "pass": 9,
+    "fail": 0
+  },
+  "liveHttps": {
+    "pass": 10,
+    "fail": 0
+  },
+  "adminBuild": "PASS",
+  "h5Build": "PASS",
+  "requirements": {
+    "PARTIAL": 98,
+    "PASS": 5,
+    "BLOCKED": 23,
+    "NOT_STARTED": 8
+  },
+  "backup": "/opt/mall-demo/backups/gap-20261013-153013"
+}
