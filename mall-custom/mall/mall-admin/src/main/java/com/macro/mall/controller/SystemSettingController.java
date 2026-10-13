@@ -81,7 +81,8 @@ public class SystemSettingController {
                 "mode", rule.mode(),
                 "entries", rule.tokens().size()));
         data.put("contentKeys", List.of(SystemSettingService.CONTENT_PRIVACY_POLICY,
-                SystemSettingService.CONTENT_USER_AGREEMENT));
+                SystemSettingService.CONTENT_USER_AGREEMENT,
+                SystemSettingService.CONTENT_REGISTRATION_NOTICE));
         return CommonResult.success(data);
     }
 

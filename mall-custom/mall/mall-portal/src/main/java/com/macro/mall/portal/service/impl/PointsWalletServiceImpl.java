@@ -27,7 +27,7 @@ public class PointsWalletServiceImpl implements PointsWalletService {
 
     @Override
     public java.util.List<UmsPointsLedger> getLedger(Long memberId, Integer pointsType) {
-        return ledgerMapper.selectByMember(memberId);
+        return ledgerMapper.selectByMember(memberId, pointsType);
     }
 
     @Override

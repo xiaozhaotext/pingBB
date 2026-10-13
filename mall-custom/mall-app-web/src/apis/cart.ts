@@ -1,5 +1,5 @@
 import { http } from '@/utils/http'
-import type { CartItem } from '@/types/cart'
+import type { CartItem, CartProduct } from '@/types/cart'
 
 /** 添加购物车 */
 export const addCartAPI = (data: Partial<CartItem>) => {
@@ -15,6 +15,14 @@ export const getCartListAPI = () => {
   return http<CartItem[]>({
     method: 'GET',
     url: '/cart/list',
+  })
+}
+
+/** 获取购物车中指定商品的规格（用于列表页快速加购） */
+export const getCartProductAPI = (productId: number) => {
+  return http<CartProduct>({
+    method: 'GET',
+    url: `/cart/getProduct/${productId}`,
   })
 }
 

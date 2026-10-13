@@ -19,6 +19,11 @@
         <view class="home-zone rebuy-zone" @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
         <view class="home-zone consume-zone" @click="uniApi.navigateTo({url:'/pages/zone/consume'})"><text class="home-zone-title">消费区</text><text class="home-zone-caption">预留专区 · 暂未开放</text><text class="reserve-badge">预留</text></view>
       </view>
+      <view class="home-product-heading"><view><text>自选区推荐</text><small>品牌区精选好物</small></view><text @click="uniApi.navigateTo({url:'/pages/zone/pick'})">进入品牌区 →</text></view>
+      <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
+      <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
+      <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无可推荐商品，请在后台专区管理中配置。</view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text></view></view></view></view>
       <view class="home-product-heading"><view><text>为你优选</text><small>演示商品 · 复购区好物</small></view><text @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
@@ -54,6 +59,10 @@ const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
 const loadRebuy=async()=>{void loadAnnouncement();void loadBanner();rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
 const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
+const pickProducts=ref<ZoneProduct[]>([])
+const pickLoading=ref(false),pickError=ref(false)
+const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=(await getZoneProductsAPI('PICK')).data||[]}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
+const openPickProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=PICK`})
 // 后台 Banner（/home/content → advertiseList）：后台启用/停用后应用端即时生效
 const loadBanner=async()=>{try{const r=await getHomeContentAPI();const list=(r.data?.advertiseList||[]).filter(i=>!!i.pic);advertiseList.value=list;swiperLength.value=list.length;if(!brandList.value.length&&r.data?.brandList?.length){brandList.value=r.data.brandList}}catch{advertiseList.value=[];swiperLength.value=0}}
 
@@ -112,7 +121,7 @@ const cutDownTime = computed(() => {
 
 // ===== 数据加载 =====
 // 加载首页数据
-const loadData = async () => { await loadRebuy(); uni.stopPullDownRefresh() }
+const loadData = async () => { await Promise.all([loadRebuy(), loadPick()]); uni.stopPullDownRefresh() }
 
 // ===== 生命周期 =====
 // 页面加载时执行

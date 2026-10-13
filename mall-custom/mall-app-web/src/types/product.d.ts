@@ -228,6 +228,10 @@ export type PmsPortalProductDetail = {
   productLadderList: PmsProductLadder[]
   /** 商品可用优惠券 */
   couponList: SmsCoupon[]
+  /** 所属商家（店铺）名称 */
+  shopName?: string
+  /** 已核验的商品评价数 */
+  commentCount?: number
 }
 
 /** 规格选项（前端专用） */

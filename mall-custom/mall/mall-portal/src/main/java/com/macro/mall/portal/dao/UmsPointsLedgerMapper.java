@@ -19,6 +19,9 @@ public interface UmsPointsLedgerMapper {
     @Select("SELECT * FROM ums_points_ledger WHERE idempotency_key=#{key} LIMIT 1")
     UmsPointsLedger selectByIdempotencyKey(@Param("key") String key);
 
-    @Select("SELECT * FROM ums_points_ledger WHERE member_id=#{memberId} ORDER BY create_time DESC")
-    List<UmsPointsLedger> selectByMember(@Param("memberId") Long memberId);
+    // 流水按积分类型可选过滤；单会员流水量有限，限 200 条避免无限返回
+    @Select("<script>SELECT * FROM ums_points_ledger WHERE member_id=#{memberId}"
+            + "<if test='pointsType != null'> AND points_type=#{pointsType}</if>"
+            + " ORDER BY create_time DESC, id DESC LIMIT 200</script>")
+    List<UmsPointsLedger> selectByMember(@Param("memberId") Long memberId, @Param("pointsType") Integer pointsType);
 }

@@ -43,6 +43,7 @@ public class SystemSettingService {
 
     public static final String CONTENT_PRIVACY_POLICY = "privacy_policy";
     public static final String CONTENT_USER_AGREEMENT = "user_agreement";
+    public static final String CONTENT_REGISTRATION_NOTICE = "registration_notice";
     private static final int CONTENT_MAX_LENGTH = 60000;
 
     private static final int MAX_VALUE_LENGTH = 512;
@@ -288,7 +289,8 @@ public class SystemSettingService {
     }
 
     private void requireContentKey(String contentKey) {
-        if (!CONTENT_PRIVACY_POLICY.equals(contentKey) && !CONTENT_USER_AGREEMENT.equals(contentKey)) {
+        if (!CONTENT_PRIVACY_POLICY.equals(contentKey) && !CONTENT_USER_AGREEMENT.equals(contentKey)
+                && !CONTENT_REGISTRATION_NOTICE.equals(contentKey)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支持的内容类型");
         }
     }

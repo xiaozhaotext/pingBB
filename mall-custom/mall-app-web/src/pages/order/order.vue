@@ -72,7 +72,8 @@
               </button>
             </view>
             <view v-if="item.status === 3" class="action-box b-t">
-              <button class="action-btn recom">评价商品</button>
+              <button class="action-btn" @click="handleReturnApply(item.id)">申请售后</button>
+              <button class="action-btn recom" @click="handleComment(item.id)">评价商品</button>
             </view>
           </view>
 
@@ -324,6 +325,16 @@ const handlePayOrder = (orderId: number) => {
   uni.redirectTo({
     url: `/pages/money/pay?orderId=${orderId}`,
   })
+}
+
+// 评价商品
+const handleComment = (orderId: number) => {
+  uni.navigateTo({ url: '/pages/order/comment?orderId=' + orderId })
+}
+
+// 申请售后
+const handleReturnApply = (orderId: number) => {
+  uni.navigateTo({ url: '/pages/order/returnApply?orderId=' + orderId })
 }
 
 // 确认收货

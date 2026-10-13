@@ -34,6 +34,10 @@
       <text class="title">{{ product.name }}</text
       ><br />
       <text class="title2">{{ product.subTitle }}</text>
+      <view class="shop-row">
+        <text class="shop-label">商家</text>
+        <text class="shop-name">{{ shopName }}</text>
+      </view>
       <view class="price-box">
         <text class="price-tip">¥</text>
         <text class="price">{{ product.price }}</text>
@@ -94,7 +98,33 @@
       </view>
     </view>
 
-    <view class="eva-section"><view class="e-header"><text class="tit">商品评价</text></view><view class="eva-empty">暂无经过核验的评价数据</view></view>
+    <!-- 商品评价 -->
+    <view class="eva-section">
+      <view class="e-header">
+        <text class="tit">商品评价</text>
+        <text class="e-count">{{ commentTotal }} 条<template v-if="commentAvgStar">· 好评 {{ commentAvgStar }} 分</template></text>
+        <text class="e-more" @click="handleWriteComment">写评价 ›</text>
+      </view>
+      <view v-if="commentLoading" class="eva-empty">评价加载中…</view>
+      <view v-else-if="commentList.length === 0" class="eva-empty">暂无评价，购买并收货后可发表第一条评价</view>
+      <view v-else class="eva-list">
+        <view class="eva-item" v-for="c in commentList" :key="c.id">
+          <view class="eva-item-head">
+            <image class="eva-avatar" :src="c.memberIcon || '/static/missing-face.png'" mode="aspectFill"></image>
+            <view class="eva-item-meta">
+              <text class="eva-nick">{{ c.memberNickName || '匿名用户' }}</text>
+              <text class="eva-stars">{{ formatStars(c.star) }}</text>
+            </view>
+            <text class="eva-time">{{ formatDateTime(c.createTime) }}</text>
+          </view>
+          <text class="eva-content">{{ c.content }}</text>
+          <text v-if="c.productAttribute" class="eva-attr">{{ c.productAttribute }}</text>
+          <view v-if="c.replays && c.replays.length" class="eva-replay-box">
+            <view class="eva-replay" v-for="r in c.replays" :key="r.id">商家回复：{{ r.content }}</view>
+          </view>
+        </view>
+      </view>
+    </view>
 
     <!-- 品牌信息 -->
     <view class="brand-info">
@@ -229,6 +259,43 @@
         </view>
       </view>
     </view>
+    <!-- 发表评价弹窗 -->
+    <view class="popup" :class="commentPopup" @touchmove.stop.prevent @click="closeCommentPopup">
+      <view class="mask"></view>
+      <view class="layer comment-layer" @click.stop>
+        <view class="comment-title">发表评价</view>
+        <view v-if="pendingLoading" class="eva-empty">加载可评价订单…</view>
+        <view v-else-if="pendingList.length === 0" class="eva-empty">暂无可评价的订单商品（需订单已完成且未评价）</view>
+        <template v-else>
+          <view class="pending-list">
+            <view
+              class="pending-item"
+              :class="{ active: commentForm.orderId === Number(p.orderId) && commentForm.productId === Number(p.productId) }"
+              v-for="p in pendingList"
+              :key="p.orderId + '-' + p.productId"
+              @click="selectPending(p)"
+            >
+              <image class="pending-pic" :src="p.productPic" mode="aspectFill"></image>
+              <view class="pending-info">
+                <text class="pending-name">{{ p.productName }}</text>
+                <text class="pending-attr">{{ p.productAttr }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="star-row">
+            <text
+              class="star"
+              :class="{ active: st <= commentForm.star }"
+              v-for="st in 5"
+              :key="st"
+              @click="commentForm.star = st"
+            >★</text>
+          </view>
+          <textarea class="comment-input" v-model="commentForm.content" maxlength="500" placeholder="说说这件商品怎么样（1-500字）" />
+          <button class="btn" :disabled="commentSubmitting" @click="submitComment">提交评价</button>
+        </template>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -239,9 +306,9 @@ import DesktopHeader from '@/components/DesktopHeader.vue'
 import WatermarkOverlay from '@/components/WatermarkOverlay.vue'
 import { ref, computed } from 'vue'
 import { onLoad, onPageScroll } from '@dcloudio/uni-app'
-import { getProductDetailAPI } from '@/apis/product'
+import { getProductDetailAPI, getProductCommentListAPI, createProductCommentAPI, getProductCommentPendingAPI } from '@/apis/product'
 import { getSiteInfoAPI } from '@/apis/home'
-import { addCartAPI } from '@/apis/cart'
+import { addCartAPI, getCartListAPI } from '@/apis/cart'
 import { getProductCouponListAPI, addMemberCouponAPI } from '@/apis/coupon'
 import { createReadHistoryAPI } from '@/apis/memberReadHistory'
 import {
@@ -330,6 +397,25 @@ const serviceList = ref<string[]>([])
 // 优惠券
 const couponList = ref<SmsCoupon[]>([])
 
+// 商家与评价
+const shopName = ref('平台自营')
+const commentList = ref<any[]>([])
+const commentTotal = ref(0)
+const commentAvgStar = ref<number | null>(null)
+const commentLoading = ref(false)
+
+// 写评价弹窗
+const commentPopup = ref<'none' | 'show' | 'hide'>('none')
+const pendingList = ref<any[]>([])
+const pendingLoading = ref(false)
+const commentSubmitting = ref(false)
+const commentForm = ref<{ orderId: number | null; productId: number | null; star: number; content: string }>({
+  orderId: null,
+  productId: null,
+  star: 5,
+  content: '',
+})
+
 // 格式化时间（保留到秒）
 const formatDateTime = (time: string | null | undefined): string => {
   if (!time) return 'N/A'
@@ -368,6 +454,8 @@ const loadData = async (id: number) => {
       product.value = data.product
       skuStockList.value = data.skuStockList
       brand.value = data.brand
+      shopName.value = data.shopName || '平台自营'
+      commentTotal.value = data.commentCount ?? 0
 
       // 初始化原价（如果不存在）
       if (!product.value.originalPrice) {
@@ -382,6 +470,7 @@ const loadData = async (id: number) => {
       initProductDesc()
       saveReadHistory()
       initProductCollection()
+      loadComments(id)
     }
   } catch (error) {
     console.error('加载商品详情失败:', error)
@@ -788,12 +877,122 @@ const handleToggleFavorite = async () => {
   }
 }
 
-// 立即购买
-const handleBuy = () => {
-  uni.showToast({
-    title: '暂时只支持从购物车下单！',
-    icon: 'none',
-  })
+// 立即购买：加购后直接进入确认订单页
+const handleBuy = async () => {
+  if (!memberStore.hasLogin) {
+    handleCheckLogin()
+    return
+  }
+  const skuStock = getSkuStock()
+  if (!skuStock) {
+    uni.showToast({ icon: 'none', title: '请先选择规格' })
+    return
+  }
+  try {
+    uni.showLoading({ title: '处理中', mask: true })
+    await addCartAPI({ productId: product.value.id, productSkuId: skuStock.id, quantity: 1 })
+    const res = await getCartListAPI()
+    const target = (res.data || []).find(
+      (item) => Number(item.productId) === Number(product.value.id)
+        && Number(item.productSkuId) === Number(skuStock.id),
+    )
+    uni.hideLoading()
+    if (!target) {
+      uni.showToast({ icon: 'none', title: '下单信息获取失败，请前往购物车结算' })
+      return
+    }
+    uni.navigateTo({ url: '/pages/order/createOrder?cartIds=[' + target.id + ']' })
+  } catch (error) {
+    uni.hideLoading()
+    console.error('立即购买失败:', error)
+  }
+}
+
+// 商品评价：加载已核验评价
+const loadComments = async (productId: number) => {
+  commentLoading.value = true
+  try {
+    const res = await getProductCommentListAPI(productId, 1, 20)
+    commentList.value = res.data?.list || []
+    commentTotal.value = res.data?.total ?? 0
+    commentAvgStar.value = res.data?.avgStar ?? null
+  } catch (error) {
+    console.error('加载商品评价失败:', error)
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+const formatStars = (star: number) => {
+  const n = Math.max(0, Math.min(5, Number(star) || 0))
+  return '★'.repeat(n) + '☆'.repeat(5 - n)
+}
+
+// 打开写评价弹窗
+const handleWriteComment = async () => {
+  if (!memberStore.hasLogin) {
+    handleCheckLogin()
+    return
+  }
+  commentPopup.value = 'show'
+  pendingLoading.value = true
+  try {
+    const res = await getProductCommentPendingAPI()
+    const all = res.data || []
+    const current = Number(product.value.id)
+    const mine = all.filter((p: any) => Number(p.productId) === current)
+    pendingList.value = [...mine, ...all.filter((p: any) => Number(p.productId) !== current)]
+    const pre = pendingList.value.find((p: any) => Number(p.productId) === current) || pendingList.value[0]
+    commentForm.value = {
+      orderId: pre ? Number(pre.orderId) : null,
+      productId: pre ? Number(pre.productId) : null,
+      star: 5,
+      content: '',
+    }
+  } catch (error) {
+    console.error('加载可评价订单失败:', error)
+  } finally {
+    pendingLoading.value = false
+  }
+}
+
+const closeCommentPopup = () => {
+  commentPopup.value = 'hide'
+  setTimeout(() => {
+    commentPopup.value = 'none'
+  }, 250)
+}
+
+const selectPending = (p: any) => {
+  commentForm.value.orderId = Number(p.orderId)
+  commentForm.value.productId = Number(p.productId)
+}
+
+const submitComment = async () => {
+  if (!commentForm.value.orderId || !commentForm.value.productId) {
+    uni.showToast({ icon: 'none', title: '请选择要评价的订单商品' })
+    return
+  }
+  if (!commentForm.value.content.trim()) {
+    uni.showToast({ icon: 'none', title: '请填写评价内容' })
+    return
+  }
+  commentSubmitting.value = true
+  try {
+    await createProductCommentAPI({
+      productId: commentForm.value.productId,
+      orderId: commentForm.value.orderId,
+      star: commentForm.value.star,
+      content: commentForm.value.content.trim(),
+    })
+    uni.showToast({ icon: 'success', title: '评价成功' })
+    closeCommentPopup()
+    loadComments(Number(product.value.id))
+  } catch (error) {
+    console.error('提交评价失败:', error)
+  } finally {
+    commentSubmitting.value = false
+  }
 }
 
 // 加入购物车
@@ -1669,6 +1868,38 @@ page {
   }
 }
 .eva-empty { padding: 24rpx 30rpx; color: #777; font-size: 26rpx; background: #fff; }
+
+.shop-row { display: flex; align-items: center; margin-top: 10rpx; font-size: 26rpx; }
+.shop-row .shop-label { color: #999; margin-right: 12rpx; }
+.shop-row .shop-name { color: #333; font-weight: 600; }
+.eva-section .e-header .e-count { flex: 1; text-align: right; font-size: 24rpx; color: #999; }
+.eva-section .e-header .e-more { margin-left: 16rpx; font-size: 26rpx; color: #fa436a; }
+.eva-list { padding: 6rpx 0; }
+.eva-item { padding: 20rpx 0; border-bottom: 1rpx solid #f2f2f2; }
+.eva-item:last-child { border-bottom: none; }
+.eva-item-head { display: flex; align-items: center; }
+.eva-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; margin-right: 16rpx; background: #f3f3f3; }
+.eva-item-meta { flex: 1; display: flex; flex-direction: column; }
+.eva-nick { font-size: 26rpx; color: #333; }
+.eva-stars { font-size: 24rpx; color: #ffb400; letter-spacing: 2rpx; }
+.eva-time { font-size: 22rpx; color: #aaa; }
+.eva-content { display: block; margin-top: 12rpx; font-size: 26rpx; color: #333; line-height: 1.6; }
+.eva-attr { display: block; margin-top: 6rpx; font-size: 22rpx; color: #999; }
+.eva-replay-box { margin-top: 12rpx; padding: 12rpx 16rpx; background: #f7f7f7; border-radius: 8rpx; }
+.eva-replay { font-size: 24rpx; color: #666; }
+.comment-layer { padding: 24rpx 30rpx 40rpx; max-height: 82vh; overflow-y: auto; box-sizing: border-box; }
+.comment-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 16rpx; }
+.pending-list { max-height: 320rpx; overflow-y: auto; }
+.pending-item { display: flex; align-items: center; padding: 14rpx; border: 1rpx solid #eee; border-radius: 10rpx; margin-bottom: 12rpx; }
+.pending-item.active { border-color: #fa436a; background: #fff5f7; }
+.pending-pic { width: 72rpx; height: 72rpx; border-radius: 8rpx; margin-right: 16rpx; background: #f3f3f3; }
+.pending-info { flex: 1; display: flex; flex-direction: column; }
+.pending-name { font-size: 26rpx; color: #333; }
+.pending-attr { font-size: 22rpx; color: #999; }
+.star-row { display: flex; align-items: center; margin: 20rpx 0 10rpx; }
+.star-row .star { font-size: 46rpx; color: #ddd; margin-right: 14rpx; }
+.star-row .star.active { color: #ffb400; }
+.comment-input { width: 100%; box-sizing: border-box; min-height: 160rpx; padding: 16rpx; background: #f7f7f7; border-radius: 10rpx; font-size: 26rpx; }
 @media (min-width: 900px) {
   .container {
     display: grid;

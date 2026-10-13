@@ -6,6 +6,7 @@
       <view class="row"><text>赠送商品积分</text><text class="v">10000</text></view>
       <view class="row"><text>赠送复购积分</text><text class="v">10000</text></view>
       <view class="row"><text>直接分享奖励</text><text class="v">10% 现金奖励（单笔封顶 200 元）</text></view>
+      <view class="row"><text>分享每单奖励</text><text class="v">每单另享 200 元</text></view>
       <view class="row"><text>每日分红</text><text class="v">3 份</text></view>
     </view>
 

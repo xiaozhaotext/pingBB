@@ -29,7 +29,7 @@ const selects: Record<string, { value: string; label: string }[]> = {
   ],
 }
 const multiline = ['ip.access.list']
-const contentLabels: Record<string, string> = { privacy_policy: '隐私政策', user_agreement: '用户协议' }
+const contentLabels: Record<string, string> = { privacy_policy: '隐私政策', user_agreement: '用户协议', registration_notice: '注册须知' }
 
 const active = ref('company')
 const loading = ref(false)
