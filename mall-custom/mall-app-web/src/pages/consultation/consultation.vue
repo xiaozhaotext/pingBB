@@ -29,10 +29,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '@/utils/http'
+import { onLoad } from '@dcloudio/uni-app'
 
 const subject = ref('')
 const content = ref('')
 const contact = ref('')
+onLoad(options=>{if(options?.productId) subject.value='商品咨询 #'+options.productId})
 const submitting = ref(false)
 const list = ref<any[]>([])
 

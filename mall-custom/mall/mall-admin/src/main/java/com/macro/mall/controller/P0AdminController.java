@@ -70,15 +70,8 @@ public class P0AdminController {
         data.put("invitees", jdbc.queryForList(
                 "SELECT r.member_id,m.username,r.bind_time FROM ums_member_recommend r " +
                 "JOIN ums_member m ON m.id=r.member_id WHERE r.inviter_id=? ORDER BY r.id DESC LIMIT 100", memberId));
-        // REQ-ADM-MEMBER-007: 收货地址
-        data.put("addresses", jdbc.queryForList(
-                "SELECT id,name,phone,province,city,region,detail_address,default_status FROM ums_member_receive_address WHERE member_id=? ORDER BY default_status DESC, id DESC", memberId));
-        // REQ-ADM-MEMBER-008: 消费统计
-        Map<String, Object> stats = jdbc.queryForMap(
-                "SELECT COUNT(*) AS order_count, COALESCE(SUM(total_amount),0) AS total_amount,"
-                + " COALESCE(SUM(CASE WHEN status IN (2,3) THEN total_amount ELSE 0 END),0) AS paid_amount"
-                + " FROM oms_order WHERE member_id=? AND status<>4", memberId);
-        data.put("consumptionStats", stats);
+        // Preserve the newer client's statistics response name, using the same paid-order calculation.
+        data.put("consumptionStats", ((java.util.List<?>)data.get("consumption")).get(0));
         return CommonResult.success(data);
     }
 

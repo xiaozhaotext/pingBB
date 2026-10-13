@@ -10,17 +10,18 @@
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
-          <input type="text" v-model="username" placeholder="请输入用户名" :maxlength="64" />
+          <input type="text" v-model="username" @blur="username = $event.detail.value" placeholder="请输入用户名" :maxlength="64" />
         </view>
         <view class="input-item">
           <text class="tit">密码</text>
           <input
             v-model="password"
-            placeholder="8-18位不含特殊字符的数字、字母组合"
+            placeholder="请输入您的登录密码"
             placeholder-class="input-empty"
             :maxlength="72"
             password
-            @confirm="toLogin"
+            @blur="password = $event.detail.value"
+            @confirm="password = $event.detail.value; toLogin()"
           />
         </view>
       </view>
