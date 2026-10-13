@@ -148,11 +148,9 @@ const handleRegister = async () => {
     setTimeout(() => {
       uni.redirectTo({ url: '/pages/public/login' })
     }, 1500)
-  } catch {
-    uni.showToast({
-      title: '注册失败，请重试',
-      icon: 'none',
-    })
+  } catch (e: any) {
+    // http 工具已按后端 message 弹过提示，这里不再重复
+    console.error('注册失败', e)
   } finally {
     registering.value = false
   }
