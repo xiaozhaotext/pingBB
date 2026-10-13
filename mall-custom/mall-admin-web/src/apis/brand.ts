@@ -52,7 +52,7 @@ export function brandUpdateFactoryStatusAPI(params: { ids: string; factoryStatus
 export function brandDeleteByIdAPI(id: number) {
   return http({
     url: '/brand/delete/' + id,
-    method: 'get',
+    method: 'post',
   })
 }
 

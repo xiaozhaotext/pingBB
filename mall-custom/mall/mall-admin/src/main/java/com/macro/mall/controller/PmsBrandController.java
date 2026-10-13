@@ -62,7 +62,7 @@ public class PmsBrandController {
     }
 
     @Operation(summary =  "删除品牌")
-    @RequestMapping(value = "/delete/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "/delete/{id}", method = RequestMethod.POST)
     @ResponseBody
     public CommonResult delete(@PathVariable("id") Long id) {
         int count = brandService.deleteBrand(id);

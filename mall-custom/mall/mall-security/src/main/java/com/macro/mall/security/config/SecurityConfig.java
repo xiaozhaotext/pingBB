@@ -4,6 +4,7 @@ import com.macro.mall.security.component.DynamicAuthorizationManager;
 import com.macro.mall.security.component.JwtAuthenticationTokenFilter;
 import com.macro.mall.security.component.RestAuthenticationEntryPoint;
 import com.macro.mall.security.component.RestfulAccessDeniedHandler;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,6 +40,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(registry -> {
+            //错误分发（/error）放行：否则异常转发到 /error 后会被再次认证，把真实错误覆盖成 401
+            registry.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
             //不需要保护的资源路径允许访问
             for (String url : ignoreUrlsConfig.getUrls()) {
                 registry.requestMatchers(url).permitAll();

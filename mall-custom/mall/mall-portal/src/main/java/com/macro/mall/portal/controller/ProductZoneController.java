@@ -1,6 +1,7 @@
 package com.macro.mall.portal.controller;
 
 import com.macro.mall.common.api.CommonResult;
+import com.macro.mall.common.exception.ApiException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,10 +29,10 @@ public class ProductZoneController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "latest") String sort) {
         if (!"PICK".equals(zone) && !"REBUY".equals(zone)) {
-            throw new IllegalArgumentException("未知商品专区");
+            throw new ApiException("未知商品专区：" + zone);
         }
         if (keyword != null && keyword.length() > 80) {
-            throw new IllegalArgumentException("搜索词过长");
+            throw new ApiException("搜索词过长");
         }
         StringBuilder sql = new StringBuilder(
                 "SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.sale,p.product_category_id AS productCategoryId "

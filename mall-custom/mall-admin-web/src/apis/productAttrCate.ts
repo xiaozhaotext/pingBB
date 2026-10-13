@@ -43,7 +43,7 @@ export function productAttributeCategoryCreateAPI(name: string) {
 export function productAttributeCategoryDeleteById(id: number) {
   return http({
     url: '/productAttribute/category/delete/' + id,
-    method: 'get',
+    method: 'post',
   })
 }
 

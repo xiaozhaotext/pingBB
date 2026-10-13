@@ -30,7 +30,7 @@ export const deleteCartAPI = (params: { ids: string }) => {
 /** 更新商品数量 */
 export const updateCartQuantityAPI = (data: { id: string; quantity: number }) => {
   return http({
-    method: 'GET',
+    method: 'POST',
     url: `/cart/update/quantity?id=${data.id}&quantity=${data.quantity}`,
   })
 }
