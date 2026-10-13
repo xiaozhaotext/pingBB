@@ -13,12 +13,17 @@ public class PaymentExceptionRecorder {
     @Autowired private JdbcTemplate jdbc;
 
     public void record(OmsOrder order, String tradeNo, BigDecimal amount, String reason) {
+        record(order, tradeNo, amount, reason, "ALIPAY");
+    }
+
+    /** 记录任意渠道的异常支付，供支付宝/微信共用。 */
+    public void record(OmsOrder order, String tradeNo, BigDecimal amount, String reason, String channelCode) {
         jdbc.update("INSERT INTO oms_payment_exception(order_id,order_sn,channel_code,channel_trade_no,paid_amount,currency_code,reason,state) "
-                        + "VALUES(?,?,'ALIPAY',?,?,'CNY',?,'OPEN') ON DUPLICATE KEY UPDATE id=id",
-                order.getId(), order.getOrderSn(), tradeNo, amount, reason);
+                        + "VALUES(?,?,?,?,?,'CNY',?,'OPEN') ON DUPLICATE KEY UPDATE id=id",
+                order.getId(), order.getOrderSn(), channelCode, tradeNo, amount, reason);
         Long exceptionId = jdbc.queryForObject(
-                "SELECT id FROM oms_payment_exception WHERE channel_code='ALIPAY' AND channel_trade_no=? AND order_id=?",
-                Long.class, tradeNo, order.getId());
+                "SELECT id FROM oms_payment_exception WHERE channel_code=? AND channel_trade_no=? AND order_id=?",
+                Long.class, channelCode, tradeNo, order.getId());
         if (exceptionId == null) {
             throw new IllegalStateException("Payment trade number belongs to another order");
         }

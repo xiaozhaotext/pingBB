@@ -93,6 +93,14 @@ export const fetchAliapyStatusAPI = (params: { outTradeNo: string }) => {
   })
 }
 
+/** 微信H5下单：返回 { type, h5Url, outTradeNo } */
+export const wechatOrderPayH5API = (orderSn: string) =>
+  http<{ type: string; h5Url: string; outTradeNo: string }>({
+    method: 'POST',
+    url: '/wechatPay/h5',
+    params: { orderSn },
+  })
+
 /** 申请退货 */
 export const createReturnApplyAPI = (data: OmsOrderReturnApplyParam) => {
   return http({

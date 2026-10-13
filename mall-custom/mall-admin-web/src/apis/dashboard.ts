@@ -8,11 +8,19 @@ export interface PaidTrendDay {
 
 export interface DashboardOverview {
   productCount: number
+  productOnSaleCount: number
+  productOffSaleCount: number
+  lowStockSkuCount: number
   orderCount: number
+  pendingDeliveryCount: number
   memberCount: number
   todayOrderCount: number
   todayPaidAmount: number
   totalPaidAmount: number
+  todayRefundedAmount: number
+  totalRefundedAmount: number
+  todayNetPaidAmount: number
+  totalNetPaidAmount: number
   paidTrend: PaidTrendDay[]
   amountNote: string
 }

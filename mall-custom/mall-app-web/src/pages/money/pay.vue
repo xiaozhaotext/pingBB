@@ -5,8 +5,8 @@
       <text class="price">{{ orderInfo.payAmount }}</text>
     </view>
 
-    <view class="pay-type-list" v-if="USE_ALIPAY">
-      <view class="type-item b-b" @click="handleChangePayType(1)">
+    <view class="pay-type-list" v-if="USE_ALIPAY || USE_WECHAT_PAY">
+      <view class="type-item b-b" v-if="USE_ALIPAY" @click="handleChangePayType(1)">
         <text class="icon yticon icon-alipay"></text>
         <view class="con">
           <text class="tit">支付宝支付</text>
@@ -16,7 +16,7 @@
           <radio name="payType" value="" color="#fa436a" :checked="payType == 1" />
         </label>
       </view>
-      <view class="type-item b-b" @click="handleChangePayType(2)">
+      <view class="type-item b-b" v-if="USE_WECHAT_PAY" @click="handleChangePayType(2)">
         <text class="icon yticon icon-weixinzhifu"></text>
         <view class="con">
           <text class="tit">微信支付</text>
@@ -30,18 +30,20 @@
     <view v-else-if="USE_MOCK_PAYMENT" class="mock-notice">本地演示支付：不会扣款，也不会调用支付宝或微信。仅更新测试订单状态。</view>
     <view v-else class="mock-notice">在线支付尚未开放，请勿付款。</view>
 
-    <text v-if="USE_ALIPAY || USE_MOCK_PAYMENT" class="mix-btn" @click="handleConfirmPay">{{ USE_ALIPAY ? '确认支付' : '确认模拟支付' }}</text>
+    <text v-if="USE_ALIPAY || USE_WECHAT_PAY || USE_MOCK_PAYMENT" class="mix-btn" @click="handleConfirmPay">{{ USE_ALIPAY || USE_WECHAT_PAY ? '确认支付' : '确认模拟支付' }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getOrderDetailAPI, confirmMockPaymentAPI } from '@/apis/order'
+import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API } from '@/apis/order'
 import type { OmsOrderDetail } from '@/types/order'
 
 // 是否使用支付宝支付（H5端启用，通过环境变量配置）
 const USE_ALIPAY = import.meta.env.VITE_USE_ALIPAY === 'true'
+// 是否使用微信H5支付（H5端启用，通过环境变量配置）
+const USE_WECHAT_PAY = import.meta.env.VITE_USE_WECHAT_PAY === 'true'
 const USE_MOCK_PAYMENT = import.meta.env.VITE_USE_MOCK_PAYMENT === 'true'
 
 // ===== 页面数据 =====
@@ -79,14 +81,7 @@ const handleChangePayType = (type: number) => {
 // 确认支付
 const handleConfirmPay = async () => {
   // #ifdef H5
-  if (USE_ALIPAY) {
-    if (payType.value != 1) {
-      uni.showToast({
-        title: '暂不支持微信支付！',
-        icon: 'none',
-      })
-      return
-    }
+  if (USE_ALIPAY && payType.value == 1) {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
     window.location.href =
       apiBaseUrl +
@@ -97,6 +92,24 @@ const handleConfirmPay = async () => {
       '的商品订单' +
       '&totalAmount=' +
       orderInfo.value.totalAmount
+    return
+  }
+  if (USE_WECHAT_PAY && payType.value == 2) {
+    try {
+      const res = await wechatOrderPayH5API(String(orderInfo.value.orderSn))
+      const h5Url = res.data?.h5Url
+      if (h5Url) {
+        window.location.href = h5Url
+        return
+      }
+      uni.showToast({ title: '微信支付下单失败', icon: 'none' })
+    } catch (e) {
+      console.error('微信支付下单失败', e)
+    }
+    return
+  }
+  if (USE_ALIPAY || USE_WECHAT_PAY) {
+    uni.showToast({ title: '当前支付方式未开通', icon: 'none' })
     return
   }
   // #endif

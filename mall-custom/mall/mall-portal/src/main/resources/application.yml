@@ -38,6 +38,15 @@ mall:
   payment:
     alipay:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
+    wechat:
+      enabled: false # 未配置微信商户凭证并通过支付验收前禁止启用
+      app-id: ${MALL_WECHAT_APP_ID:}
+      merchant-id: ${MALL_WECHAT_MERCHANT_ID:}
+      merchant-serial-number: ${MALL_WECHAT_MERCHANT_SERIAL:}
+      private-key-path: ${MALL_WECHAT_PRIVATE_KEY_PATH:}
+      api-v3-key: ${MALL_WECHAT_API_V3_KEY:}
+      notify-url: ${MALL_WECHAT_NOTIFY_URL:}
+      return-url: ${MALL_WECHAT_RETURN_URL:}
   p0:
     # Public reverse-proxy requests also appear to originate from loopback.
     # Keep consumer-created points, identity, earnings and contribution events disabled.
@@ -69,6 +78,7 @@ secure:
       - /alipay/notify
       - /member/membership/notify/alipay
       - /member/membership/notify/wechat
+      - /wechatPay/notify
 
 springdoc:
   swagger-ui:

@@ -14,11 +14,17 @@ const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
 const cards = computed(() => [
   { title: '商品总数', value: overview.value?.productCount ?? '—' },
+  { title: '在售商品', value: overview.value?.productOnSaleCount ?? '—' },
+  { title: '已下架商品', value: overview.value?.productOffSaleCount ?? '—' },
+  { title: '库存预警SKU', value: overview.value?.lowStockSkuCount ?? '—' },
   { title: '订单总数', value: overview.value?.orderCount ?? '—' },
+  { title: '待发货订单', value: overview.value?.pendingDeliveryCount ?? '—' },
   { title: '会员总数', value: overview.value?.memberCount ?? '—' },
   { title: '今日订单', value: overview.value?.todayOrderCount ?? '—' },
   { title: '今日已支付金额', value: overview.value ? `¥${Number(overview.value.todayPaidAmount).toFixed(2)}` : '—' },
   { title: '累计已支付金额', value: overview.value ? `¥${Number(overview.value.totalPaidAmount).toFixed(2)}` : '—' },
+  { title: '累计退款金额', value: overview.value ? `¥${Number(overview.value.totalRefundedAmount).toFixed(2)}` : '—' },
+  { title: '累计净收入(已扣退款)', value: overview.value ? `¥${Number(overview.value.totalNetPaidAmount).toFixed(2)}` : '—' },
 ])
 const chartOption = computed(() => ({
   tooltip: { trigger: 'axis' },
