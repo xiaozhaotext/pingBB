@@ -19,6 +19,13 @@ CREATE TABLE IF NOT EXISTS sys_site_profile (
  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT IGNORE INTO sys_site_profile(id,privacy_content,published_content) VALUES(1,'','');
+-- Preserve an already published policy from the existing settings module as the baseline.
+UPDATE sys_site_profile p JOIN sys_content c ON c.content_key='privacy_policy'
+SET p.privacy_title='隐私政策',p.privacy_content=c.content_value,
+ p.published_title='隐私政策',p.published_content=c.content_value,
+ p.published_revision=0,p.published_at=c.update_time
+WHERE p.id=1 AND p.published_revision IS NULL AND p.privacy_revision=0
+AND c.content_value IS NOT NULL AND TRIM(c.content_value)<>'';
 SET @parent=(SELECT id FROM ums_menu WHERE name='p0' ORDER BY id LIMIT 1);
 INSERT INTO ums_menu(parent_id,create_time,title,level,sort,name,icon,hidden)
 SELECT @parent,NOW(),'公司信息与隐私政策',1,10,'p0SiteProfile','ums-admin',0

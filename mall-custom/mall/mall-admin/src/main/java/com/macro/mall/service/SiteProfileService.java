@@ -43,7 +43,7 @@ public class SiteProfileService {
         long version=revision(body);
         String company=text(body,"companyName",128), address=text(body,"address",500),
             tel=text(body,"telephone",64), mobile=text(body,"mobile",32), email=text(body,"email",128),
-            qq=text(body,"qq",32), qr=text(body,"wechatQrUrl",1000);
+            qq=text(body,"qq",32), qr=text(body,"wechatQrUrl",512);
         if (!email.isEmpty() && !email.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"邮箱格式无效");
         if (!qr.isEmpty()) {
