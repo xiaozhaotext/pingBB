@@ -310,6 +310,10 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'settings', name: 'p0Settings', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '系统配置与日志' } },
       { path: 'system', name: 'p0SystemSettings', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '平台设置' } },
       { path: 'images', name: 'p0Images', component: () => import('@/views/p0/ImageManager.vue'), meta: { title: '图片管理' } },
+      { path: 'area-library', name: 'p0AreaLibrary', component: () => import('@/views/p0/AreaLibrary.vue'), meta: { title: '省市区街道地址库' } },
+      { path: 'message-records', name: 'p0MessageRecord', component: () => import('@/views/p0/MessageRecords.vue'), meta: { title: '发送记录' } },
+      { path: 'visit-statistics', name: 'p0VisitStatistics', component: () => import('@/views/p0/VisitStatistics.vue'), meta: { title: '访问统计' } },
+      { path: 'database', name: 'p0Database', component: () => import('@/views/p0/Database.vue'), meta: { title: '数据库管理' } },
     ],
   },
   {

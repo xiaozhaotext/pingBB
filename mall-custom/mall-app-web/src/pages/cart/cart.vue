@@ -36,6 +36,7 @@
               ></view>
             </view>
             <view class="item-right" @click="handleNavToProductDetail(item.productId)">
+              <text class="shop">{{ item.shopName }}</text>
               <text class="clamp title">{{ item.productName }}</text>
               <text class="clamp attr">{{ item.spDataStr }}</text>
               <text class="price">¥{{ item.price }}</text>
@@ -79,7 +80,7 @@ import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref, computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
-import { getCartListAPI, deleteCartAPI, updateCartQuantityAPI, clearCartAPI } from '@/apis/cart'
+import { getCartListAPI, getCartShopsAPI, deleteCartAPI, updateCartQuantityAPI, clearCartAPI } from '@/apis/cart'
 import type { CartItem } from '@/types/cart'
 import uniNumberBox from '@/components/uni-number-box.vue'
 
@@ -121,6 +122,21 @@ const loadData = async () => {
       item.spDataStr = spDataStr
       return item
     })
+    // 展示商家名字：商家模式为平台自营 + 第三方入驻，名称来自后台数据库
+    try {
+      const shops = await getCartShopsAPI()
+      const shopMap = new Map<number, string>(
+        (shops.data || []).map((shop) => [Number(shop.productId), shop.shopName] as [number, string]),
+      )
+      cartList.value.forEach((item) => {
+        item.shopName = shopMap.get(Number(item.productId)) || '平台自营'
+      })
+    } catch (e) {
+      console.error('加载商家名称失败', e)
+      cartList.value.forEach((item) => {
+        item.shopName = item.shopName || '平台自营'
+      })
+    }
     calcTotal()
   } catch (e) {
     console.error('加载购物车失败', e)
@@ -344,6 +360,13 @@ const calcTotal = () => {
     overflow: hidden;
     position: relative;
     padding-left: 30rpx;
+
+    .shop {
+      font-size: 24rpx;
+      color: #e93b3d;
+      height: 36rpx;
+      line-height: 36rpx;
+    }
 
     .title,
     .price {

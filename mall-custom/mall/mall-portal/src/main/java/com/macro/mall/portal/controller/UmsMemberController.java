@@ -2,6 +2,7 @@ package com.macro.mall.portal.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.UmsMember;
+import com.macro.mall.portal.component.MessageRecorder;
 import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +33,8 @@ public class UmsMemberController {
     private String tokenHead;
     @Autowired
     private UmsMemberService memberService;
+    @Autowired
+    private MessageRecorder messageRecorder;
 
     @Operation(summary = "会员注册")
     @RequestMapping(value = "/register", method = RequestMethod.POST)
@@ -88,6 +91,8 @@ public class UmsMemberController {
     @ResponseBody
     public CommonResult getAuthCode(@RequestParam String telephone) {
         String authCode = memberService.generateAuthCode(telephone);
+        messageRecorder.record("SMS", telephone, "登录/注册验证码", "AUTH_CODE", telephone,
+                "SKIPPED", "未配置短信通道，验证码仅在接口返回");
         return CommonResult.success(authCode,"获取验证码成功");
     }
 

@@ -356,6 +356,9 @@ public class P0AdminController {
                         + " VALUES(?,?,?,1,CURRENT_TIMESTAMP)",
                 title, content, type);
         audit(operatorId, principal.getName(), "notice", "publish", null, "发布通知: " + title);
+        jdbc.update("INSERT INTO sys_message_record(channel,target,content,biz_type,biz_id,status,error_msg)"
+                        + " VALUES(?,?,?,?,?,?,?)",
+                "站内信", "全体会员", title, "NOTICE", null, "SENT", null);
         return CommonResult.success(null);
     }
 

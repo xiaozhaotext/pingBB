@@ -18,6 +18,14 @@ export const getCartListAPI = () => {
   })
 }
 
+/** 获取购物车中各商品所属商家名称 */
+export const getCartShopsAPI = () => {
+  return http<{ productId: number; shopName: string }[]>({
+    method: 'GET',
+    url: '/cart/shops',
+  })
+}
+
 /** 删除购物车商品 */
 export const deleteCartAPI = (params: { ids: string }) => {
   return http({

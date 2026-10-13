@@ -45,4 +45,6 @@ export type CartItem = {
   loaded?: string
   /** 前端扩展字段：属性文字 */
   spDataStr?: string
+  /** 前端扩展字段：所属商家名称（平台自营或第三方入驻） */
+  shopName?: string
 }

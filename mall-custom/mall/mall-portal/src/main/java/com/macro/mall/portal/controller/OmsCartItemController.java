@@ -9,10 +9,12 @@ import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 购物车管理Controller
@@ -26,6 +28,8 @@ public class OmsCartItemController {
     private OmsCartItemService cartItemService;
     @Autowired
     private UmsMemberService memberService;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Operation(summary = "添加商品到购物车")
     @RequestMapping(value = "/add", method = RequestMethod.POST)
@@ -44,6 +48,19 @@ public class OmsCartItemController {
     public CommonResult<List<OmsCartItem>> list() {
         List<OmsCartItem> cartItemList = cartItemService.list(memberService.getCurrentMember().getId());
         return CommonResult.success(cartItemList);
+    }
+
+    @Operation(summary = "获取购物车中各商品所属商家名称")
+    @RequestMapping(value = "/shops", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<List<Map<String, Object>>> shops() {
+        Long memberId = memberService.getCurrentMember().getId();
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT ci.product_id AS productId, COALESCE(m.name,'平台自营') AS shopName " +
+                        "FROM oms_cart_item ci " +
+                        "LEFT JOIN pms_product p ON p.id=ci.product_id " +
+                        "LEFT JOIN pms_merchant m ON m.id=p.merchant_id " +
+                        "WHERE ci.member_id=? AND ci.delete_status=0 GROUP BY ci.product_id, m.name", memberId));
     }
 
     @Operation(summary = "获取当前会员的购物车列表,包括促销信息")
