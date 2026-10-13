@@ -29,9 +29,9 @@ export const useUserStore = defineStore(
       menus: [],
     })
 
-    // 用户登录
-    const userLogin = async (loginParam: LoginParam) => {
-      const res = await adminLoginAPI(loginParam)
+    // 用户登录（silent=true 时不弹全局错误提示，由调用方自行处理，例如锁屏解锁）
+    const userLogin = async (loginParam: LoginParam, silent = false) => {
+      const res = await adminLoginAPI(loginParam, silent)
       const tokenStr = res.data.tokenHead + res.data.token
       userInfo.value.token = tokenStr
       userInfo.value.username = loginParam.username

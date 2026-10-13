@@ -6,12 +6,14 @@ import http from '@/utils/http'
 /**
  * 后台管理员登录以后返回token
  */
-export function adminLoginAPI(data: LoginParam) {
+export function adminLoginAPI(data: LoginParam, silent = false) {
   return http<LoginResult>({
     method: 'POST',
     url: '/admin/login',
     data: data,
-  })
+    // silent=true 时不弹全局错误提示，由调用方自行处理（例如锁屏解锁）
+    silent,
+  } as unknown as Parameters<typeof http>[0])
 }
 
 /**

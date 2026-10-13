@@ -1,7 +1,7 @@
 <template>
   <DesktopHeader />
-  <view class="container">
-    <view class="demo-product-note">本地演示数据：商品、评论与促销内容来自官方示例库，请勿作为真实经营信息。</view>
+  <view class="container" :class="'theme-' + theme">
+    <view class="demo-product-note">本地演示数据：商品与促销内容来自官方示例库，请勿作为真实经营信息。</view>
     <!-- 自定义导航栏 -->
     <view class="custom-navbar" :style="{ background: navBgColor }">
       <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
@@ -94,7 +94,8 @@
       </view>
     </view>
 
-    <view class="eva-section"><view class="e-header"><text class="tit">商品评价</text></view><view class="eva-empty">暂无经过核验的评价数据</view></view>
+    <!-- 商品评价：后端暂无商品评论接口（PmsComment 仅有实体与 Mapper，无 Controller 端点），显示空状态，不编造假评论；待后端提供接口后接入真实评论列表 -->
+    <view class="eva-section"><view class="e-header"><text class="tit">商品评价</text></view><view class="eva-empty">暂无评价</view></view>
 
     <!-- 品牌信息 -->
     <view class="brand-info">
@@ -108,6 +109,19 @@
         <view class="title">
           <text>{{ brand.name }}</text>
           <text>品牌首字母：{{ brand.firstLetter }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商家信息：后端暂无商家/店铺接口（无 Merchant/Shop 实体与 Controller，商品详情接口 PmsPortalProductDetail 也不含商家字段），此处显示官方自营占位，不编造商家名；待后端提供商家接口后接入真实商家名 -->
+    <view class="merchant-info">
+      <view class="d-header">
+        <text>商家信息</text>
+      </view>
+      <view class="merchant-box">
+        <view class="title">
+          <text>官方自营</text>
+          <text>平台自营店铺</text>
         </view>
       </view>
     </view>
@@ -238,7 +252,8 @@ const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consul
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import WatermarkOverlay from '@/components/WatermarkOverlay.vue'
 import { ref, computed } from 'vue'
-import { onLoad, onPageScroll } from '@dcloudio/uni-app'
+import { onLoad, onShow, onPageScroll } from '@dcloudio/uni-app'
+import { getTheme, type AppTheme } from '@/utils/theme'
 import { getProductDetailAPI } from '@/apis/product'
 import { getSiteInfoAPI } from '@/apis/home'
 import { addCartAPI } from '@/apis/cart'
@@ -304,6 +319,9 @@ const defaultShareList: ShareItem[] = [
 ]
 
 // ===== 状态变量 =====
+
+// 换肤主题（从 uni.storage 读取，设置页修改后返回本页时 onShow 刷新）
+const theme = ref<AppTheme>(getTheme())
 
 // 弹窗状态
 const specClass = ref<'none' | 'show' | 'hide'>('none')
@@ -388,7 +406,12 @@ const loadData = async (id: number) => {
   }
 }
 
-// ===== onLoad =====
+// ===== onLoad / onShow =====
+
+// 页面显示时刷新主题（从设置页切换主题后返回本页即生效）
+onShow(() => {
+  theme.value = getTheme()
+})
 
 // 页面加载
 onLoad((options) => {
@@ -871,6 +894,9 @@ page {
 
 <style lang="scss" scoped>
 .demo-product-note { padding: 10px 14px; background: #fff3d8; color: #805b1d; font-size: 12px; line-height: 1.5; }
+/* 换肤主题变量：theme-pink 为默认（与现有粉色一致），theme-green 为清新绿；子元素通过 var(--theme-*) 引用 */
+.theme-pink { --theme-primary: #fa436a; --theme-primary-dark: #e43a55; --theme-primary-soft: #fbebee; --theme-action-gradient: linear-gradient(to right, #ffac30, #fa436a, #f56c6c); --theme-action-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4); }
+.theme-green { --theme-primary: #285b40; --theme-primary-dark: #1d4230; --theme-primary-soft: #e8f0eb; --theme-action-gradient: linear-gradient(to right, #3d7a5c, #285b40, #1d4230); --theme-action-shadow: 1px 2px 5px rgba(40, 91, 64, 0.4); }
 /* 自定义导航栏 */
 .custom-navbar {
   position: fixed;
@@ -1252,6 +1278,62 @@ page {
   }
 }
 
+/* 商家信息（与品牌信息同样式） */
+.merchant-info {
+  margin-top: 16rpx;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+
+  .merchant-box {
+    display: flex;
+    align-items: center;
+    padding: 30rpx 50rpx;
+
+    .title {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      font-size: $font-lg + 4rpx;
+      color: $font-color-dark;
+
+      text:last-child {
+        font-size: $font-sm;
+        color: $font-color-light;
+        margin-top: 8rpx;
+      }
+    }
+  }
+
+  .d-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80rpx;
+    font-size: $font-base + 2rpx;
+    color: $font-color-dark;
+    position: relative;
+
+    text {
+      padding: 0 20rpx;
+      background: #fff;
+      position: relative;
+      z-index: 1;
+    }
+
+    &:after {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translateX(-50%);
+      width: 300rpx;
+      height: 0;
+      content: '';
+      border-bottom: 1px solid #ccc;
+    }
+  }
+}
+
 /* 图文详情 */
 .detail-desc {
   background: #fff;
@@ -1512,9 +1594,8 @@ page {
     height: 76rpx;
     border-radius: 100px;
     overflow: hidden;
-    box-shadow: 0 20rpx 40rpx -16rpx #fa436a;
-    box-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4);
-    background: linear-gradient(to right, #ffac30, #fa436a, #f56c6c);
+    box-shadow: var(--theme-action-shadow, 1px 2px 5px rgba(219, 63, 96, 0.4));
+    background: var(--theme-action-gradient, linear-gradient(to right, #ffac30, #fa436a, #f56c6c));
     margin-left: 20rpx;
     position: relative;
 
@@ -1685,7 +1766,8 @@ page {
   .page-bottom { grid-column: 2; grid-row: 5; position: static; width: 100%; margin: 16px 0 0; box-shadow: none; border: 1px solid #e1e9df; }
   .eva-section { grid-column: 1 / -1; grid-row: 6; margin-top: 24px; }
   .brand-info { grid-column: 1 / -1; grid-row: 7; }
-  .detail-desc { grid-column: 1 / -1; grid-row: 8; }
+  .merchant-info { grid-column: 1 / -1; grid-row: 8; }
+  .detail-desc { grid-column: 1 / -1; grid-row: 9; }
 }
 </style>
 
@@ -1708,7 +1790,8 @@ page {
 }
 
 .attr-content .item-list text.selected {
-  background: #fbebee;
-  color: #e43a55;
+  /* 换肤：跟随根容器 .theme-* 定义的变量，未命中时回落粉色 */
+  background: var(--theme-primary-soft, #fbebee);
+  color: var(--theme-primary-dark, #e43a55);
 }
 </style>

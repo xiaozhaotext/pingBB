@@ -30,7 +30,21 @@
 
     <view class="list-cell m-t">
       <text class="cell-tit">消息推送</text>
-      <switch checked color="#fa436a" @change="switchChange" />
+      <switch checked :color="themePrimary" @change="switchChange" />
+    </view>
+    <view class="list-cell m-t b-b">
+      <text class="cell-tit">主题换肤</text>
+      <view class="theme-options">
+        <text
+          v-for="t in THEMES"
+          :key="t.key"
+          :class="['theme-option', theme === t.key ? 'active' : '']"
+          :style="theme === t.key ? { background: t.primary, color: '#fff' } : {}"
+          @click="chooseTheme(t.key)"
+        >
+          {{ t.label }}
+        </text>
+      </view>
     </view>
     <view
       class="list-cell m-t b-b"
@@ -53,9 +67,21 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useMemberStore } from '@/stores/member'
+import { getTheme, setTheme, THEMES, getThemePrimary, type AppTheme } from '@/utils/theme'
 // 获取会员store
 const memberStore = useMemberStore()
+
+// 换肤主题（存 uni.storage，刷新后保持；商品详情页 onShow 时读取即生效）
+const theme = ref<AppTheme>(getTheme())
+const themePrimary = computed(() => getThemePrimary(theme.value))
+const chooseTheme = (t: AppTheme) => {
+  setTheme(t)
+  theme.value = t
+  const label = THEMES.find((item) => item.key === t)?.label ?? t
+  uni.showToast({ title: `已切换为${label}`, icon: 'none' })
+}
 
 // 退出登录
 const toLogout = () => {
@@ -147,6 +173,20 @@ page {
   }
   switch {
     transform: translateX(16upx) scale(0.84);
+  }
+  .theme-options {
+    display: flex;
+    gap: 16upx;
+  }
+  .theme-option {
+    padding: 8upx 28upx;
+    border-radius: 999upx;
+    background: #f4f4f5;
+    color: $font-color-base;
+    font-size: $font-base;
+    &.active {
+      font-weight: 600;
+    }
   }
 }
 </style>

@@ -13,12 +13,14 @@ async function unlock() {
   if (!password.value) return ElMessage.warning('请输入当前账号的登录密码')
   busy.value = true
   try {
-    await userStore.userLogin({ username: userStore.userInfo.username, password: password.value })
+    // 静默校验：不弹后端错误细节，失败只显示通用提示
+    await userStore.userLogin({ username: userStore.userInfo.username, password: password.value }, true)
     password.value = ''
     appStore.unlock()
     ElMessage.success('已解锁')
   } catch {
-    // http.ts 已弹出后端返回的真实原因（例如“密码不正确”），保持锁定状态
+    // 不透露密码错误细节（例如不区分“密码错误/账号不存在”），保持锁定状态
+    ElMessage.error('密码错误，请重试')
   } finally {
     busy.value = false
   }

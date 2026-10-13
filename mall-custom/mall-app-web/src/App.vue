@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
+import { getTheme, applyTheme } from '@/utils/theme'
 
 onLaunch(() => {
+  // 应用已保存的换肤主题（刷新后保持）
+  applyTheme(getTheme())
   console.log('App Launch')
 })
 onShow(() => {

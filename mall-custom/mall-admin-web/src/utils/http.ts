@@ -28,14 +28,18 @@ http.interceptors.response.use(
   response => {
     const res: CommonResult<unknown> = response.data
     if (res.code !== 200) {
-      // code为非200是抛错，这里统一处理提示信息
-      ElMessage({
-        message: res.message,
-        type: 'error',
-        duration: 3 * 1000,
-      })
+      // silent=true 时由调用方自行处理错误提示，不弹全局错误（例如锁屏解锁，避免透露后端错误细节）
+      const silent = (response.config as unknown as { silent?: boolean }).silent === true
+      if (!silent) {
+        // code为非200是抛错，这里统一处理提示信息
+        ElMessage({
+          message: res.message,
+          type: 'error',
+          duration: 3 * 1000,
+        })
+      }
       // 401:未登录;
-      if (res.code === 401) {
+      if (res.code === 401 && !silent) {
         ElMessageBox.confirm('你已被登出，可以取消继续留在该页面，或者重新登录', '确定登出', {
           confirmButtonText: '重新登录',
           cancelButtonText: '取消',
@@ -56,11 +60,14 @@ http.interceptors.response.use(
   error => {
     // 全局处理异常请求
     console.log('error' + error)
-    ElMessage({
-      message: error.message,
-      type: 'error',
-      duration: 3 * 1000,
-    })
+    const silent = (error?.config as unknown as { silent?: boolean } | undefined)?.silent === true
+    if (!silent) {
+      ElMessage({
+        message: error.message,
+        type: 'error',
+        duration: 3 * 1000,
+      })
+    }
     return Promise.reject(error)
   },
 )
