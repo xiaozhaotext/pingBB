@@ -56,11 +56,15 @@
         <input
           class="integration"
           type="number"
-          v-model="useIntegration"
-          placeholder="使用积分数量"
+          v-model="useIntegration"          placeholder="使用积分数量"
           placeholder-class="placeholder"
           @input="handleIntegrationInput"
         />
+      </view>
+      <view class="yt-list-cell b-b" v-if="hasRebuyGoods">
+        <view class="cell-icon hb">复</view>
+        <text class="cell-tit clamp">复购积分抵扣30%</text>
+        <switch :checked="useRepurchasePoints" @change="useRepurchasePoints = $event.detail.value" />
       </view>
     </view>
 
@@ -171,6 +175,10 @@ const calcAmount = ref<CalcAmount>({} as CalcAmount)
 const currCoupon = ref<SmsCoupon | null>(null)
 // 使用积分数量
 const useIntegration = ref(0)
+// 是否使用复购积分（仅复购区商品）
+const useRepurchasePoints = ref(false)
+// 复购区商品标识（从购物车商品判断，暂默认显示由后端校验）
+const hasRebuyGoods = ref(true)
 // 积分消费设置
 const integrationConsumeSetting = ref<UmsIntegrationConsumeSetting>(
   {} as UmsIntegrationConsumeSetting,
@@ -262,6 +270,7 @@ const handleSubmit = async () => {
     cartIds: cartIds.value.map(Number),
     memberReceiveAddressId: currentAddress.value?.id as number | undefined,
     useIntegration: useIntegration.value,
+    useRepurchasePoints: useRepurchasePoints.value ? Math.floor(calcAmount.value.totalAmount * 0.3) : 0,
   }
   if (currCoupon.value != null) {
     orderParam.couponId = currCoupon.value.id
