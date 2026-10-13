@@ -12,6 +12,7 @@ import com.macro.mall.portal.service.PmsPortalBrandService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,11 +36,21 @@ public class PmsPortalBrandServiceImpl implements PmsPortalBrandService {
 
     @Override
     public PmsBrand detail(Long brandId) {
-        return brandMapper.selectByPrimaryKey(brandId);
+        PmsBrand brand = brandMapper.selectByPrimaryKey(brandId);
+        // 后台关闭“是否显示”后，前台品牌详情不再对外提供
+        if (brand == null || !Integer.valueOf(1).equals(brand.getShowStatus())) {
+            return null;
+        }
+        return brand;
     }
 
     @Override
     public CommonPage<PmsProduct> productList(Long brandId, Integer pageNum, Integer pageSize) {
+        PmsBrand brand = brandMapper.selectByPrimaryKey(brandId);
+        // 品牌被后台关闭显示后，其商品列表在应用端同步不可见
+        if (brand == null || !Integer.valueOf(1).equals(brand.getShowStatus())) {
+            return CommonPage.restPage(new ArrayList<>());
+        }
         PageHelper.startPage(pageNum,pageSize);
         PmsProductExample example = new PmsProductExample();
         example.createCriteria().andDeleteStatusEqualTo(0)

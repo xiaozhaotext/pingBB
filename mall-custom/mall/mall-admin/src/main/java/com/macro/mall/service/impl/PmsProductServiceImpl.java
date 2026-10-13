@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -74,6 +75,8 @@ public class PmsProductServiceImpl implements PmsProductService {
         productMapper.insertSelective(product);
         //根据促销类型设置价格：会员价格、阶梯价格、满减价格
         Long productId = product.getId();
+        //SKU 价格/库存兜底；未设置规格时补一条默认 SKU，保证上架即可下单
+        productParam.setSkuStockList(prepareSkuStockList(product, productParam.getSkuStockList()));
         //会员价格
         relateAndInsertList(memberPriceDao, productParam.getMemberPriceList(), productId);
         //阶梯价格
@@ -123,6 +126,11 @@ public class PmsProductServiceImpl implements PmsProductService {
         //更新商品信息
         PmsProduct product = productParam;
         product.setId(id);
+        PmsProduct originProduct = productMapper.selectByPrimaryKey(id);
+        //改商品价格时同步 SKU 价格，否则应用端详情页/购物车一直显示旧价
+        syncSkuPriceWithProduct(originProduct, product, productParam.getSkuStockList());
+        //SKU 价格/库存兜底；未设置规格时补一条默认 SKU，保证上架即可下单
+        productParam.setSkuStockList(prepareSkuStockList(product, productParam.getSkuStockList()));
         productMapper.updateByPrimaryKeySelective(product);
         //会员价格
         PmsMemberPriceExample pmsMemberPriceExample = new PmsMemberPriceExample();
@@ -201,6 +209,69 @@ public class PmsProductServiceImpl implements PmsProductService {
             }
         }
 
+    }
+
+    /**
+     * SKU 兜底：后台“商品属性”步骤生成的 SKU 只有销售属性，价格、库存、锁定库存均为空，
+     * 会导致应用端详情页无价、加购与下单提示“库存不足”。这里统一用商品维度的值补齐；
+     * 商品未设置任何规格（SKU 列表为空）且已上架时补一条默认 SKU，保证上架即可下单。
+     */
+    private List<PmsSkuStock> prepareSkuStockList(PmsProduct product, List<PmsSkuStock> skuStockList) {
+        List<PmsSkuStock> result = skuStockList == null ? new ArrayList<>() : skuStockList;
+        int productStock = product.getStock() == null ? 0 : product.getStock();
+        int productLowStock = product.getLowStock() == null ? 0 : product.getLowStock();
+        if (CollUtil.isEmpty(result)) {
+            if (!Integer.valueOf(1).equals(product.getPublishStatus())) {
+                return result;
+            }
+            PmsSkuStock defaultSku = new PmsSkuStock();
+            defaultSku.setPrice(product.getPrice());
+            defaultSku.setStock(productStock);
+            defaultSku.setLowStock(productLowStock);
+            defaultSku.setLockStock(0);
+            // 空规格数组：前台 initSpecList/getSkuStock 会直接命中这条默认 SKU
+            defaultSku.setSpData("[]");
+            result.add(defaultSku);
+            return result;
+        }
+        for (PmsSkuStock skuStock : result) {
+            if (skuStock.getPrice() == null) {
+                skuStock.setPrice(product.getPrice());
+            }
+            if (skuStock.getStock() == null) {
+                skuStock.setStock(productStock);
+            }
+            if (skuStock.getLowStock() == null) {
+                skuStock.setLowStock(productLowStock);
+            }
+            if (skuStock.getLockStock() == null) {
+                skuStock.setLockStock(0);
+            }
+            if (StrUtil.isEmpty(skuStock.getSpData())) {
+                skuStock.setSpData("[]");
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 商品价格变化时同步 SKU 价格：应用端首页/列表读的是 pms_product.price，而详情页与购物车
+     * 读的是 pms_sku_stock.price，只改商品价会让两处长期不一致（改完价首页变了、详情与购物车没变）。
+     * 因此运营在后台改了“商品价格”就视为该商品所有规格的新售价，统一跟随；
+     * 需要按规格单独定价时，请在商品属性步骤维护 SKU 价格并保持与商品价一致（可用批量同步按钮）。
+     */
+    private void syncSkuPriceWithProduct(PmsProduct originProduct, PmsProduct newProduct, List<PmsSkuStock> skuStockList) {
+        if (originProduct == null || newProduct == null || newProduct.getPrice() == null || CollUtil.isEmpty(skuStockList)) {
+            return;
+        }
+        BigDecimal originPrice = originProduct.getPrice();
+        BigDecimal newPrice = newProduct.getPrice();
+        if (originPrice != null && originPrice.compareTo(newPrice) == 0) {
+            return;
+        }
+        for (PmsSkuStock skuStock : skuStockList) {
+            skuStock.setPrice(newPrice);
+        }
     }
 
     @Override

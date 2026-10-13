@@ -50,7 +50,7 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
                     //单品促销使用原价
                     cartPromotionItem.setPrice(originalPrice);
                     cartPromotionItem.setReduceAmount(originalPrice.subtract(skuStock.getPromotionPrice()));
-                    cartPromotionItem.setRealStock(skuStock.getStock()-skuStock.getLockStock());
+                    cartPromotionItem.setRealStock(resolveRealStock(skuStock));
                     cartPromotionItem.setIntegration(promotionProduct.getGiftPoint());
                     cartPromotionItem.setGrowth(promotionProduct.getGiftGrowth());
                     cartPromotionItemList.add(cartPromotionItem);
@@ -70,7 +70,7 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
                         BigDecimal originalPrice = skuStock.getPrice();
                         BigDecimal reduceAmount = originalPrice.subtract(ladder.getDiscount().multiply(originalPrice));
                         cartPromotionItem.setReduceAmount(reduceAmount);
-                        cartPromotionItem.setRealStock(skuStock.getStock()-skuStock.getLockStock());
+                        cartPromotionItem.setRealStock(resolveRealStock(skuStock));
                         cartPromotionItem.setIntegration(promotionProduct.getGiftPoint());
                         cartPromotionItem.setGrowth(promotionProduct.getGiftGrowth());
                         cartPromotionItemList.add(cartPromotionItem);
@@ -93,7 +93,7 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
                         BigDecimal originalPrice = skuStock.getPrice();
                         BigDecimal reduceAmount = originalPrice.divide(totalAmount,RoundingMode.HALF_EVEN).multiply(fullReduction.getReducePrice());
                         cartPromotionItem.setReduceAmount(reduceAmount);
-                        cartPromotionItem.setRealStock(skuStock.getStock()-skuStock.getLockStock());
+                        cartPromotionItem.setRealStock(resolveRealStock(skuStock));
                         cartPromotionItem.setIntegration(promotionProduct.getGiftPoint());
                         cartPromotionItem.setGrowth(promotionProduct.getGiftGrowth());
                         cartPromotionItemList.add(cartPromotionItem);
@@ -154,6 +154,19 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
     }
 
     /**
+     * 计算可用（真实）库存：库存与锁定库存可能为空，历史脏数据还可能出现负的锁定库存，
+     * 统一兜底，避免拆箱 NPE 或把“有货”算成“没货”。
+     */
+    private Integer resolveRealStock(PmsSkuStock skuStock) {
+        if (skuStock == null) {
+            return null;
+        }
+        int stock = skuStock.getStock() == null ? 0 : skuStock.getStock();
+        int lockStock = skuStock.getLockStock() == null ? 0 : skuStock.getLockStock();
+        return Math.max(stock - Math.max(lockStock, 0), 0);
+    }
+
+    /**
      * 对没满足优惠条件的商品进行处理
      */
     private void handleNoReduce(List<CartPromotionItem> cartPromotionItemList, List<OmsCartItem> itemList,PromotionProduct promotionProduct) {
@@ -164,7 +177,7 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
             cartPromotionItem.setReduceAmount(new BigDecimal(0));
             PmsSkuStock skuStock = getOriginalPrice(promotionProduct,item.getProductSkuId());
             if(skuStock!=null){
-                cartPromotionItem.setRealStock(skuStock.getStock()-skuStock.getLockStock());
+                cartPromotionItem.setRealStock(resolveRealStock(skuStock));
             }
             cartPromotionItem.setIntegration(promotionProduct.getGiftPoint());
             cartPromotionItem.setGrowth(promotionProduct.getGiftGrowth());

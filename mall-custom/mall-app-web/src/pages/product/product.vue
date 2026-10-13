@@ -608,14 +608,22 @@ const initProductCollection = async () => {
 const changeSpecInfo = () => {
   const skuStock = getSkuStock()
   if (skuStock) {
-    product.value.originalPrice = skuStock.price
+    // SKU 价格为空时回退到商品价，避免历史脏数据显示空价
+    if (skuStock.price != null) {
+      product.value.originalPrice = skuStock.price
+    }
     if (product.value.promotionType === 1) {
       // 单品优惠使用促销价，SKU没有促销价时使用商品本身的促销价
-      product.value.price = skuStock.promotionPrice ?? skuStock.price
-    } else {
+      const skuPrice = skuStock.promotionPrice ?? skuStock.price
+      if (skuPrice != null) {
+        product.value.price = skuPrice
+      }
+    } else if (skuStock.price != null) {
       product.value.price = skuStock.price
     }
-    product.value.stock = skuStock.stock
+    if (skuStock.stock != null) {
+      product.value.stock = skuStock.stock
+    }
   }
 }
 

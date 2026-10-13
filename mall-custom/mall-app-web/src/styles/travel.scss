@@ -55,7 +55,8 @@ body:has(.travel-intro) .uni-page-head { display: none !important; }
 
 /* 真实旅行摄影，覆盖原插画主题。 */
 page,body,.zone-page{background:#f5f2eb;color:#263b34}
-.zone-head .zone-title,.zone-head .zone-description,.zone-head .zone-kicker,.zone-head .zone-actions{color:#fff!important}
+.zone-head .zone-title,.zone-head .zone-description,.zone-head .zone-kicker{color:#fff!important}
+.zone-head .zone-actions text{color:#254a34!important;background:#fff!important;border:1px solid #ffffff80;font-weight:600}
 .zone-head{min-height:190px;box-shadow:0 10px 30px #263a3020}
 .zone-title{font-family:"Songti SC","Noto Serif SC",serif;letter-spacing:3px}
 .user-section{background:#284a43;height:auto!important;padding-bottom:30rpx!important}

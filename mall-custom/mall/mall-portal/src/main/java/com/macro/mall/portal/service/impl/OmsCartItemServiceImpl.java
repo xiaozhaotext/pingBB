@@ -92,7 +92,40 @@ public class OmsCartItemServiceImpl implements OmsCartItemService {
     public List<OmsCartItem> list(Long memberId) {
         OmsCartItemExample example = new OmsCartItemExample();
         example.createCriteria().andDeleteStatusEqualTo(0).andMemberIdEqualTo(memberId);
-        return cartItemMapper.selectByExample(example);
+        List<OmsCartItem> cartItemList = cartItemMapper.selectByExample(example);
+        // 后台改价/改名/换图后购物车展示必须跟着总控变，不能一直显示加入时的旧快照
+        for (OmsCartItem item : cartItemList) {
+            refreshDisplaySnapshot(item);
+        }
+        return cartItemList;
+    }
+
+    /**
+     * 只刷新展示字段（价格/名称/图片等），不做上下架与库存校验，失效商品仍可留在购物车里提示会员。
+     */
+    private void refreshDisplaySnapshot(OmsCartItem item) {
+        if (item.getProductId() == null) {
+            return;
+        }
+        PmsProduct product = productMapper.selectByPrimaryKey(item.getProductId());
+        if (product == null) {
+            return;
+        }
+        PmsSkuStock sku = item.getProductSkuId() == null ? null : skuStockMapper.selectByPrimaryKey(item.getProductSkuId());
+        if (sku != null && sku.getPrice() != null) {
+            item.setPrice(sku.getPrice());
+        } else if (product.getPrice() != null) {
+            item.setPrice(product.getPrice());
+        }
+        item.setProductName(product.getName());
+        item.setProductPic(product.getPic());
+        item.setProductSubTitle(product.getSubTitle());
+        item.setProductBrand(product.getBrandName());
+        item.setProductCategoryId(product.getProductCategoryId());
+        if (sku != null) {
+            item.setProductSkuCode(sku.getSkuCode());
+            item.setProductAttr(sku.getSpData());
+        }
     }
 
     @Override
@@ -201,8 +234,13 @@ public class OmsCartItemServiceImpl implements OmsCartItemService {
 
     private void ensureStock(Long skuId, Integer quantity) {
         PmsSkuStock sku = skuId == null ? null : skuStockMapper.selectByPrimaryKey(skuId);
-        if (sku == null || quantity == null || quantity < 1 || sku.getStock() == null
-                || sku.getLockStock() == null || sku.getStock() - sku.getLockStock() < quantity) {
+        if (sku == null || quantity == null || quantity < 1) {
+            Asserts.fail("商品库存不足");
+        }
+        // 库存列允许为 NULL，历史脏数据还可能出现负的锁定库存，统一按 0 兜底
+        int stock = sku.getStock() == null ? 0 : sku.getStock();
+        int lockStock = sku.getLockStock() == null ? 0 : sku.getLockStock();
+        if (stock - Math.max(lockStock, 0) < quantity) {
             Asserts.fail("商品库存不足");
         }
     }

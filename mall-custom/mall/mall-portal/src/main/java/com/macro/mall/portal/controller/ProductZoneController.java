@@ -37,7 +37,9 @@ public class ProductZoneController {
         StringBuilder sql = new StringBuilder(
                 "SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.sale,p.product_category_id AS productCategoryId "
                         + "FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
-                        + "WHERE z.zone_code=? AND p.publish_status=1 AND p.delete_status=0");
+                        + "WHERE z.zone_code=? AND p.publish_status=1 AND p.delete_status=0 "
+                        + "AND (p.brand_id IS NULL OR p.brand_id=0 OR NOT EXISTS "
+                        + "(SELECT 1 FROM pms_brand b WHERE b.id=p.brand_id AND b.show_status<>1))");
         List<Object> params = new ArrayList<>();
         params.add(zone);
         if (keyword != null && !keyword.isBlank()) {

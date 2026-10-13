@@ -83,7 +83,7 @@ const handleNavStatusChange = async (index: number, row: PmsProductCategory) => 
 
 // 处理显示状态变化
 const handleShowStatusChange = async (index: number, row: PmsProductCategory) => {
-  await productCategoryUpdateShowStatusAPI({ ids: [row.id!].join(','), showStatus: row.navStatus })
+  await productCategoryUpdateShowStatusAPI({ ids: [row.id!].join(','), showStatus: row.showStatus })
   ElMessage({
     message: '修改成功',
     type: 'success',

@@ -73,9 +73,12 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
     @Override
     public List<PmsProductCategoryNode> categoryTreeList() {
         PmsProductCategoryExample example = new PmsProductCategoryExample();
+        // 只返回后台“是否显示”开启的分类，后台一旦关闭应用端必须同步消失
+        example.createCriteria().andShowStatusEqualTo(1);
+        example.setOrderByClause("sort desc");
         List<PmsProductCategory> allList = productCategoryMapper.selectByExample(example);
         List<PmsProductCategoryNode> result = allList.stream()
-                .filter(item -> item.getParentId().equals(0L))
+                .filter(item -> item.getParentId() != null && item.getParentId().equals(0L))
                 .map(item -> covert(item, allList))
                 .collect(Collectors.toList());
         return result;
@@ -86,9 +89,15 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         PmsPortalProductDetail result = new PmsPortalProductDetail();
         //获取商品信息
         PmsProduct product = productMapper.selectByPrimaryKey(id);
+        if (product == null || !Integer.valueOf(0).equals(product.getDeleteStatus())) {
+            return null;
+        }
         result.setProduct(product);
-        //获取品牌信息
-        PmsBrand brand = brandMapper.selectByPrimaryKey(product.getBrandId());
+        //获取品牌信息（品牌被后台关闭显示后前台不再展示）
+        PmsBrand brand = product.getBrandId() == null ? null : brandMapper.selectByPrimaryKey(product.getBrandId());
+        if (brand != null && !Integer.valueOf(1).equals(brand.getShowStatus())) {
+            brand = null;
+        }
         result.setBrand(brand);
         //获取商品属性信息
         PmsProductAttributeExample attributeExample = new PmsProductAttributeExample();
@@ -136,7 +145,7 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         PmsProductCategoryNode node = new PmsProductCategoryNode();
         BeanUtils.copyProperties(item, node);
         List<PmsProductCategoryNode> children = allList.stream()
-                .filter(subItem -> subItem.getParentId().equals(item.getId()))
+                .filter(subItem -> subItem.getParentId() != null && subItem.getParentId().equals(item.getId()))
                 .map(subItem -> covert(subItem, allList)).collect(Collectors.toList());
         node.setChildren(children);
         return node;

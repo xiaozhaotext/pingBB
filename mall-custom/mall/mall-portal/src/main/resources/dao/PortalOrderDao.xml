@@ -52,12 +52,12 @@
         SET
             stock = CASE id
             <foreach collection="itemList" item="item">
-              WHEN #{item.productSkuId} THEN stock - #{item.productQuantity}
+              WHEN #{item.productSkuId} THEN GREATEST(COALESCE(stock,0) - #{item.productQuantity},0)
             </foreach>
             END,
             lock_stock = CASE id
             <foreach collection="itemList" item="item">
-              WHEN #{item.productSkuId} THEN lock_stock - #{item.productQuantity}
+              WHEN #{item.productSkuId} THEN GREATEST(COALESCE(lock_stock,0) - #{item.productQuantity},0)
             </foreach>
             END
         WHERE
@@ -79,7 +79,7 @@
         SET
         lock_stock = CASE id
         <foreach collection="itemList" item="item">
-            WHEN #{item.productSkuId} THEN lock_stock - #{item.productQuantity}
+            WHEN #{item.productSkuId} THEN GREATEST(COALESCE(lock_stock,0) - #{item.productQuantity},0)
         </foreach>
         END
         WHERE
@@ -88,26 +88,29 @@
             #{item.productSkuId}
         </foreach>
     </update>
+    <!-- 库存列允许为空或历史脏数据为负，统一用 COALESCE/GREATEST 兜底，避免“有货却提示库存不足”。 -->
     <update id="reserveSku">
         UPDATE pms_sku_stock
-        SET lock_stock = lock_stock + #{quantity}
+        SET lock_stock = COALESCE(lock_stock,0) + #{quantity}
         WHERE id = #{skuId}
           AND #{quantity} > 0
-          AND stock >= 0 AND lock_stock >= 0
-          AND stock - lock_stock >= #{quantity}
+          AND COALESCE(stock,0) - GREATEST(COALESCE(lock_stock,0),0) >= #{quantity}
     </update>
     <update id="consumeReservedSku">
         UPDATE pms_sku_stock
-        SET stock = stock - #{quantity}, lock_stock = lock_stock - #{quantity}
+        SET stock = GREATEST(COALESCE(stock,0) - #{quantity},0),
+            lock_stock = GREATEST(COALESCE(lock_stock,0) - #{quantity},0)
         WHERE id = #{skuId}
           AND #{quantity} > 0
-          AND stock >= #{quantity} AND lock_stock >= #{quantity}
+          AND COALESCE(stock,0) >= #{quantity}
+          AND GREATEST(COALESCE(lock_stock,0),0) >= #{quantity}
     </update>
     <update id="releaseReservedSku">
         UPDATE pms_sku_stock
-        SET lock_stock = lock_stock - #{quantity}
+        SET lock_stock = GREATEST(COALESCE(lock_stock,0) - #{quantity},0)
         WHERE id = #{skuId}
-          AND #{quantity} > 0 AND lock_stock >= #{quantity}
+          AND #{quantity} > 0
+          AND GREATEST(COALESCE(lock_stock,0),0) >= #{quantity}
     </update>
     <update id="markPaidIfPending">
         UPDATE oms_order
