@@ -5,6 +5,7 @@ import Hamburger from '@/components/Hamburger/index.vue'
 import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import { ArrowDown } from '@element-plus/icons-vue'
+import defaultAvatar from '@/assets/default-avatar.svg'
 
 // 定义组件名称
 defineOptions({
@@ -15,7 +16,13 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 
 const sidebar = computed(() => appStore.sidebar)
-const avatar = computed(() => userStore.userInfo.avatar)
+const avatar = computed(() => userStore.userInfo.avatar || defaultAvatar)
+const handleAvatarError = (event: Event) => {
+  const image = event.target as HTMLImageElement
+  if (image.dataset.fallback) return
+  image.dataset.fallback = '1'
+  image.src = defaultAvatar
+}
 
 // 处理开关侧边栏操作
 const handleToggleSideBar = () => {
@@ -36,7 +43,7 @@ const handleLogout = async () => {
     <breadcrumb></breadcrumb>
     <el-dropdown class="avatar-container" trigger="click">
       <div class="avatar-wrapper">
-        <img class="user-avatar" :src="avatar">
+        <img class="user-avatar" :src="avatar" @error="handleAvatarError">
         <el-icon class="el-icon-caret-bottom">
           <arrow-down />
         </el-icon>
