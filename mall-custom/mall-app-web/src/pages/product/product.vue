@@ -130,6 +130,10 @@
         <text class="yticon icon-shoucang"></text>
         <text>收藏</text>
       </view>
+      <navigator url="/pages/consultation/consultation" class="p-b-btn">
+        <text class="yticon icon-kefu"></text>
+        <text>咨询</text>
+      </navigator>
 
       <view class="action-btn-group">
         <button type="primary" class="action-btn no-border buy-now-btn" @click="handleBuy">
