@@ -32,6 +32,7 @@ class OmsOrderReturnApplyServiceImplTest {
     @Mock OmsOrderReturnApplyDao returnApplyDao;
     @Mock OmsOrderReturnApplyMapper returnApplyMapper;
     @Mock JdbcTemplate jdbc;
+    @Mock OrderReturnRefundService orderReturnRefundService;
     @InjectMocks OmsOrderReturnApplyServiceImpl service;
 
     private static OmsUpdateStatusParam param(Integer status) {
@@ -69,6 +70,8 @@ class OmsOrderReturnApplyServiceImplTest {
         when(jdbc.queryForMap(anyString(), any())).thenReturn(Map.of(
                 "order_id", 12L, "product_id", 26L, "product_count", 2));
         when(jdbc.queryForObject(anyString(), eq(Long.class), any())).thenReturn(0L);
+        when(orderReturnRefundService.refundForReturn(any(), any(), any(), anyString()))
+                .thenReturn("退货完成，库存已归还，渠道退款已受理");
         assertEquals(1, service.updateStatus(5L, param(2)));
         // 条件更新（1 次）与按商品归还库存（1 次）参数个数相同，共 2 次
         verify(jdbc, times(2)).update(anyString(), any(), any(), any());
@@ -76,6 +79,8 @@ class OmsOrderReturnApplyServiceImplTest {
         verify(jdbc).update(anyString(), eq(12L));
         // 写订单操作记录
         verify(jdbc).update(anyString(), any(), any(), any(), any());
+        // 退货完成必须尝试渠道退款
+        verify(orderReturnRefundService).refundForReturn(any(), any(), any(), anyString());
     }
 
     @Test

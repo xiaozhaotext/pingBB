@@ -103,3 +103,17 @@ rabbitmq:
   queue:
     name:
       cancelOrder: cancelOrderQueue
+
+# 普通订单支付宝渠道凭证（与后台退款共用 MALL_ALIPAY_* 环境变量）。
+# 未配置凭证时 /alipay/* 由 mall.payment.alipay.enabled 开关保持关闭，返回 503。
+alipay:
+  gateway-url: ${MALL_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  app-id: ${MALL_ALIPAY_APP_ID:}
+  seller-id: ${MALL_ALIPAY_SELLER_ID:}
+  app-private-key: ${MALL_ALIPAY_APP_PRIVATE_KEY:}
+  alipay-public-key: ${MALL_ALIPAY_PUBLIC_KEY:}
+  return-url: ${MALL_ALIPAY_RETURN_URL:}
+  notify-url: ${MALL_ALIPAY_NOTIFY_URL:}
+  format: JSON
+  charset: UTF-8
+  sign-type: RSA2

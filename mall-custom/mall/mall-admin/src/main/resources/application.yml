@@ -72,3 +72,19 @@ aliyun:
     callback: http://localhost:8080/aliyun/oss/callback # 文件上传成功后的回调地址
     dir:
       prefix: mall/images/ # 上传文件夹路径前缀
+
+# 普通订单支付/退款所用的支付宝渠道凭证，由部署环境注入；未配置时退款安全跳过并登记待人工处理。
+alipay:
+  gateway-url: ${MALL_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  app-id: ${MALL_ALIPAY_APP_ID:}
+  app-private-key: ${MALL_ALIPAY_APP_PRIVATE_KEY:}
+  alipay-public-key: ${MALL_ALIPAY_PUBLIC_KEY:}
+  format: JSON
+  charset: UTF-8
+  sign-type: RSA2
+
+mall:
+  payment:
+    refund:
+      enabled: ${MALL_PAYMENT_REFUND_ENABLED:false} # 未配置渠道凭证并通过退款验收前禁止启用
+      channels: ALIPAY

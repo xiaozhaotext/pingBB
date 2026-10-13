@@ -9,6 +9,7 @@ import com.macro.mall.mapper.OmsOrderReturnApplyMapper;
 import com.macro.mall.model.OmsOrderReturnApply;
 import com.macro.mall.model.OmsOrderReturnApplyExample;
 import com.macro.mall.service.OmsOrderReturnApplyService;
+import com.macro.mall.service.OrderReturnRefundService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,6 +33,8 @@ public class OmsOrderReturnApplyServiceImpl implements OmsOrderReturnApplyServic
     private OmsOrderReturnApplyMapper returnApplyMapper;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private OrderReturnRefundService orderReturnRefundService;
     @Override
     public List<OmsOrderReturnApply> list(OmsReturnApplyQueryParam queryParam, Integer pageSize, Integer pageNum) {
         PageHelper.startPage(pageNum,pageSize);
@@ -91,7 +94,7 @@ public class OmsOrderReturnApplyServiceImpl implements OmsOrderReturnApplyServic
             return updated;
         }
         Map<String, Object> apply = jdbc.queryForMap(
-                "SELECT order_id,product_id,product_count FROM oms_order_return_apply WHERE id=?", id);
+                "SELECT order_id,product_id,product_count,return_amount FROM oms_order_return_apply WHERE id=?", id);
         Long orderId = asLong(apply.get("order_id"));
         Long productId = asLong(apply.get("product_id"));
         Long productCount = asLong(apply.get("product_count"));
@@ -116,16 +119,22 @@ public class OmsOrderReturnApplyServiceImpl implements OmsOrderReturnApplyServic
             closed = jdbc.update("UPDATE oms_order SET status=4"
                     + " WHERE id=? AND delete_status=0 AND status IN (1,2)", orderId);
         }
+        String refundNote = orderReturnRefundService.refundForReturn(
+                id, orderId, asDecimal(apply.get("return_amount")), "订单退货退款");
         jdbc.update("INSERT INTO oms_order_operate_history(order_id,operate_man,create_time,order_status,note)"
                         + " VALUES(?,?,NOW(),?,?)",
                 orderId, operator, fullyReturned ? 4 : null,
-                fullyReturned && closed == 1 ? "退货完成，已退款并关闭订单，库存已归还"
-                        : "退货完成，已退款，库存已归还");
+                fullyReturned && closed == 1 ? refundNote + "，订单已关闭" : refundNote);
         return updated;
     }
 
     private static Long asLong(Object value) {
         return value instanceof Number number ? number.longValue() : null;
+    }
+
+    private static java.math.BigDecimal asDecimal(Object value) {
+        return value instanceof java.math.BigDecimal decimal ? decimal
+                : (value instanceof Number number ? java.math.BigDecimal.valueOf(number.doubleValue()) : null);
     }
 
     @Override
