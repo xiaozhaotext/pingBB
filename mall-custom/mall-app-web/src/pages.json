@@ -53,7 +53,7 @@
     {
       "path": "pages/zone/pick",
       "style": {
-        "navigationBarTitleText": "品牌区"
+        "navigationBarTitleText": "自选区"
       }
     },
     {
@@ -362,16 +362,16 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/category/category",
+        "pagePath": "pages/zone/pick",
         "iconPath": "static/tab-cate.png",
         "selectedIconPath": "static/tab-cate-current.png",
-        "text": "分类"
+        "text": "自选区"
       },
       {
-        "pagePath": "pages/cart/cart",
+        "pagePath": "pages/zone/rebuy",
         "iconPath": "static/tab-cart.png",
         "selectedIconPath": "static/tab-cart-current.png",
-        "text": "购物车"
+        "text": "复购区"
       },
       {
         "pagePath": "pages/user/user",

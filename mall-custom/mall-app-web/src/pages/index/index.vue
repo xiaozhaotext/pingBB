@@ -1,6 +1,6 @@
 <template>
   <view class="container zone-home">
-    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uniApi.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uniApi.switchTab({url:'/pages/cart/cart'})">购物车 →</text></view></view>
+    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="uniApi.switchTab({url:'/pages/index/index'})">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="uniApi.navigateTo({url:'/pages/cart/cart'})">购物车 →</text></view></view>
     <view class="zone-home-width">
       <view class="home-banner" v-if="advertiseList.length">
         <swiper class="banner-swiper" :current="swiperCurrent" circular autoplay :interval="4000" :duration="500" @change="handleSwiperChange">
@@ -14,12 +14,18 @@
       </view>
       <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
       <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text></view>
+      <view class="home-quick-links"><view @click="uniApi.navigateTo({url:'/pages/category/category'})"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="uniApi.navigateTo({url:'/pages/cart/cart'})"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
-        <view class="home-zone brand-zone" @click="uniApi.navigateTo({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">品牌区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone rebuy-zone" @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone brand-zone" @click="uniApi.switchTab({url:'/pages/zone/pick'})"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone rebuy-zone" @click="uniApi.switchTab({url:'/pages/zone/rebuy'})"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
         <view class="home-zone consume-zone" @click="uniApi.navigateTo({url:'/pages/zone/consume'})"><text class="home-zone-title">消费区</text><text class="home-zone-caption">预留专区 · 暂未开放</text><text class="reserve-badge">预留</text></view>
       </view>
-      <view class="home-product-heading"><view><text>为你优选</text><small>演示商品 · 复购区好物</small></view><text @click="uniApi.navigateTo({url:'/pages/zone/rebuy'})">商城精选 →</text></view>
+      <view class="home-product-heading"><view><text>自选区推荐商品</text><small>精选好物</small></view><text @click="uniApi.switchTab({url:'/pages/zone/pick'})">更多 →</text></view>
+      <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
+      <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
+      <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无已上架商品，请在后台专区管理中配置。</view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text></view></view></view></view>
+      <view class="home-product-heading"><view><text>复购区推荐商品</text><small>精选好物</small></view><text @click="uniApi.switchTab({url:'/pages/zone/rebuy'})">更多 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
@@ -50,9 +56,13 @@ import type { PageParam } from '@/types/common'
 const announcement=ref('暂无公告')
 import { http } from '@/utils/http'
 const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.[0]?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
+const pickProducts=ref<ZoneProduct[]>([])
+const pickLoading=ref(false),pickError=ref(false)
+const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getZoneProductsAPI('PICK')).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
+const openPickProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=PICK`})
 const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
-const loadRebuy=async()=>{void loadAnnouncement();void loadBanner();rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=(await getZoneProductsAPI('REBUY')).data||[]}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
+const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=((await getZoneProductsAPI('REBUY')).data||[]).slice(0,4)}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
 const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
 // 后台 Banner（/home/content → advertiseList）：后台启用/停用后应用端即时生效
 const loadBanner=async()=>{try{const r=await getHomeContentAPI();const list=(r.data?.advertiseList||[]).filter(i=>!!i.pic);advertiseList.value=list;swiperLength.value=list.length;if(!brandList.value.length&&r.data?.brandList?.length){brandList.value=r.data.brandList}}catch{advertiseList.value=[];swiperLength.value=0}}
@@ -112,7 +122,7 @@ const cutDownTime = computed(() => {
 
 // ===== 数据加载 =====
 // 加载首页数据
-const loadData = async () => { await loadRebuy(); uni.stopPullDownRefresh() }
+const loadData = async () => { void loadAnnouncement(); void loadBanner(); await Promise.all([loadPick(),loadRebuy()]); uni.stopPullDownRefresh() }
 
 // ===== 生命周期 =====
 // 页面加载时执行
@@ -882,4 +892,5 @@ page {
 .banner-dots text{width:7px;height:7px;border-radius:50%;background:#ffffff99}
 .banner-dots text.active{background:#fff}
 @media(min-width:900px){.banner-swiper{height:300px}.banner-image{height:300px}}
+.home-quick-links{display:flex;gap:12px;margin:14px 0}.home-quick-links>view{flex:1;min-width:0;padding:14px 18px;background:#fff;border:1px solid #dcebe6;border-radius:12px;box-shadow:0 3px 14px #2752490d;cursor:pointer}.home-quick-links text,.home-quick-links small{display:block}.home-quick-links text{font-size:16px;font-weight:700;color:#285a62}.home-quick-links small{margin-top:4px;font-size:11px;color:#7a9992}
 </style>
