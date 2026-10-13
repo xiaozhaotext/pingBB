@@ -23,6 +23,7 @@
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
             <image :src="item" class="loaded" mode="aspectFill"></image>
+            <WatermarkOverlay v-bind="watermark" />
           </view>
         </swiper-item>
       </swiper>
@@ -235,9 +236,11 @@
 const uniApi = uni
 
 import DesktopHeader from '@/components/DesktopHeader.vue'
+import WatermarkOverlay from '@/components/WatermarkOverlay.vue'
 import { ref, computed } from 'vue'
 import { onLoad, onPageScroll } from '@dcloudio/uni-app'
 import { getProductDetailAPI } from '@/apis/product'
+import { getSiteInfoAPI } from '@/apis/home'
 import { addCartAPI } from '@/apis/cart'
 import { getProductCouponListAPI, addMemberCouponAPI } from '@/apis/coupon'
 import { createReadHistoryAPI } from '@/apis/memberReadHistory'
@@ -395,8 +398,27 @@ onLoad((options) => {
 
   const id = options?.id ? Number(options.id) : 0
   shareList.value = defaultShareList
+  loadWatermark()
   loadData(id)
 })
+
+// 商品图水印设置（后台可开关，失败时保持关闭，不影响详情展示）
+const watermark = ref({ enabled: false, text: '', position: 'bottomRight', opacity: '0.35', size: 18 })
+const loadWatermark = async () => {
+  try {
+    const response = await getSiteInfoAPI()
+    const config = response.data?.watermark ?? {}
+    watermark.value = {
+      enabled: config.enabled === '1',
+      text: config.text ?? '',
+      position: config.position ?? 'bottomRight',
+      opacity: config.opacity ?? '0.35',
+      size: Number(config.size) || 18,
+    }
+  } catch {
+    watermark.value = { enabled: false, text: '', position: 'bottomRight', opacity: '0.35', size: 18 }
+  }
+}
 
 // 监听页面滚动
 onPageScroll((e: { scrollTop: number }) => {
@@ -901,6 +923,7 @@ page {
   }
 
   .image-wrapper {
+    position: relative;
     width: 100%;
     height: 100%;
   }

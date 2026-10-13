@@ -308,6 +308,8 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'finance', name: 'p0Finance', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '财务中心' } },
       { path: 'dividend', name: 'p0Dividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池' } },
       { path: 'settings', name: 'p0Settings', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '系统配置与日志' } },
+      { path: 'system', name: 'p0SystemSettings', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '平台设置' } },
+      { path: 'images', name: 'p0Images', component: () => import('@/views/p0/ImageManager.vue'), meta: { title: '图片管理' } },
     ],
   },
   {

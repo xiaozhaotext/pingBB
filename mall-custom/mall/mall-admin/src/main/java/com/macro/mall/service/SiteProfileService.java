@@ -13,7 +13,13 @@ public class SiteProfileService {
     private final JdbcTemplate jdbc;
     public SiteProfileService(JdbcTemplate jdbc) { this.jdbc=jdbc; }
     public Map<String,Object> read() {
-        return jdbc.queryForMap("SELECT * FROM sys_site_profile WHERE id=1");
+        Map<String,Object> row=jdbc.queryForMap("SELECT * FROM sys_site_profile WHERE id=1");
+        String[][] fields={{"company.name","company_name"},{"company.address","address"},{"company.phone","telephone"},{"company.mobile","mobile"},{"company.email","email"},{"company.qq","qq"},{"company.wechat_qrcode","wechat_qr_url"}};
+        for(String[] field:fields) {
+            java.util.List<String> values=jdbc.query("SELECT config_value FROM sys_config WHERE config_key=?",(rs,n)->rs.getString(1),field[0]);
+            row.put(field[1],values.isEmpty() || values.get(0)==null?"":values.get(0));
+        }
+        return row;
     }
     public static String text(Map<String,Object> body,String key,int max) {
         Object value=body.get(key);
@@ -46,6 +52,8 @@ public class SiteProfileService {
         }
         checkRevision("company_revision",version);
         jdbc.update("UPDATE sys_site_profile SET company_name=?,address=?,telephone=?,mobile=?,email=?,qq=?,wechat_qr_url=?,company_revision=company_revision+1 WHERE id=1",company,address,tel,mobile,email,qq,qr);
+        String[][] values={{"company.name",company},{"company.address",address},{"company.phone",tel},{"company.mobile",mobile},{"company.email",email},{"company.qq",qq},{"company.wechat_qrcode",qr}};
+        for(String[] value:values) jdbc.update("INSERT INTO sys_config(config_key,config_value,config_group,remark) VALUES(?,?,'company','公司信息') ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)",value[0],value[1]);
         audit(operator,name,"company_update","版本 "+version+" -> "+(version+1));
     }
     @Transactional(rollbackFor=Exception.class)
@@ -64,6 +72,7 @@ public class SiteProfileService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"不能发布空政策");
         if (row.get("published_revision")!=null && ((Number)row.get("published_revision")).longValue()==version) return;
         jdbc.update("UPDATE sys_site_profile SET published_title=privacy_title,published_content=privacy_content,published_revision=privacy_revision,published_at=NOW() WHERE id=1");
+        jdbc.update("INSERT INTO sys_content(content_key,content_value,operator) VALUES('privacy_policy',?,?) ON DUPLICATE KEY UPDATE content_value=VALUES(content_value),operator=VALUES(operator)",row.get("privacy_content"),name);
         audit(operator,name,"privacy_publish","审核发布版本 "+version);
     }
     private void audit(long operator,String name,String action,String detail) {

@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import Navbar from './components/Navbar.vue'
 import Sidebar from './components/Sidebar/index.vue'
 import AppMain from './components/AppMain.vue'
+import LockScreen from '@/components/LockScreen/index.vue'
 import useResizeHandler from './composables/useResizeHandler'
 
 // 使用 Pinia store
@@ -32,6 +33,7 @@ useResizeHandler()
       <Navbar></Navbar>
       <AppMain></AppMain>
     </div>
+    <LockScreen v-if="appStore.locked"></LockScreen>
   </div>
 </template>
 

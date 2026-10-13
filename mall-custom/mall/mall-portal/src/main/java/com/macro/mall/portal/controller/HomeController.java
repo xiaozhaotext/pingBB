@@ -32,6 +32,48 @@ public class HomeController {
     public CommonResult<java.util.List<java.util.Map<String,Object>>> announcements() {
         return CommonResult.success(jdbc.queryForList("SELECT id,title,content,publish_time FROM sys_notice WHERE status=1 AND type='SYSTEM' ORDER BY publish_time DESC,id DESC LIMIT 5"));
     }
+    @Operation(summary = "站点公开信息：公司资料、水印与合规文本")
+    @RequestMapping(value = "/siteInfo", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<java.util.Map<String, Object>> siteInfo() {
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("company", configByPrefix("company."));
+        data.put("watermark", configByPrefix("watermark."));
+        data.put("contents", siteContents());
+        return CommonResult.success(data);
+    }
+
+    /**
+     * Public projection of one sys_config namespace. Only company.* and watermark.* are exposed;
+     * payment, SMS and mini program credentials are deliberately never returned to the storefront.
+     */
+    private java.util.Map<String, Object> configByPrefix(String prefix) {
+        java.util.Map<String, Object> values = new java.util.LinkedHashMap<>();
+        try {
+            for (java.util.Map<String, Object> row : jdbc.queryForList(
+                    "SELECT config_key,config_value FROM sys_config WHERE config_key LIKE ?", prefix + "%")) {
+                String key = String.valueOf(row.get("config_key"));
+                values.put(key.substring(prefix.length()), row.get("config_value"));
+            }
+        } catch (org.springframework.dao.DataAccessException e) {
+            // Settings table not reachable: return an empty section instead of failing the whole page.
+        }
+        return values;
+    }
+
+    /** Compliance texts live in sys_content (created by 22_admin_settings_center.sql). */
+    private java.util.Map<String, Object> siteContents() {
+        java.util.Map<String, Object> values = new java.util.LinkedHashMap<>();
+        try {
+            for (java.util.Map<String, Object> row : jdbc.queryForList(
+                    "SELECT content_key,content_value FROM sys_content WHERE content_key IN ('privacy_policy','user_agreement')")) {
+                values.put(String.valueOf(row.get("content_key")), row.get("content_value"));
+            }
+        } catch (org.springframework.dao.DataAccessException e) {
+            // Content table not migrated yet.
+        }
+        return values;
+    }
 
     @Operation(summary = "首页内容信息展示")
     @RequestMapping(value = "/content", method = RequestMethod.GET)

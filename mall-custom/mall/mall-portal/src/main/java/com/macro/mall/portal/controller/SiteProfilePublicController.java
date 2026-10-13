@@ -12,7 +12,13 @@ public class SiteProfilePublicController {
     public SiteProfilePublicController(JdbcTemplate jdbc) {this.jdbc=jdbc;}
     @GetMapping("/company")
     public CommonResult<Map<String,Object>> company() {
-        return CommonResult.success(jdbc.queryForMap("SELECT company_name,address,telephone,mobile,email,qq,wechat_qr_url FROM sys_site_profile WHERE id=1"));
+        Map<String,Object> result=new java.util.LinkedHashMap<>();
+        String[][] fields={{"company.name","company_name"},{"company.address","address"},{"company.phone","telephone"},{"company.mobile","mobile"},{"company.email","email"},{"company.qq","qq"},{"company.wechat_qrcode","wechat_qr_url"}};
+        for(String[] field:fields) {
+            List<String> values=jdbc.query("SELECT config_value FROM sys_config WHERE config_key=?",(rs,n)->rs.getString(1),field[0]);
+            result.put(field[1],values.isEmpty() || values.get(0)==null?"":values.get(0));
+        }
+        return CommonResult.success(result);
     }
     @GetMapping("/privacy")
     public CommonResult<Map<String,Object>> privacy() {

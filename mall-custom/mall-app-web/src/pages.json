@@ -114,6 +114,12 @@
       }
     },
     {
+      "path": "pages/public/privacy",
+      "style": {
+        "navigationBarTitleText": "隐私政策"
+      }
+    },
+    {
       "path": "pages/set/set",
       "style": {
         "navigationBarTitleText": "设置"

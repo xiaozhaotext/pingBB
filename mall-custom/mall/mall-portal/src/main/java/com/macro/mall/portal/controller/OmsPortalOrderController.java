@@ -77,7 +77,7 @@ public class OmsPortalOrderController {
             in = ParameterIn.QUERY, schema = @Schema(type = "integer",defaultValue = "-1",allowableValues = {"-1","0","1","2","3","4"}))
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
-    public CommonResult<CommonPage<OmsOrderDetail>> list(@RequestParam Integer status,
+    public CommonResult<CommonPage<OmsOrderDetail>> list(@RequestParam(required = false, defaultValue = "-1") Integer status,
                                                    @RequestParam(required = false, defaultValue = "1") Integer pageNum,
                                                    @RequestParam(required = false, defaultValue = "5") Integer pageSize) {
         CommonPage<OmsOrderDetail> orderPage = portalOrderService.list(status,pageNum,pageSize);
