@@ -229,7 +229,7 @@ const groupTitles: Record<string, string> = {
         <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ rows(value).length }})</small></strong></template>
         <el-table v-if="rows(value).length" :data="rows(value)" stripe max-height="480">
           <el-table-column v-for="column in columns(value)" :key="column" :prop="column" :label="labels[column] || column" min-width="110" show-overflow-tooltip>
-            <template #default="scope">{{ display(scope.row[column]) }}</template>
+            <template #default="scope">{{ column === 'status' && key === 'members' ? (Number(scope.row[column]) === 1 ? '启用' : '禁用') : display(scope.row[column]) }}</template>
           </el-table-column>
           <el-table-column v-if="key === 'members'" label="操作" fixed="right" width="100"><template #default="scope"><el-button link type="primary" @click="openMember(Number(scope.row.id))">详情</el-button></template></el-table-column>
           <el-table-column v-if="key === 'adjustments'" label="审核" fixed="right" width="150"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewAdjustment(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewAdjustment(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>

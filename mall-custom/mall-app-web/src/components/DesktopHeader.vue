@@ -19,7 +19,13 @@
 </template>
 
 <script setup lang="ts">
-const goTab = (url: string) => uni.switchTab({ url })
+const goTab = (url: string) => {
+  try {
+    uni.switchTab({ url, fail: () => uni.navigateTo({ url }) })
+  } catch {
+    uni.navigateTo({ url })
+  }
+}
 const goPage = (url: string) => uni.navigateTo({ url })
 const goSearch = () => uni.navigateTo({ url: '/pages/product/search' })
 </script>

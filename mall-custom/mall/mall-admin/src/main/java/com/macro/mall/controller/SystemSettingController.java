@@ -96,6 +96,48 @@ public class SystemSettingController {
         return CommonResult.success(null);
     }
 
+    /**
+     * 短信发送测试：仅做配置完整性检查，不假发送。
+     * 未配置时明确返回失败；已配置时记录测试日志，实际发送待服务商联调。
+     */
+    @PostMapping("/sms/test")
+    public CommonResult<Map<String, Object>> testSms(Principal principal, HttpServletRequest request,
+                                                     @RequestBody Map<String, Object> body) {
+        access.requireAuthorized(principal);
+        String phone = body.get("phone") == null ? "" : String.valueOf(body.get("phone")).trim();
+        if (!phone.matches("^1\\d{10}$")) {
+            return CommonResult.failed("手机号格式不正确");
+        }
+        Map<String, String> cfg = new LinkedHashMap<>();
+        for (Map<String, Object> row : jdbc.queryForList(
+                "SELECT config_key,config_value FROM sys_config WHERE config_key IN " +
+                "('sms.provider','sms.access_key','sms.access_secret','sms.sign_name','sms.template_code')")) {
+            cfg.put(String.valueOf(row.get("config_key")),
+                    row.get("config_value") == null ? "" : String.valueOf(row.get("config_value")));
+        }
+        List<String> missing = new ArrayList<>();
+        if (cfg.getOrDefault("sms.provider", "").isEmpty()) missing.add("服务商");
+        if (cfg.getOrDefault("sms.access_key", "").isEmpty()) missing.add("AccessKey");
+        if (cfg.getOrDefault("sms.access_secret", "").isEmpty()) missing.add("AccessSecret");
+        if (cfg.getOrDefault("sms.sign_name", "").isEmpty()) missing.add("短信签名");
+        if (cfg.getOrDefault("sms.template_code", "").isEmpty()) missing.add("模板 Code");
+        if (!missing.isEmpty()) {
+            return CommonResult.failed("短信服务未配置：缺少" + String.join("、", missing) + "，请先在短信设置中填写");
+        }
+        // 配置完整：记录测试日志，实际发送需服务商 SDK 联调后启用
+        try {
+            jdbc.update("INSERT INTO sys_sms_log(phone,template_code,content,status,response) VALUES(?,?,?,?,?)",
+                    phone, cfg.get("sms.template_code"), "【" + cfg.get("sms.sign_name") + "】短信配置测试",
+                    "CONFIG_CHECK", "配置完整，待服务商联调后实际发送");
+        } catch (Exception e) {
+            // sys_sms_log 表不存在时不阻断测试
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("provider", cfg.get("sms.provider"));
+        data.put("message", "短信配置完整（" + cfg.get("sms.provider") + "），测试请求已记录；实际发送需服务商联调后启用");
+        return CommonResult.success(data);
+    }
+
     @PostMapping("/cache/clear")
     public CommonResult<Map<String, Object>> clearCache(Principal principal, HttpServletRequest request) {
         long operatorId = access.requireAuthorized(principal);
@@ -135,7 +177,8 @@ public class SystemSettingController {
         String normalizedMode = List.of("list", "grid", "folder", "stats").contains(mode) ? mode : "list";
         String like = "%" + keyword.trim() + "%";
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT source, url FROM (" + ASSET_SQL + ") AS assets WHERE url LIKE ? AND url <> '' LIMIT "
+                "SELECT source, url FROM (" + ASSET_SQL + ") AS assets WHERE url LIKE ? AND url <> '' " +
+                "AND url NOT IN ('string', '/') AND url NOT LIKE '%string%' LIMIT "
                         + MAX_ASSETS, like);
 
         List<Map<String, Object>> assets = new ArrayList<>(rows.size());

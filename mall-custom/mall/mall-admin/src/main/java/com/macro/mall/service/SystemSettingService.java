@@ -36,6 +36,7 @@ public class SystemSettingService {
     public static final String GROUP_IP_ACCESS = "ip_access";
     public static final String GROUP_UPLOAD = "upload";
     public static final String GROUP_DISTRIBUTION = "distribution";
+    public static final String GROUP_SMS = "sms";
 
     public static final String KEY_IP_ENABLED = "ip.access.enabled";
     public static final String KEY_IP_MODE = "ip.access.mode";
@@ -99,6 +100,11 @@ public class SystemSettingService {
         keys.put("rebuy.points.ratio", new KeySpec(GROUP_DISTRIBUTION, "复购区积分抵扣比例(0-1)", false, SystemSettingService::validateRatio));
         keys.put("withdraw.fee_rate", new KeySpec(GROUP_DISTRIBUTION, "提现手续费率(0-1)", false, SystemSettingService::validateRatio));
         keys.put("withdraw.min_amount", new KeySpec(GROUP_DISTRIBUTION, "单笔提现最低金额(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("sms.provider", new KeySpec(GROUP_SMS, "短信服务商（aliyun/tencent，空=未配置）", false, SystemSettingService::validateSmsProvider));
+        keys.put("sms.access_key", new KeySpec(GROUP_SMS, "短信服务商 AccessKey", false, SystemSettingService::validatePlain));
+        keys.put("sms.access_secret", new KeySpec(GROUP_SMS, "短信服务商 AccessSecret", true, SystemSettingService::validatePlain));
+        keys.put("sms.sign_name", new KeySpec(GROUP_SMS, "短信签名", false, SystemSettingService::validatePlain));
+        keys.put("sms.template_code", new KeySpec(GROUP_SMS, "短信模板 Code", false, SystemSettingService::validatePlain));
         KEYS = Collections.unmodifiableMap(keys);
     }
 
@@ -133,6 +139,7 @@ public class SystemSettingService {
         groups.put(GROUP_IP_ACCESS, new ArrayList<>());
         groups.put(GROUP_UPLOAD, new ArrayList<>());
         groups.put(GROUP_DISTRIBUTION, new ArrayList<>());
+        groups.put(GROUP_SMS, new ArrayList<>());
         for (Map.Entry<String, KeySpec> entry : KEYS.entrySet()) {
             KeySpec spec = entry.getValue();
             String raw = stored.get(entry.getKey());
@@ -395,6 +402,12 @@ public class SystemSettingService {
     private static void validatePlain(String value) {
         if (value.length() > 255) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "内容过长");
+        }
+    }
+
+    private static void validateSmsProvider(String value) {
+        if (!value.isEmpty() && !value.equals("aliyun") && !value.equals("tencent")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "短信服务商仅支持 aliyun/tencent，留空为未配置");
         }
     }
 

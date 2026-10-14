@@ -131,6 +131,12 @@ public class UmsAdminServiceImpl implements UmsAdminService {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         HttpServletRequest request = attributes.getRequest();
         loginLog.setIp(RequestUtil.getRequestIp(request));
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent != null && userAgent.length() > 500) {
+            userAgent = userAgent.substring(0, 500);
+        }
+        loginLog.setUserAgent(userAgent);
+        // address（归属地）需 IP 地理库支持，暂不伪造，保持为空
         loginLogMapper.insert(loginLog);
     }
 

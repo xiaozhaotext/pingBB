@@ -282,8 +282,21 @@ function edgeEnd(e:any){
 }
 function scrollSection(selector:string){
  // #ifdef H5
- const section=document.querySelector(selector) as HTMLElement|null
- if(section){section.style.scrollMarginTop='112px';section.scrollIntoView({behavior:'smooth',block:'start'});return}
+ try{
+   const section=document.querySelector(selector) as HTMLElement|null
+   if(section){
+     // 优先用 uni.pageScrollTo（H5 下更可靠），失败时回退到 scrollIntoView
+     const rect=section.getBoundingClientRect()
+     const top=Math.max(0,window.scrollY+rect.top-112)
+     if(typeof uni!=='undefined'&&uni.pageScrollTo){
+       uni.pageScrollTo({scrollTop:top,duration:300})
+     }else{
+       section.style.scrollMarginTop='112px'
+       section.scrollIntoView({behavior:'smooth',block:'start'})
+     }
+     return
+   }
+ }catch(e){/* 忽略，回退到 uni API */}
  // #endif
  uni.createSelectorQuery().select(selector).boundingClientRect((rect:any)=>{if(rect)uni.pageScrollTo({scrollTop:Math.max(0,scrollY.value+rect.top-112),duration:200})}).exec()
 }

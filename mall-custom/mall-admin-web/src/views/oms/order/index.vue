@@ -365,7 +365,7 @@ const deleteOrderFn = async (ids: number[]) => {
           <template #default="scope">{{ scope.row.memberUsername }}</template>
         </el-table-column>
         <el-table-column label="订单金额" width="120" align="center">
-          <template #default="scope">￥{{ scope.row.totalAmount }}</template>
+          <template #default="scope">￥{{ Number(scope.row.totalAmount || 0).toFixed(2) }}</template>
         </el-table-column>
         <el-table-column label="支付方式" width="120" align="center">
           <template #default="scope">{{ formatPayType(scope.row.payType) }}</template>

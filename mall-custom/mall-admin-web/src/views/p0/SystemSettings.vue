@@ -12,6 +12,7 @@ const tabs = [
   { name: 'watermark', label: '水印设置' },
   { name: 'upload', label: '上传设置' },
   { name: 'distribution', label: '分销与分红' },
+  { name: 'sms', label: '短信设置' },
   { name: 'miniapp', label: '小程序' },
   { name: 'ip_access', label: 'IP 访问设置' },
   { name: 'content', label: '服务内容' },
@@ -28,6 +29,9 @@ const selects: Record<string, { value: string; label: string }[]> = {
   ],
   'ip.access.mode': [
     { value: 'allow', label: '仅允许列表内的 IP' }, { value: 'deny', label: '仅拒绝列表内的 IP' },
+  ],
+  'sms.provider': [
+    { value: '', label: '未配置' }, { value: 'aliyun', label: '阿里云' }, { value: 'tencent', label: '腾讯云' },
   ],
 }
 const multiline = ['ip.access.list']
@@ -46,6 +50,8 @@ const contentText = ref('')
 const contentUpdated = ref<string | null>(null)
 const migrationRequired = ref(false)
 const cacheResult = ref<Record<string, unknown> | null>(null)
+const testPhone = ref('')
+const testing = ref(false)
 
 watch(() => route.meta.section, section => {
   if (typeof section === 'string' && tabs.some(tab => tab.name === section)) active.value = section
@@ -102,6 +108,22 @@ async function loadContent() {
     migrationRequired.value = response.data?.migration_required === true
   } catch {
     contentText.value = ''
+  }
+}
+
+async function testSms() {
+  if (!/^1\d{10}$/.test(testPhone.value.trim())) {
+    ElMessage.warning('请输入正确的手机号')
+    return
+  }
+  testing.value = true
+  try {
+    const response = await postP0<{ message?: string }>('system-settings/sms/test', { phone: testPhone.value.trim() })
+    ElMessage.success(response.data?.message || '测试完成')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '测试失败')
+  } finally {
+    testing.value = false
   }
 }
 
@@ -164,6 +186,37 @@ onMounted(async () => { await load(); await loadContent() })
               <div class="actions">
                 <el-button type="warning" @click="clearCache">清除缓存</el-button>
                 <span v-if="cacheResult" class="hint">已清理 {{ cacheResult.deleted }} 个键：{{ (cacheResult.prefixes as string[] | undefined)?.join('、') }}</span>
+              </div>
+            </template>
+            <template v-else-if="tab.name === 'sms'">
+              <el-alert type="info" show-icon :closable="false"
+                title="短信服务配置" description="用于验证码、订单通知等短信发送。AccessSecret 为敏感项，列表仅显示脱敏值。" />
+              <el-form label-position="top" class="form">
+                <el-form-item v-for="field in fields" :key="field.config_key" :label="field.label">
+                  <el-switch v-if="switches.includes(field.config_key)" :model-value="drafts[field.config_key] === '1'"
+                    active-value="1" inactive-value="0"
+                    @update:model-value="value => drafts[field.config_key] = String(value)" />
+                  <el-select v-else-if="selects[field.config_key]" v-model="drafts[field.config_key]" class="wide">
+                    <el-option v-for="option in selects[field.config_key]" :key="option.value" :label="option.label" :value="option.value" />
+                  </el-select>
+                  <el-input v-else v-model="drafts[field.config_key]" :type="field.secret ? 'password' : 'text'"
+                    :show-password="field.secret" class="wide" />
+                  <span v-if="field.secret" class="hint">敏感项：列表仅显示脱敏值，未修改时不会覆盖原值</span>
+                </el-form-item>
+              </el-form>
+              <div class="actions">
+                <el-button type="primary" :loading="saving" @click="save">保存设置</el-button>
+                <span class="hint">{{ dirtyKeys.length }} 项待保存</span>
+              </div>
+              <el-divider>发送测试</el-divider>
+              <el-form label-position="top" class="form">
+                <el-form-item label="测试手机号">
+                  <el-input v-model="testPhone" placeholder="请输入 11 位手机号" class="wide" maxlength="11" />
+                </el-form-item>
+              </el-form>
+              <div class="actions">
+                <el-button type="success" :loading="testing" @click="testSms">发送测试短信</el-button>
+                <span class="hint">未配置时将明确提示，不会假发送</span>
               </div>
             </template>
             <template v-else>
