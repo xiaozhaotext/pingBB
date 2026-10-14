@@ -51,14 +51,6 @@
     </view>
 
     <!-- 分享不承诺尚未核实的红包或推广收益 -->
-    <view class="share-section" @click="handleShare">
-      <text class="tit">分享这件商品</text>
-      <view class="share-btn">
-        复制商品链接
-        <text class="yticon icon-you"></text>
-      </view>
-    </view>
-
     <view class="share-section" @click="openConsultation">
       <text class="tit">在线咨询</text><text class="share-btn">咨询商品或订单 ›</text>
     </view>
@@ -144,7 +136,7 @@
         <text>收藏</text>
       </view>
       <navigator url="/pages/consultation/consultation" class="p-b-btn">
-        <text class="yticon icon-kefu"></text>
+        <view class="service-icon">···</view>
         <text>客服</text>
       </navigator>
 
@@ -1904,4 +1896,8 @@ page {
 <style scoped>
 .product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#173e49cc,#173e4933),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
 @media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
+</style>
+
+<style scoped>
+.service-icon{width:22px;height:20px;border:1.5px solid #7f9899;border-radius:7px;line-height:14px;color:#7f9899;font-size:19px;text-align:center;margin-bottom:4px}
 </style>
