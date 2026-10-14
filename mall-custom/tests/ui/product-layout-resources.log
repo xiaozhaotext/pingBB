@@ -1,0 +1,12 @@
+PASS LIVE_INDEX_MATCHES_BUILT_RELEASE
+PASS LIVE_RESOURCE_SHA256 assets/uni.583cd189.css
+PASS LIVE_RESOURCE_SHA256 assets/index-wdm5DMMW.js
+PASS LIVE_RESOURCE_SHA256 assets/index-CDiESG36.css
+PASS LIVE_RESOURCE_SHA256 static/main-nav/home.svg
+PASS LIVE_RESOURCE_SHA256 static/main-nav/grid.svg
+PASS LIVE_RESOURCE_SHA256 static/main-nav/repeat.svg
+PASS LIVE_RESOURCE_SHA256 static/main-nav/cart.svg
+PASS LIVE_RESOURCE_SHA256 static/main-nav/network.svg
+PASS LIVE_RESOURCE_SHA256 static/main-nav/user.svg
+PASS LIVE_RESOURCE_SHA256 static/travel-photo/alpine-lake.jpg
+RESULT 11 PASS 0 FAIL
