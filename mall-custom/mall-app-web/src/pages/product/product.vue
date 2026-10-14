@@ -24,7 +24,7 @@
     <view class="product-travel-note"><text>智美游 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
     <!-- 轮播图 -->
     <view class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
-      <swiper indicator-dots circular :duration="400">
+      <swiper circular :duration="400">
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
             <image :src="item" class="loaded" mode="aspectFill"></image>
