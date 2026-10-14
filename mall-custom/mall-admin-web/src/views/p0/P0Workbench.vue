@@ -15,7 +15,11 @@ const sections: Record<SectionKey, { title: string; path: string; note: string }
   p0Settings: { title: '系统配置与日志', path: 'settings', note: '平台管理员可调整会员购买与直推奖励参数，保存前后值均写入审计。' },
 }
 const route = useRoute()
-const sectionKey = computed(() => (typeof route.name === 'string' && route.name in sections ? route.name : 'p0Members') as SectionKey)
+const sectionKey = computed(() => {
+  const metaSection = typeof route.meta.section === 'string' ? route.meta.section : ''
+  if (metaSection && metaSection in sections) return metaSection as SectionKey
+  return (typeof route.name === 'string' && route.name in sections ? route.name : 'p0Members') as SectionKey
+})
 const section = computed(() => sections[sectionKey.value])
 const loading = ref(false)
 const data = ref<Record<string, unknown>>({})

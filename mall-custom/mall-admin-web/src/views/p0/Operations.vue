@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
 const route = useRoute()
-const consultations = computed(() => route.name === 'p0Consultations')
+const consultations = computed(() => route.meta.section === 'p0Consultations' || route.name === 'p0Consultations')
 const title = computed(() => consultations.value ? '在线咨询' : '公告管理')
 const loading = ref(false)
 const saving = ref(false)

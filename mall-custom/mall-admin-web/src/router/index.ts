@@ -29,6 +29,97 @@ export const constantRouterMap: RouteRecordExt[] = [
 ]
 
 export const asyncRouterMap: RouteRecordExt[] = [
+  // ===== 后台总控：6 个一级功能分组（对齐原图思维导图） =====
+
+  // 1 自选商品管理
+  {
+    path: '/pick', component: Layout, redirect: '/pick/product', name: 'pick', alwaysShow: true,
+    meta: { title: '自选商品管理', icon: 'product' },
+    children: [
+      { path: 'product', name: 'pickProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'category', name: 'pickCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+    ],
+  },
+  // 2 复购商品管理
+  {
+    path: '/rebuy', component: Layout, redirect: '/rebuy/product', name: 'rebuy', alwaysShow: true,
+    meta: { title: '复购商品管理', icon: 'product-list' },
+    children: [
+      { path: 'product', name: 'rebuyProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'category', name: 'rebuyCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+    ],
+  },
+  // 3 订单管理
+  {
+    path: '/orderMgr', component: Layout, redirect: '/orderMgr/list', name: 'orderMgr', alwaysShow: true,
+    meta: { title: '订单管理', icon: 'order' },
+    children: [
+      { path: 'list', name: 'orderMgrList', component: () => import('@/views/oms/order/index.vue'), meta: { title: '订单列表', icon: 'product-list' } },
+      { path: 'summary', name: 'orderSummary', component: () => import('@/views/order/OrderSummary.vue'), meta: { title: '订单销量汇总', icon: 'total-today' } },
+      { path: 'setting', name: 'orderMgrSetting', component: () => import('@/views/oms/order/setting.vue'), meta: { title: '订单设置', icon: 'order-setting' } },
+      { path: 'returnApply', name: 'orderMgrReturnApply', component: () => import('@/views/oms/apply/index.vue'), meta: { title: '退货申请处理', icon: 'order-return' } },
+      { path: 'returnReason', name: 'orderMgrReturnReason', component: () => import('@/views/oms/apply/reason.vue'), meta: { title: '退货原因设置', icon: 'order-return-reason' } },
+    ],
+  },
+  // 4 会员
+  {
+    path: '/memberMgr', component: Layout, redirect: '/memberMgr/list', name: 'memberMgr', alwaysShow: true,
+    meta: { title: '会员', icon: 'ums-admin' },
+    children: [
+      { path: 'list', name: 'memberMgrList', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员列表', icon: 'user', section: 'p0Members' } },
+      { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), meta: { title: '会员身份', icon: 'ums-role' } },
+      { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理', icon: 'ums-role', section: 'p0Partner' } },
+      { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理', icon: 'ums-role', section: 'p0Cofounder' } },
+      { path: 'stats', name: 'memberStats', component: () => import('@/views/member/MemberStats.vue'), meta: { title: '会员统计', icon: 'total-today' } },
+      { path: 'register-notice', name: 'memberRegisterNotice', component: () => import('@/views/member/RegisterNotice.vue'), meta: { title: '注册须知', icon: 'form' } },
+      { path: 'notices', name: 'memberMgrNotices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理', icon: 'form', section: 'p0Notices' } },
+      { path: 'consultations', name: 'memberMgrConsultations', component: () => import('@/views/p0/Operations.vue'), meta: { title: '在线咨询', icon: 'form', section: 'p0Consultations' } },
+      { path: 'message-records', name: 'memberMgrMessageRecords', component: () => import('@/views/p0/MessageRecords.vue'), meta: { title: '发送记录', icon: 'form' } },
+    ],
+  },
+  // 5 财务中心
+  {
+    path: '/financeMgr', component: Layout, redirect: '/financeMgr/analysis', name: 'financeMgr', alwaysShow: true,
+    meta: { title: '财务中心', icon: 'total-today' },
+    children: [
+      { path: 'analysis', name: 'financeAnalysis', component: () => import('@/views/finance/FundAnalysis.vue'), meta: { title: '资金分析', icon: 'total-today' } },
+      { path: 'funds', name: 'financeFunds', component: () => import('@/views/finance/FundOverview.vue'), meta: { title: '资金管理', icon: 'total-today' } },
+      { path: 'product-points', name: 'financeProductPoints', component: () => import('@/views/finance/PointsDetail.vue'), meta: { title: '产品积分明细', icon: 'product-comment' } },
+      { path: 'repurchase-points', name: 'financeRepurchasePoints', component: () => import('@/views/finance/PointsDetail.vue'), meta: { title: '复购积分明细', icon: 'product-comment' } },
+      { path: 'wallet', name: 'financeWallet', component: () => import('@/views/p0/Finance.vue'), meta: { title: '钱包明细管理', icon: 'total-week' } },
+      { path: 'dividend', name: 'financeDividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池', icon: 'total-yesterday', section: 'p0Dividend' } },
+    ],
+  },
+  // 6 服务中心
+  {
+    path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,
+    meta: { title: '服务中心', icon: 'ums' },
+    children: [
+      { path: 'account', name: 'serviceAccount', component: () => import('@/views/account/Account.vue'), meta: { title: '账号与安全', icon: 'password' } },
+      { path: 'privacy', name: 'servicePrivacy', component: () => import('@/views/p0/SiteProfile.vue'), meta: { title: '隐私政策', icon: 'form' } },
+      { path: 'settings', name: 'serviceSettings', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '平台设置', icon: 'ums' } },
+      { path: 'images', name: 'serviceImages', component: () => import('@/views/p0/ImageManager.vue'), meta: { title: '图片管理', icon: 'eye' } },
+      { path: 'database', name: 'serviceDatabase', component: () => import('@/views/p0/Database.vue'), meta: { title: '数据库管理', icon: 'table' } },
+      { path: 'area-library', name: 'serviceAreaLibrary', component: () => import('@/views/p0/AreaLibrary.vue'), meta: { title: '省市区街道地址库', icon: 'marker' } },
+      { path: 'visit-statistics', name: 'serviceVisitStatistics', component: () => import('@/views/p0/VisitStatistics.vue'), meta: { title: '访问统计', icon: 'dashboard' } },
+      { path: 'admin', name: 'serviceAdmin', component: () => import('@/views/ums/admin/index.vue'), meta: { title: '用户列表', icon: 'ums-admin' } },
+      { path: 'role', name: 'serviceRole', component: () => import('@/views/ums/role/index.vue'), meta: { title: '角色列表', icon: 'ums-role' } },
+      { path: 'menu', name: 'serviceMenu', component: () => import('@/views/ums/menu/index.vue'), meta: { title: '菜单列表', icon: 'ums-menu' } },
+      { path: 'resource', name: 'serviceResource', component: () => import('@/views/ums/resource/index.vue'), meta: { title: '资源列表', icon: 'ums-resource' } },
+      { path: 'department', name: 'serviceDepartment', component: () => import('@/views/p0/Department.vue'), meta: { title: '部门管理', icon: 'ums' } },
+      { path: 'login-log', name: 'serviceLoginLog', component: () => import('@/views/p0/LoginLog.vue'), meta: { title: '登录日志', icon: 'document' } },
+      { path: 'brand', name: 'serviceBrand', component: () => import('@/views/pms/brand/index.vue'), meta: { title: '品牌管理', icon: 'product-brand' } },
+      { path: 'product-attr', name: 'serviceProductAttr', component: () => import('@/views/pms/productAttr/index.vue'), meta: { title: '商品属性', icon: 'product-attr' } },
+      { path: 'coupon', name: 'serviceCoupon', component: () => import('@/views/sms/coupon/index.vue'), meta: { title: '优惠券', icon: 'sms-coupon' } },
+      { path: 'flash', name: 'serviceFlash', component: () => import('@/views/sms/flash/index.vue'), meta: { title: '秒杀活动', icon: 'sms-flash' } },
+      { path: 'advertise', name: 'serviceAdvertise', component: () => import('@/views/sms/advertise/index.vue'), meta: { title: '广告列表', icon: 'sms-ad' } },
+      { path: 'home-brand', name: 'serviceHomeBrand', component: () => import('@/views/sms/brand/index.vue'), meta: { title: '品牌推荐', icon: 'product-brand' } },
+      { path: 'home-new', name: 'serviceHomeNew', component: () => import('@/views/sms/new/index.vue'), meta: { title: '新品推荐', icon: 'sms-new' } },
+      { path: 'home-hot', name: 'serviceHomeHot', component: () => import('@/views/sms/hot/index.vue'), meta: { title: '人气推荐', icon: 'sms-hot' } },
+      { path: 'home-subject', name: 'serviceHomeSubject', component: () => import('@/views/sms/subject/index.vue'), meta: { title: '专题推荐', icon: 'sms-subject' } },
+    ],
+  },
+
   {
     path: '/pms',
     component: Layout,
