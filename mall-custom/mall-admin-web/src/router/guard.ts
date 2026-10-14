@@ -7,7 +7,7 @@ import usePermissionStore from '@/stores/permission'
 // 无需登陆的白名单路径
 const whiteList = ['/login']
 // 配置路由前置守卫函数（每次路由跳转都会执行）
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   NProgress.start()
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
@@ -18,7 +18,16 @@ router.beforeEach((to, from, next) => {
       NProgress.done()
     } else {
       if (permissionStore.addRouters.length === 0) {
-        // 登录状态下无动态路由时根据menus生成动态路由
+        // 旧版将菜单持久化在浏览器中；每次启动先向服务端读取当前授权，
+        // 防止菜单调整后仍显示“商品”等过期入口。
+        try {
+          await userStore.getUserInfo()
+        } catch {
+          userStore.fedLogout()
+          next({ path: '/login', query: { redirect: to.fullPath } })
+          NProgress.done()
+          return
+        }
         permissionStore.generateRoutes({
           menus: userStore.userInfo.menus,
           username: userStore.userInfo.username,

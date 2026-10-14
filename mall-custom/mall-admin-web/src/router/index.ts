@@ -3,34 +3,17 @@ import Layout from '@/views/layout/Layout.vue'
 import type { RouteRecordExt } from '@/types/router'
 
 export const constantRouterMap: RouteRecordExt[] = [
+  { path: '/', redirect: '/home', hidden: true },
   { path: '/404', component: () => import('@/views/normal/404/index.vue'), hidden: true },
   { path: '/login', component: () => import('@/views/normal/login/index.vue'), hidden: true },
   {
-    path: '',
+    path: '/home',
     component: Layout,
-    name: 'dashboard',
-    redirect: '/home',
-    meta: { title: '后台桌面', icon: 'home' },
+    name: 'home',
+    hidden: true,
+    meta: { title: '大数据界面', icon: 'dashboard' },
     children: [
-      {
-        path: 'home',
-        name: 'home',
-        component: () => import('@/views/home/LiveDashboard.vue'),
-        meta: { title: '大数据界面', icon: 'dashboard' },
-      },
-      { path: 'cache-clear', name: 'desktopClearCache', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '清除缓存', icon: 'refresh', section: 'cache' } },
-      { path: 'user', name: 'desktopUser', component: RouterView, redirect: '/account', meta: { title: '用户', icon: 'user' }, children: [
-        { path: 'system-home', name: 'desktopHome', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '系统首页', icon: 'dashboard' } },
-        { path: '/account', name: 'account', component: () => import('@/views/account/Account.vue'), meta: { title: '修改密码', icon: 'password' } },
-        { path: 'lock', name: 'desktopLock', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '系统锁屏', icon: 'lock', desktopAction: 'lock' } },
-        { path: 'logout', name: 'desktopLogout', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '退出系统', icon: 'logout', desktopAction: 'logout' } },
-      ] },
-      // {
-      //   path: 'test',
-      //   name: 'test',
-      //   component: () => import('@/views/test/index.vue'),
-      //   meta: { title: '组件测试', icon: 'product-cate' },
-      // },
+      { path: '', name: 'homeDashboard', component: () => import('@/views/home/LiveDashboard.vue'), hidden: true, meta: { title: '大数据界面' } },
     ],
   },
 ]
@@ -120,9 +103,19 @@ export const asyncRouterMap: RouteRecordExt[] = [
   },
   // 6 服务中心
   {
-    path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,
+    path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/desktop/big-data', name: 'serviceMgr', alwaysShow: true,
     meta: { title: '服务中心', icon: 'ums' },
     children: [
+      { path: 'desktop', name: 'serviceDesktop', component: RouterView, redirect: '/serviceMgr/desktop/big-data', meta: { title: '后台桌面', icon: 'dashboard' }, children: [
+        { path: 'big-data', name: 'serviceDesktopData', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '大数据界面', icon: 'dashboard' } },
+        { path: 'cache-clear', name: 'desktopClearCache', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '清除缓存', icon: 'refresh', section: 'cache' } },
+        { path: 'user', name: 'serviceDesktopUser', component: RouterView, redirect: '/serviceMgr/desktop/user/system-home', meta: { title: '用户', icon: 'user' }, children: [
+          { path: 'system-home', name: 'serviceDesktopHome', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '系统首页', icon: 'dashboard' } },
+          { path: 'account', name: 'serviceDesktopPassword', component: () => import('@/views/account/Account.vue'), meta: { title: '修改密码', icon: 'password' } },
+          { path: 'lock', name: 'desktopLock', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '系统锁屏', icon: 'lock', desktopAction: 'lock' } },
+          { path: 'logout', name: 'desktopLogout', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '退出系统', icon: 'logout', desktopAction: 'logout' } },
+        ] },
+      ] },
       { path: 'account', name: 'serviceAccount', component: () => import('@/views/account/Account.vue'), meta: { title: '账号与安全', icon: 'password' } },
       { path: 'privacy', name: 'servicePrivacy', component: () => import('@/views/p0/SiteProfile.vue'), meta: { title: '隐私政策', icon: 'form' } },
     ],
