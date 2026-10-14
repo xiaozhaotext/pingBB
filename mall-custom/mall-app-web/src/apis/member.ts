@@ -130,6 +130,14 @@ export const getWithdrawListAPI = () => http<any[]>({ method: 'GET', url: '/memb
 export const getMyDividendSnapshotAPI = (statDate: number) =>
   http<any[]>({ method: 'GET', url: '/member/dividend/mySnapshot', params: { statDate } })
 
+/** 我的分红信息（份数/今日/累计/封顶，真实数据） */
+export const getDividendInfoAPI = () =>
+  http<any>({ method: 'GET', url: '/member/dividend/info' })
+
+/** 我的分红记录（真实数据） */
+export const getDividendRecordsAPI = (params: { page?: number; size?: number }) =>
+  http<any[]>({ method: 'GET', url: '/member/dividend/records', params })
+
 // ===== 以下旧模拟购买接口已下线，统一走上方真实链路 createMembershipOrderAPI =====
 
 /** 收益流水（模拟） */

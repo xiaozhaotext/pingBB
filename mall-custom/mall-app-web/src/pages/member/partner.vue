@@ -8,6 +8,7 @@
       <view class="row"><text>赠送复购积分</text><text class="v">3999</text></view>
       <view class="row"><text>直接分享奖励</text><text class="v">10% 现金奖励</text></view>
       <view class="row"><text>每日分红</text><text class="v">1 份</text></view>
+      <view class="row"><text>纯玩线旅游</text><text class="v">1 次</text></view>
     </view>
 
     <view class="card">

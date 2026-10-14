@@ -42,6 +42,109 @@ public class DividendPoolController {
         return CommonResult.forbidden(null);
     }
 
+    @Operation(summary = "我的分红信息（份数/今日/累计/封顶）")
+    @GetMapping("/info")
+    public CommonResult<Map<String, Object>> info() {
+        Long memberId = memberService.getCurrentMember().getId();
+        Map<String, Object> result = new java.util.HashMap<>();
+
+        // 身份与份数：1=合伙人(1份)，2=联创(3份)
+        List<Map<String, Object>> idRows = jdbc.queryForList(
+                "SELECT identity_type FROM ums_member_identity WHERE member_id=? AND status=1 LIMIT 1",
+                memberId);
+        int identityType = 0;
+        int shares = 0;
+        if (!idRows.isEmpty() && idRows.get(0).get("identity_type") != null) {
+            identityType = ((Number) idRows.get(0).get("identity_type")).intValue();
+            shares = (identityType == 2 ? 3 : (identityType == 1 ? 1 : 0));
+        }
+        result.put("identityType", identityType);
+        result.put("identityName", identityType == 2 ? "联创" : (identityType == 1 ? "合伙人" : "普通会员"));
+        result.put("shares", shares);
+
+        // 今日分红
+        BigDecimal todayAmount = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(dividend_amount),0) FROM member_dividend_ledger WHERE member_id=? AND stat_date=CURDATE()",
+                BigDecimal.class, memberId);
+        result.put("todayDividend", todayAmount == null ? BigDecimal.ZERO : todayAmount);
+
+        // 累计分红
+        BigDecimal totalAmount = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(dividend_amount),0) FROM member_dividend_ledger WHERE member_id=?",
+                BigDecimal.class, memberId);
+        result.put("totalDividend", totalAmount == null ? BigDecimal.ZERO : totalAmount);
+
+        // 推荐人数与封顶：1200 + 1200×推荐人数，上限12000
+        Integer refCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ums_member_recommend WHERE inviter_id=?",
+                Integer.class, memberId);
+        int refs = refCount == null ? 0 : refCount;
+        result.put("referralCount", refs);
+        BigDecimal capBase = configDecimal("dividend.cap.base", new BigDecimal("1200.00"));
+        BigDecimal capPerReferral = configDecimal("dividend.cap.per_referral", new BigDecimal("1200.00"));
+        BigDecimal capMax = configDecimal("dividend.cap.max", new BigDecimal("12000.00"));
+        BigDecimal cap = capBase.add(capPerReferral.multiply(new BigDecimal(refs)));
+        if (cap.compareTo(capMax) > 0) cap = capMax;
+        result.put("capAmount", cap);
+        result.put("capBase", capBase);
+        result.put("capPerReferral", capPerReferral);
+        result.put("capMax", capMax);
+
+        // 分红发放开关状态（仅展示，不在此修改）
+        result.put("distributionEnabled", configBool("dividend.distribution.enabled", false));
+
+        // 分红池余额（公开信息）
+        try {
+            BigDecimal poolBalance = jdbc.queryForObject(
+                    "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
+            result.put("poolBalance", poolBalance == null ? BigDecimal.ZERO : poolBalance);
+        } catch (Exception e) {
+            result.put("poolBalance", BigDecimal.ZERO);
+        }
+        return CommonResult.success(result);
+    }
+
+    @Operation(summary = "我的分红记录")
+    @GetMapping("/records")
+    public CommonResult<List<Map<String, Object>>> records(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Long memberId = memberService.getCurrentMember().getId();
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int offset = (safePage - 1) * safeSize;
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT stat_date, shares, dividend_amount, cap_amount, cumulative_received, create_time"
+                        + " FROM member_dividend_ledger WHERE member_id=? ORDER BY stat_date DESC LIMIT ? OFFSET ?",
+                memberId, safeSize, offset);
+        return CommonResult.success(rows);
+    }
+
+    private boolean configBool(String key, boolean fallback) {
+        try {
+            List<String> rows = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? LIMIT 1",
+                    (rs, n) -> rs.getString(1), key);
+            if (!rows.isEmpty() && rows.get(0) != null) {
+                String v = rows.get(0).trim();
+                if ("1".equals(v) || "true".equalsIgnoreCase(v)) return true;
+                if ("0".equals(v) || "false".equalsIgnoreCase(v)) return false;
+            }
+        } catch (Exception ignored) { }
+        return fallback;
+    }
+
+    private BigDecimal configDecimal(String key, BigDecimal fallback) {
+        try {
+            List<String> rows = jdbc.query("SELECT config_value FROM sys_config WHERE config_key=? LIMIT 1",
+                    (rs, n) -> rs.getString(1), key);
+            if (!rows.isEmpty() && rows.get(0) != null) {
+                BigDecimal v = new BigDecimal(rows.get(0).trim());
+                if (v.signum() >= 0) return v;
+            }
+        } catch (Exception ignored) { }
+        return fallback;
+    }
+
     @Operation(summary = "查询分红池余额")
     @GetMapping("/pool")
     public CommonResult<Map<String, Object>> pool() {
