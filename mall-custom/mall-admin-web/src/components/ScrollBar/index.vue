@@ -17,6 +17,8 @@ const scrollWrapper = ref<HTMLDivElement>()
 
 // 处理滚动事件
 const handleScroll = (e: WheelEvent) => {
+  if (props.mobileScroll) return
+  e.preventDefault()
   const eventDelta = -e.deltaY * 3
   const $container = scrollContainer.value
   if (!$container) return
@@ -42,7 +44,7 @@ const handleScroll = (e: WheelEvent) => {
 </script>
 
 <template>
-  <div :class="{ 'mobile-scroll-container': props.mobileScroll }" class="scroll-container" ref="scrollContainer" @wheel.prevent="!props.mobileScroll && handleScroll($event)">
+  <div :class="{ 'mobile-scroll-container': props.mobileScroll }" class="scroll-container" ref="scrollContainer" @wheel="handleScroll">
     <div class="scroll-wrapper" ref="scrollWrapper" :style="{ top: top + 'px' }">
       <slot></slot>
     </div>

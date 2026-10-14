@@ -65,12 +65,15 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'management', name: 'memberManagement', component: RouterView, redirect: '/memberMgr/management/list', meta: { title: '会员管理', icon: 'ums-role' }, children: [
         { path: 'list', name: 'memberMgrList', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员列表', icon: 'user', section: 'p0Members' } },
         { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), meta: { title: '会员身份', icon: 'ums-role' } },
-      ] },
-      { path: 'operations', name: 'memberOperations', component: RouterView, redirect: '/memberMgr/operations/stats', meta: { title: '会员操作', icon: 'form' }, children: [
-        { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理', icon: 'ums-role', section: 'p0Partner' } },
-        { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理', icon: 'ums-role', section: 'p0Cofounder' } },
+        { path: 'operations', name: 'memberOperationsPage', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员操作', icon: 'form', section: 'p0Members' } },
         { path: 'stats', name: 'memberStats', component: () => import('@/views/member/MemberStats.vue'), meta: { title: '会员统计', icon: 'total-today' } },
         { path: 'register-notice', name: 'memberRegisterNotice', component: () => import('@/views/member/RegisterNotice.vue'), meta: { title: '注册须知', icon: 'form' } },
+      ] },
+      { path: 'operations', name: 'memberOperations', component: RouterView, redirect: '/memberMgr/operations/partner', meta: { title: '会员运营', icon: 'form' }, children: [
+        { path: 'stats', redirect: '/memberMgr/management/stats', hidden: true },
+        { path: 'register-notice', redirect: '/memberMgr/management/register-notice', hidden: true },
+        { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理', icon: 'ums-role', section: 'p0Partner' } },
+        { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理', icon: 'ums-role', section: 'p0Cofounder' } },
         { path: 'notices', name: 'memberMgrNotices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理', icon: 'form', section: 'p0Notices' } },
         { path: 'consultations', name: 'memberMgrConsultations', component: () => import('@/views/p0/Operations.vue'), meta: { title: '在线咨询', icon: 'form', section: 'p0Consultations' } },
         { path: 'message-records', name: 'memberMgrMessageRecords', component: () => import('@/views/p0/MessageRecords.vue'), meta: { title: '发送记录', icon: 'form' } },

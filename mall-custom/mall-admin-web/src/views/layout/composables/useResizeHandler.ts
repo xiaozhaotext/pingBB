@@ -12,7 +12,7 @@ export default function useResizeHandler() {
 
   // 监听路由变化
   watch(
-    () => route,
+    () => route.fullPath,
     () => {
       if (appStore.device === 'mobile' && appStore.sidebar.opened) {
         appStore.closeSideBar(false)
@@ -29,9 +29,12 @@ export default function useResizeHandler() {
   const resizeHandler = () => {
     if (!document.hidden) {
       const mobile = isMobile()
+      const wasMobile = appStore.device === 'mobile'
       appStore.toggleDevice(mobile ? 'mobile' : 'desktop')
 
-      if (mobile) {
+      // Mobile browser chrome changes the viewport height while scrolling.
+      // Close the drawer only when crossing into the mobile layout.
+      if (mobile && !wasMobile) {
         appStore.closeSideBar(true)
       }
     }
