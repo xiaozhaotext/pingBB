@@ -1,6 +1,6 @@
 <template>
   <DesktopHeader />
-  <view class="container" :class="'theme-' + theme">
+  <view class="container" :class="'theme-' + theme" @touchstart="edgeStart" @touchmove="edgeMove" @touchend="edgeEnd">
     <view class="demo-product-note">本地演示数据：商品与促销内容来自官方示例库，请勿作为真实经营信息。</view>
     <!-- 自定义导航栏 -->
     <view class="custom-navbar" :style="{ background: navBgColor }">
@@ -9,7 +9,7 @@
         <view class="nav-back" @click="handleGoBack">
           <view class="back-arrow" :style="{ borderColor: navIconColor }"></view>
         </view>
-        <text class="nav-title" :style="{ opacity: navTitleOpacity }">详情展示</text>
+        <view class="detail-tabs"><text @click="scrollSection('.introduce-section')">商品</text><text @click="scrollSection('.eva-section')">评价</text><text @click="scrollSection('.detail-desc')">详情</text></view>
       </view>
     </view>
 
@@ -18,7 +18,7 @@
     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
 
     <!-- 轮播图 -->
-    <view class="carousel">
+    <view class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
       <swiper indicator-dots circular :duration="400">
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
@@ -247,12 +247,69 @@
 </template>
 
 <script setup lang="ts">
+const fallbackPage=ref('/pages/index/index')
+let removeEntryGuard:(()=>void)|undefined
+function closeDetailOverlay(){
+ if(specClass.value==='show'){handleToggleSpec();return true}
+ if(couponState.value===1){handleToggleCoupon();return true}
+ return false
+}
+function guardDirectEntry(){
+ // #ifdef H5
+ if(getCurrentPages().length<=1){
+  const state={...window.history.state}
+  window.history.replaceState({...state,mallDetailEntryBase:true},'',window.location.href)
+  window.history.pushState({...state,mallDetailEntryBase:false},'',window.location.href)
+ }
+ const detailHash=window.location.hash
+ const back=(event:PopStateEvent)=>{
+  if(!event.state?.mallDetailEntryBase){
+   if(window.location.hash===detailHash){event.stopImmediatePropagation();closeDetailOverlay()}
+   return
+  }
+  event.stopImmediatePropagation()
+  if(closeDetailOverlay()){window.history.pushState({...event.state,mallDetailEntryBase:false},'',window.location.href);return}
+  window.removeEventListener('popstate',back,true)
+  window.history.replaceState({...event.state,mallDetailEntryBase:false},'',window.location.href)
+  uni.switchTab({url:fallbackPage.value})
+ }
+ window.addEventListener('popstate',back,true)
+ removeEntryGuard=()=>window.removeEventListener('popstate',back,true)
+ // #endif
+}
+onUnload(()=>removeEntryGuard?.())
+onBackPress(()=>{if(closeDetailOverlay())return true;if(getCurrentPages().length<=1){handleGoBack();return true}return false})
+let gesture:{x:number;y:number;valid:boolean}|null=null
+function edgeStart(e:any){
+ const t=e.touches?.[0];if(!t)return
+ let blocked=e.target?.closest?.('uni-swiper,.carousel,.popup,.mask,input,textarea')
+ // #ifdef H5
+ blocked=document.elementFromPoint(t.clientX,t.clientY)?.closest('uni-swiper,.carousel,.popup,.mask,input,textarea') || blocked
+ // #endif
+ gesture={x:t.clientX,y:t.clientY,valid:t.clientX<=24&&!blocked}
+}
+function edgeMove(e:any){
+ const t=e.touches?.[0];if(!t||!gesture?.valid)return
+ if(t.clientX-gesture.x>24 && Math.abs(t.clientY-gesture.y)<Math.abs(t.clientX-gesture.x)/2 && e.cancelable)e.preventDefault()
+}
+function edgeEnd(e:any){
+ const t=e.changedTouches?.[0];if(t&&gesture?.valid&&t.clientX-gesture.x>80&&Math.abs(t.clientY-gesture.y)<50)handleGoBack()
+ gesture=null
+}
+function scrollSection(selector:string){
+ // #ifdef H5
+ const section=document.querySelector(selector) as HTMLElement|null
+ if(section){section.style.scrollMarginTop='80px';section.scrollIntoView({behavior:'smooth',block:'start'});return}
+ // #endif
+ uni.createSelectorQuery().select(selector).boundingClientRect((rect:any)=>{if(rect)uni.pageScrollTo({scrollTop:Math.max(0,scrollY.value+rect.top-80),duration:200})}).exec()
+}
+
 const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consultation?productId=' + product.value.id })
 
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import WatermarkOverlay from '@/components/WatermarkOverlay.vue'
-import { ref, computed } from 'vue'
-import { onLoad, onShow, onPageScroll } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onShow, onPageScroll, onUnload, onBackPress } from '@dcloudio/uni-app'
 import { getTheme, type AppTheme } from '@/utils/theme'
 import { getProductDetailAPI } from '@/apis/product'
 import { getSiteInfoAPI } from '@/apis/home'
@@ -327,6 +384,15 @@ const theme = ref<AppTheme>(getTheme())
 const specClass = ref<'none' | 'show' | 'hide'>('none')
 const attrClass = ref<'none' | 'show' | 'hide'>('none')
 const couponState = ref(0)
+// Each open overlay gets a same-page history entry; browser back closes it first.
+watch([specClass,couponState],([spec,coupon])=>{
+ // #ifdef H5
+ const open=spec==='show'||coupon===1
+ if(open&&!window.history.state?.mallDetailOverlay) window.history.pushState({...window.history.state,mallDetailOverlay:true},'',window.location.href)
+ if(!open&&window.history.state?.mallDetailOverlay) window.history.back()
+ // #endif
+})
+
 
 // 商品数据
 const product = ref<PmsProduct>({} as PmsProduct)
@@ -415,6 +481,8 @@ onShow(() => {
 
 // 页面加载
 onLoad((options) => {
+  fallbackPage.value=options?.zone==='REBUY'?'/pages/zone/rebuy':options?.zone==='PICK'?'/pages/zone/pick':'/pages/index/index'
+  guardDirectEntry()
   // 获取状态栏高度
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 0
@@ -678,7 +746,9 @@ const getSkuStock = (): PmsSkuStock | null => {
 
 // 返回上一页
 const handleGoBack = () => {
-  uni.navigateBack({ delta: 1 })
+  if(closeDetailOverlay()) return
+  if(getCurrentPages().length>1) uni.navigateBack({delta:1,fail:()=>uni.switchTab({url:fallbackPage.value})})
+  else uni.switchTab({url:fallbackPage.value})
 }
 
 // 切换规格弹窗
@@ -1795,3 +1865,9 @@ page {
   color: var(--theme-primary-dark, #e43a55);
 }
 </style>
+
+<style scoped>
+.detail-tabs{display:flex;gap:28px;margin:0 auto;color:#285a62;font-size:15px;font-weight:600}.detail-tabs text{cursor:pointer}.custom-navbar{background:#fffffff2!important;border-bottom:1px solid #edf2f2}.container{overscroll-behavior-x:contain}.nav-back .back-arrow{border-color:#285a62!important}
+</style>
+
+
