@@ -123,6 +123,11 @@ export type ConfirmOrderResult = {
   integrationConsumeSetting: UmsIntegrationConsumeSetting
   /** 会员持有的积分 */
   memberIntegration: number
+  productPointYuanPerPoint: number
+  productPointMaxRatio: number
+  repurchasePointsBalance: number
+  rebuyPointsRatio: number
+  rebuyEligible: boolean
 }
 
 /** 创建订单请求参数（对应API文档 OrderParam） */

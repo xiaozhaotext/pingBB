@@ -92,7 +92,24 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         List<SmsCouponHistoryDetail> couponHistoryDetailList = memberCouponService.listCart(cartPromotionItemList, 1);
         result.setCouponHistoryDetailList(couponHistoryDetailList);
         //获取用户积分
-        result.setMemberIntegration(currentMember.getIntegration());
+        com.macro.mall.portal.domain.UmsPointsAccount productAccount =
+                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_PRODUCT);
+        long productBalance = productAccount == null || productAccount.getAvailable() == null
+                ? 0 : productAccount.getAvailable();
+        result.setMemberIntegration((int) Math.min(productBalance, Integer.MAX_VALUE));
+        result.setProductPointYuanPerPoint(productPointYuanPerPoint());
+        result.setProductPointMaxRatio(productPointMaxRatio());
+        com.macro.mall.portal.domain.UmsPointsAccount repurchaseAccount =
+                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_REPURCHASE);
+        result.setRepurchasePointsBalance(repurchaseAccount == null || repurchaseAccount.getAvailable() == null
+                ? 0 : repurchaseAccount.getAvailable());
+        result.setRebuyPointsRatio(repurchasePointsRatio());
+        result.setRebuyEligible(!cartPromotionItemList.isEmpty() && cartPromotionItemList.stream().allMatch(item -> {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM pms_product_zone WHERE zone_code='REBUY' AND product_id=?",
+                    Integer.class, item.getProductId());
+            return count != null && count > 0;
+        }));
         //获取积分使用规则
         UmsIntegrationConsumeSetting integrationConsumeSetting = integrationConsumeSettingMapper.selectByPrimaryKey(1L);
         result.setIntegrationConsumeSetting(integrationConsumeSetting);
@@ -185,7 +202,11 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //对下单商品的优惠券进行处理
             handleCouponAmount(orderItemList, couponHistoryDetail);
         }
-        //判断是否使用积分
+        if (orderParam.getUseIntegration() != null && orderParam.getUseIntegration() > 0
+                && orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) {
+            Asserts.fail("产品积分与复购积分不能在同一订单叠加使用");
+        }
+        //判断是否使用产品积分
         if (orderParam.getUseIntegration() == null||orderParam.getUseIntegration().equals(0)) {
             //不使用积分
             for (OmsOrderItem orderItem : orderItemList) {
@@ -193,20 +214,11 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
         } else {
             //使用积分
-            BigDecimal totalAmount = calcTotalAmount(orderItemList);
-            BigDecimal integrationAmount = getUseIntegrationAmount(orderParam.getUseIntegration(), totalAmount, currentMember, orderParam.getCouponId() != null);
-            if (integrationAmount.compareTo(new BigDecimal(0)) == 0) {
-                Asserts.fail("积分不可用");
-            } else {
-                //可用情况下分摊到可用商品中
-                for (OmsOrderItem orderItem : orderItemList) {
-                    BigDecimal perAmount = orderItem.getProductPrice().divide(totalAmount, 3, RoundingMode.HALF_EVEN).multiply(integrationAmount);
-                    orderItem.setIntegrationAmount(perAmount);
-                }
-            }
+            BigDecimal integrationAmount = getUseIntegrationAmount(orderParam.getUseIntegration(), orderItemList, currentMember);
+            allocateProductPointDiscount(orderItemList, integrationAmount);
         }
         //计算order_item的实付金额前：处理复购区30%复购积分+70%现金
-        handleRepurchasePoints(orderParam, orderItemList, currentMember, idempotencyKey);
+        BigDecimal repurchaseDeduction = handleRepurchasePoints(orderParam, orderItemList, currentMember);
         //计算order_item的实付金额
         handleRealAmount(orderItemList);
         //进行库存锁定
@@ -232,6 +244,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             order.setIntegrationAmount(calcIntegrationAmount(orderItemList));
         }
         order.setPayAmount(calcPayAmount(order));
+        if (order.getPayAmount().signum() < 0) Asserts.fail("订单应付金额不能小于 0");
+        order.setUseIntegration(orderParam.getUseIntegration() == null ? 0 : orderParam.getUseIntegration());
         //转化为订单信息并插入数据库
         order.setMemberId(currentMember.getId());
         order.setCreateTime(new Date());
@@ -273,6 +287,14 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // TODO: 2018/9/3 bill_*,delivery_*
         //插入order表和order_item表
         orderMapper.insert(order);
+        if (order.getUseIntegration() != null && order.getUseIntegration() > 0) {
+            consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_PRODUCT,
+                    "PRODUCT", order.getUseIntegration(), order.getIntegrationAmount());
+        }
+        if (orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) {
+            consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_REPURCHASE,
+                    "REPURCHASE", orderParam.getUseRepurchasePoints(), repurchaseDeduction);
+        }
         for (OmsOrderItem orderItem : orderItemList) {
             orderItem.setOrderId(order.getId());
             orderItem.setOrderSn(order.getOrderSn());
@@ -287,13 +309,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             updateCouponStatus(orderParam.getCouponId(), currentMember.getId(), 1);
         }
         //如使用积分需要扣除积分
-        if (orderParam.getUseIntegration() != null) {
-            order.setUseIntegration(orderParam.getUseIntegration());
-            if(currentMember.getIntegration()==null){
-                currentMember.setIntegration(0);
-            }
-            memberService.updateIntegration(currentMember.getId(), currentMember.getIntegration() - orderParam.getUseIntegration());
-        }
         //删除购物车中的下单商品
         deleteCartItemList(cartPromotionItemList, currentMember);
         //发送延迟消息取消订单
@@ -381,11 +396,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
             //修改优惠券使用状态
             updateCouponStatus(cancelOrder.getCouponId(), cancelOrder.getMemberId(), 0);
-            //返还使用积分
-            if (cancelOrder.getUseIntegration() != null) {
-                UmsMember member = memberService.getById(cancelOrder.getMemberId());
-                memberService.updateIntegration(cancelOrder.getMemberId(), member.getIntegration() + cancelOrder.getUseIntegration());
-            }
+            refundOrderPoints(cancelOrder);
         }
     }
 
@@ -671,38 +682,61 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         return promotionAmount;
     }
 
-    /**
-     * 获取可用积分抵扣金额
-     *
-     * @param useIntegration 使用的积分数量
-     * @param totalAmount    订单总金额
-     * @param currentMember  使用的用户
-     * @param hasCoupon      是否已经使用优惠券
-     */
-    private BigDecimal getUseIntegrationAmount(Integer useIntegration, BigDecimal totalAmount, UmsMember currentMember, boolean hasCoupon) {
-        BigDecimal zeroAmount = new BigDecimal(0);
-        //判断用户是否有这么多积分
-        if (useIntegration.compareTo(currentMember.getIntegration()) > 0) {
-            return zeroAmount;
+    private BigDecimal configuredPointDecimal(String key, BigDecimal fallback, boolean ratio) {
+        try {
+            String raw = jdbcTemplate.queryForObject(
+                    "SELECT config_value FROM sys_config WHERE config_key=?", String.class, key);
+            BigDecimal value = new BigDecimal(raw);
+            if (value.signum() > 0 && (!ratio || value.compareTo(BigDecimal.ONE) <= 0)) return value;
+        } catch (Exception ignored) { }
+        return fallback;
+    }
+
+    private BigDecimal productPointYuanPerPoint() {
+        return configuredPointDecimal("product.points.yuan_per_point", BigDecimal.ONE, false);
+    }
+
+    private BigDecimal productPointMaxRatio() {
+        return configuredPointDecimal("product.points.max_ratio", BigDecimal.ONE, true);
+    }
+
+    private BigDecimal getUseIntegrationAmount(Integer useIntegration, List<OmsOrderItem> items, UmsMember member) {
+        if (useIntegration == null || useIntegration <= 0) Asserts.fail("产品积分必须大于 0");
+        com.macro.mall.portal.domain.UmsPointsAccount account =
+                pointsWalletService.getAccount(member.getId(), PointsWalletService.TYPE_PRODUCT);
+        long available = account == null || account.getAvailable() == null ? 0 : account.getAvailable();
+        if (available < useIntegration) Asserts.fail("产品积分余额不足");
+        BigDecimal amount = productPointYuanPerPoint().multiply(BigDecimal.valueOf(useIntegration));
+        if (amount.scale() > 2) Asserts.fail("产品积分换算金额最多支持两位小数");
+        BigDecimal netAmount = calcTotalAmount(items)
+                .subtract(calcPromotionAmount(items)).subtract(calcCouponAmount(items));
+        if (netAmount.signum() <= 0 || amount.compareTo(netAmount.multiply(productPointMaxRatio())) > 0) {
+            Asserts.fail("产品积分最多抵扣当前应付商品金额");
         }
-        //根据积分使用规则判断是否可用
-        //是否可与优惠券共用
-        UmsIntegrationConsumeSetting integrationConsumeSetting = integrationConsumeSettingMapper.selectByPrimaryKey(1L);
-        if (hasCoupon && integrationConsumeSetting.getCouponStatus().equals(0)) {
-            //不可与优惠券共用
-            return zeroAmount;
+        return amount.setScale(2, RoundingMode.UNNECESSARY);
+    }
+
+    private void allocateProductPointDiscount(List<OmsOrderItem> items, BigDecimal amount) {
+        BigDecimal netTotal = calcTotalAmount(items)
+                .subtract(calcPromotionAmount(items)).subtract(calcCouponAmount(items));
+        BigDecimal remaining = amount;
+        for (int i = 0; i < items.size(); i++) {
+            OmsOrderItem item = items.get(i);
+            BigDecimal unitNet = item.getProductPrice().subtract(item.getPromotionAmount())
+                    .subtract(item.getCouponAmount());
+            BigDecimal lineNet = unitNet.multiply(BigDecimal.valueOf(item.getProductQuantity()));
+            BigDecimal lineDiscount = i == items.size() - 1 ? remaining
+                    : amount.multiply(lineNet).divide(netTotal, 2, RoundingMode.DOWN);
+            try {
+                BigDecimal perUnit = lineDiscount.divide(BigDecimal.valueOf(item.getProductQuantity()),
+                        2, RoundingMode.UNNECESSARY);
+                if (perUnit.signum() < 0 || perUnit.compareTo(unitNet) > 0) Asserts.fail("积分分摊金额无效");
+                item.setIntegrationAmount(perUnit);
+            } catch (ArithmeticException ex) {
+                Asserts.fail("当前多件商品的积分金额无法按分分摊，请调整积分数或分开下单");
+            }
+            remaining = remaining.subtract(lineDiscount);
         }
-        //是否达到最低使用积分门槛
-        if (useIntegration.compareTo(integrationConsumeSetting.getUseUnit()) < 0) {
-            return zeroAmount;
-        }
-        //是否超过订单抵用最高百分比
-        BigDecimal integrationAmount = new BigDecimal(useIntegration).divide(new BigDecimal(integrationConsumeSetting.getUseUnit()), 2, RoundingMode.HALF_EVEN);
-        BigDecimal maxPercent = new BigDecimal(integrationConsumeSetting.getMaxPercentPerOrder()).divide(new BigDecimal(100), 2, RoundingMode.HALF_EVEN);
-        if (integrationAmount.compareTo(totalAmount.multiply(maxPercent)) > 0) {
-            return zeroAmount;
-        }
-        return integrationAmount;
     }
 
     /**
@@ -725,9 +759,9 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         return fallback;
     }
 
-    private void handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember, String orderIdempotencyKey) {
+    private BigDecimal handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember) {
         Long usePoints = orderParam.getUseRepurchasePoints();
-        if (usePoints == null || usePoints <= 0) return;
+        if (usePoints == null || usePoints <= 0) return BigDecimal.ZERO;
         // 校验订单商品是否全部来自复购区
         for (OmsOrderItem item : orderItemList) {
             Integer count = jdbcTemplate.queryForObject(
@@ -737,10 +771,12 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 Asserts.fail("复购积分仅可用于复购区商品");
             }
         }
-        BigDecimal totalAmount = calcTotalAmount(orderItemList);
+        BigDecimal totalAmount = calcTotalAmount(orderItemList)
+                .subtract(calcPromotionAmount(orderItemList)).subtract(calcCouponAmount(orderItemList));
+        if (totalAmount.signum() <= 0) Asserts.fail("复购区订单应付金额无效");
         // 抵扣比例由后台配置 rebuy.points.ratio 决定（默认 0.30 = 30% 积分 + 70% 现金）
         BigDecimal ratio = repurchasePointsRatio();
-        BigDecimal maxDeduct = totalAmount.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal maxDeduct = totalAmount.multiply(ratio).setScale(2, RoundingMode.DOWN);
         BigDecimal deductAmount = new BigDecimal(usePoints).setScale(2, RoundingMode.HALF_UP);
         if (deductAmount.compareTo(maxDeduct) > 0) {
             Asserts.fail("复购积分最多抵扣订单金额的 " + ratio.multiply(new BigDecimal("100")).stripTrailingZeros().toPlainString() + "%");
@@ -748,31 +784,75 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // 校验余额并扣减（幂等键与订单绑定）
         com.macro.mall.portal.domain.UmsPointsAccount account =
                 pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_REPURCHASE);
-        long balance = account == null || account.getBalance() == null ? 0 : account.getBalance();
+        long balance = account == null || account.getAvailable() == null ? 0 : account.getAvailable();
         if (balance < usePoints) {
             Asserts.fail("复购积分余额不足");
         }
+        BigDecimal beforePromotion = calcPromotionAmount(orderItemList);
         // 按商品金额比例分摊抵扣
         for (OmsOrderItem orderItem : orderItemList) {
-            // 分摊基数必须是「单价 x 数量」的行小计，否则多件商品会分错
             BigDecimal lineAmount = orderItem.getProductPrice()
+                    .subtract(orderItem.getPromotionAmount()).subtract(orderItem.getCouponAmount())
                     .multiply(new BigDecimal(orderItem.getProductQuantity()));
             BigDecimal perAmount = lineAmount.divide(totalAmount, 6, RoundingMode.HALF_EVEN)
-                    .multiply(deductAmount);
+                    .multiply(deductAmount).divide(BigDecimal.valueOf(orderItem.getProductQuantity()),
+                            2, RoundingMode.HALF_UP);
             // 复用 promotionAmount 字段记录复购积分抵扣（前端展示为优惠）
             orderItem.setPromotionAmount(orderItem.getPromotionAmount().add(perAmount));
         }
-        // 实际扣减积分（下单成功后执行，失败则整个事务回滚）
-        // 幂等键由下单幂等键派生（不掺时间戳），保证重试不会重复扣减复购积分
-        String idempotencyKey = "order:repurchase:"
-                + (orderIdempotencyKey == null || orderIdempotencyKey.isBlank()
-                    ? currentMember.getId() + ":" + usePoints + ":" + deductAmount
-                    : orderIdempotencyKey);
-        com.macro.mall.common.api.CommonResult<Void> result = pointsWalletService.changePoints(
-                currentMember.getId(), PointsWalletService.TYPE_REPURCHASE, "consume", -usePoints,
-                "order", idempotencyKey, null, "复购区订单抵扣");
-        if (result.getCode() != 200) {
-            Asserts.fail("复购积分扣减失败: " + result.getMessage());
+        if (calcPromotionAmount(orderItemList).subtract(beforePromotion).compareTo(deductAmount) != 0) {
+            Asserts.fail("复购积分金额无法按分分摊，请调整购买数量");
+        }
+        return deductAmount;
+    }
+
+    private void consumeOrderPoints(long orderId, long memberId, int walletType, String pointType,
+                                    long points, BigDecimal amount) {
+        com.macro.mall.common.api.CommonResult<Void> changed = pointsWalletService.changePoints(
+                memberId, walletType, "consume", -points, Long.toString(orderId),
+                "order:points:" + orderId + ":" + pointType, null, "商品订单积分抵扣");
+        if (changed.getCode() != 200) Asserts.fail("积分扣减失败: " + changed.getMessage());
+        com.macro.mall.portal.domain.UmsPointsAccount account = pointsWalletService.getAccount(memberId, walletType);
+        if (account == null || account.getBalance() == null) Asserts.fail("积分扣减后余额读取失败");
+        jdbcTemplate.update("INSERT INTO oms_order_point_usage(order_id,member_id,point_type,used_points,deducted_amount)"
+                        + " VALUES(?,?,?,?,?)", orderId, memberId, pointType, points, amount);
+        jdbcTemplate.update("INSERT INTO member_point_ledger"
+                        + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
+                        + " VALUES(?,?,?,?,'PURCHASE_DEDUCTION',?)",
+                memberId, pointType, -points, account.getBalance(), orderId);
+        if (walletType == PointsWalletService.TYPE_PRODUCT) {
+            jdbcTemplate.update("UPDATE ums_member SET integration=? WHERE id=?", account.getBalance(), memberId);
+        }
+    }
+
+    private void refundOrderPoints(OmsOrder order) {
+        List<Map<String, Object>> usage = jdbcTemplate.queryForList(
+                "SELECT point_type,used_points FROM oms_order_point_usage WHERE order_id=? FOR UPDATE", order.getId());
+        for (Map<String, Object> row : usage) {
+            String pointType = (String) row.get("point_type");
+            int walletType = "PRODUCT".equals(pointType) ? PointsWalletService.TYPE_PRODUCT
+                    : PointsWalletService.TYPE_REPURCHASE;
+            long points = ((Number) row.get("used_points")).longValue();
+            com.macro.mall.common.api.CommonResult<Void> changed = pointsWalletService.changePoints(
+                    order.getMemberId(), walletType, "earn", points, Long.toString(order.getId()),
+                    "order:points-refund:" + order.getId() + ":" + pointType, null, "未支付订单取消返还积分");
+            if (changed.getCode() != 200) Asserts.fail("积分返还失败: " + changed.getMessage());
+            com.macro.mall.portal.domain.UmsPointsAccount account =
+                    pointsWalletService.getAccount(order.getMemberId(), walletType);
+            if (account == null || account.getBalance() == null) Asserts.fail("积分返还后余额读取失败");
+            jdbcTemplate.update("INSERT INTO member_point_ledger"
+                            + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
+                            + " VALUES(?,?,?,?,'REFUND',?)",
+                    order.getMemberId(), pointType, points, account.getBalance(), order.getId());
+            if (walletType == PointsWalletService.TYPE_PRODUCT) {
+                jdbcTemplate.update("UPDATE ums_member SET integration=? WHERE id=?",
+                        account.getBalance(), order.getMemberId());
+            }
+        }
+        if (usage.isEmpty() && order.getUseIntegration() != null && order.getUseIntegration() > 0) {
+            // Older orders predate the dedicated wallet debit ledger.
+            UmsMember member = memberService.getById(order.getMemberId());
+            memberService.updateIntegration(order.getMemberId(), member.getIntegration() + order.getUseIntegration());
         }
     }
 

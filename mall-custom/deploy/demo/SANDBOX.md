@@ -9,14 +9,16 @@
 ```powershell
 $env:VITE_API_BASE_URL='/sandbox/portal'
 $env:VITE_SANDBOX_MODE='true'
+$env:VITE_USE_MOCK_PAYMENT='true'
 npm run build:h5
-Remove-Item Env:VITE_API_BASE_URL,Env:VITE_SANDBOX_MODE
+Remove-Item Env:VITE_API_BASE_URL,Env:VITE_SANDBOX_MODE,Env:VITE_USE_MOCK_PAYMENT
 ```
 
 将 `dist/build/h5/` 部署到 `/opt/mall-demo/sandbox/`。测试脚本在服务器上运行：
 
 ```sh
 python3 /home/ubuntu/workspace/test-sandbox-membership.py
+python3 /home/ubuntu/workspace/test-sandbox-product-points.py
 ```
 
-脚本创建两个随机测试会员，绑定直属推荐关系，演示购买合伙人并全价升级联创，随后核对订单、双积分流水、身份变更、直推现金和重复确认的幂等性。它拒绝连接非本机的 API。正式微信/支付宝收款、短信、提现打款和分红发放不由这个沙箱验证。
+第一段脚本创建两个随机测试会员，绑定直属推荐关系，演示购买合伙人并全价升级联创，随后核对订单、双积分流水、身份变更、直推现金和重复确认的幂等性。第二段脚本用真实商品目录各买一笔自选区和复购区商品，核对全额产品积分抵扣、30% 复购积分抵扣、支付幂等和取消退积分。脚本拒绝连接非本机的 API。正式微信/支付宝收款、短信、提现打款和分红发放不由这个沙箱验证。

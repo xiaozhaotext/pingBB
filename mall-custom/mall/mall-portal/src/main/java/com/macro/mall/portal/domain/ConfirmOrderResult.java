@@ -26,6 +26,16 @@ public class ConfirmOrderResult {
     private UmsIntegrationConsumeSetting integrationConsumeSetting;
     @Schema(title = "会员持有的积分")
     private Integer memberIntegration;
+    @Schema(title = "每产品积分抵扣金额（元）")
+    private BigDecimal productPointYuanPerPoint;
+    @Schema(title = "产品积分最高抵扣比例")
+    private BigDecimal productPointMaxRatio;
+    @Schema(title = "购物车商品是否全部属于复购区")
+    private Boolean rebuyEligible;
+    @Schema(title = "可用复购积分")
+    private Long repurchasePointsBalance;
+    @Schema(title = "复购积分抵扣比例")
+    private BigDecimal rebuyPointsRatio;
     @Schema(title = "计算的金额")
     private CalcAmount calcAmount;
 

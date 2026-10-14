@@ -98,6 +98,8 @@ public class SystemSettingService {
         keys.put("share.order.bonus.enabled", new KeySpec(GROUP_DISTRIBUTION, "分享下单奖励开关", false, SystemSettingService::validateSwitch));
         keys.put("share.order.bonus", new KeySpec(GROUP_DISTRIBUTION, "分享每单奖励(元)", false, SystemSettingService::validateNonNegativeDecimal));
         keys.put("rebuy.points.ratio", new KeySpec(GROUP_DISTRIBUTION, "复购区积分抵扣比例(0-1)", false, SystemSettingService::validateRatio));
+        keys.put("product.points.yuan_per_point", new KeySpec(GROUP_DISTRIBUTION, "每产品积分抵扣金额(元)", false, SystemSettingService::validatePositiveDecimal));
+        keys.put("product.points.max_ratio", new KeySpec(GROUP_DISTRIBUTION, "产品积分单笔最高抵扣比例(0-1)", false, SystemSettingService::validateRatio));
         keys.put("withdraw.fee_rate", new KeySpec(GROUP_DISTRIBUTION, "提现手续费率(0-1)", false, SystemSettingService::validateRatio));
         keys.put("withdraw.min_amount", new KeySpec(GROUP_DISTRIBUTION, "单笔提现最低金额(元)", false, SystemSettingService::validateNonNegativeDecimal));
         keys.put("sms.provider", new KeySpec(GROUP_SMS, "短信服务商（aliyun/tencent，空=未配置）", false, SystemSettingService::validateSmsProvider));
@@ -363,6 +365,13 @@ public class SystemSettingService {
             // fall through
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "必须为不小于 0 的金额（最多 2 位小数）");
+    }
+
+    private static void validatePositiveDecimal(String value) {
+        validateNonNegativeDecimal(value);
+        if (value.isEmpty() || new java.math.BigDecimal(value).signum() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "金额必须大于 0");
+        }
     }
 
     private static void validateDecimalOrBlank(String value) {

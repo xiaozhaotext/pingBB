@@ -60,11 +60,12 @@
           placeholder-class="placeholder"
           @input="handleIntegrationInput"
         />
+        <text class="cell-tip">可用 {{ memberIntegration }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="hasRebuyGoods">
         <view class="cell-icon hb">复</view>
-        <text class="cell-tit clamp">复购积分抵扣30%</text>
-        <switch :checked="useRepurchasePoints" @change="useRepurchasePoints = $event.detail.value" />
+        <text class="cell-tit clamp">复购积分抵扣{{ Math.round(rebuyPointsRatio * 100) }}%（可用 {{ repurchasePointsBalance }}）</text>
+        <switch :checked="useRepurchasePoints" @change="handleRepurchaseToggle" />
       </view>
     </view>
 
@@ -90,6 +91,10 @@
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">积分抵扣</text>
         <text class="cell-tip red">-￥{{ calcIntegrationAmount(useIntegration) }}</text>
+      </view>
+      <view class="yt-list-cell b-b" v-if="useRepurchasePoints">
+        <text class="cell-tit clamp">复购积分抵扣</text>
+        <text class="cell-tip red">-￥{{ repurchaseDeductionPoints }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
         <text class="cell-tit clamp">备注</text>
@@ -178,7 +183,12 @@ const useIntegration = ref(0)
 // 是否使用复购积分（仅复购区商品）
 const useRepurchasePoints = ref(false)
 // 复购区商品标识（从购物车商品判断，暂默认显示由后端校验）
-const hasRebuyGoods = ref(true)
+const hasRebuyGoods = ref(false)
+const productPointYuanPerPoint = ref(1)
+const productPointMaxRatio = ref(1)
+const repurchasePointsBalance = ref(0)
+const rebuyPointsRatio = ref(0.3)
+const repurchaseDeductionPoints = ref(0)
 // 积分消费设置
 const integrationConsumeSetting = ref<UmsIntegrationConsumeSetting>(
   {} as UmsIntegrationConsumeSetting,
@@ -207,6 +217,12 @@ const loadData = async () => {
     calcAmount.value = data.calcAmount
     integrationConsumeSetting.value = data.integrationConsumeSetting
     memberIntegration.value = data.memberIntegration
+    productPointYuanPerPoint.value = data.productPointYuanPerPoint
+    productPointMaxRatio.value = data.productPointMaxRatio
+    repurchasePointsBalance.value = data.repurchasePointsBalance
+    rebuyPointsRatio.value = data.rebuyPointsRatio
+    hasRebuyGoods.value = data.rebuyEligible
+    calcPayAmount()
   } catch (e) {
     console.error('加载确认单失败', e)
   }
@@ -270,7 +286,7 @@ const handleSubmit = async () => {
     cartIds: cartIds.value.map(Number),
     memberReceiveAddressId: currentAddress.value?.id as number | undefined,
     useIntegration: useIntegration.value,
-    useRepurchasePoints: useRepurchasePoints.value ? Math.floor(calcAmount.value.totalAmount * 0.3) : 0,
+    useRepurchasePoints: useRepurchasePoints.value ? repurchaseDeductionPoints.value : 0,
   }
   if (currCoupon.value != null) {
     orderParam.couponId = currCoupon.value.id
@@ -326,37 +342,52 @@ const getDefaultAddress = () => {
 // 计算支付金额
 const calcPayAmount = () => {
   calcAmount.value.payAmount =
-    calcAmount.value.totalAmount - calcAmount.value.promotionAmount - calcAmount.value.freightAmount
+    calcAmount.value.totalAmount - calcAmount.value.promotionAmount + calcAmount.value.freightAmount
   if (currCoupon.value != null) {
     calcAmount.value.payAmount = calcAmount.value.payAmount - currCoupon.value.amount
   }
+  repurchaseDeductionPoints.value = useRepurchasePoints.value
+    ? Math.floor(Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
+      - (currCoupon.value?.amount || 0)) * rebuyPointsRatio.value)
+    : 0
   if (useIntegration.value !== 0) {
     calcAmount.value.payAmount =
       calcAmount.value.payAmount - calcIntegrationAmount(useIntegration.value)
   }
+  calcAmount.value.payAmount = Math.max(0, Number((calcAmount.value.payAmount - repurchaseDeductionPoints.value).toFixed(2)))
 }
 
 // 积分转金额
 const calcIntegrationAmount = (integration: number) => {
-  if (integrationConsumeSetting.value == undefined || integrationConsumeSetting.value == null) {
-    return 0
-  }
-  if (integrationConsumeSetting.value.couponStatus === 0) {
-    return 0
-  }
-  return integration / integrationConsumeSetting.value.deductionPerAmount
+  return Number((integration * productPointYuanPerPoint.value).toFixed(2))
 }
 
 // 积分输入处理
 const handleIntegrationInput = (event: any) => {
-  const value = Number(event.detail.value)
-  if (value > memberIntegration.value) {
-    useIntegration.value = memberIntegration.value
+  const value = Math.max(0, Math.floor(Number(event.detail.value) || 0))
+  const payable = Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
+    - (currCoupon.value?.amount || 0))
+  const maxPoints = Math.floor(payable * productPointMaxRatio.value / productPointYuanPerPoint.value)
+  useIntegration.value = Math.min(value, memberIntegration.value, maxPoints)
+  if (value > useIntegration.value) {
     uni.showToast({
-      title: `您的积分只有${memberIntegration.value}`,
+      title: `本单最多使用${useIntegration.value}产品积分`,
       duration: 1000,
     })
   }
+  if (useIntegration.value > 0) useRepurchasePoints.value = false
+  calcPayAmount()
+}
+
+const handleRepurchaseToggle = (event: any) => {
+  useRepurchasePoints.value = Boolean(event.detail.value)
+  const required = Math.floor(Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
+    - (currCoupon.value?.amount || 0)) * rebuyPointsRatio.value)
+  if (useRepurchasePoints.value && repurchasePointsBalance.value < required) {
+    useRepurchasePoints.value = false
+    uni.showToast({ icon: 'none', title: `复购积分不足，需要${required}积分` })
+  }
+  if (useRepurchasePoints.value) useIntegration.value = 0
   calcPayAmount()
 }
 
