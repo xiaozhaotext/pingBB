@@ -41,7 +41,8 @@ public class P0AdminController {
         int offset = (Math.max(page, 1) - 1) * limit;
         String like = "%" + keyword.trim() + "%";
         return CommonResult.success(jdbc.queryForList(
-                "SELECT m.id,m.username,m.nickname,m.phone,m.status,m.create_time," +
+                "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time," +
+                "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
                 "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id " +
                 "FROM ums_member m LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
                 "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
@@ -53,7 +54,9 @@ public class P0AdminController {
     public CommonResult<Map<String, Object>> member(Principal principal, @PathVariable long memberId) {
         access.requireAuthorized(principal);
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT id,username,nickname,phone,status,create_time,member_level_id FROM ums_member WHERE id=?", memberId);
+                "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,m.member_level_id," +
+                "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count " +
+                "FROM ums_member m WHERE m.id=?", memberId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会员不存在");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("profile", rows.get(0));

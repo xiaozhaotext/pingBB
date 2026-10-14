@@ -68,7 +68,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [
       { path: 'management', name: 'memberManagement', component: RouterView, redirect: '/memberMgr/management/list', meta: { title: '会员管理', icon: 'ums-role' }, children: [
         { path: 'list', name: 'memberMgrList', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员列表', icon: 'user', section: 'p0Members' } },
-        { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), meta: { title: '会员身份', icon: 'ums-role' } },
+        { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), hidden: true, meta: { title: '会员身份', icon: 'ums-role' } },
       ] },
       { path: 'operations', name: 'memberOperations', component: RouterView, redirect: '/memberMgr/operations/stats', meta: { title: '会员操作', icon: 'form' }, children: [
         { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理', icon: 'ums-role', section: 'p0Partner' } },
@@ -103,21 +103,27 @@ export const asyncRouterMap: RouteRecordExt[] = [
   },
   // 6 服务中心
   {
-    path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/desktop/big-data', name: 'serviceMgr', alwaysShow: true,
+    path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,
     meta: { title: '服务中心', icon: 'ums' },
     children: [
-      { path: 'desktop', name: 'serviceDesktop', component: RouterView, redirect: '/serviceMgr/desktop/big-data', meta: { title: '后台桌面', icon: 'dashboard' }, children: [
-        { path: 'big-data', name: 'serviceDesktopData', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '大数据界面', icon: 'dashboard' } },
-        { path: 'cache-clear', name: 'desktopClearCache', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '清除缓存', icon: 'refresh', section: 'cache' } },
-        { path: 'user', name: 'serviceDesktopUser', component: RouterView, redirect: '/serviceMgr/desktop/user/system-home', meta: { title: '用户', icon: 'user' }, children: [
-          { path: 'system-home', name: 'serviceDesktopHome', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '系统首页', icon: 'dashboard' } },
-          { path: 'account', name: 'serviceDesktopPassword', component: () => import('@/views/account/Account.vue'), meta: { title: '修改密码', icon: 'password' } },
-          { path: 'lock', name: 'desktopLock', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '系统锁屏', icon: 'lock', desktopAction: 'lock' } },
-          { path: 'logout', name: 'desktopLogout', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '退出系统', icon: 'logout', desktopAction: 'logout' } },
-        ] },
-      ] },
       { path: 'account', name: 'serviceAccount', component: () => import('@/views/account/Account.vue'), meta: { title: '账号与安全', icon: 'password' } },
       { path: 'privacy', name: 'servicePrivacy', component: () => import('@/views/p0/SiteProfile.vue'), meta: { title: '隐私政策', icon: 'form' } },
+    ],
+  },
+
+  // 后台桌面与服务中心同为一级菜单。
+  {
+    path: '/desktop', component: Layout, redirect: '/desktop/big-data', name: 'serviceDesktop', alwaysShow: true,
+    meta: { title: '后台桌面', icon: 'dashboard' },
+    children: [
+      { path: 'big-data', name: 'serviceDesktopData', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '大数据界面', icon: 'dashboard' } },
+      { path: 'cache-clear', name: 'desktopClearCache', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '清除缓存', icon: 'refresh', section: 'cache' } },
+      { path: 'user', name: 'serviceDesktopUser', component: RouterView, redirect: '/desktop/user/system-home', meta: { title: '用户', icon: 'user' }, children: [
+        { path: 'system-home', name: 'serviceDesktopHome', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '系统首页', icon: 'dashboard' } },
+        { path: 'account', name: 'serviceDesktopPassword', component: () => import('@/views/account/Account.vue'), meta: { title: '修改密码', icon: 'password' } },
+        { path: 'lock', name: 'desktopLock', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '系统锁屏', icon: 'lock', desktopAction: 'lock' } },
+        { path: 'logout', name: 'desktopLogout', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '退出系统', icon: 'logout', desktopAction: 'logout' } },
+      ] },
     ],
   },
 

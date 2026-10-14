@@ -6,7 +6,7 @@ import { getP0, postP0, type P0Row } from '@/apis/p0'
 
 type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings' | 'p0SmsSettings'
 const sections: Record<SectionKey, { title: string; path: string; note: string }> = {
-  p0Members: { title: '会员管理', path: 'members', note: '平台管理员可调整会员身份与直属推荐人，操作写入审计。' },
+  p0Members: { title: '会员列表', path: 'members', note: '选择会员查看身份、会员操作、登录权限和列表信息。身份及推荐关系变更写入审计。' },
   p0Partner: { title: '合伙人管理', path: 'partner', note: '权益方案与购买记录均来自测试数据库；模拟购买入口尚未开放给消费者。' },
   p0Cofounder: { title: '联创管理', path: 'cofounder', note: '所有金额与权益仅用于模拟展示，不产生真实分红。' },
   p0Points: { title: '双积分管理', path: 'points', note: '调整先申请后审核，余额和流水在同一数据库事务中更新。' },
@@ -28,6 +28,7 @@ const memberKeyword = ref('')
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
+const memberDetailTab = ref('identity')
 const identityType = ref(0)
 const identityReason = ref('')
 const referrerId = ref<number | null>(null)
@@ -65,7 +66,8 @@ const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings
   ? settingOptions.filter(option => option.key.startsWith('sms.'))
   : settingOptions)
 const labels: Record<string, string> = {
-  id: '编号', member_id: '会员编号', username: '账号', nickname: '昵称', phone: '手机', status: '状态',
+  id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
+  real_name: '真实姓名', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
   identity_type: '身份', inviter_id: '推荐人', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
@@ -116,6 +118,7 @@ async function openMember(id: number) {
     const response = await getP0<Record<string, unknown>>(`members/${id}`)
     memberDetail.value = response.data
     memberId.value = id
+    memberDetailTab.value = 'identity'
     drawerOpen.value = true
     const current = rows(response.data.identity)[0]
     identityType.value = Number(current?.identity_type ?? 0)
@@ -239,22 +242,34 @@ const groupTitles: Record<string, string> = {
       </el-card>
     </section>
 
-    <el-drawer v-model="drawerOpen" title="会员详情与身份调整" size="520px" :modal="true" @closed="memberId = null">
+    <el-drawer v-model="drawerOpen" title="会员列表 · 会员详情" size="min(720px, 100vw)" :modal="true" @closed="memberId = null">
       <template v-if="memberDetail">
-        <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
-        <h3>登录权限</h3><el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
-        <h3>收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
-        <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
-        <h3>订单与专区</h3><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
-        <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
-        <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
-        <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />
-        <el-button type="primary" style="margin-top:12px" @click="changeReferrer">保存推荐人并审计</el-button>
-        <h3>调整身份</h3>
-        <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
-        <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
-        <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
-        <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
+        <el-tabs v-model="memberDetailTab" class="member-detail-tabs">
+          <el-tab-pane label="会员身份" name="identity">
+            <p>当前身份：{{ ['普通会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
+            <h3>调整身份</h3>
+            <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
+            <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
+            <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
+            <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
+          </el-tab-pane>
+          <el-tab-pane label="会员操作" name="operations">
+            <h3>查看收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
+            <h3>查看自选 / 复购商品订单</h3><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
+            <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
+            <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
+            <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
+            <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />
+            <el-button type="primary" style="margin-top:12px" @click="changeReferrer">保存推荐人并审计</el-button>
+          </el-tab-pane>
+          <el-tab-pane label="允许登录" name="login">
+            <p>当前状态：{{ Number((memberDetail.profile as P0Row).status) === 1 ? '允许登录' : '禁止登录' }}</p>
+            <el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
+          </el-tab-pane>
+          <el-tab-pane label="列表信息" name="profile">
+            <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
+          </el-tab-pane>
+        </el-tabs>
       </template>
     </el-drawer>
   </main>
