@@ -132,8 +132,10 @@ public class UmsAdminServiceImpl implements UmsAdminService {
         HttpServletRequest request = attributes.getRequest();
         loginLog.setIp(RequestUtil.getRequestIp(request));
         String userAgent = request.getHeader("User-Agent");
-        if (userAgent != null && userAgent.length() > 500) {
-            userAgent = userAgent.substring(0, 500);
+        // ums_admin_login_log.user_agent is VARCHAR(100). A longer mobile browser
+        // header must never roll back an otherwise successful administrator login.
+        if (userAgent != null && userAgent.length() > 100) {
+            userAgent = userAgent.substring(0, 100);
         }
         loginLog.setUserAgent(userAgent);
         // address（归属地）需 IP 地理库支持，暂不伪造，保持为空
