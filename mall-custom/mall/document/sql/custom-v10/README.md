@@ -71,6 +71,7 @@ mysql -u<user> -p<pass> mall < rollback_all.sql
 | 分红池 | 08 | `dividend_contribution_event`, `dividend_daily_stat`, `dividend_snapshot`, `dividend_allocate_detail`, `dividend_exception_audit` |
 | H 商城体验 | 09 | `biz_consult_message`, `biz_share_log` |
 | P0 管理后台 | 10 | `p0_points_adjust_request`，后台 RBAC 资源与菜单 |
+| 后台商品 API 兼容权限 | 36 | `ums_resource`, `ums_role_resource_relation`；仅平台管理员角色 |
 
 ## 关键设计约束（来自需求）
 
@@ -84,3 +85,4 @@ mysql -u<user> -p<pass> mall < rollback_all.sql
 
 通用响应：`{ "code": 200, "message": "success", "data": ... }`
 时间统一 ISO8601；金额字段单位：积分=整数，金额=元(decimal, 模拟标识)。
+

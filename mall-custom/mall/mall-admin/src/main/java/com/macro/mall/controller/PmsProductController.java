@@ -21,7 +21,7 @@ import java.util.List;
  */
 @Controller
 @Tag(name = "PmsProductController", description = "商品管理")
-@RequestMapping("/product")
+@RequestMapping({"/product", "/pms/product"})
 public class PmsProductController {
     @Autowired
     private PmsProductService productService;
