@@ -37,8 +37,8 @@
 
 <script setup lang="ts">
 import MainNavigation from '@/components/MainNavigation.vue'
-const goTab = (url: string) => uni.switchTab({ url })
-const goPage = (url: string) => uni.navigateTo({ url })
+const goTab = (url: string) => url.startsWith('/pages/zone/') ? uni.navigateTo({ url }) : uni.switchTab({ url })
+const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
 
 import { ref, computed } from 'vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'

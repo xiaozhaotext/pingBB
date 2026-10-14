@@ -381,16 +381,16 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/zone/pick",
-        "iconPath": "static/tab-cate.png",
-        "selectedIconPath": "static/tab-cate-current.png",
-        "text": "自选区"
-      },
-      {
-        "pagePath": "pages/zone/rebuy",
+        "pagePath": "pages/cart/cart",
         "iconPath": "static/tab-cart.png",
         "selectedIconPath": "static/tab-cart-current.png",
-        "text": "复购区"
+        "text": "购物车"
+      },
+      {
+        "pagePath": "pages/member/promotion",
+        "iconPath": "static/tab-cate.png",
+        "selectedIconPath": "static/tab-cate-current.png",
+        "text": "分销"
       },
       {
         "pagePath": "pages/user/user",

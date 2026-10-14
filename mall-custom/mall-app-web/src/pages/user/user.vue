@@ -110,6 +110,10 @@ const handleNavTo = (url: string) => {
   if (!hasLogin.value) {
     url = '/pages/public/login'
   }
+  if (url === '/pages/member/promotion') {
+    uni.switchTab({ url })
+    return
+  }
   uni.navigateTo({
     url,
   })

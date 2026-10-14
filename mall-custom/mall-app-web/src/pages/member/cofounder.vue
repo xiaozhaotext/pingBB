@@ -87,7 +87,7 @@ const handleBuy = async () => {
       payHint.value = '支付已完成，权益生效中…'
       uni.showToast({ icon: 'success', title: '支付成功' })
       setTimeout(() => {
-        uni.redirectTo({ url: '/pages/member/promotion' })
+        uni.switchTab({ url: '/pages/member/promotion' })
       }, 800)
       return
     }

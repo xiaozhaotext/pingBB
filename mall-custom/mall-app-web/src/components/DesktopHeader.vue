@@ -9,8 +9,8 @@
         <text @click="goTab('/pages/zone/rebuy')">复购区</text>
         <text @click="goPage('/pages/category/category')">商品分类</text>
         <text @click="goSearch">搜索商品</text>
-        <text @click="goPage('/pages/cart/cart')">购物车</text>
-        <text @click="goPage('/pages/member/promotion')">推广中心</text>
+        <text @click="goTab('/pages/cart/cart')">购物车</text>
+        <text @click="goTab('/pages/member/promotion')">推广中心</text>
         <text @click="goTab('/pages/user/user')">我的账户</text>
       </view>
     </view>
@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 const goTab = (url: string) => {
+  if (url.startsWith('/pages/zone/')) return uni.navigateTo({ url })
   try {
     uni.switchTab({ url, fail: () => uni.navigateTo({ url }) })
   } catch {

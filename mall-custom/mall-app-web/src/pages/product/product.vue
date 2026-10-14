@@ -230,6 +230,11 @@
 
 <script setup lang="ts">
 const fallbackPage=ref('/pages/index/index')
+const goFallbackPage=()=>{
+  const url=fallbackPage.value
+  if(url.startsWith('/pages/zone/')) uni.redirectTo({url})
+  else uni.switchTab({url})
+}
 let removeEntryGuard:(()=>void)|undefined
 function closeDetailOverlay(){
  if(attrClass.value==='show'){handleToggleAttr();return true}
@@ -254,7 +259,7 @@ function guardDirectEntry(){
   if(closeDetailOverlay()){window.history.pushState({...event.state,mallDetailEntryBase:false},'',window.location.href);return}
   window.removeEventListener('popstate',back,true)
   window.history.replaceState({...event.state,mallDetailEntryBase:false},'',window.location.href)
-  uni.switchTab({url:fallbackPage.value})
+  goFallbackPage()
  }
  window.addEventListener('popstate',back,true)
  removeEntryGuard=()=>window.removeEventListener('popstate',back,true)
@@ -757,8 +762,8 @@ const getSkuStock = (): PmsSkuStock | null => {
 // 返回上一页
 const handleGoBack = () => {
   if(closeDetailOverlay()) return
-  if(getCurrentPages().length>1) uni.navigateBack({delta:1,fail:()=>uni.switchTab({url:fallbackPage.value})})
-  else uni.switchTab({url:fallbackPage.value})
+  if(getCurrentPages().length>1) uni.navigateBack({delta:1,fail:goFallbackPage})
+  else goFallbackPage()
 }
 
 // 切换规格弹窗
