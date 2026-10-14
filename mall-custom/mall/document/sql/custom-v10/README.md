@@ -86,3 +86,4 @@ mysql -u<user> -p<pass> mall < rollback_all.sql
 通用响应：`{ "code": 200, "message": "success", "data": ... }`
 时间统一 ISO8601；金额字段单位：积分=整数，金额=元(decimal, 模拟标识)。
 
+| 图片占位值清理 | 37 | 仅将精确的 `string`、`/` 图片字段置空，保留业务记录和有效图片 |
