@@ -1,0 +1,16 @@
+{
+  "codeCommit": "b24cfd5e72ce019c9efdc39a849eacd4e4ece22a",
+  "h5Types": "PASS",
+  "h5Build": "PASS",
+  "browserAgainstLiveApi": {
+    "pass": 32,
+    "fail": 0
+  },
+  "publicHttpsResources": {
+    "pass": 11,
+    "fail": 0
+  },
+  "backendChanged": false,
+  "databaseChanged": false,
+  "backup": "/opt/mall-demo/backups/account-nav-20261014-101121"
+}
