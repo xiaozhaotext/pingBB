@@ -73,9 +73,11 @@
       </view>
     </view>
   </view>
+  <MainNavigation active="cart" />
 </template>
 
 <script setup lang="ts">
+import MainNavigation from '@/components/MainNavigation.vue'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref, computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
@@ -478,3 +480,5 @@ const calcTotal = () => {
   color: #fa436a;
 }
 </style>
+
+<style scoped>.action-section{bottom:calc(76px + env(safe-area-inset-bottom));margin-bottom:8px;z-index:98}</style>

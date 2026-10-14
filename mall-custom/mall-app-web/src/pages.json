@@ -347,6 +347,19 @@
       "style": {
         "navigationBarTitleText": "隐私政策"
       }
+    },
+    {
+      "path": "pages/user/use",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/member/promotion",
+      "style": {
+        "navigationBarTitleText": "推广中心",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

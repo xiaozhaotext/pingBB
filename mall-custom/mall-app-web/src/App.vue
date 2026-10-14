@@ -19,6 +19,10 @@ onHide(() => {
 @use '@/styles/fonts.scss';
 @use '@/styles/travel.scss';
 /* #ifdef H5 */
+uni-tabbar{display:none!important}
+body:has(.main-navigation) .uni-page-wrapper{padding-bottom:0!important}
+/* #endif */
+/* #ifdef H5 */
 @media (min-width: 900px) {
   body:has(.desktop-home, .desktop-site-header) { background: #f6f7f4; }
   body:has(.desktop-home, .desktop-site-header) .uni-page-head,

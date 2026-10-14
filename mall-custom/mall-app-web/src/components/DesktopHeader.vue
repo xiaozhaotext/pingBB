@@ -10,6 +10,7 @@
         <text @click="goPage('/pages/category/category')">商品分类</text>
         <text @click="goSearch">搜索商品</text>
         <text @click="goPage('/pages/cart/cart')">购物车</text>
+        <text @click="goPage('/pages/member/promotion')">推广中心</text>
         <text @click="goTab('/pages/user/user')">我的账户</text>
       </view>
     </view>
@@ -30,7 +31,7 @@ const goSearch = () => uni.navigateTo({ url: '/pages/product/search' })
   .desktop-header-inner { max-width: 1240px; height: 78px; margin: 0 auto; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; }
   .desktop-brand { font-size: 27px; font-weight: 800; letter-spacing: 2px; cursor: pointer; }
   .desktop-brand span { color: #c17a3c; }
-  .desktop-links { display: flex; gap: 36px; font-size: 15px; font-weight: 600; }
+  .desktop-links { display: flex; gap: 22px; font-size: 15px; font-weight: 600; }
   .desktop-links text { cursor: pointer; }
   .desktop-links text:hover { color: #c17a3c; }
 }

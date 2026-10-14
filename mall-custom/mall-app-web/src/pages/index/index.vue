@@ -32,9 +32,11 @@
       <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text></view></view></view></view>
     </view>
   </view>
+  <MainNavigation active="home" />
 </template>
 
 <script setup lang="ts">
+import MainNavigation from '@/components/MainNavigation.vue'
 const goTab = (url: string) => uni.switchTab({ url })
 const goPage = (url: string) => uni.navigateTo({ url })
 

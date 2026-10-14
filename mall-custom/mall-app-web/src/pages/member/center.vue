@@ -49,6 +49,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+onLoad(()=>uni.redirectTo({url:'/pages/member/promotion'}))
 import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI } from '@/apis/member'
 
 const identityText = ref('加载中')
