@@ -1,0 +1,12 @@
+PASS /admin/info
+PASS /dashboard/overview
+PASS /p0/members
+PASS /p0/points
+PASS /p0/finance
+PASS /p0/system-settings/content/register_notice
+PASS /product/list?pageNum=1&pageSize=5
+PASS /order/list?pageNum=1&pageSize=5
+PASS /p0/zones/PICK/products
+PASS /p0/zones/REBUY/products
+PASS UNAUTHENTICATED_ADMIN_REJECTED
+RESULT 11 PASS 0 FAIL
