@@ -5,6 +5,7 @@
  * 4.添加 token
  */
 import { useMemberStore } from '@/stores/member'
+import { tokenStorageKey } from '@/utils/sessionKeys'
 import type { CommonResult } from '@/types/common'
 
 // 请求基地址（从环境变量读取）
@@ -12,7 +13,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/portal'
 let loginRedirectPending = false
 
 const handleExpiredSession = (requestToken: string) => {
-  const currentToken = uni.getStorageSync('token')
+  const currentToken = uni.getStorageSync(tokenStorageKey)
   // An old in-flight response must not log out a newly authenticated session.
   if (currentToken && currentToken !== requestToken) return
   if (loginRedirectPending) return
@@ -39,7 +40,7 @@ const httpInterceptor = {
       ...options.header,
     }
     // 4.添加 token（从 storage 获取）
-    const token = uni.getStorageSync('token')
+    const token = uni.getStorageSync(tokenStorageKey)
     if (token) {
       options.header.Authorization = token
     }
@@ -94,7 +95,7 @@ export interface HttpRequestOptions extends UniApp.RequestOptions {
  *    3.3 网络错误 -> 提示用户换网络
  */
 export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> => {
-  const requestToken = uni.getStorageSync('token') || ''
+  const requestToken = uni.getStorageSync(tokenStorageKey) || ''
   // 处理 params 参数，拼接到 URL?
   if (options.params) {
     const queryString = buildQueryString(options.params)

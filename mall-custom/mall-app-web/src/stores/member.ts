@@ -2,10 +2,11 @@ import type { MemberInfo } from '@/types/member'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { loginAPI, getMemberInfoAPI } from '@/apis/member'
+import { memberStoreId, tokenStorageKey, usernameStorageKey, passwordStorageKey } from '@/utils/sessionKeys'
 
 // 定义会员Store
 export const useMemberStore = defineStore(
-  'member',
+  memberStoreId,
   () => {
     // 会员信息
     const memberInfo = ref<MemberInfo>()
@@ -26,9 +27,9 @@ export const useMemberStore = defineStore(
       // 2. 拼接完整 token 并存储
       const loginData = loginRes.data
       const token = `${loginData.tokenHead}${loginData.token}`
-      uni.setStorageSync('token', token)
-      uni.setStorageSync('username', username)
-      uni.removeStorageSync('password')
+      uni.setStorageSync(tokenStorageKey, token)
+      uni.setStorageSync(usernameStorageKey, username)
+      uni.removeStorageSync(passwordStorageKey)
 
       // 3. 获取用户信息
       const memberRes = await getMemberInfoAPI()
@@ -40,8 +41,8 @@ export const useMemberStore = defineStore(
     // 会员退出登录
     const memberLogout = () => {
       memberInfo.value = undefined
-      uni.removeStorageSync('token')
-      uni.removeStorageSync('password')
+      uni.removeStorageSync(tokenStorageKey)
+      uni.removeStorageSync(passwordStorageKey)
     }
 
     return {

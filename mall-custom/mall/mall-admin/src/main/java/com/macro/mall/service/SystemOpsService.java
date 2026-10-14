@@ -41,7 +41,6 @@ public class SystemOpsService {
     private static final Pattern SAFE_BACKUP = Pattern.compile("mall_demo-[0-9]{8}-[0-9]{6}-[0-9a-f]{6}[.]sql");
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final int MAX_BACKUP_ROWS = 200000;
     private static final int MAX_TABLES_PER_COMMAND = 50;
     private static final int MAX_LIST_SIZE = 200;
 
@@ -257,24 +256,17 @@ public class SystemOpsService {
     }
 
     public Path backupDir() {
-        Path configured = text(configuredDir).isEmpty() ? null : Paths.get(configuredDir.trim());
-        if (configured != null) {
-            try {
-                Files.createDirectories(configured);
-                if (Files.isWritable(configured)) {
-                    return configured.toAbsolutePath().normalize();
-                }
-            } catch (IOException ignored) {
-                // 配置目录不可用时退回系统临时目录，并在接口返回实际使用的目录
-            }
-        }
-        Path fallback = Paths.get(System.getProperty("java.io.tmpdir"), "mall-db-backups");
+        Path configured = Paths.get(text(configuredDir).isEmpty()
+                ? "/opt/mall-demo/db-backups" : configuredDir.trim()).toAbsolutePath().normalize();
         try {
-            Files.createDirectories(fallback);
+            Files.createDirectories(configured);
         } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "备份目录不可用: " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "持久备份目录不可用: " + e.getMessage());
         }
-        return fallback.toAbsolutePath().normalize();
+        if (!Files.isWritable(configured)) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "持久备份目录不可写: " + configured);
+        }
+        return configured;
     }
 
     public String createBackup() {
@@ -294,7 +286,8 @@ public class SystemOpsService {
                 writeTable(writer, table);
             }
             writer.write("SET FOREIGN_KEY_CHECKS=1;" + System.lineSeparator());
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            try { Files.deleteIfExists(target); } catch (IOException cleanup) { e.addSuppressed(cleanup); }
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "备份写入失败: " + e.getMessage());
         }
         return fileName;
@@ -310,8 +303,7 @@ public class SystemOpsService {
             try {
                 ResultSetMetaData meta = rs.getMetaData();
                 int columns = meta.getColumnCount();
-                int rows = 0;
-                while (rs.next() && rows < MAX_BACKUP_ROWS) {
+                while (rs.next()) {
                     StringBuilder sql = new StringBuilder("INSERT INTO `").append(name).append("` VALUES (");
                     for (int i = 1; i <= columns; i++) {
                         if (i > 1) {
@@ -322,7 +314,6 @@ public class SystemOpsService {
                     sql.append(");");
                     writer.write(sql.toString());
                     writer.write(System.lineSeparator());
-                    rows++;
                 }
                 return null;
             } catch (IOException e) {

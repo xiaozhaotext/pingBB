@@ -37,12 +37,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useMemberStore } from '@/stores/member'
+import { usernameStorageKey } from '@/utils/sessionKeys'
 
 // 获取会员store
 const memberStore = useMemberStore()
 
 // 登录用户名
-const username = ref(uni.getStorageSync('username') || '')
+const username = ref(uni.getStorageSync(usernameStorageKey) || '')
 // 登录密码
 const password = ref('')
 // 登录加载状态

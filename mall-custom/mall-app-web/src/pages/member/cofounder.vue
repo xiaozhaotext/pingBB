@@ -1,5 +1,6 @@
 <template>
   <view class="app">
+    <view v-if="sandboxMode" class="card">测试沙箱：演示支付不扣款，积分、身份和奖励仅写入独立测试库。</view>
     <view class="card">
       <text class="title">联创权益</text>
       <view class="row"><text>权益价格</text><text class="v">10000 元</text></view>
@@ -24,7 +25,7 @@
         下单成功：订单号 {{ orderInfo.merchantOrderNo }}，金额 {{ orderInfo.amount }} 元。{{ payHint }}
       </view>
       <view v-if="actionError" class="result error">{{ actionError }}</view>
-      <view class="hint">下单后将跳转到支付平台完成付款；支付结果以实际到账通知为准，身份与积分在支付成功后自动发放。</view>
+      <view class="hint">{{ sandboxMode ? '演示支付不会扣款，测试结果仅在沙箱中生效。' : '下单后将跳转到支付平台完成付款；支付结果以实际到账通知为准，身份与积分在支付成功后自动发放。' }}</view>
     </view>
   </view>
 </template>
@@ -40,6 +41,7 @@ const submitting = ref(false)
 const orderInfo = ref<any>(null)
 const payHint = ref('')
 const actionError = ref('')
+const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
 
 /** 生成幂等键：8-64 位字母数字 */
 const genRequestId = () => {
@@ -84,8 +86,8 @@ const handleBuy = async () => {
     if (String(payment.mock) === 'true') {
       payHint.value = '正在确认本地演示支付…'
       await confirmMockMembershipPaymentAPI(o.orderId)
-      payHint.value = '支付已完成，权益生效中…'
-      uni.showToast({ icon: 'success', title: '支付成功' })
+      payHint.value = '演示支付已确认，权益仅在测试库生效。'
+      uni.showToast({ icon: 'success', title: '模拟购买完成' })
       setTimeout(() => {
         uni.switchTab({ url: '/pages/member/promotion' })
       }, 800)

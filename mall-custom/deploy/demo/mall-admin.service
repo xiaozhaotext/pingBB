@@ -16,7 +16,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/log/mall-demo
+ReadWritePaths=/var/log/mall-demo /opt/mall-demo/db-backups
 
 [Install]
 WantedBy=multi-user.target
