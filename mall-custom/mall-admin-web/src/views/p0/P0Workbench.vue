@@ -201,7 +201,7 @@ const groupTitles: Record<string, string> = {
 <template>
   <main class="p0-page" v-loading="loading">
     <div class="heading">
-      <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ section.title }}</h1><p>{{ section.note }}</p></div>
+      <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ sectionKey === 'p0Members' ? route.meta.title : section.title }}</h1><p>{{ section.note }}</p></div>
       <el-button @click="load">刷新真实数据</el-button>
     </div>
     <el-alert title="会员真实支付默认关闭；直推规则必须先配置。提现和分红仍为模拟，尚未真实打款。" type="warning" show-icon :closable="false" />
