@@ -3,14 +3,18 @@ import Layout from '@/views/layout/Layout.vue'
 import type { RouteRecordExt } from '@/types/router'
 
 export const constantRouterMap: RouteRecordExt[] = [
+  { path: '/', redirect: '/home', hidden: true },
   { path: '/404', component: () => import('@/views/normal/404/index.vue'), hidden: true },
   { path: '/login', component: () => import('@/views/normal/login/index.vue'), hidden: true },
   {
     path: '/home',
     name: 'home',
-    component: () => import('@/views/home/LiveDashboard.vue'),
+    component: Layout,
     hidden: true,
     meta: { title: '大数据界面', icon: 'dashboard' },
+    children: [
+      { path: '', name: 'homeDashboard', component: () => import('@/views/home/LiveDashboard.vue'), hidden: true, meta: { title: '大数据界面' } },
+    ],
   },
 ]
 
