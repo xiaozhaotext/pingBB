@@ -72,7 +72,10 @@ export const usePermissionStore = defineStore('permission', () => {
   // 生成可访问的路由表
   const generateRoutes = (data: { menus: UmsMenu[]; username: string }) => {
     const { menus, username } = data
+    const hasNewConsole = ['pick', 'rebuy', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr'].every(name => menus.some(menu => menu.name === name))
     const accessedRouters = asyncRouterMap.filter(v => {
+      // Keep legacy menu assignments for other roles; hide duplicates only for this new-console user.
+      if (hasNewConsole && ['pms', 'oms', 'sms', 'p0', 'ums'].includes(String(v.name))) return false
       // 测试模式下admin帐号直接返回所有菜单
       if (testMode && username === 'admin') return true
       if (hasPermission(menus, v)) {
@@ -105,3 +108,4 @@ export const usePermissionStore = defineStore('permission', () => {
 
 // 默认导出保持兼容性
 export default usePermissionStore
+
