@@ -12,7 +12,6 @@
         <view class="detail-search" @click="openProductSearch"><text>⌕</text><text class="search-placeholder">搜索你喜欢的好物</text><text class="search-action">搜索</text></view>
         <view class="header-action" aria-label="分享商品" @click="handleShare"><text class="yticon icon-fenxiang2"></text></view>
         <navigator class="header-action" url="/pages/cart/cart"><text class="yticon icon-gouwuche"></text></navigator>
-        <view class="header-action" aria-label="更多操作" @click="openMore">···</view>
       </view>
       <view class="detail-tabs"><text @click="scrollSection('.introduce-section')">商品</text><text @click="scrollSection('.eva-section')">评价</text><text @click="scrollSection('.detail-desc')">详情</text><text @click="scrollSection('.recommend-section')">推荐</text></view>
     </view>
@@ -127,18 +126,18 @@
     <view class="to-top" v-if="scrollY > 600" @click="scrollSection('.introduce-section')">↑<text>顶部</text></view>
     <!-- 底部操作菜单 -->
     <view class="page-bottom">
-      <navigator url="/pages/index/index" open-type="switchTab" class="p-b-btn">
-        <text class="yticon icon-xiatubiao--copy"></text>
-        <text>首页</text>
+      <view class="p-b-btn" @click="handleNavToBrandDetail">
+        <svg class="line-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 4.5 4h15l1.5 6.5M4.5 10.5v9h15v-9M3 10.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 19.5v-5h6v5" /></svg>
+        <text>店铺</text>
+      </view>
+      <navigator url="/pages/consultation/consultation" class="p-b-btn">
+        <svg class="line-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 0 0-7.2 13l-.8 4 4-1.2A8.5 8.5 0 1 0 12 3.5Z" /><path d="M8.5 11h.1M12 11h.1M15.5 11h.1" /></svg>
+        <text>客服</text>
       </navigator>
       <view class="p-b-btn" :class="{ active: favorite }" @click="handleToggleFavorite">
         <text class="yticon icon-shoucang"></text>
         <text>收藏</text>
       </view>
-      <navigator url="/pages/consultation/consultation" class="p-b-btn">
-        <view class="service-icon">···</view>
-        <text>客服</text>
-      </navigator>
 
       <view class="action-btn-group">
         <button type="primary" class="action-btn no-border add-cart-btn" @click="handleAddToCart">加入购物车</button>
@@ -313,7 +312,6 @@ async function loadRecommendations(){
 }
 const openProductSearch=()=>uni.navigateTo({url:'/pages/product/search'})
 const openRecommended=(id:number)=>uni.navigateTo({url:'/pages/product/product?id='+id})
-function openMore(){uni.showActionSheet({itemList:['商城首页','我的账户'],success:result=>uni.switchTab({url:result.tapIndex===0?'/pages/index/index':'/pages/user/user'})})}
 
 const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consultation?productId=' + product.value.id })
 
@@ -1898,7 +1896,7 @@ page {
 .share-section{margin:0 10px;background:#fff;padding:16px;border-bottom:1px solid #f2f5f4}.share-section .tit{font-size:14px}.share-section .share-btn{font-size:12px;color:#247a80}
 .c-list,.eva-section,.brand-info,.detail-desc,.recommend-section{margin:10px;border-radius:16px;overflow:hidden;background:#fff}.c-list .c-row{padding:17px 15px;min-height:50px}.c-list .tit{font-size:13px;color:#829593}.c-list .con{font-size:13px}.eva-section .e-header{padding:18px}.eva-empty{color:#93a2a1;text-align:center;padding:30px 16px}.brand-info .brand-box{padding:16px}.detail-desc .d-header{font-size:17px}.detail-desc{padding-bottom:14px}
 .section-heading{display:flex;justify-content:space-between;padding:18px;font-size:17px;font-weight:600;color:#234c54}.section-heading text:last-child{font-size:11px;font-weight:400;color:#98a6a4}.recommend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 14px 18px}.recommend-card{min-width:0;cursor:pointer}.recommend-card image{width:100%;height:160px;border-radius:12px;background:#f4f7f6}.recommend-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.6;margin:8px 0}.recommend-price{font-size:17px;color:#237881;font-weight:600}.recommend-empty{padding:28px;text-align:center;color:#8fa19e;font-size:12px}
-.page-bottom{left:0;bottom:0;width:100%;height:auto;min-height:68px;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-radius:0;box-shadow:0 -2px 16px #173f4410;background:#fff;gap:6px}.page-bottom .p-b-btn{width:42px;min-width:42px;height:50px;font-size:10px}.page-bottom .p-b-btn .yticon{font-size:23px;line-height:28px}.page-bottom .action-btn-group{flex:1;margin:0 0 0 8px;height:42px;box-shadow:none;border-radius:12px;background:transparent}.page-bottom .action-btn-group .action-btn{flex:1;min-width:0;width:auto;font-size:13px}.page-bottom .add-cart-btn{background:#deeeea!important;color:#236b6b!important}.page-bottom .buy-now-btn{background:#247a80!important;color:#fff!important}.to-top{position:fixed;right:14px;bottom:94px;border:1px solid #e4efeb;border-radius:50%;width:45px;height:45px;background:#fffffff5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:90;color:#247a80}.to-top text{font-size:10px}
+.page-bottom{left:0;bottom:0;width:100%;height:auto;min-height:68px;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-radius:0;box-shadow:0 -2px 16px #173f4410;background:#fff;gap:6px}.page-bottom .p-b-btn{width:42px;min-width:42px;height:50px;font-size:10px}.page-bottom .p-b-btn .yticon{font-size:23px;line-height:28px}.page-bottom .line-icon{width:22px;height:22px;margin-bottom:4px;fill:none;stroke:#7f9899;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.page-bottom .p-b-btn.active .line-icon{stroke:#247a80}.page-bottom .action-btn-group{flex:1;margin:0 0 0 8px;height:42px;box-shadow:none;border-radius:12px;background:transparent}.page-bottom .action-btn-group .action-btn{flex:1;min-width:0;width:auto;font-size:13px}.page-bottom .add-cart-btn{background:#deeeea!important;color:#236b6b!important}.page-bottom .buy-now-btn{background:#247a80!important;color:#fff!important}.to-top{position:fixed;right:14px;bottom:94px;border:1px solid #e4efeb;border-radius:50%;width:45px;height:45px;background:#fffffff5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:90;color:#247a80}.to-top text{font-size:10px}
 @media(min-width:900px){.container{padding-top:112px;max-width:1200px;margin:auto}.custom-navbar{max-width:1200px;left:50%;transform:translateX(-50%)}.detail-search{max-width:700px}.recommend-section{grid-column:1/-1;grid-row:10}.recommend-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.recommend-card image{height:230px}.page-bottom{position:static;width:100%;padding:12px;border-radius:12px}.carousel{margin:0}.share-section{margin:0}.introduce-section{margin:0}.detail-tabs{max-width:640px;margin:auto}.to-top{right:30px}}
 </style>
 
@@ -1909,8 +1907,4 @@ page {
 <style scoped>
 .product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#173e49cc,#173e4933),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
 @media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
-</style>
-
-<style scoped>
-.service-icon{width:22px;height:20px;border:1.5px solid #7f9899;border-radius:7px;line-height:14px;color:#7f9899;font-size:19px;text-align:center;margin-bottom:4px}
 </style>
