@@ -9,14 +9,19 @@
         <view class="nav-back" @click="handleGoBack">
           <view class="back-arrow" :style="{ borderColor: navIconColor }"></view>
         </view>
-        <view class="detail-tabs"><text @click="scrollSection('.introduce-section')">商品</text><text @click="scrollSection('.eva-section')">评价</text><text @click="scrollSection('.detail-desc')">详情</text></view>
+        <view class="detail-search" @click="openProductSearch"><text>⌕</text><text class="search-placeholder">搜索你喜欢的好物</text><text class="search-action">搜索</text></view>
+        <view class="header-action" aria-label="分享商品" @click="handleShare"><text class="yticon icon-fenxiang2"></text></view>
+        <navigator class="header-action" url="/pages/cart/cart"><text class="yticon icon-gouwuche"></text></navigator>
+        <view class="header-action" aria-label="更多操作" @click="openMore">···</view>
       </view>
+      <view class="detail-tabs"><text @click="scrollSection('.introduce-section')">商品</text><text @click="scrollSection('.eva-section')">评价</text><text @click="scrollSection('.detail-desc')">详情</text><text @click="scrollSection('.recommend-section')">推荐</text></view>
     </view>
 
     <!-- 占位区域，防止内容被导航栏遮挡 -->
     <!-- 轮播图本身需要顶到最上面，导航栏覆盖其上 -->
     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
 
+    <view class="product-travel-note"><text>智美游 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
     <!-- 轮播图 -->
     <view class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
       <swiper indicator-dots circular :duration="400">
@@ -113,19 +118,6 @@
       </view>
     </view>
 
-    <!-- 商家信息：后端暂无商家/店铺接口（无 Merchant/Shop 实体与 Controller，商品详情接口 PmsPortalProductDetail 也不含商家字段），此处显示官方自营占位，不编造商家名；待后端提供商家接口后接入真实商家名 -->
-    <view class="merchant-info">
-      <view class="d-header">
-        <text>商家信息</text>
-      </view>
-      <view class="merchant-box">
-        <view class="title">
-          <text>官方自营</text>
-          <text>平台自营店铺</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 图文详情 -->
     <view class="detail-desc">
       <view class="d-header">
@@ -134,15 +126,18 @@
       <rich-text :nodes="desc"></rich-text>
     </view>
 
+    <view class="recommend-section"><view class="section-heading"><text>发现更多好物</text><text>{{ recommendationLabel }}</text></view>
+      <view class="recommend-empty" v-if="recommendLoading">正在加载商品…</view>
+      <view class="recommend-empty" v-else-if="recommendError" @click="loadRecommendations">加载失败，点击重试</view>
+      <view class="recommend-grid" v-else-if="recommendProducts.length"><view class="recommend-card" v-for="item in recommendProducts" :key="item.id" @click="openRecommended(item.id)"><image :src="item.pic" mode="aspectFill"/><text class="recommend-name">{{ item.name }}</text><text class="recommend-price">¥{{ item.price }}</text></view></view>
+      <view class="recommend-empty" v-else>暂无其他同类商品</view>
+    </view>
+    <view class="to-top" v-if="scrollY > 600" @click="scrollSection('.introduce-section')">↑<text>顶部</text></view>
     <!-- 底部操作菜单 -->
     <view class="page-bottom">
       <navigator url="/pages/index/index" open-type="switchTab" class="p-b-btn">
         <text class="yticon icon-xiatubiao--copy"></text>
         <text>首页</text>
-      </navigator>
-      <navigator url="/pages/cart/cart" open-type="navigate" class="p-b-btn">
-        <text class="yticon icon-gouwuche"></text>
-        <text>购物车</text>
       </navigator>
       <view class="p-b-btn" :class="{ active: favorite }" @click="handleToggleFavorite">
         <text class="yticon icon-shoucang"></text>
@@ -150,16 +145,12 @@
       </view>
       <navigator url="/pages/consultation/consultation" class="p-b-btn">
         <text class="yticon icon-kefu"></text>
-        <text>咨询</text>
+        <text>客服</text>
       </navigator>
 
       <view class="action-btn-group">
-        <button type="primary" class="action-btn no-border buy-now-btn" @click="handleBuy">
-          立即购买
-        </button>
-        <button type="primary" class="action-btn no-border add-cart-btn" @click="handleAddToCart">
-          加入购物车
-        </button>
+        <button type="primary" class="action-btn no-border add-cart-btn" @click="handleAddToCart">加入购物车</button>
+        <button type="primary" class="action-btn no-border buy-now-btn" @click="handleBuy">立即购买</button>
       </view>
     </view>
 
@@ -250,6 +241,7 @@
 const fallbackPage=ref('/pages/index/index')
 let removeEntryGuard:(()=>void)|undefined
 function closeDetailOverlay(){
+ if(attrClass.value==='show'){handleToggleAttr();return true}
  if(specClass.value==='show'){handleToggleSpec();return true}
  if(couponState.value===1){handleToggleCoupon();return true}
  return false
@@ -299,10 +291,24 @@ function edgeEnd(e:any){
 function scrollSection(selector:string){
  // #ifdef H5
  const section=document.querySelector(selector) as HTMLElement|null
- if(section){section.style.scrollMarginTop='80px';section.scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(section){section.style.scrollMarginTop='112px';section.scrollIntoView({behavior:'smooth',block:'start'});return}
  // #endif
- uni.createSelectorQuery().select(selector).boundingClientRect((rect:any)=>{if(rect)uni.pageScrollTo({scrollTop:Math.max(0,scrollY.value+rect.top-80),duration:200})}).exec()
+ uni.createSelectorQuery().select(selector).boundingClientRect((rect:any)=>{if(rect)uni.pageScrollTo({scrollTop:Math.max(0,scrollY.value+rect.top-112),duration:200})}).exec()
 }
+
+const recommendationLabel=ref('同类商品')
+const recommendProducts=ref<PmsProduct[]>([])
+const recommendLoading=ref(false)
+const recommendError=ref(false)
+async function loadRecommendations(){
+ recommendLoading.value=true;recommendError.value=false
+ try{const response=await searchProductListAPI({pageNum:1,pageSize:9,sort:0,productCategoryId:product.value.productCategoryId});recommendProducts.value=(response.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8);recommendationLabel.value='同类商品';if(!recommendProducts.value.length){const other=await searchProductListAPI({pageNum:1,pageSize:9,sort:0});recommendProducts.value=(other.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8);recommendationLabel.value='商城好物'}}
+ catch{recommendError.value=true;recommendProducts.value=[]}
+ finally{recommendLoading.value=false}
+}
+const openProductSearch=()=>uni.navigateTo({url:'/pages/product/search'})
+const openRecommended=(id:number)=>uni.navigateTo({url:'/pages/product/product?id='+id})
+function openMore(){uni.showActionSheet({itemList:['商城首页','我的账户'],success:result=>uni.switchTab({url:result.tapIndex===0?'/pages/index/index':'/pages/user/user'})})}
 
 const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consultation?productId=' + product.value.id })
 
@@ -311,7 +317,7 @@ import WatermarkOverlay from '@/components/WatermarkOverlay.vue'
 import { ref, computed, watch } from 'vue'
 import { onLoad, onShow, onPageScroll, onUnload, onBackPress } from '@dcloudio/uni-app'
 import { getTheme, type AppTheme } from '@/utils/theme'
-import { getProductDetailAPI } from '@/apis/product'
+import { getProductDetailAPI, searchProductListAPI } from '@/apis/product'
 import { getSiteInfoAPI } from '@/apis/home'
 import { addCartAPI } from '@/apis/cart'
 import { getProductCouponListAPI, addMemberCouponAPI } from '@/apis/coupon'
@@ -385,9 +391,9 @@ const specClass = ref<'none' | 'show' | 'hide'>('none')
 const attrClass = ref<'none' | 'show' | 'hide'>('none')
 const couponState = ref(0)
 // Each open overlay gets a same-page history entry; browser back closes it first.
-watch([specClass,couponState],([spec,coupon])=>{
+watch([specClass,attrClass,couponState],([spec,attr,coupon])=>{
  // #ifdef H5
- const open=spec==='show'||coupon===1
+ const open=spec==='show'||attr==='show'||coupon===1
  if(open&&!window.history.state?.mallDetailOverlay) window.history.pushState({...window.history.state,mallDetailOverlay:true},'',window.location.href)
  if(!open&&window.history.state?.mallDetailOverlay) window.history.back()
  // #endif
@@ -464,6 +470,7 @@ const loadData = async (id: number) => {
       initAttrList(data)
       initPromotionTipList(data)
       initProductDesc()
+      void loadRecommendations()
       saveReadHistory()
       initProductCollection()
     }
@@ -1871,3 +1878,30 @@ page {
 </style>
 
 
+
+<style scoped>
+.container{background:#f2f6f5;padding-top:112px;padding-bottom:110px;--theme-primary:#247a80;--theme-primary-dark:#1c6268;--theme-primary-soft:#e6f4f2;--theme-action-gradient:linear-gradient(100deg,#45a49b,#237881)}
+.custom-navbar{padding:6px 12px 0;box-sizing:border-box;background:#fff!important;box-shadow:0 2px 14px #173f4410}
+.custom-navbar .navbar-content{height:46px;gap:12px;justify-content:flex-start}
+.custom-navbar .nav-back{position:static;width:24px;min-width:24px;height:34px;background:none;border-radius:0}
+.detail-search{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:36px;border:1px solid #83b8b8;border-radius:10px;padding:0 8px;background:#f8fcfb;color:#247a80}
+.search-placeholder{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;color:#7b9293}.search-action{font-size:12px;padding:3px 6px;background:#e6f4f2;border-radius:5px}
+.header-action{width:24px;min-width:24px;text-align:center;color:#234c54;font-size:24px}.header-action .yticon{font-size:23px}
+.detail-tabs{height:44px;margin:0;justify-content:space-around;align-items:center;gap:0;color:#57777b}.detail-tabs text:first-child{color:#1c6268}
+.demo-product-note{font-size:10px;background:#edf5f3;color:#698b85;border-radius:8px;margin:0 10px 10px;padding:6px 10px}
+.carousel{margin:0 10px;border-radius:16px;overflow:hidden;background:white}.introduce-section{margin:10px;border-radius:16px;padding:20px;background:#fff}.introduce-section .title{font-size:18px;line-height:1.5;font-weight:600}.introduce-section .title2{font-size:12px;color:#879393;line-height:1.7}.introduce-section .price{color:#237881;font-size:30px}.introduce-section .bot-row{margin-top:14px;font-size:12px}
+.share-section{margin:0 10px;background:#fff;padding:16px;border-bottom:1px solid #f2f5f4}.share-section .tit{font-size:14px}.share-section .share-btn{font-size:12px;color:#247a80}
+.c-list,.eva-section,.brand-info,.detail-desc,.recommend-section{margin:10px;border-radius:16px;overflow:hidden;background:#fff}.c-list .c-row{padding:17px 15px;min-height:50px}.c-list .tit{font-size:13px;color:#829593}.c-list .con{font-size:13px}.eva-section .e-header{padding:18px}.eva-empty{color:#93a2a1;text-align:center;padding:30px 16px}.brand-info .brand-box{padding:16px}.detail-desc .d-header{font-size:17px}.detail-desc{padding-bottom:14px}
+.section-heading{display:flex;justify-content:space-between;padding:18px;font-size:17px;font-weight:600;color:#234c54}.section-heading text:last-child{font-size:11px;font-weight:400;color:#98a6a4}.recommend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 14px 18px}.recommend-card{min-width:0;cursor:pointer}.recommend-card image{width:100%;height:160px;border-radius:12px;background:#f4f7f6}.recommend-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.6;margin:8px 0}.recommend-price{font-size:17px;color:#237881;font-weight:600}.recommend-empty{padding:28px;text-align:center;color:#8fa19e;font-size:12px}
+.page-bottom{left:0;bottom:0;width:100%;height:auto;min-height:68px;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-radius:0;box-shadow:0 -2px 16px #173f4410;background:#fff;gap:6px}.page-bottom .p-b-btn{width:42px;min-width:42px;height:50px;font-size:10px}.page-bottom .p-b-btn .yticon{font-size:23px;line-height:28px}.page-bottom .action-btn-group{flex:1;margin:0 0 0 8px;height:42px;box-shadow:none;border-radius:12px;background:transparent}.page-bottom .action-btn-group .action-btn{flex:1;min-width:0;width:auto;font-size:13px}.page-bottom .add-cart-btn{background:#deeeea!important;color:#236b6b!important}.page-bottom .buy-now-btn{background:#247a80!important;color:#fff!important}.to-top{position:fixed;right:14px;bottom:94px;border:1px solid #e4efeb;border-radius:50%;width:45px;height:45px;background:#fffffff5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:90;color:#247a80}.to-top text{font-size:10px}
+@media(min-width:900px){.container{padding-top:112px;max-width:1200px;margin:auto}.custom-navbar{max-width:1200px;left:50%;transform:translateX(-50%)}.detail-search{max-width:700px}.recommend-section{grid-column:1/-1;grid-row:10}.recommend-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.recommend-card image{height:230px}.page-bottom{position:static;width:100%;padding:12px;border-radius:12px}.carousel{margin:0}.share-section{margin:0}.introduce-section{margin:0}.detail-tabs{max-width:640px;margin:auto}.to-top{right:30px}}
+</style>
+
+
+<style>
+@media(min-width:900px){body:has(.detail-tabs) .custom-navbar{display:block!important}body:has(.detail-tabs) .desktop-site-header{display:none!important}}
+</style>
+<style scoped>
+.product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#173e49cc,#173e4933),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
+@media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
+</style>
