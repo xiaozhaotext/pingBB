@@ -20,11 +20,10 @@ const route = useRoute()
 const routes = computed(() => permissionStore.routers)
 // 侧边栏打开状态
 const isCollapse = computed(() => !appStore.sidebar.opened)
-const isMobile = computed(() => appStore.device === 'mobile')
 </script>
 
 <template>
-  <scroll-bar :mobile-scroll="isMobile">
+  <scroll-bar>
     <el-menu mode="vertical" :show-timeout="200" :default-active="String(route.name || route.path)" :collapse="isCollapse"
       background-color="#304156" text-color="#bfcbd9" active-text-color="#409EFF">
       <sidebar-item :routes="routes"></sidebar-item>

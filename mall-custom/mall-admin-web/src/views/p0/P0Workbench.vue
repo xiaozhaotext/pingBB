@@ -28,7 +28,6 @@ const memberKeyword = ref('')
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
-const memberDetailTab = ref('profile')
 const identityType = ref(0)
 const identityReason = ref('')
 const referrerId = ref<number | null>(null)
@@ -116,7 +115,6 @@ async function openMember(id: number) {
   try {
     const response = await getP0<Record<string, unknown>>(`members/${id}`)
     memberDetail.value = response.data
-    memberDetailTab.value = 'profile'
     memberId.value = id
     drawerOpen.value = true
     const current = rows(response.data.identity)[0]
@@ -201,7 +199,7 @@ const groupTitles: Record<string, string> = {
 <template>
   <main class="p0-page" v-loading="loading">
     <div class="heading">
-      <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ sectionKey === 'p0Members' ? route.meta.title : section.title }}</h1><p>{{ section.note }}</p></div>
+      <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ section.title }}</h1><p>{{ section.note }}</p></div>
       <el-button @click="load">刷新真实数据</el-button>
     </div>
     <el-alert title="会员真实支付默认关闭；直推规则必须先配置。提现和分红仍为模拟，尚未真实打款。" type="warning" show-icon :closable="false" />
@@ -231,7 +229,7 @@ const groupTitles: Record<string, string> = {
         <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ rows(value).length }})</small></strong></template>
         <el-table v-if="rows(value).length" :data="rows(value)" stripe max-height="480">
           <el-table-column v-for="column in columns(value)" :key="column" :prop="column" :label="labels[column] || column" min-width="110" show-overflow-tooltip>
-            <template #default="scope">{{ column === 'status' && key === 'members' ? (Number(scope.row[column]) === 1 ? '启用' : '禁用') : display(scope.row[column]) }}</template>
+            <template #default="scope">{{ display(scope.row[column]) }}</template>
           </el-table-column>
           <el-table-column v-if="key === 'members'" label="操作" fixed="right" width="100"><template #default="scope"><el-button link type="primary" @click="openMember(Number(scope.row.id))">详情</el-button></template></el-table-column>
           <el-table-column v-if="key === 'adjustments'" label="审核" fixed="right" width="150"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewAdjustment(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewAdjustment(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>
@@ -241,28 +239,27 @@ const groupTitles: Record<string, string> = {
       </el-card>
     </section>
 
-    <el-drawer v-model="drawerOpen" title="会员详情与身份调整" size="min(520px, 96vw)" :modal="true" :append-to-body="true" @closed="memberId = null">
+    <el-drawer v-model="drawerOpen" title="会员详情与身份调整" size="520px" :modal="true" @closed="memberId = null">
       <template v-if="memberDetail">
-        <el-tabs v-model="memberDetailTab" class="member-detail-tabs">
-          <el-tab-pane label="会员详情" name="profile">
-            <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
-            <h3>登录权限</h3><el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁止登录' : '允许登录' }}</el-button>
-            <h3>消费统计</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
-            <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
-            <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
-            <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />
-            <el-button type="primary" style="margin-top:12px" @click="changeReferrer">保存推荐人并审计</el-button>
-          </el-tab-pane>
-          <el-tab-pane label="收货地址" name="addresses"><el-table :data="rows(memberDetail.addresses)" max-height="420"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址" min-width="180"/></el-table></el-tab-pane>
-          <el-tab-pane label="自选商品订单" name="pickOrders"><el-table :data="rows(memberDetail.orders).filter(row => String(row.product_zones || '').includes('PICK'))" max-height="420"><el-table-column prop="order_sn" label="订单号" min-width="150"/><el-table-column prop="status" label="状态" width="70"/><el-table-column prop="pay_amount" label="金额" width="90"/></el-table></el-tab-pane>
-          <el-tab-pane label="复购商品订单" name="rebuyOrders"><el-table :data="rows(memberDetail.orders).filter(row => String(row.product_zones || '').includes('REBUY'))" max-height="420"><el-table-column prop="order_sn" label="订单号" min-width="150"/><el-table-column prop="status" label="状态" width="70"/><el-table-column prop="pay_amount" label="金额" width="90"/></el-table></el-tab-pane>
-        </el-tabs>
+        <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
+        <h3>登录权限</h3><el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
+        <h3>收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
+        <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
+        <h3>订单与专区</h3><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
+        <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
+        <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
+        <el-input v-model="referrerReason" type="textarea" placeholder="必填：变更原因（至少 5 个字）" />
+        <el-button type="primary" style="margin-top:12px" @click="changeReferrer">保存推荐人并审计</el-button>
+        <h3>调整身份</h3>
+        <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
+        <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
+        <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
+        <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
       </template>
     </el-drawer>
   </main>
 </template>
 
 <style scoped>
-.p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}.member-detail-tabs :deep(.el-tabs__nav-wrap){overflow-x:auto}.member-detail-tabs :deep(.el-tabs__nav){min-width:max-content}
-@media(max-width:600px){.p0-page{padding:14px}.heading{align-items:flex-start;gap:10px}.heading h1{font-size:23px}.member-detail-tabs :deep(.el-tabs__item){padding:0 10px;font-size:13px}}
+.p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}
 </style>

@@ -117,18 +117,12 @@ const handleClearCache = async () => {
   height: 50px;
   line-height: 50px;
   border-radius: 0px !important;
-  position: sticky;
-  top: 0;
-  z-index: 1002;
-  background: #fff;
 
   .hamburger-container {
     line-height: 58px;
     height: 50px;
     float: left;
     padding: 0 10px;
-    min-width: 44px;
-    cursor: pointer;
   }
 
   .screenfull {

@@ -14,17 +14,13 @@ const loading = ref(false)
 const saving = ref(false)
 const members = ref<P0Row[]>([])
 const keyword = ref('')
-const identityTab = ref('all')
 const identityForm = ref({ memberId: null as number | null, identityType: 0, reason: '' })
 const referrerForm = ref({ memberId: null as number | null, referrerId: null as number | null, reason: '' })
 
 const filtered = computed(() => {
   const key = keyword.value.trim()
-  return members.value.filter(row => {
-    const matchesIdentity = identityTab.value === 'all' || Number(row.identity_type ?? 0) === Number(identityTab.value)
-    const matchesKeyword = !key || String(row.username || '').includes(key) || String(row.phone || '').includes(key) || String(row.id) === key
-    return matchesIdentity && matchesKeyword
-  })
+  if (!key) return members.value
+  return members.value.filter(row => String(row.username || '').includes(key) || String(row.phone || '').includes(key) || String(row.id) === key)
 })
 const counts = computed(() => {
   const result: Record<number, number> = { 0: 0, 1: 0, 2: 0 }
@@ -133,12 +129,6 @@ async function submitReferrer() {
       <template #header>
         <div class="table-head"><strong>会员身份一览</strong><el-input v-model="keyword" placeholder="搜索账号 / 手机号 / ID" clearable style="max-width: 260px" /></div>
       </template>
-      <el-tabs v-model="identityTab" class="identity-tabs">
-        <el-tab-pane label="全部" name="all" />
-        <el-tab-pane label="普通会员" name="0" />
-        <el-tab-pane label="合伙人" name="1" />
-        <el-tab-pane label="联创" name="2" />
-      </el-tabs>
       <el-table :data="filtered" stripe empty-text="暂无会员">
         <el-table-column prop="id" label="会员 ID" width="90" />
         <el-table-column prop="username" label="会员名称" min-width="140" />
@@ -164,7 +154,5 @@ async function submitReferrer() {
 .metric strong { display: block; margin-top: 10px; color: #214a34; font-size: 24px; }
 .forms { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
 .table-head { display: flex; justify-content: space-between; align-items: center; }
-.identity-tabs { margin-bottom: 8px; }
 @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, 1fr); } .forms { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .member-identity { padding: 14px; } .table-head { flex-wrap: wrap; gap: 10px; } }
 </style>
