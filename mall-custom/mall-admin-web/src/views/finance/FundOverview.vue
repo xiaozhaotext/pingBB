@@ -52,17 +52,18 @@ function money(value: unknown) {
     <el-card shadow="never" class="section">
       <template #header><strong>佣金与提现概览</strong></template>
       <el-descriptions :column="4" border>
-        <el-descriptions-item label="提现申请总数">{{ withdrawStats.count ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="提现申请总数">{{ withdrawStats.total ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="待审核">{{ withdrawStats.pending ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="已通过">{{ withdrawStats.approved ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="已拒绝">{{ withdrawStats.rejected ?? '—' }}</el-descriptions-item>
       </el-descriptions>
-      <el-alert
-        :title="Object.keys(summary).length ? JSON.stringify(summary) : '暂无佣金汇总数据'"
-        type="info"
-        :closable="false"
-        class="summary-note"
-      />
+      <el-descriptions :column="4" border class="summary-note">
+        <el-descriptions-item label="佣金账户数">{{ summary.member_count ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="佣金总额">{{ money(summary.total_commission) }}</el-descriptions-item>
+        <el-descriptions-item label="可用佣金">{{ money(summary.available_commission) }}</el-descriptions-item>
+        <el-descriptions-item label="冻结佣金">{{ money(summary.frozen_commission) }}</el-descriptions-item>
+        <el-descriptions-item label="已提现佣金">{{ money(summary.withdrawn_commission) }}</el-descriptions-item>
+      </el-descriptions>
     </el-card>
     <el-card shadow="never" class="section">
       <template #header><strong>会员佣金账户</strong></template>
