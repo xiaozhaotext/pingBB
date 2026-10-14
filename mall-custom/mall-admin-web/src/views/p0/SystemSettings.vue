@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0 } from '@/apis/p0'
 
@@ -16,6 +17,7 @@ const tabs = [
   { name: 'content', label: '服务内容' },
   { name: 'cache', label: '缓存维护' },
 ]
+const route = useRoute()
 const switches = ['watermark.enabled', 'ip.access.enabled', 'upload.image_optimize',
   'distribution.enabled', 'dividend.distribution.enabled', 'share.order.bonus.enabled']
 const selects: Record<string, { value: string; label: string }[]> = {
@@ -44,6 +46,10 @@ const contentText = ref('')
 const contentUpdated = ref<string | null>(null)
 const migrationRequired = ref(false)
 const cacheResult = ref<Record<string, unknown> | null>(null)
+
+watch(() => route.meta.section, section => {
+  if (typeof section === 'string' && tabs.some(tab => tab.name === section)) active.value = section
+}, { immediate: true })
 
 const fields = computed(() => groups.value[active.value] ?? [])
 const dirtyKeys = computed(() => Object.keys(drafts.value).filter(key => drafts.value[key] !== original.value[key]))

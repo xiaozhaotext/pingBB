@@ -451,17 +451,17 @@ const showLogisticsDialog = () => {
       </div>
       <div style="margin-top: 20px">
         <svg-icon icon-class="marker" style="color: #606266"></svg-icon>
-        <span class="font-small">收货人信息</span>
+        <span class="font-small">买家信息</span>
       </div>
       <div class="table-layout">
         <el-row>
-          <el-col :span="6" class="table-cell-title">收货人</el-col>
+          <el-col :span="6" class="table-cell-title">买家账号 / 收货人</el-col>
           <el-col :span="6" class="table-cell-title">手机号码</el-col>
           <el-col :span="6" class="table-cell-title">邮政编码</el-col>
           <el-col :span="6" class="table-cell-title">收货地址</el-col>
         </el-row>
         <el-row>
-          <el-col :span="6" class="table-cell">{{ order.receiverName }}</el-col>
+          <el-col :span="6" class="table-cell">{{ order.memberUsername }} / {{ order.receiverName }}</el-col>
           <el-col :span="6" class="table-cell">{{ order.receiverPhone }}</el-col>
           <el-col :span="6" class="table-cell">{{ order.receiverPostCode }}</el-col>
           <el-col :span="6" class="table-cell">{{ formatAddress(order) }}</el-col>

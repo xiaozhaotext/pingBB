@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import axios, { type AxiosRequestConfig } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
@@ -19,6 +20,8 @@ const structColumns = ref<P0Row[]>([])
 const structIndexes = ref<P0Row[]>([])
 const structTitle = ref('')
 const structDialog = ref(false)
+const route = useRoute()
+const activeTab = ref('tables')
 
 function raw<T = unknown>(config: AxiosRequestConfig) {
   const userStore = useUserStore()
@@ -159,6 +162,9 @@ onMounted(() => {
   loadTables()
   loadBackups()
 })
+watch(() => route.meta.section, section => {
+  if (section === 'tables' || section === 'backups') activeTab.value = section
+}, { immediate: true })
 </script>
 <template>
   <main class="database" v-loading="loading">
@@ -167,8 +173,8 @@ onMounted(() => {
       <el-button @click="loadTables">刷新</el-button>
     </header>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
-    <el-tabs>
-      <el-tab-pane label="数据表">
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="数据表" name="tables">
         <el-form :inline="true">
           <el-form-item label="关键字"><el-input v-model="keyword" placeholder="表名包含" clearable @keyup.enter="loadTables" /></el-form-item>
           <el-form-item><el-button type="primary" @click="loadTables">查询</el-button></el-form-item>
@@ -204,7 +210,7 @@ onMounted(() => {
           </el-table>
         </div>
       </el-tab-pane>
-      <el-tab-pane label="备份管理">
+      <el-tab-pane label="备份管理" name="backups">
         <div class="toolbar">
           <el-button type="primary" @click="createBackup">立即备份</el-button>
           <el-button @click="loadBackups">刷新列表</el-button>

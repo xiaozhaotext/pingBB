@@ -55,7 +55,7 @@ watch(() => route.query, () => {
 
 // 添加商品分类
 const handleAddProductCate = () => {
-  router.push('/pms/addProductCate')
+  router.push({ name: route.name === 'rebuyCategory' ? 'rebuyAddCategory' : 'pickAddCategory', query: route.query })
 }
 
 // 处理分页大小变化
@@ -93,7 +93,7 @@ const handleShowStatusChange = async (index: number, row: PmsProductCategory) =>
 
 // 查看下级分类
 const handleShowNextLevel = (index: number, row: PmsProductCategory) => {
-  router.push({ path: '/pms/productCate', query: { parentId: row.id } })
+  router.push({ name: String(route.name), query: { parentId: row.id } })
 }
 
 // 转移商品
@@ -103,7 +103,7 @@ const handleTransferProduct = (index: number, row: PmsProductCategory) => {
 
 // 更新分类
 const handleUpdate = (index: number, row: PmsProductCategory) => {
-  router.push({ path: '/pms/updateProductCate', query: { id: row.id } })
+  router.push({ name: route.name === 'rebuyCategory' ? 'rebuyUpdateCategory' : 'pickUpdateCategory', query: { id: row.id } })
 }
 
 // 删除分类

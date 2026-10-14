@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
 
-type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings'
+type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings' | 'p0SmsSettings'
 const sections: Record<SectionKey, { title: string; path: string; note: string }> = {
   p0Members: { title: '会员管理', path: 'members', note: '平台管理员可调整会员身份与直属推荐人，操作写入审计。' },
   p0Partner: { title: '合伙人管理', path: 'partner', note: '权益方案与购买记录均来自测试数据库；模拟购买入口尚未开放给消费者。' },
@@ -13,6 +13,7 @@ const sections: Record<SectionKey, { title: string; path: string; note: string }
   p0Finance: { title: '财务中心', path: 'finance', note: '提现审核仅改变模拟状态；审核通过不触发打款。' },
   p0Dividend: { title: '每日贡献奖励池', path: 'dividend', note: '展示数据库中的贡献、模拟快照和异常；自动核验与实际分红未启用。' },
   p0Settings: { title: '系统配置与日志', path: 'settings', note: '平台管理员可调整会员购买与直推奖励参数，保存前后值均写入审计。' },
+  p0SmsSettings: { title: '短信设置', path: 'settings', note: '配置短信服务商、账号、密钥、签名和模板；敏感密钥在列表中脱敏展示。' },
 }
 const route = useRoute()
 const sectionKey = computed(() => {
@@ -60,6 +61,9 @@ const settingOptions = [
   { key: 'dividend.pool.ratio', label: '分红池比例（0–1）' },
   { key: 'dividend.daily.base', label: '每日每份分红基数（元）' },
 ]
+const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings'
+  ? settingOptions.filter(option => option.key.startsWith('sms.'))
+  : settingOptions)
 const labels: Record<string, string> = {
   id: '编号', member_id: '会员编号', username: '账号', nickname: '昵称', phone: '手机', status: '状态',
   identity_type: '身份', inviter_id: '推荐人', points_type: '积分类型', balance: '余额', available: '可用',
@@ -77,7 +81,10 @@ async function load() {
     const response = await getP0(section.value.path, params)
     const value = response.data
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
-    if (sectionKey.value === 'p0Settings') selectSetting(settingForm.value.key)
+    if (sectionKey.value === 'p0Settings' || sectionKey.value === 'p0SmsSettings') {
+      if (sectionKey.value === 'p0SmsSettings' && !settingForm.value.key.startsWith('sms.')) settingForm.value.key = 'sms.provider'
+      selectSetting(settingForm.value.key)
+    }
   } catch {
     data.value = {}
   } finally {
@@ -209,9 +216,9 @@ const groupTitles: Record<string, string> = {
       <el-input v-model="pointsForm.reason" placeholder="调整原因（至少 5 个字）" />
       <el-button type="primary" @click="requestAdjustment">提交待审核</el-button>
     </el-card>
-    <el-card v-if="sectionKey === 'p0Settings'" class="action-card" shadow="never">
-      <strong>平台参数</strong>
-      <el-select v-model="settingForm.key" style="width:290px" @change="selectSetting"><el-option v-for="option in settingOptions" :key="option.key" :label="option.label" :value="option.key" /></el-select>
+    <el-card v-if="sectionKey === 'p0Settings' || sectionKey === 'p0SmsSettings'" class="action-card" shadow="never">
+      <strong>{{ sectionKey === 'p0SmsSettings' ? '短信参数' : '平台参数' }}</strong>
+      <el-select v-model="settingForm.key" style="width:290px" @change="selectSetting"><el-option v-for="option in visibleSettingOptions" :key="option.key" :label="option.label" :value="option.key" /></el-select>
       <el-input v-model="settingForm.value" placeholder="配置值；积分填非负整数" />
       <el-button type="primary" @click="updateSetting">保存</el-button>
       <el-text v-if="isMaskedSettingValue" type="warning" size="small">敏感信息已脱敏显示；如需修改请直接输入新值后保存，不修改请勿提交。</el-text>

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
 import { getOrderListAPI, orderUpdateCloseAPI, orderDeleteByIdsAPI } from '@/apis/order'
-import http from '@/utils/http'
+import { getReturnApplyListAPI } from '@/apis/returnApply'
 import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import { formatDateTime } from '@/utils/datetime'
 import type { OmsOrder, OrderQueryParam } from '@/types/order'
@@ -27,59 +27,42 @@ const list = ref<OmsOrder[]>([])
 const listLoading = ref(true)
 // 分页组件参数
 const total = ref(0)
-// 销量汇总（REQ-ADM-ORDER-002）
-type OrderSummary = {
-  totalOrderCount: number
-  paidOrderCount: number
-  pendingDeliveryCount: number
-  pendingReceiveCount: number
-  completedCount: number
-  closedCount: number
-  returnApplyCount: number
-  totalSalesAmount: number
-  totalProductQuantity: number
-}
-const summary = ref<OrderSummary | null>(null)
-const summaryCards = [
-  { key: 'totalOrderCount', label: '订单总数', money: false },
-  { key: 'paidOrderCount', label: '已支付订单', money: false },
-  { key: 'pendingDeliveryCount', label: '待发货', money: false },
-  { key: 'pendingReceiveCount', label: '待收货', money: false },
-  { key: 'completedCount', label: '已完成', money: false },
-  { key: 'returnApplyCount', label: '退货申请', money: false },
-  { key: 'totalProductQuantity', label: '销售件数', money: false },
-] as const
-const summaryText = (key: keyof OrderSummary) => {
-  const value = summary.value?.[key]
-  return value === undefined || value === null ? '—' : String(value)
-}
-const getSummary = async () => {
-  try {
-    const response = await http<OrderSummary>({ url: '/order/summary', method: 'get' })
-    summary.value = response.data
-  } catch (error) {
-    summary.value = null
-    console.error('获取订单销量汇总失败:', error)
-  }
-}
+const activeStatus = ref('pending-delivery')
+const returnApplies = ref<import('@/types/returnApply').OmsOrderReturnApply[]>([])
 // 获取订单列表数据
 const getList = async () => {
   listLoading.value = true
   try {
+    if (activeStatus.value === 'after-sales') {
+      const response = await getReturnApplyListAPI({ pageNum: listQuery.value.pageNum, pageSize: listQuery.value.pageSize })
+      returnApplies.value = response.data.list
+      total.value = response.data.total
+      list.value = []
+      return
+    }
+    const statusByTab: Record<string, number> = { 'pending-delivery': 1, 'pending-receipt': 2, completed: 3 }
+    listQuery.value.status = statusByTab[activeStatus.value]
     const response = await getOrderListAPI(listQuery.value)
-    listLoading.value = false
     list.value = response.data.list
+    returnApplies.value = []
     total.value = response.data.total
   } catch (error) {
-    listLoading.value = false
     console.error('获取订单列表失败:', error)
+  } finally {
+    listLoading.value = false
   }
+}
+
+const selectStatus = (status: string | number) => {
+  activeStatus.value = String(status)
+  listQuery.value.pageNum = 1
+  listQuery.value.status = undefined
+  getList()
 }
 
 // 组件挂载后初始化列表信息
 onMounted(() => {
   getList()
-  getSummary()
 })
 
 // 表格中被选中的行
@@ -98,30 +81,6 @@ const closeOrderData = ref({
 const logisticsDialogVisible = ref(false)
 // 当前查看物流的订单
 const logisticsOrder = ref<OmsOrder | null>(null)
-
-// 订单状态选项
-const statusOptions = [
-  {
-    label: '待付款',
-    value: 0
-  },
-  {
-    label: '待发货',
-    value: 1
-  },
-  {
-    label: '已发货',
-    value: 2
-  },
-  {
-    label: '已完成',
-    value: 3
-  },
-  {
-    label: '已关闭',
-    value: 4
-  }
-]
 
 // 订单类型选项
 const orderTypeOptions = [
@@ -188,7 +147,7 @@ const formatStatus = (value: number) => {
   if (value === 1) {
     return '待发货'
   } else if (value === 2) {
-    return '已发货'
+    return '待收货'
   } else if (value === 3) {
     return '已完成'
   } else if (value === 4) {
@@ -218,7 +177,7 @@ const handleSelectionChange = (val: OmsOrder[]) => {
 
 // 处理查看订单
 const handleViewOrder = (index: number, row: OmsOrder) => {
-  router.push({ path: '/oms/orderDetail', query: { id: row.id } })
+  router.push({ path: '/orderMgr/orderDetail', query: { id: row.id } })
 }
 
 // 处理关闭订单
@@ -230,7 +189,7 @@ const handleCloseOrder = (index: number, row: OmsOrder) => {
 // 处理订单发货
 const handleDeliveryOrder = (index: number, row: OmsOrder) => {
   orderStore.setDeliverOrderList([row])
-  router.push({ path: '/oms/deliverOrderList' })
+  router.push({ path: '/orderMgr/deliverOrderList' })
 }
 
 // 处理查看物流
@@ -268,7 +227,7 @@ const handleBatchOperate = async () => {
       return
     }
     orderStore.setDeliverOrderList(listItems)
-    router.push({ path: '/oms/deliverOrderList' })
+    router.push({ path: '/orderMgr/deliverOrderList' })
   } else if (operateType.value === 2) {
     // 关闭订单
     closeOrderData.value.orderIds = multipleSelection.value.filter(item => item.status === 0)
@@ -336,18 +295,12 @@ const deleteOrderFn = async (ids: number[]) => {
 
 <template>
   <div class="app-container">
-    <el-card class="summary-container" shadow="never">
-      <div class="summary-head">
-        <span class="summary-title">订单销量汇总</span>
-        <span class="summary-total">累计销售额（已支付）￥{{ summary ? Number(summary.totalSalesAmount).toFixed(2) : '—' }}</span>
-      </div>
-      <div class="summary-grid">
-        <div v-for="card in summaryCards" :key="card.key" class="summary-item">
-          <span class="summary-label">{{ card.label }}</span>
-          <strong class="summary-value">{{ summaryText(card.key) }}</strong>
-        </div>
-      </div>
-    </el-card>
+    <el-tabs :model-value="activeStatus" class="status-tabs" @tab-change="selectStatus">
+      <el-tab-pane label="待发货" name="pending-delivery" />
+      <el-tab-pane label="待收货" name="pending-receipt" />
+      <el-tab-pane label="已完成" name="completed" />
+      <el-tab-pane label="退款/售后" name="after-sales" />
+    </el-tabs>
     <el-card class="filter-container" shadow="never">
       <div>
         <el-icon class="el-icon-middle">
@@ -374,12 +327,6 @@ const deleteOrderFn = async (ids: number[]) => {
               placeholder="请选择时间">
             </el-date-picker>
           </el-form-item>
-          <el-form-item label="订单状态：">
-            <el-select v-model="listQuery.status" class="input-width" placeholder="全部" clearable>
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value">
-              </el-option>
-            </el-select>
-          </el-form-item>
           <el-form-item label="订单分类：">
             <el-select v-model="listQuery.orderType" class="input-width" placeholder="全部" clearable>
               <el-option v-for="item in orderTypeOptions" :key="item.value" :label="item.label" :value="item.value">
@@ -395,13 +342,13 @@ const deleteOrderFn = async (ids: number[]) => {
         </el-form>
       </div>
     </el-card>
-    <el-card class="operate-container" shadow="never">
+    <el-card v-if="activeStatus !== 'after-sales'" class="operate-container" shadow="never">
       <el-icon class="el-icon-middle">
         <Tickets />
       </el-icon>
       <span>数据列表</span>
     </el-card>
-    <div class="table-container">
+    <div v-if="activeStatus !== 'after-sales'" class="table-container">
       <el-table ref="orderTable" :data="list" style="width: 100%;" @selection-change="handleSelectionChange"
         v-loading="listLoading" border>
         <el-table-column type="selection" width="60" align="center"></el-table-column>
@@ -444,6 +391,17 @@ const deleteOrderFn = async (ids: number[]) => {
         </el-table-column>
       </el-table>
     </div>
+    <el-card v-else class="table-container" shadow="never">
+      <el-table :data="returnApplies" v-loading="listLoading" border>
+        <el-table-column prop="orderSn" label="订单编号" min-width="180" />
+        <el-table-column prop="productName" label="商品信息" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="memberUsername" label="买家账号" min-width="140" />
+        <el-table-column prop="returnName" label="申请人" min-width="120" />
+        <el-table-column prop="returnAmount" label="退款金额" min-width="120" />
+        <el-table-column prop="createTime" label="申请时间" min-width="180" />
+        <el-table-column prop="status" label="售后状态" min-width="110"><template #default="scope">{{ ['待处理','退货中','已完成','已拒绝'][scope.row.status] || '未知' }}</template></el-table-column>
+      </el-table>
+    </el-card>
     <div class="batch-operate-container">
       <el-select v-model="operateType" placeholder="批量操作">
         <el-option v-for="item in operateOptions" :key="item.value" :label="item.label" :value="item.value">
@@ -479,13 +437,5 @@ const deleteOrderFn = async (ids: number[]) => {
   width: 203px
 }
 
-.summary-container{margin-bottom:20px}
-.summary-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.summary-title{font-size:16px;font-weight:600;color:#303133}
-.summary-total{color:#c45656;font-size:14px}
-.summary-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
-.summary-item{background:#f7f7f7;border-radius:8px;padding:12px 14px}
-.summary-label{display:block;color:#909399;font-size:12px}
-.summary-value{display:block;margin-top:8px;font-size:20px;color:#303133}
-@media(max-width:1200px){.summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.status-tabs{margin-bottom:16px;background:#fff;padding:0 20px;border-radius:8px}
 </style>

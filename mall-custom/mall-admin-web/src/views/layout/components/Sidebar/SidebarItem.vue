@@ -48,8 +48,8 @@ const hasOneShowingChildren = (children: RouteRecordExt[]) => {
       <!-- 只有一个子菜单的一级菜单 -->
       <router-link
         v-if="item.children && hasOneShowingChildren(item.children) && !item.children[0]!.children && !item.alwaysShow"
-        :to="item.path + '/' + item.children[0]!.path" :key="item.children[0]!.name">
-        <el-menu-item :index="item.path + '/' + item.children[0]!.path"
+        :to="{ name: item.children[0]!.name as string }" :key="item.children[0]!.name">
+        <el-menu-item :index="String(item.children[0]!.name)"
           :class="{ 'submenu-title-noDropdown': !isNest }">
           <svg-icon v-if="item.children[0]!.meta && item.children[0]!.meta.icon"
             :icon-class="item.children[0]!.meta.icon">
@@ -81,8 +81,8 @@ const hasOneShowingChildren = (children: RouteRecordExt[]) => {
             </el-menu-item>
           </a>
           <!-- 普通子菜单 -->
-          <router-link v-else :to="item.path + '/' + child.path" :key="'route-' + (child.name as string)">
-            <el-menu-item :index="item.path + '/' + child.path">
+          <router-link v-else :to="{ name: child.name as string }" :key="'route-' + (child.name as string)">
+            <el-menu-item :index="String(child.name)">
               <svg-icon v-if="child.meta && child.meta.icon" :icon-class="child.meta.icon"></svg-icon>
               <template #title>
                 <span v-if="child.meta && child.meta.title">{{ child.meta.title }}</span>

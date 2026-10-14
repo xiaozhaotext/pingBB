@@ -42,12 +42,19 @@ function getMenu(name: string, menus: UmsMenu[]) {
   return menus.find(menu => name === menu.name) || null
 }
 
+function cloneRoute(route: RouteRecordExt): RouteRecordExt {
+  return {
+    ...route,
+    meta: route.meta ? { ...route.meta } : route.meta,
+    children: route.children?.map(child => cloneRoute(child)),
+  } as RouteRecordExt
+}
+
 // 对菜单进行排序
 function sortRouters(accessedRouters: RouteRecordExt[]) {
   accessedRouters.forEach(router => {
-    if (router.children && router.children.length > 0) {
-      router.children.sort((a, b) => compare(a, b))
-    }
+    if (router.children?.length) sortRouters(router.children)
+    router.children?.sort((a, b) => compare(a, b))
   })
   accessedRouters.sort((a, b) => compare(a, b))
 }
@@ -72,27 +79,19 @@ export const usePermissionStore = defineStore('permission', () => {
   // 生成可访问的路由表
   const generateRoutes = (data: { menus: UmsMenu[]; username: string }) => {
     const { menus, username } = data
-    const hasNewConsole = ['pick', 'rebuy', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr'].every(name => menus.some(menu => menu.name === name))
-    const accessedRouters = asyncRouterMap.filter(v => {
+    const hasNewConsole = ['pick', 'rebuy', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr', 'systemSettings'].every(name => menus.some(menu => menu.name === name))
+    const filterRouteTree = (routes: RouteRecordExt[]): RouteRecordExt[] => routes.filter(v => {
       // Keep legacy menu assignments for other roles; hide duplicates only for this new-console user.
       if (hasNewConsole && ['pms', 'oms', 'sms', 'p0', 'ums'].includes(String(v.name))) return false
       // 测试模式下admin帐号直接返回所有菜单
       if (testMode && username === 'admin') return true
       if (hasPermission(menus, v)) {
-        if (v.children && v.children.length > 0) {
-          v.children = v.children.filter(child => {
-            if (hasPermission(menus, child)) {
-              return child
-            }
-            return false
-          })
-          return v
-        } else {
-          return v
-        }
+        if (v.children?.length) v.children = filterRouteTree(v.children)
+        return true
       }
       return false
     })
+    const accessedRouters = filterRouteTree(asyncRouterMap.map(route => cloneRoute(route)))
     //对菜单进行排序
     sortRouters(accessedRouters)
     addRouters.value = accessedRouters

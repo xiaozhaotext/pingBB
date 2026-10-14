@@ -56,10 +56,10 @@ watch(zone, () => {
 onMounted(load)
 
 function goAdd() {
-  router.push({ path: '/pms/addProduct' })
+  router.push({ name: zone.value === 'PICK' ? 'pickAddProduct' : 'rebuyAddProduct' })
 }
 function goEdit(row: ZoneProduct) {
-  router.push({ path: '/pms/updateProduct', query: { id: row.id } })
+  router.push({ name: zone.value === 'PICK' ? 'pickUpdateProduct' : 'rebuyUpdateProduct', query: { id: row.id } })
 }
 async function assign(row: ZoneProduct) {
   busy.value = row.id

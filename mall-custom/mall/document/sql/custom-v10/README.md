@@ -41,6 +41,9 @@ mysql -u<user> -p<pass> mall < 07_system_log.sql
 mysql -u<user> -p<pass> mall < 08_dividend_pool.sql
 mysql -u<user> -p<pass> mall < 09_mall_experience.sql
 mysql -u<user> -p<pass> mall < 10_admin_p0.sql
+mysql -u<user> -p<pass> mall < 32_admin_menu_ia.sql
+mysql -u<user> -p<pass> mall < 33_admin_order_layout.sql
+mysql -u<user> -p<pass> mall < 34_admin_mindmap_navigation.sql
 ```
 
 一键执行（bash）：

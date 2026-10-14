@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
 
 const loading = ref(false)
+const route = useRoute()
 const error = ref('')
 const tab = ref('withdraws')
 const summary = ref<Record<string, unknown>>({})
@@ -81,6 +83,9 @@ async function complete(row: P0Row) {
 }
 
 onMounted(load)
+watch(() => route.meta.section, section => {
+  if (typeof section === 'string' && ['withdraws', 'accounts', 'ledger', 'byType'].includes(section)) tab.value = section
+}, { immediate: true })
 </script>
 <template>
   <main class="finance" v-loading="loading">
