@@ -42,6 +42,51 @@
       </view>
     </view>
 
+    <!-- 支付方式 -->
+    <view class="yt-list">
+      <view class="g-header b-b">
+        <text class="name">支付方式</text>
+      </view>
+      <!-- 品牌区/普通商品：产品积分支付 vs 现金支付 -->
+      <view v-if="!hasRebuyGoods">
+        <view class="yt-list-cell b-b" @click="selectPayMethod('product_points')">
+          <view class="cell-icon hb">积</view>
+          <text class="cell-tit clamp">产品积分支付<text class="cell-sub">（可用 {{ memberIntegration }} 积分）</text></text>
+          <text class="cell-tip">{{ payMethod === 'product_points' ? '✓' : '' }}</text>
+        </view>
+        <view class="yt-list-cell b-b" v-if="payMethod === 'product_points'">
+          <text class="cell-tit clamp">使用积分数量</text>
+          <input
+            class="integration"
+            type="number"
+            v-model="useIntegration"
+            placeholder="输入积分数量"
+            placeholder-class="placeholder"
+            @input="handleIntegrationInput"
+          />
+          <text class="cell-tip">抵扣 ￥{{ calcIntegrationAmount(useIntegration) }}</text>
+        </view>
+        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
+          <view class="cell-icon">￥</view>
+          <text class="cell-tit clamp">现金支付<text class="cell-sub">（微信/支付宝）</text></text>
+          <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
+        </view>
+      </view>
+      <!-- 复购区：全现金 vs 30%积分+70%现金 -->
+      <view v-else>
+        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
+          <view class="cell-icon">￥</view>
+          <text class="cell-tit clamp">全现金支付<text class="cell-sub">（微信/支付宝）</text></text>
+          <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
+        </view>
+        <view class="yt-list-cell b-b" @click="selectPayMethod('rebuy_mixed')">
+          <view class="cell-icon hb">复</view>
+          <text class="cell-tit clamp">30%复购积分+70%现金<text class="cell-sub">（需 {{ rebuyRequiredPoints }} 积分，可用 {{ repurchasePointsBalance }}）</text></text>
+          <text class="cell-tip">{{ payMethod === 'rebuy_mixed' ? '✓' : '' }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 优惠明细 -->
     <view class="yt-list">
       <view class="yt-list-cell b-b" @click="handleToggleMask('show')">
@@ -50,7 +95,7 @@
         <text class="cell-tip active">选择优惠券</text>
         <text class="cell-more wanjia wanjia-gengduo-d"></text>
       </view>
-      <view class="yt-list-cell b-b">
+      <view class="yt-list-cell b-b" v-if="false">
         <view class="cell-icon hb">积</view>
         <text class="cell-tit clamp">积分抵扣</text>
         <input
@@ -62,7 +107,7 @@
         />
         <text class="cell-tip">可用 {{ memberIntegration }}</text>
       </view>
-      <view class="yt-list-cell b-b" v-if="hasRebuyGoods">
+      <view class="yt-list-cell b-b" v-if="false">
         <view class="cell-icon hb">复</view>
         <text class="cell-tit clamp">复购积分抵扣{{ Math.round(rebuyPointsRatio * 100) }}%（可用 {{ repurchasePointsBalance }}）</text>
         <switch :checked="useRepurchasePoints" @change="handleRepurchaseToggle" />
@@ -153,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { generateConfirmOrderAPI, generateOrderAPI } from '@/apis/order'
 import { formatDate } from '@/utils/date'
@@ -182,6 +227,43 @@ const currCoupon = ref<SmsCoupon | null>(null)
 const useIntegration = ref(0)
 // 是否使用复购积分（仅复购区商品）
 const useRepurchasePoints = ref(false)
+// 支付方式：cash=现金，product_points=产品积分，rebuy_mixed=30%复购积分+70%现金
+const payMethod = ref<'cash' | 'product_points' | 'rebuy_mixed'>('cash')
+// 复购区30%所需积分（按当前应付金额计算）
+const rebuyRequiredPoints = computed(() => {
+  const payable = Math.max(0, (calcAmount.value.totalAmount || 0) - (calcAmount.value.promotionAmount || 0) - (currCoupon.value?.amount || 0))
+  return Math.floor(payable * rebuyPointsRatio.value)
+})
+// 选择支付方式
+const selectPayMethod = (method: 'cash' | 'product_points' | 'rebuy_mixed') => {
+  payMethod.value = method
+  if (method === 'product_points') {
+    // 产品积分支付：默认用满可用积分（不超过应付）
+    useRepurchasePoints.value = false
+    const payable = Math.max(0, (calcAmount.value.totalAmount || 0) - (calcAmount.value.promotionAmount || 0) - (currCoupon.value?.amount || 0))
+    const maxPoints = Math.floor(payable * productPointMaxRatio.value / productPointYuanPerPoint.value)
+    useIntegration.value = Math.min(memberIntegration.value, maxPoints)
+    if (useIntegration.value <= 0) {
+      uni.showToast({ icon: 'none', title: '产品积分余额不足' })
+      payMethod.value = 'cash'
+      return
+    }
+  } else if (method === 'rebuy_mixed') {
+    // 30%复购积分+70%现金
+    useIntegration.value = 0
+    if (repurchasePointsBalance.value < rebuyRequiredPoints.value) {
+      uni.showToast({ icon: 'none', title: `复购积分不足，需要${rebuyRequiredPoints.value}积分` })
+      payMethod.value = 'cash'
+      return
+    }
+    useRepurchasePoints.value = true
+  } else {
+    // 纯现金
+    useIntegration.value = 0
+    useRepurchasePoints.value = false
+  }
+  calcPayAmount()
+}
 // 复购区商品标识（从购物车商品判断，暂默认显示由后端校验）
 const hasRebuyGoods = ref(false)
 const productPointYuanPerPoint = ref(1)
@@ -630,6 +712,11 @@ page {
     font-size: 26rpx;
     color: $font-color-light;
     margin-right: 10rpx;
+
+    .cell-sub {
+      font-size: 22rpx;
+      color: #999;
+    }
   }
 
   .cell-tip {

@@ -344,7 +344,34 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         }
         // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）
         shareOrderBonusService.postForOrder(orderId, orderDetail.getMemberId(), orderDetail.getPayAmount());
+        // 购买赠送产品积分：按订单 giftIntegration 入账到买家产品积分钱包
+        grantOrderGiftPoints(orderId, orderDetail);
         return orderDetail.getOrderItemList().size();
+    }
+
+    /**
+     * 订单支付成功后，给买家发放商品赠送的产品积分。
+     * 幂等：用 order:gift:{orderId} 做幂等键，重复调用不重复发放。
+     */
+    private void grantOrderGiftPoints(Long orderId, com.macro.mall.portal.domain.OmsOrderDetail orderDetail) {
+        int giftPoints = 0;
+        for (com.macro.mall.portal.domain.OmsOrderItem item : orderDetail.getOrderItemList()) {
+            if (item.getGiftIntegration() != null) {
+                giftPoints += item.getGiftIntegration() * (item.getProductQuantity() == null ? 1 : item.getProductQuantity());
+            }
+        }
+        if (giftPoints <= 0) return;
+        Long memberId = orderDetail.getMemberId();
+        String idempotency = "order:gift:" + orderId;
+        com.macro.mall.common.api.CommonResult<Void> result = pointsWalletService.changePoints(
+                memberId, PointsWalletService.TYPE_PRODUCT, "earn", (long) giftPoints,
+                orderId.toString(), idempotency, null, "商品购买赠送");
+        if (result.getCode() != 200) {
+            throw new IllegalStateException("购买赠送积分入账失败: " + result.getMessage());
+        }
+        // 同步到 ums_member.integration，复用下单抵扣链路
+        memberService.updateIntegration(memberId,
+                memberService.getById(memberId).getIntegration() + giftPoints);
     }
 
     @Override
