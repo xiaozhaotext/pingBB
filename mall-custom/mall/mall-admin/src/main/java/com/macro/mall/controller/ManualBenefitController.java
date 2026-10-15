@@ -18,6 +18,7 @@ public class ManualBenefitController {
  @PostMapping @Transactional(rollbackFor=Exception.class)
  public CommonResult<?> request(Principal principal,@RequestBody Map<String,Object> body){
   long operator=access.requireAuthorized(principal);
+  if(!legacyBenefitsEnabled())return CommonResult.failed("旧版人工权益申请已关闭");
   long member; try {member=Long.parseLong(String.valueOf(body.get("memberId")));}catch(Exception e){return CommonResult.failed("会员编号无效");}
   String type=String.valueOf(body.get("type"));String reason=String.valueOf(body.getOrDefault("reason","" )).trim();
   if(reason.length()<5 || reason.length()>500)return CommonResult.failed("申请依据需为5至500字");
@@ -41,7 +42,9 @@ public class ManualBenefitController {
  }
  @PostMapping("/{id}/review") @Transactional(rollbackFor=Exception.class)
  public CommonResult<?> review(Principal principal,@PathVariable long id,@RequestBody Map<String,Object> body){
-  long operator=access.requireAuthorized(principal);String note=String.valueOf(body.getOrDefault("note","")).trim();
+  long operator=access.requireAuthorized(principal);
+  if(!legacyBenefitsEnabled())return CommonResult.failed("旧版人工权益审核已关闭");
+  String note=String.valueOf(body.getOrDefault("note","")).trim();
   if(note.length()<5 || note.length()>500)return CommonResult.failed("审核或核销凭据需为5至500字");
   if(!(body.get("approve") instanceof Boolean))return CommonResult.failed("请选择审核结果");
   boolean approve=Boolean.TRUE.equals(body.get("approve"));
@@ -64,5 +67,9 @@ public class ManualBenefitController {
  }
  private void audit(long operator,String name,String action,long id,String detail){
   jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,target_id,detail) VALUES(?,?,?,?,?,?)",operator,name,"manual_benefit",action,id,detail);
+ }
+ private boolean legacyBenefitsEnabled(){
+  var values=jdbc.queryForList("SELECT config_value FROM sys_config WHERE config_key='legacy.manual_benefits.enabled'",String.class);
+  return !values.isEmpty() && "1".equals(values.get(0));
  }
 }

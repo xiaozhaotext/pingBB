@@ -2,13 +2,14 @@
   <view class="app">
     <view v-if="sandboxMode" class="card">测试沙箱：演示支付不扣款，积分、身份和奖励仅写入独立测试库。</view>
     <view class="card">
-      <text class="title">合伙人权益</text>
-      <view class="row"><text>权益价格</text><text class="v">3999 元</text></view>
-      <view class="row"><text>赠送商品积分</text><text class="v">3999</text></view>
+      <text class="title">会员身份牌</text>
+      <view class="row"><text>身份牌价格</text><text class="v">3999 元</text></view>
+      <view class="row"><text>赠送消费积分</text><text class="v">3999</text></view>
       <view class="row"><text>赠送复购积分</text><text class="v">3999</text></view>
-      <view class="row"><text>直接分享奖励</text><text class="v">10% 现金奖励</text></view>
-      <view class="row"><text>每日分红</text><text class="v">1 份</text></view>
-      <view class="row"><text>纯玩线旅游</text><text class="v">1 次</text></view>
+      <view class="row"><text>直邀会员奖励</text><text class="v">1200 复购积分 + 399.9 元返利</text></view>
+      <view class="row"><text>合伙人池分红</text><text class="v">1 份，上限 1200 元</text></view>
+      <view class="row"><text>旅游路线</text><text class="v">可自定义</text></view>
+      <button class="btn-primary mt" @click="openTravel">提交旅游路线需求</button>
     </view>
 
     <view class="card">
@@ -43,6 +44,7 @@ const orderInfo = ref<any>(null)
 const payHint = ref('')
 const actionError = ref('')
 const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
+const openTravel = () => uni.navigateTo({ url: '/pages/member/customTravel' })
 
 /** 生成幂等键：8-64 位字母数字 */
 const genRequestId = () => {

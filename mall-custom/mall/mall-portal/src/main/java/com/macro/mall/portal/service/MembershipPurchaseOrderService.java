@@ -53,7 +53,8 @@ public class MembershipPurchaseOrderService {
             BigDecimal price = decimal(config(prefix + "price"));
             long productPoints = nonNegativeLong(config(prefix + "product_points"));
             long repurchasePoints = nonNegativeLong(config(prefix + "repurchase_points"));
-            if (price.signum() <= 0 || price.scale() > 2) {
+            if (price.compareTo(new BigDecimal("3999.00")) != 0
+                    || productPoints != 3999 || repurchasePoints != 3999) {
                 throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
             }
             MembershipReferralRewardService.Snapshot reward =
@@ -107,7 +108,7 @@ public class MembershipPurchaseOrderService {
 
     private void validate(Long current, MembershipPurchaseRequest request) {
         if (request == null || current == null || !current.equals(request.memberId())
-                || !("PARTNER".equals(request.level()) || "COFOUNDER".equals(request.level()))
+                || !"PARTNER".equals(request.level())
                 || !("WECHAT".equals(request.payChannel()) || "ALIPAY".equals(request.payChannel()))
                 || !(("WECHAT".equals(request.payChannel())
                         && ("WECHAT_H5".equals(request.payMode()) || "WECHAT_JSAPI".equals(request.payMode())))

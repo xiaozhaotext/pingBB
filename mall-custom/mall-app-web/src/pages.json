@@ -354,7 +354,13 @@
     {
       "path": "pages/member/dividend",
       "style": {
-        "navigationBarTitleText": "每日分红池(模拟)"
+        "navigationBarTitleText": "我的分红"
+      }
+    },
+    {
+      "path": "pages/member/customTravel",
+      "style": {
+        "navigationBarTitleText": "自定义旅游路线"
       }
     },
     {

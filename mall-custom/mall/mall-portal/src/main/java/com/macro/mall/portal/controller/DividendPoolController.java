@@ -48,47 +48,36 @@ public class DividendPoolController {
         Long memberId = memberService.getCurrentMember().getId();
         Map<String, Object> result = new java.util.HashMap<>();
 
-        // 身份与份数：1=合伙人(1份)，2=联创(3份)
-        List<Map<String, Object>> idRows = jdbc.queryForList(
-                "SELECT identity_type FROM ums_member_identity WHERE member_id=? AND status=1 LIMIT 1",
-                memberId);
-        int identityType = 0;
-        int shares = 0;
-        if (!idRows.isEmpty() && idRows.get(0).get("identity_type") != null) {
-            identityType = ((Number) idRows.get(0).get("identity_type")).intValue();
-            shares = (identityType == 2 ? 3 : (identityType == 1 ? 1 : 0));
-        }
-        result.put("identityType", identityType);
-        result.put("identityName", identityType == 2 ? "联创" : (identityType == 1 ? "合伙人" : "普通会员"));
-        result.put("shares", shares);
+        Map<String, Object> quota = dividendDistributionService.quota(memberId);
+        result.put("identityType", quota.get("identityType"));
+        result.put("identityName", quota.get("identityName"));
+        result.put("shares", quota.get("partnerShares"));
+        result.put("cofounderShares", quota.get("cofounderShares"));
 
         // 今日分红
         BigDecimal todayAmount = jdbc.queryForObject(
                 "SELECT COALESCE(SUM(dividend_amount),0) FROM member_dividend_ledger WHERE member_id=? AND stat_date=CURDATE()",
                 BigDecimal.class, memberId);
-        result.put("todayDividend", todayAmount == null ? BigDecimal.ZERO : todayAmount);
+        BigDecimal todayNew = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(dividend_amount),0) FROM member_bonus_dividend_ledger WHERE member_id=? AND stat_date=CURDATE()",
+                BigDecimal.class, memberId);
+        result.put("todayDividend", (todayAmount == null ? BigDecimal.ZERO : todayAmount)
+                .add(todayNew == null ? BigDecimal.ZERO : todayNew));
 
         // 累计分红
         BigDecimal totalAmount = jdbc.queryForObject(
                 "SELECT COALESCE(SUM(dividend_amount),0) FROM member_dividend_ledger WHERE member_id=?",
                 BigDecimal.class, memberId);
-        result.put("totalDividend", totalAmount == null ? BigDecimal.ZERO : totalAmount);
+        BigDecimal totalNew = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(dividend_amount),0) FROM member_bonus_dividend_ledger WHERE member_id=?",
+                BigDecimal.class, memberId);
+        result.put("totalDividend", (totalAmount == null ? BigDecimal.ZERO : totalAmount)
+                .add(totalNew == null ? BigDecimal.ZERO : totalNew));
 
-        // 推荐人数与封顶：1200 + 1200×推荐人数，上限12000
-        Integer refCount = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM ums_member_recommend WHERE inviter_id=?",
-                Integer.class, memberId);
-        int refs = refCount == null ? 0 : refCount;
-        result.put("referralCount", refs);
-        BigDecimal capBase = configDecimal("dividend.cap.base", new BigDecimal("1200.00"));
-        BigDecimal capPerReferral = configDecimal("dividend.cap.per_referral", new BigDecimal("1200.00"));
-        BigDecimal capMax = configDecimal("dividend.cap.max", new BigDecimal("12000.00"));
-        BigDecimal cap = capBase.add(capPerReferral.multiply(new BigDecimal(refs)));
-        if (cap.compareTo(capMax) > 0) cap = capMax;
-        result.put("capAmount", cap);
-        result.put("capBase", capBase);
-        result.put("capPerReferral", capPerReferral);
-        result.put("capMax", capMax);
+        result.put("referralCount", quota.get("referralCount"));
+        result.put("capAmount", quota.get("capAmount"));
+        result.put("partnerCap", quota.get("partnerCap"));
+        result.put("cofounderCap", quota.get("cofounderCap"));
 
         // 分红发放开关状态（仅展示，不在此修改）
         result.put("distributionEnabled", configBool("dividend.distribution.enabled", false));
@@ -114,9 +103,14 @@ public class DividendPoolController {
         int safeSize = Math.min(Math.max(size, 1), 100);
         long offset = (safePage - 1L) * safeSize;
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT stat_date, shares, dividend_amount, cap_amount, cumulative_received, create_time"
-                        + " FROM member_dividend_ledger WHERE member_id=? ORDER BY stat_date DESC LIMIT ? OFFSET ?",
-                memberId, safeSize, offset);
+                "SELECT stat_date,shares,dividend_amount,cap_amount,cumulative_received,create_time,pool_code"
+                        + " FROM (SELECT stat_date,shares,dividend_amount,cap_amount,cumulative_received,"
+                        + " create_time,pool_code FROM member_bonus_dividend_ledger WHERE member_id=?"
+                        + " UNION ALL SELECT stat_date,shares,dividend_amount,cap_amount,cumulative_received,"
+                        + " create_time,CASE WHEN shares=3 THEN 'COFOUNDER' ELSE 'PARTNER' END"
+                        + " FROM member_dividend_ledger WHERE member_id=?) all_records"
+                        + " ORDER BY stat_date DESC,create_time DESC LIMIT ? OFFSET ?",
+                memberId, memberId, safeSize, offset);
         return CommonResult.success(rows);
     }
 
@@ -165,13 +159,15 @@ public class DividendPoolController {
         Long memberId = memberService.getCurrentMember().getId();
         return CommonResult.success(jdbc.queryForList("SELECT * FROM ("
                         + "SELECT id,stat_date,shares,dividend_amount,cap_amount,cumulative_received,"
-                        + "create_time,CASE WHEN shares=3 THEN 'COFOUNDER' ELSE 'PARTNER' END AS pool_code"
+                        + "create_time,pool_code FROM member_bonus_dividend_ledger WHERE member_id=?"
+                        + " UNION ALL SELECT id,stat_date,shares,dividend_amount,cap_amount,cumulative_received,"
+                        + "create_time,CASE WHEN shares=3 THEN 'COFOUNDER' ELSE 'PARTNER' END"
                         + " FROM member_dividend_ledger WHERE member_id=?"
                         + " UNION ALL SELECT id,DATE(create_time),0,-change_amount,NULL,NULL,create_time,"
                         + "'OPERATIONS' FROM bonus_dividend_pool_ledger"
                         + " WHERE pool_code='OPERATIONS' AND source_type='OPERATIONS_PAYOUT'"
                         + " AND receiver_member_id=? ) records ORDER BY create_time DESC LIMIT 100",
-                memberId, memberId));
+                memberId, memberId, memberId));
     }
 
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")

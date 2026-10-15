@@ -2,7 +2,7 @@
 import { computed,ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
-import { getMyIdentityAPI,getMyInviteesAPI,getEarningsAccountAPI } from '@/apis/member'
+import { getMyDividendQuotaAPI,getEarningsAccountAPI } from '@/apis/member'
 import MainNavigation from '@/components/MainNavigation.vue'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 const member=useMemberStore(),loggedIn=computed(()=>!!member.memberInfo)
@@ -10,9 +10,9 @@ const identity=ref('—'),inviteCount=ref<string|number>('—'),available=ref<st
 async function load(){
  identity.value='—';inviteCount.value='—';available.value='—';total.value='—';error.value=''
  if(!loggedIn.value)return
- const results=await Promise.allSettled([getMyIdentityAPI(),getMyInviteesAPI(),getEarningsAccountAPI()])
+ const results=await Promise.allSettled([getMyDividendQuotaAPI(),getEarningsAccountAPI()])
  if(!loggedIn.value)return
- results.forEach((r,i)=>{if(r.status==='rejected'){error.value='部分推广数据暂时无法加载，请重试';return}const d=r.value.data;if(i===0)identity.value=({0:'普通会员',1:'合伙人',2:'联创'} as Record<number,string>)[d?.identityType??0]||'未知身份';if(i===1)inviteCount.value=Array.isArray(d)?d.length:'—';if(i===2){available.value=d?.availableEarnings??'未开户';total.value=d?.totalEarnings??'未开户'}})
+ results.forEach((r,i)=>{if(r.status==='rejected'){error.value='部分推广数据暂时无法加载，请重试';return}const d=r.value.data;if(i===0){identity.value=d?.identityName??'游客';inviteCount.value=d?.referralCount??0}if(i===1){available.value=d?.availableEarnings??'未开户';total.value=d?.totalEarnings??'未开户'}})
 }
 function go(url:string){uni.navigateTo({url:loggedIn.value?url:'/pages/public/login'})}
 onShow(load)
@@ -23,8 +23,8 @@ onShow(load)
   <view class="promotion-hero"><text class="eyebrow">智美游 · 邀请与推荐</text><view class="title">推广中心</view><text>级别、推荐关系与收益记录集中在这里</text></view>
   <view v-if="!loggedIn" class="promotion-card guest"><text>登录后查看您的推广记录</text><button @click="go('/pages/public/login')">登录</button></view>
   <view class="promotion-grid">
-   <view class="promotion-card"><view class="section-title">数据看板<small>账户实际数据</small></view><view class="metrics"><view><text>{{inviteCount}}</text><small>我的推荐人数</small></view><view><text>{{identity}}</text><small>当前级别</small></view><view><text>{{total}}</text><small>累计收益</small></view><view><text>{{available}}</text><small>可提现余额</small></view></view></view>
-   <view class="promotion-card"><view class="section-title">会员级别</view><view class="level-row" @click="go('/pages/member/partner')"><text>合伙人</text><small>查看权益方案 ›</small></view><view class="level-row" @click="go('/pages/member/cofounder')"><text>联创</text><small>查看权益方案 ›</small></view></view>
+   <view class="promotion-card"><view class="section-title">数据看板<small>账户实际数据</small></view><view class="metrics"><view><text>{{inviteCount}}</text><small>有效直邀会员</small></view><view><text>{{identity}}</text><small>当前级别</small></view><view><text>{{total}}</text><small>累计收益</small></view><view><text>{{available}}</text><small>可提现余额</small></view></view></view>
+   <view class="promotion-card"><view class="section-title">会员级别</view><view class="level-row" @click="go('/pages/member/partner')"><text>购买会员</text><small>3999 元身份牌 ›</small></view><view class="level-row" @click="go('/pages/member/cofounder')"><text>合伙人 / 联创</text><small>查看直邀升级规则 ›</small></view></view>
    <view class="promotion-card"><view class="section-title">邀请与推荐</view><view class="level-row" @click="go('/pages/member/invitation')"><text>我的邀请码</text><small>邀请链接与二维码 ›</small></view><view class="level-row" @click="go('/pages/member/invitation')"><text>我的推荐</text><small>查看直属推荐关系 ›</small></view></view>
    <view class="promotion-card"><view class="section-title">收益记录</view><view class="level-row" @click="go('/pages/member/earnings')"><text>我的收益</text><small>余额与收益明细 ›</small></view><view class="level-row" @click="go('/pages/member/dividend')"><text>贡献与分配记录</text><small>查看已有记录 ›</small></view></view>
   </view>

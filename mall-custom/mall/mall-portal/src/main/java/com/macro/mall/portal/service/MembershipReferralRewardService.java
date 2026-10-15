@@ -31,12 +31,17 @@ public class MembershipReferralRewardService {
 
     /** Snapshot the real direct parent and configured reward before asking for payment. */
     public Snapshot snapshotFor(long buyingMemberId, String level) {
-        List<Long> referrers = jdbc.queryForList(
-                "SELECT inviter_id FROM ums_member_recommend WHERE member_id=? LIMIT 1",
-                Long.class, buyingMemberId);
+        List<Map<String, Object>> referrers = jdbc.queryForList(
+                "SELECT inviter_id,bind_time FROM ums_member_recommend WHERE member_id=? LIMIT 1",
+                buyingMemberId);
         if (referrers.isEmpty()) return null;
-        long referrerId = referrers.get(0);
+        long referrerId = ((Number) referrers.get(0).get("inviter_id")).longValue();
         if (referrerId == buyingMemberId) throw unavailable();
+        // Registration alone is a tourist account and carries no invitation reward.
+        Integer paidMembership = jdbc.queryForObject("SELECT COUNT(*) FROM membership_purchase_order"
+                        + " WHERE member_id=? AND level='PARTNER' AND status='PAID' AND amount=3999.00"
+                        + " AND paid_at<=?", Integer.class, referrerId, referrers.get(0).get("bind_time"));
+        if (paidMembership == null || paidMembership == 0) return null;
         if (!"PAID_AMOUNT".equals(config("membership.referral.reward_basis"))) throw unavailable();
         BigDecimal rate = decimal(config("membership.referral.cash_rate"));
         String prefix = "PARTNER".equals(level) ? "membership.referral.partner."
@@ -44,8 +49,12 @@ public class MembershipReferralRewardService {
         String capText = config(prefix + "cash_cap");
         BigDecimal cap = capText == null || capText.isBlank() ? null : decimal(capText);
         long points = nonNegativeLong(config(prefix + "repurchase_points"));
-        if (rate.signum() <= 0 || rate.compareTo(BigDecimal.ONE) > 0 || rate.scale() > 6
-                || (cap != null && (cap.signum() <= 0 || cap.scale() > 2))) throw unavailable();
+        if ("PARTNER".equals(level)) {
+            if (rate.compareTo(new BigDecimal("0.10")) != 0 || cap != null || points != 1200) throw unavailable();
+        } else if (rate.signum() <= 0 || rate.compareTo(BigDecimal.ONE) > 0 || rate.scale() > 6
+                || (cap != null && (cap.signum() <= 0 || cap.scale() > 2))) {
+            throw unavailable();
+        }
         return new Snapshot(referrerId, rate, cap, points);
     }
 

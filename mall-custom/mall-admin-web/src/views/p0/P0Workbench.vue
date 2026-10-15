@@ -7,8 +7,8 @@ import { getP0, postP0, type P0Row } from '@/apis/p0'
 type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings' | 'p0SmsSettings'
 const sections: Record<SectionKey, { title: string; path: string; note: string }> = {
   p0Members: { title: '会员列表', path: 'members', note: '选择会员查看身份、会员操作、登录权限和列表信息。身份及推荐关系变更写入审计。' },
-  p0Partner: { title: '合伙人管理', path: 'partner', note: '权益方案与购买记录均来自测试数据库；模拟购买入口尚未开放给消费者。' },
-  p0Cofounder: { title: '联创管理', path: 'cofounder', note: '所有金额与权益仅用于模拟展示，不产生真实分红。' },
+  p0Partner: { title: '旧合伙人模拟记录', path: 'partner', note: '此处为历史模拟表；当前会员身份由3999元已支付订单及有效直邀人数计算。' },
+  p0Cofounder: { title: '旧联创模拟记录', path: 'cofounder', note: '此处为历史模拟表；当前联创须直邀满9名已支付会员。' },
   p0Points: { title: '双积分管理', path: 'points', note: '调整先申请后审核，余额和流水在同一数据库事务中更新。' },
   p0Finance: { title: '财务中心', path: 'finance', note: '提现审核仅改变模拟状态；审核通过不触发打款。' },
   p0Dividend: { title: '每日贡献奖励池', path: 'dividend', note: '展示数据库中的贡献、模拟快照和异常；自动核验与实际分红未启用。' },
@@ -34,7 +34,6 @@ const memberDetailTab = ref('identity')
 const memberStats = ref<Record<string, unknown> | null>(null)
 const memberZone = ref('')
 const identityType = ref(0)
-const identityReason = ref('')
 const referrerId = ref<number | null>(null)
 const referrerReason = ref('')
 const pointsForm = ref({ memberId: 0, pointsType: 1, delta: 0, reason: '', idempotencyKey: '' })
@@ -42,35 +41,11 @@ const benefitTypeLabel = (type: unknown) => type === 'TRAVEL' ? '一次旅游权
 const benefitStatusLabel = (status: unknown) => (({ PENDING: '待人工审核', APPROVED: '已审核入账', REDEEMED: '已核销', REJECTED: '已拒绝' } as Record<string, string>)[String(status)] || String(status))
 const money = (value: unknown) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
 const benefitRows = ref<P0Row[]>([])
-const benefitForm = ref({ memberId: 0, type: 'MONTHLY_REWARD', period: new Date().toISOString().slice(0, 7), reason: '' })
 async function loadBenefits() { benefitRows.value = (await getP0<P0Row[]>('benefits')).data }
-async function requestBenefit() {
-  await postP0('benefits', benefitForm.value)
-  ElMessage.success('已提交，等待人工审核或核销')
-  await loadBenefits()
-}
-async function reviewBenefit(id: number, approve: boolean) {
-  const { value } = await ElMessageBox.prompt('填写审核依据或旅游核销凭据（至少5字）', approve ? '通过审核 / 确认核销' : '拒绝申请', { inputValidator: (v: string) => v.trim().length >= 5 || '至少填写5字' })
-  await postP0(`benefits/${id}/review`, { approve, note: value })
-  ElMessage.success('已处理并记录审核信息')
-  await loadBenefits()
-}
 const settingForm = ref({ key: 'site.title', value: '' })
 const settingOptions = [
   { key: 'site.title', label: '站点标题' }, { key: 'site.notice', label: '站点公告' },
-  { key: 'membership.partner.product_id', label: '合伙人旅游商品ID（留空取消）' },
-  { key: 'membership.cofounder.product_id', label: '联创旅游商品ID（留空取消）' },
-  { key: 'membership.partner.price', label: '合伙人价格（元）' },
-  { key: 'membership.partner.product_points', label: '合伙人赠送产品积分' },
-  { key: 'membership.partner.repurchase_points', label: '合伙人赠送复购积分' },
-  { key: 'membership.cofounder.price', label: '联创价格（元）' },
-  { key: 'membership.cofounder.product_points', label: '联创赠送产品积分' },
-  { key: 'membership.cofounder.repurchase_points', label: '联创赠送复购积分' },
-  { key: 'membership.referral.cash_rate', label: '直推现金奖励比例（0–1）' },
-  { key: 'membership.referral.partner.cash_cap', label: '合伙人直推现金封顶（空为不封顶）' },
-  { key: 'membership.referral.cofounder.cash_cap', label: '联创直推现金封顶（元）' },
-  { key: 'membership.referral.partner.repurchase_points', label: '合伙人直推复购积分' },
-  { key: 'membership.referral.cofounder.repurchase_points', label: '联创直推复购积分' },
+  { key: 'membership.partner.product_id', label: '会员身份牌商品ID（留空取消）' },
   { key: 'pay.wechat.mch_id', label: '微信支付商户号' },
   { key: 'pay.wechat.api_key', label: '微信支付 API 密钥（敏感）' },
   { key: 'pay.wechat.app_id', label: '微信支付 AppID' },
@@ -83,7 +58,6 @@ const settingOptions = [
   { key: 'sms.sign_name', label: '短信签名' },
   { key: 'sms.template_code', label: '短信模板 Code' },
   { key: 'dividend.pool.ratio', label: '其它价格会员购买划入旧总池比例（0–1）' },
-  { key: 'dividend.daily.base', label: '每日每份分红基数（元）' },
 ]
 const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings'
   ? settingOptions.filter(option => option.key.startsWith('sms.'))
@@ -157,7 +131,6 @@ async function openMember(id: number) {
     drawerOpen.value = true
     const current = rows(response.data.identity)[0]
     identityType.value = Number(current?.identity_type ?? 0)
-    identityReason.value = ''
     const inviter = rows(response.data.inviter)[0]
     referrerId.value = inviter?.inviter_id == null ? null : Number(inviter.inviter_id)
     referrerReason.value = ''
@@ -181,14 +154,6 @@ async function changeMemberStatus() {
   await postP0(`members/${memberId.value}/status`, {status,reason})
   await openMember(memberId.value)
   ElMessage.success('登录权限已更新')
-}
-async function changeIdentity() {
-  if (!memberId.value || identityReason.value.trim().length < 5) return ElMessage.warning('请填写至少 5 个字的变更原因')
-  await ElMessageBox.confirm('确认调整会员身份并写入审计日志？', '身份调整', { type: 'warning' })
-  await postP0(`members/${memberId.value}/identity`, { identityType: identityType.value, reason: identityReason.value })
-  ElMessage.success('身份已更新')
-  await load()
-  await openMember(memberId.value)
 }
 async function changeReferrer() {
   if (!memberId.value || !referrerId.value || referrerReason.value.trim().length < 5) {
@@ -301,17 +266,11 @@ const groupTitles: Record<string, string> = {
     </el-card>
 
     <el-card v-if="['p0Partner', 'p0Cofounder', 'p0Finance'].includes(sectionKey)" shadow="never" class="action-card">
-      <template #header><strong>人工权益审核与旅游核销</strong></template>
-      <p>月奖励审核通过后计入可提现收益，未直接打款。旅游核销需填写实际服务凭据。</p>
-      <el-input-number v-model="benefitForm.memberId" :min="1" placeholder="会员ID" />
-      <el-select v-model="benefitForm.type" style="width:180px"><el-option label="联创每月200元奖励" value="MONTHLY_REWARD"/><el-option label="一次旅游权益核销" value="TRAVEL"/></el-select>
-      <el-input v-if="benefitForm.type === 'MONTHLY_REWARD'" v-model="benefitForm.period" placeholder="YYYY-MM" />
-      <el-input v-model="benefitForm.reason" placeholder="申请依据（至少5字）" />
-      <el-button @click="requestBenefit">提交待审核</el-button>
+      <template #header><strong>旧版人工权益记录</strong></template>
+      <p>旧版每月奖励和一次性旅游权益申请已停用，此处仅查看历史记录。</p>
       <el-table :data="benefitRows" max-height="400">
         <el-table-column prop="member_id" label="会员ID"/><el-table-column label="权益类型"><template #default="{row}">{{ benefitTypeLabel(row.benefit_type) }}</template></el-table-column><el-table-column label="所属月份/次数"><template #default="{row}">{{ row.benefit_period === 'ONCE' ? '一次' : row.benefit_period }}</template></el-table-column>
         <el-table-column label="金额（元）"><template #default="{row}">{{ money(row.amount) }}</template></el-table-column><el-table-column label="状态"><template #default="{row}">{{ benefitStatusLabel(row.status) }}</template></el-table-column><el-table-column prop="request_reason" label="申请依据"/><el-table-column prop="review_note" label="审核/核销凭据"/>
-        <el-table-column label="操作"><template #default="{ row }"><template v-if="row.status === 'PENDING'"><el-button link @click="reviewBenefit(Number(row.id), true)">通过/核销</el-button><el-button link type="danger" @click="reviewBenefit(Number(row.id), false)">拒绝</el-button></template></template></el-table-column>
       </el-table>
     </el-card>
 
@@ -334,11 +293,8 @@ const groupTitles: Record<string, string> = {
       <template v-if="memberDetail">
         <el-tabs v-model="memberDetailTab" class="member-detail-tabs">
           <el-tab-pane label="会员身份" name="identity">
-            <p>当前身份：{{ ['普通会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
-            <h3>调整身份</h3>
-            <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
-            <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
-            <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
+            <p>当前身份：{{ ['游客', '会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
+            <p>身份依据已支付 3999 元会员订单与有效直邀人数自动计算。</p>
             <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
           </el-tab-pane>
           <el-tab-pane label="会员操作" name="operations">

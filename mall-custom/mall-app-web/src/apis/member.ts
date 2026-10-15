@@ -144,7 +144,16 @@ export const getDividendRecordsAPI = (params: { page?: number; size?: number }) 
 
 export type DividendQuota = {
   identityType: number
+  identityName: string
   referralCount: number
+  partnerShares: number
+  partnerCap: number
+  partnerReceived: number
+  partnerRemaining: number
+  cofounderShares: number
+  cofounderCap: number
+  cofounderReceived: number
+  cofounderRemaining: number
   capAmount: number
   receivedAmount: number
   operationsReceivedAmount: number
@@ -166,6 +175,25 @@ export const getMyDividendQuotaAPI = () =>
   http<DividendQuota>({ method: 'GET', url: '/member/dividend/quota' })
 export const getMyDividendLedgerAPI = () =>
   http<DividendPayment[]>({ method: 'GET', url: '/member/dividend/myLedger' })
+
+export type CustomTravelRequest = {
+  id: number
+  destination: string
+  departure_date: string | null
+  traveler_count: number
+  requirements: string | null
+  status: 'SUBMITTED' | 'IN_REVIEW' | 'CONFIRMED' | 'CLOSED'
+  admin_note: string | null
+  create_time: string
+}
+export const getMyCustomTravelRequestsAPI = () =>
+  http<CustomTravelRequest[]>({ method: 'GET', url: '/member/travel/custom' })
+export const submitCustomTravelRequestAPI = (data: {
+  destination: string
+  departureDate?: string
+  travelerCount: number
+  requirements?: string
+}) => http<void>({ method: 'POST', url: '/member/travel/custom', data })
 
 // ===== 以下旧模拟购买接口已下线，统一走上方真实链路 createMembershipOrderAPI =====
 

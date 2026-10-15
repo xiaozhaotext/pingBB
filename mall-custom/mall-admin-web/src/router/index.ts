@@ -81,11 +81,11 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [
       { path: 'management', name: 'memberManagement', component: RouterView, redirect: '/memberMgr/management/list', meta: { title: '会员管理', icon: 'ums-role' }, children: [
         { path: 'list', name: 'memberMgrList', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '会员列表', icon: 'user', section: 'p0Members' } },
-        { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), hidden: true, meta: { title: '会员身份', icon: 'ums-role' } },
+        { path: 'identity', name: 'memberIdentity', component: () => import('@/views/member/MemberIdentity.vue'), meta: { title: '身份与路线需求', icon: 'ums-role' } },
       ] },
       { path: 'operations', name: 'memberOperations', component: RouterView, redirect: '/memberMgr/operations/stats', meta: { title: '会员操作', icon: 'form' }, children: [
-        { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '合伙人管理', icon: 'ums-role', section: 'p0Partner' } },
-        { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理', icon: 'ums-role', section: 'p0Cofounder' } },
+        { path: 'partner', name: 'memberMgrPartner', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '旧合伙人记录', icon: 'ums-role', section: 'p0Partner' } },
+        { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '旧联创记录', icon: 'ums-role', section: 'p0Cofounder' } },
         { path: 'stats', name: 'memberStats', component: () => import('@/views/member/MemberStats.vue'), meta: { title: '会员统计', icon: 'total-today' } },
         { path: 'register-notice', name: 'memberRegisterNotice', component: () => import('@/views/member/RegisterNotice.vue'), meta: { title: '注册须知', icon: 'form' } },
         { path: 'notices', name: 'memberMgrNotices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理', icon: 'form', section: 'p0Notices' } },

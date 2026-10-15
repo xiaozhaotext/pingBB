@@ -2,9 +2,11 @@
   <view class="dividend-page">
     <view class="summary">
       <text class="title">我的分红额度</text>
-      <view class="amounts"><view><strong>{{ money(quota?.remainingAmount) }}</strong><text>剩余额度上限</text></view><view><strong>{{ money(quota?.receivedAmount) }}</strong><text>累计已分红</text></view></view>
-      <text class="note">{{ quota?.identityType ? `当前身份：${identityName} · 推荐人数：${quota?.referralCount || 0}` : '普通会员暂无分红额度' }}</text>
-      <text class="note">额度上限不是可提现余额。{{ quota?.payoutEnabled ? '发放结果以账本为准。' : '分红发放暂未启用。' }}</text>
+      <view class="amounts"><view><strong>{{ money(quota?.capAmount) }}</strong><text>个人累计分红上限</text></view><view><strong>{{ money(quota?.remainingAmount) }}</strong><text>尚可领取额度</text></view></view>
+      <text class="note">当前身份：{{ quota?.identityName || '游客' }} · 有效直邀会员：{{ quota?.referralCount || 0 }}</text>
+      <view v-if="quota?.partnerShares" class="pool-limit"><view><strong>合伙人池</strong><text>{{ quota.partnerShares }} 份</text></view><view><text>个人累计上限</text><strong>{{ money(quota.partnerCap) }}</strong></view><view><text>已领取 {{ money(quota.partnerReceived) }}</text><text>剩余 {{ money(quota.partnerRemaining) }}</text></view></view>
+      <view v-if="quota?.cofounderShares" class="pool-limit"><view><strong>联创池</strong><text>{{ quota.cofounderShares }} 份</text></view><view><text>个人累计上限</text><strong>{{ money(quota.cofounderCap) }}</strong></view><view><text>已领取 {{ money(quota.cofounderReceived) }}</text><text>剩余 {{ money(quota.cofounderRemaining) }}</text></view></view>
+      <text class="note">以上是个人累计领取上限，不限制池内总余额；实际分红按池内总份数计算。{{ quota?.payoutEnabled ? '发放结果以账本为准。' : '分红发放暂未启用。' }}</text>
     </view>
     <view class="ledger-card">
       <view class="heading"><text>已发放分红明细</text><text class="refresh" @click="load">刷新</text></view>
@@ -19,14 +21,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { onShow, onHide } from '@dcloudio/uni-app'
 import { getMyDividendQuotaAPI, getMyDividendLedgerAPI, type DividendQuota, type DividendPayment } from '@/apis/member'
 
 const quota = ref<DividendQuota | null>(null)
 const ledger = ref<DividendPayment[]>([])
 const error = ref('')
-const identityName = computed(() => quota.value?.identityType === 2 ? '联创' : '合伙人')
 const money = (value: number | undefined) => value == null ? '—' : `¥${Number(value).toFixed(2)}`
 let timer: ReturnType<typeof setInterval> | null = null
 async function load() {
@@ -44,5 +45,5 @@ onHide(() => { if (timer) clearInterval(timer); timer = null })
 </script>
 
 <style lang="scss" scoped>
-.dividend-page{min-height:100vh;padding:24rpx;background:#f2f6f5;box-sizing:border-box}.summary,.ledger-card{padding:32rpx;margin-bottom:24rpx;border:1rpx solid #e5eeea;border-radius:24rpx;background:#fff}.title{display:block;color:#28565a;font-size:34rpx;font-weight:700}.amounts{display:flex;gap:20rpx;margin:32rpx 0}.amounts view{flex:1;min-width:0}.amounts strong{display:block;color:#167a80;font-size:40rpx}.amounts text,.note{display:block;color:#829599;font-size:24rpx;line-height:1.7}.heading{display:flex;justify-content:space-between;color:#28565a;font-size:30rpx;font-weight:600}.refresh{color:#167a80;font-size:24rpx}.entry{padding:24rpx 0;border-bottom:1rpx solid #edf2f1}.entry>view{display:flex;justify-content:space-between;font-size:26rpx;color:#405e62}.entry strong{color:#167a80}.meta,.empty,.error{display:block;margin-top:10rpx;color:#87999b;font-size:23rpx}.empty{padding:48rpx 0;text-align:center}.error{color:#bd4747}
+.dividend-page{min-height:100vh;padding:24rpx;background:#f2f6f5;box-sizing:border-box}.summary,.ledger-card{padding:32rpx;margin-bottom:24rpx;border:1rpx solid #e5eeea;border-radius:24rpx;background:#fff}.title{display:block;color:#28565a;font-size:34rpx;font-weight:700}.amounts{display:flex;gap:20rpx;margin:32rpx 0}.amounts view{flex:1;min-width:0}.amounts strong{display:block;color:#167a80;font-size:40rpx}.amounts text,.note{display:block;color:#829599;font-size:24rpx;line-height:1.7}.pool-limit{margin:22rpx 0;padding:22rpx;border-radius:16rpx;background:#f2f8f7}.pool-limit view{display:flex;justify-content:space-between;align-items:center;margin:8rpx 0;color:#46676b;font-size:25rpx}.pool-limit strong{color:#167a80;font-size:29rpx}.heading{display:flex;justify-content:space-between;color:#28565a;font-size:30rpx;font-weight:600}.refresh{color:#167a80;font-size:24rpx}.entry{padding:24rpx 0;border-bottom:1rpx solid #edf2f1}.entry>view{display:flex;justify-content:space-between;font-size:26rpx;color:#405e62}.entry strong{color:#167a80}.meta,.empty,.error{display:block;margin-top:10rpx;color:#87999b;font-size:23rpx}.empty{padding:48rpx 0;text-align:center}.error{color:#bd4747}
 </style>

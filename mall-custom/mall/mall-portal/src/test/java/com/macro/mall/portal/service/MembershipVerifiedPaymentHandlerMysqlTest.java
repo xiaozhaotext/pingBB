@@ -100,6 +100,8 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
     void cofounderReferralCreditsCappedCashAndConfiguredRepurchasePointsOnce() {
         long referrerId = member();
         long buyerId = member();
+        long referrerOrder = order(referrerId, "PARTNER", "3999.00", 3999);
+        jdbc.update("UPDATE membership_purchase_order SET status='PAID',paid_at=CURRENT_TIMESTAMP WHERE id=?", referrerOrder);
         jdbc.update("INSERT INTO ums_member_recommend(member_id,inviter_id,bind_path) VALUES(?,?,?)",
                 buyerId, referrerId, "/" + referrerId + "/" + buyerId);
         jdbc.update("UPDATE sys_config SET config_value='1000' WHERE config_key='membership.referral.cofounder.repurchase_points'");

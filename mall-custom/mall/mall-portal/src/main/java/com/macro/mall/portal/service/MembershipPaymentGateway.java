@@ -151,7 +151,7 @@ public class MembershipPaymentGateway {
             com.alibaba.fastjson.JSONObject body = new com.alibaba.fastjson.JSONObject();
             body.put("out_trade_no", no);
             body.put("total_amount", amount);
-            body.put("subject", "RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
+            body.put("subject", "RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "会员身份牌" : "联创权益"));
             body.put("product_code", "QUICK_WAP_WAY");
             request.setBizContent(body.toString());
             String form = client.pageExecute(request).getBody();
@@ -169,7 +169,7 @@ public class MembershipPaymentGateway {
                 new com.wechat.pay.java.service.payments.h5.model.PrepayRequest();
         request.setAppid(config.getAppId());
         request.setMchid(config.getMerchantId());
-        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
+        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "会员身份牌" : "联创权益"));
         request.setOutTradeNo(no);
         request.setNotifyUrl(config.getNotifyUrl());
         com.wechat.pay.java.service.payments.h5.model.Amount payAmount =
@@ -194,7 +194,7 @@ public class MembershipPaymentGateway {
                 new com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest();
         request.setAppid(config.getAppId());
         request.setMchid(config.getMerchantId());
-        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
+        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "会员身份牌" : "联创权益"));
         request.setOutTradeNo(no);
         request.setNotifyUrl(config.getNotifyUrl());
         com.wechat.pay.java.service.payments.jsapi.model.Amount payAmount =

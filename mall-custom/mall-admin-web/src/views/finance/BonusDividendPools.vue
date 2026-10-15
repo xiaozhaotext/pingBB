@@ -83,6 +83,27 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div><span>累计划入</span><strong>{{ money(pool?.total_in) }}</strong></div>
       <div><span>累计已发放</span><strong>{{ money(pool?.total_out) }}</strong></div>
     </div>
+    <el-card v-if="code !== 'OPERATIONS'" shadow="never" class="section">
+      <template #header>个人累计分红上限</template>
+      <el-table v-if="code === 'PARTNER'" :data="[
+        { identity: '会员', referrals: '0–2 人', shares: 1, cap: 1200 },
+        { identity: '合伙人', referrals: '3–5 人', shares: 2, cap: 8000 },
+        { identity: '合伙人', referrals: '6–8 人', shares: 4, cap: 16000 },
+        { identity: '联创', referrals: '9 人及以上', shares: 6, cap: 24000 },
+      ]" border>
+        <el-table-column prop="identity" label="身份" min-width="100" />
+        <el-table-column prop="referrals" label="有效直邀会员" min-width="140" />
+        <el-table-column prop="shares" label="持有份数" min-width="100" />
+        <el-table-column label="个人累计上限" min-width="150"><template #default="{ row }">{{ money(row.cap) }}</template></el-table-column>
+      </el-table>
+      <el-table v-else :data="[{ identity: '联创', referrals: '9 人及以上', shares: 1, cap: 1200 }]" border>
+        <el-table-column prop="identity" label="身份" min-width="100" />
+        <el-table-column prop="referrals" label="有效直邀会员" min-width="140" />
+        <el-table-column prop="shares" label="持有份数" min-width="100" />
+        <el-table-column label="个人累计上限" min-width="150"><template #default="{ row }">{{ money(row.cap) }}</template></el-table-column>
+      </el-table>
+      <p class="limit-note">上限按每人、每池累计领取金额计算，不限制分红池总余额。联创同时持有合伙人池 6 份，两池个人累计上限合计 ¥25,200.00。</p>
+    </el-card>
     <el-card v-if="code === 'OPERATIONS'" shadow="never" class="section">
       <template #header>运营池指定领取人（审核后模拟入账）</template>
       <el-form :model="requestForm" inline>
@@ -143,5 +164,5 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 </template>
 
 <style scoped>
-.bonus-pools{padding:22px}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading h2{margin:0 0 6px;color:#245660}.heading p{margin:0;color:#7b8d91;font-size:13px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0}.cards>div{background:#fff;border:1px solid #e5ecec;border-radius:12px;padding:20px}.cards span{display:block;color:#788b90;font-size:13px}.cards strong{display:block;margin-top:12px;color:#21777e;font-size:25px}.section{margin-top:18px}@media(max-width:800px){.cards{grid-template-columns:1fr}}
+.bonus-pools{padding:22px}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.heading h2{margin:0 0 6px;color:#245660}.heading p{margin:0;color:#7b8d91;font-size:13px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0}.cards>div{background:#fff;border:1px solid #e5ecec;border-radius:12px;padding:20px}.cards span{display:block;color:#788b90;font-size:13px}.cards strong{display:block;margin-top:12px;color:#21777e;font-size:25px}.section{margin-top:18px}.limit-note{margin:14px 0 0;color:#7b8d91;font-size:13px}@media(max-width:800px){.cards{grid-template-columns:1fr}}
 </style>

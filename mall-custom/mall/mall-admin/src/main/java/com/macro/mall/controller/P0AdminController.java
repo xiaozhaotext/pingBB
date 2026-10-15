@@ -20,6 +20,20 @@ import java.util.Map;
 @RestController
 @RequestMapping("/p0")
 public class P0AdminController {
+    private static final String PAID_TIER_JOINS =
+            " LEFT JOIN (SELECT DISTINCT member_id FROM membership_purchase_order"
+                    + " WHERE level='PARTNER' AND status='PAID' AND amount=3999.00) paid ON paid.member_id=m.id"
+                    + " LEFT JOIN (SELECT r.inviter_id,COUNT(DISTINCT r.member_id) AS paid_refs"
+                    + " FROM ums_member_recommend r JOIN membership_purchase_order o"
+                    + " ON o.member_id=r.member_id AND o.level='PARTNER' AND o.status='PAID'"
+                    + " AND o.amount=3999.00 WHERE EXISTS (SELECT 1 FROM membership_purchase_order inviter"
+                    + " WHERE inviter.member_id=r.inviter_id AND inviter.level='PARTNER'"
+                    + " AND inviter.status='PAID' AND inviter.amount=3999.00"
+                    + " AND inviter.paid_at<=r.bind_time)"
+                    + " GROUP BY r.inviter_id) qualified ON qualified.inviter_id=m.id ";
+    private static final String TIER_CASE = "CASE WHEN paid.member_id IS NULL THEN 0"
+            + " WHEN COALESCE(qualified.paid_refs,0)>=9 THEN 3"
+            + " WHEN COALESCE(qualified.paid_refs,0)>=3 THEN 2 ELSE 1 END";
     private final JdbcTemplate jdbc;
     private final P0AdminAccess access;
     private final P0ReferralAdminService referrals;
@@ -43,11 +57,11 @@ public class P0AdminController {
         return CommonResult.success(jdbc.queryForList(
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
-                "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
+                TIER_CASE + " AS identity_type,COALESCE(qualified.paid_refs,0) AS paid_referrals,r.inviter_id," +
                 "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS member_balance," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=1),0) AS product_points," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=2),0) AS rebuy_points " +
-                "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
+                "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id " + PAID_TIER_JOINS +
                 "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
                 "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset));
@@ -75,8 +89,8 @@ public class P0AdminController {
                         + " (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4"
                         + "  UNION ALL SELECT 5 UNION ALL SELECT 6) t) d ORDER BY d.day"));
         data.put("identityStats", jdbc.queryForList(
-                "SELECT COALESCE(i.identity_type,0) AS identityType,COUNT(*) AS members FROM ums_member m"
-                        + " LEFT JOIN ums_member_identity i ON i.member_id=m.id GROUP BY COALESCE(i.identity_type,0) ORDER BY identityType"));
+                "SELECT " + TIER_CASE + " AS identityType,COUNT(*) AS members FROM ums_member m"
+                        + PAID_TIER_JOINS + " GROUP BY identityType ORDER BY identityType"));
         return CommonResult.success(data);
     }
 
@@ -124,7 +138,8 @@ public class P0AdminController {
         data.put("orders", jdbc.queryForList("SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,GROUP_CONCAT(DISTINCT z.zone_code) AS product_zones FROM oms_order o LEFT JOIN oms_order_item i ON i.order_id=o.id LEFT JOIN pms_product_zone z ON z.product_id=i.product_id WHERE o.member_id=? AND o.delete_status=0 GROUP BY o.id ORDER BY o.id DESC LIMIT 100",memberId));
         data.put("consumption", jdbc.queryForList("SELECT COUNT(*) AS order_count,COALESCE(SUM(CASE WHEN status IN(1,2,3) THEN pay_amount ELSE 0 END),0) AS paid_amount FROM oms_order WHERE member_id=? AND delete_status=0",memberId));
         data.put("identity", jdbc.queryForList(
-                "SELECT identity_type,status,become_time,expire_time,operator_id FROM ums_member_identity WHERE member_id=?", memberId));
+                "SELECT " + TIER_CASE + " AS identity_type,COALESCE(qualified.paid_refs,0) AS paid_referrals"
+                        + " FROM ums_member m" + PAID_TIER_JOINS + " WHERE m.id=?", memberId));
         data.put("identityHistory", jdbc.queryForList(
                 "SELECT from_type,to_type,reason,operator_id,create_time FROM ums_member_identity_log WHERE member_id=? ORDER BY id DESC LIMIT 50", memberId));
         data.put("inviter", jdbc.queryForList(
@@ -166,28 +181,37 @@ public class P0AdminController {
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> changeIdentity(Principal principal, @PathVariable long memberId,
             @RequestBody Map<String, Object> body) {
+        access.requireAuthorized(principal);
+        return CommonResult.failed("身份由已支付会员订单和有效直邀人数自动计算，不能手动设置");
+    }
+
+    @GetMapping("/travel/custom-requests")
+    public CommonResult<List<Map<String, Object>>> customTravelRequests(Principal principal,
+            @RequestParam(defaultValue = "1") int page) {
+        access.requireAuthorized(principal);
+        long offset = (Math.max(page, 1) - 1L) * 50;
+        return CommonResult.success(jdbc.queryForList("SELECT t.id,t.member_id,m.username,t.destination,"
+                + "t.departure_date,t.traveler_count,t.requirements,t.status,t.admin_note,"
+                + "t.create_time,t.update_time FROM member_custom_travel_request t"
+                + " JOIN ums_member m ON m.id=t.member_id ORDER BY t.id DESC LIMIT 50 OFFSET ?", offset));
+    }
+
+    @PostMapping("/travel/custom-requests/{requestId}/status")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> updateCustomTravelRequest(Principal principal, @PathVariable long requestId,
+            @RequestBody Map<String, Object> body) {
         long operatorId = access.requireAuthorized(principal);
-        int newType = integer(body, "identityType");
-        String reason = requiredText(body, "reason", 5, 200);
-        if (newType < 0 || newType > 2) return CommonResult.failed("身份类型无效");
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM ums_member WHERE id=?", Integer.class, memberId) == 0) {
-            return CommonResult.failed("会员不存在");
+        String status = String.valueOf(body.getOrDefault("status", ""));
+        if (!List.of("IN_REVIEW", "CONFIRMED", "CLOSED").contains(status)) {
+            return CommonResult.validateFailed("无效的路线需求状态");
         }
-        List<Integer> current = jdbc.queryForList(
-                "SELECT identity_type FROM ums_member_identity WHERE member_id=? FOR UPDATE", Integer.class, memberId);
-        int oldType = current.isEmpty() ? 0 : current.get(0);
-        if (oldType == newType) return CommonResult.success(null);
-        if (current.isEmpty()) {
-            jdbc.update("INSERT INTO ums_member_identity(member_id,identity_type,status,become_time,operator_id) " +
-                    "VALUES(?,?,1,NOW(),?)", memberId, newType, operatorId);
-        } else {
-            jdbc.update("UPDATE ums_member_identity SET identity_type=?,status=1,become_time=NOW(),operator_id=? " +
-                    "WHERE member_id=?", newType, operatorId, memberId);
-        }
-        jdbc.update("INSERT INTO ums_member_identity_log(member_id,from_type,to_type,reason,operator_id) " +
-                "VALUES(?,?,?,?,?)", memberId, oldType, newType, reason, operatorId);
-        audit(operatorId, principal.getName(), "member", "identity_change", memberId,
-                oldType + " -> " + newType + ": " + reason);
+        String note = body.get("note") == null ? "" : String.valueOf(body.get("note")).trim();
+        if (note.length() < 2 || note.length() > 500) return CommonResult.validateFailed("请填写2-500字处理备注");
+        int updated = jdbc.update("UPDATE member_custom_travel_request SET status=?,admin_note=?"
+                + " WHERE id=?", status, note, requestId);
+        if (updated != 1) return CommonResult.failed("路线需求不存在");
+        audit(operatorId, principal.getName(), "travel", "custom_request_status", requestId,
+                status + ": " + note);
         return CommonResult.success(null);
     }
 
@@ -427,10 +451,14 @@ public class P0AdminController {
             data.put("poolTodayIn", null);
         }
         try {
-            data.put("dailyDetails", jdbc.queryForList("SELECT stat_date, SUM(shares) AS total_shares, " +
-                    "COUNT(DISTINCT member_id) AS recipients, SUM(dividend_amount) AS total_amount, " +
-                    "ROUND(SUM(dividend_amount)/NULLIF(SUM(shares),0),2) AS per_share_amount, MAX(calc_batch) AS calc_batch " +
-                    "FROM member_dividend_ledger GROUP BY stat_date ORDER BY stat_date DESC LIMIT 60"));
+            data.put("dailyDetails", jdbc.queryForList("SELECT stat_date,SUM(shares) AS total_shares,"
+                    + "COUNT(DISTINCT member_id) AS recipients,SUM(dividend_amount) AS total_amount,"
+                    + "ROUND(SUM(dividend_amount)/NULLIF(SUM(shares),0),2) AS per_share_amount,"
+                    + "MAX(calc_batch) AS calc_batch FROM ("
+                    + "SELECT stat_date,member_id,shares,dividend_amount,calc_batch FROM member_dividend_ledger"
+                    + " UNION ALL SELECT stat_date,member_id,shares,dividend_amount,"
+                    + "CONCAT(pool_code,':',stat_date) FROM member_bonus_dividend_ledger) all_dividends"
+                    + " GROUP BY stat_date ORDER BY stat_date DESC LIMIT 60"));
         } catch (Exception ignored) {
             data.put("dailyDetails", java.util.Collections.emptyList());
         }

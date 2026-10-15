@@ -32,6 +32,8 @@ class ManualBenefitHttpTest {
  @BeforeEach void setup(){
   j.execute("DROP ALL OBJECTS");
   j.execute("CREATE TABLE sys_audit_log(operator_id BIGINT,operator_name VARCHAR(64),module VARCHAR(64),action VARCHAR(64),target_id BIGINT,detail VARCHAR(2000))");
+  j.execute("CREATE TABLE sys_config(config_key VARCHAR(100),config_value VARCHAR(100))");
+  j.update("INSERT INTO sys_config VALUES('legacy.manual_benefits.enabled','1')");
   j.execute("CREATE TABLE ums_admin(id BIGINT,username VARCHAR(50),status INT)");j.update("INSERT INTO ums_admin VALUES(3,'testadmin',1)");
   j.execute("CREATE TABLE ums_admin_role_relation(admin_id BIGINT,role_id BIGINT)");j.update("INSERT INTO ums_admin_role_relation VALUES(3,5)");
   j.execute("CREATE TABLE ums_member_identity(member_id BIGINT PRIMARY KEY,identity_type INT,status INT)");j.update("INSERT INTO ums_member_identity VALUES(1,2,1),(2,1,1)");
@@ -58,6 +60,11 @@ class ManualBenefitHttpTest {
  @Test void eligibilityAndUnauthenticatedRequestsAreRejected(){
   assertNotEquals(200,request("MONTHLY_REWARD",2).get("code"));
   assertEquals(401,http.getForEntity("/p0/benefits",String.class).getStatusCode().value());
+ }
+ @Test void legacyBenefitsStayClosedWhenSwitchIsOff(){
+  j.update("UPDATE sys_config SET config_value='0' WHERE config_key='legacy.manual_benefits.enabled'");
+  assertNotEquals(200,request("MONTHLY_REWARD",1).get("code"));
+  assertEquals(0,j.queryForObject("SELECT COUNT(*) FROM member_manual_benefit",Integer.class));
  }
  @Test void ledgerFailureRollsBackBalanceAndReview(){
   request("MONTHLY_REWARD",1);j.execute("DROP TABLE ums_earnings_ledger");

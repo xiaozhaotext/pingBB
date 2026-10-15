@@ -1,4 +1,4 @@
-<template><view class="benefits"><text class="title">我的奖励与旅游权益</text><text class="note">月奖励经人工审核后计入收益账户；旅游权益由客服核对服务凭据后核销。</text><view v-if="error" @click="load">{{ error }}，点击重试</view><view v-for="row in records" :key="row.id" class="card"><text>{{ row.benefit_type === 'TRAVEL' ? '一次旅游权益' : row.benefit_period + ' 月奖励 ¥' + Number(row.amount).toFixed(2) }}</text><text>{{ labels[row.status] || row.status }}</text></view><text v-if="!error && !records.length">暂无已提交的权益申请，请联系在线客服核实资格。</text></view></template>
+<template><view class="benefits"><text class="title">历史奖励与旅游权益</text><text class="note">此处仅显示旧版权益记录。会员自定义路线请前往“定制路线”。</text><view v-if="error" @click="load">{{ error }}，点击重试</view><view v-for="row in records" :key="row.id" class="card"><text>{{ row.benefit_type === 'TRAVEL' ? '一次旅游权益' : row.benefit_period + ' 月奖励 ¥' + Number(row.amount).toFixed(2) }}</text><text>{{ labels[row.status] || row.status }}</text></view><text v-if="!error && !records.length">暂无历史权益记录。</text></view></template>
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
