@@ -68,11 +68,13 @@ const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings
 const labels: Record<string, string> = {
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
   real_name: '真实姓名', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
-  identity_type: '身份', inviter_id: '推荐人', points_type: '积分类型', balance: '余额', available: '可用',
+  identity_type: '身份', inviter_id: '推荐人', member_balance: '会员余额', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
   contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期',
   create_time: '创建时间', apply_time: '申请时间', update_time: '更新时间',
+  pool_balance: '分红池余额', total_in: '累计注入', total_out: '累计发放', today_in: '今日注入',
+  total_shares: '总份数', recipients: '发放人数', total_amount: '发放总额', per_share_amount: '每份金额', calc_batch: '发放批次',
 }
 
 async function load() {

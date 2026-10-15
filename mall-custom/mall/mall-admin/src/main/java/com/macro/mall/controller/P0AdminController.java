@@ -43,7 +43,10 @@ public class P0AdminController {
         return CommonResult.success(jdbc.queryForList(
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
-                "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id " +
+                "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
+                "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS member_balance," +
+                "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=1),0) AS product_points," +
+                "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=2),0) AS rebuy_points " +
                 "FROM ums_member m LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
                 "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
@@ -355,6 +358,25 @@ public class P0AdminController {
         data.put("exceptions", jdbc.queryForList("SELECT id,stat_date,member_id,reason,detail,create_time " +
                 "FROM dividend_exception_audit ORDER BY id DESC LIMIT 100"));
         data.put("note", "仅展示已记录的模拟结果；贡献事件自动核验及实际分红发放未启用");
+        try {
+            data.put("poolStats", jdbc.queryForMap("SELECT pool_balance,total_in,total_out,update_time FROM dividend_pool WHERE id=1"));
+        } catch (Exception ignored) {
+            data.put("poolStats", null);
+        }
+        try {
+            data.put("poolTodayIn", jdbc.queryForMap("SELECT COALESCE(SUM(change_amount),0) AS today_in FROM dividend_pool_ledger " +
+                    "WHERE change_amount>0 AND DATE(create_time)=CURDATE()"));
+        } catch (Exception ignored) {
+            data.put("poolTodayIn", null);
+        }
+        try {
+            data.put("dailyDetails", jdbc.queryForList("SELECT stat_date, SUM(shares) AS total_shares, " +
+                    "COUNT(DISTINCT member_id) AS recipients, SUM(dividend_amount) AS total_amount, " +
+                    "ROUND(SUM(dividend_amount)/NULLIF(SUM(shares),0),2) AS per_share_amount, MAX(calc_batch) AS calc_batch " +
+                    "FROM member_dividend_ledger GROUP BY stat_date ORDER BY stat_date DESC LIMIT 60"));
+        } catch (Exception ignored) {
+            data.put("dailyDetails", java.util.Collections.emptyList());
+        }
         return CommonResult.success(data);
     }
 
