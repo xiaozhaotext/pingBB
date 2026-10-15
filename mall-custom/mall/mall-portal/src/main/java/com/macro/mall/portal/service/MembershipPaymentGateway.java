@@ -41,6 +41,37 @@ public class MembershipPaymentGateway {
     public record VerifiedPayment(String merchantOrderNo, String transactionId,
                                   String channel, BigDecimal amount) {}
 
+    /** Authenticated server-to-server lookup, used to recover missing notifications. */
+    public VerifiedPayment query(String no, String channel) {
+        if ("ALIPAY".equals(channel)) {
+            var config = requireAlipay();
+            try {
+                AlipayClient client = new DefaultAlipayClient(config.getGatewayUrl(), config.getAppId(),
+                        readKey(config.getPrivateKeyPath()), "JSON", "UTF-8", readKey(config.getPublicKeyPath()), "RSA2");
+                var request = new com.alipay.api.request.AlipayTradeQueryRequest();
+                var body = new com.alibaba.fastjson.JSONObject();
+                body.put("out_trade_no", no);
+                request.setBizContent(body.toString());
+                var response = client.execute(request);
+                if (!response.isSuccess()) throw new MembershipPaymentException(MembershipPaymentError.PROVIDER_ERROR);
+                if (!("TRADE_SUCCESS".equals(response.getTradeStatus()) || "TRADE_FINISHED".equals(response.getTradeStatus()))) return null;
+                if (!no.equals(response.getOutTradeNo())) throw new MembershipPaymentException(MembershipPaymentError.INVALID_NOTIFICATION);
+                return new VerifiedPayment(no,response.getTradeNo(),channel,new BigDecimal(response.getTotalAmount()));
+            } catch (AlipayApiException ex) { throw new MembershipPaymentException(MembershipPaymentError.PROVIDER_ERROR); }
+        }
+        requireWechat();
+        var request = new com.wechat.pay.java.service.payments.h5.model.QueryOrderByOutTradeNoRequest();
+        request.setMchid(properties.getWechat().getMerchantId());
+        request.setOutTradeNo(no);
+        Transaction transaction = new H5Service.Builder().config(wechatConfig()).build().queryOrderByOutTradeNo(request);
+        if (transaction.getTradeState()!=Transaction.TradeStateEnum.SUCCESS) return null;
+        if (!no.equals(transaction.getOutTradeNo()) || !properties.getWechat().getAppId().equals(transaction.getAppid())
+                || !properties.getWechat().getMerchantId().equals(transaction.getMchid())
+                || transaction.getAmount()==null || !"CNY".equals(transaction.getAmount().getCurrency()))
+            throw new MembershipPaymentException(MembershipPaymentError.INVALID_NOTIFICATION);
+        return new VerifiedPayment(no,transaction.getTransactionId(),channel,BigDecimal.valueOf(transaction.getAmount().getTotal(),2));
+    }
+
     public void requireReady(String channel) {
         if ("ALIPAY".equals(channel)) requireAlipay();
         else if ("WECHAT".equals(channel)) requireWechat();
@@ -120,7 +151,7 @@ public class MembershipPaymentGateway {
             com.alibaba.fastjson.JSONObject body = new com.alibaba.fastjson.JSONObject();
             body.put("out_trade_no", no);
             body.put("total_amount", amount);
-            body.put("subject", "PARTNER".equals(level) ? "合伙人权益" : "联创权益");
+            body.put("subject", "RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
             body.put("product_code", "QUICK_WAP_WAY");
             request.setBizContent(body.toString());
             String form = client.pageExecute(request).getBody();
@@ -138,7 +169,7 @@ public class MembershipPaymentGateway {
                 new com.wechat.pay.java.service.payments.h5.model.PrepayRequest();
         request.setAppid(config.getAppId());
         request.setMchid(config.getMerchantId());
-        request.setDescription("PARTNER".equals(level) ? "合伙人权益" : "联创权益");
+        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
         request.setOutTradeNo(no);
         request.setNotifyUrl(config.getNotifyUrl());
         com.wechat.pay.java.service.payments.h5.model.Amount payAmount =
@@ -163,7 +194,7 @@ public class MembershipPaymentGateway {
                 new com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest();
         request.setAppid(config.getAppId());
         request.setMchid(config.getMerchantId());
-        request.setDescription("PARTNER".equals(level) ? "合伙人权益" : "联创权益");
+        request.setDescription("RECHARGE".equals(level) ? "账户充值" : ("PARTNER".equals(level) ? "合伙人权益" : "联创权益"));
         request.setOutTradeNo(no);
         request.setNotifyUrl(config.getNotifyUrl());
         com.wechat.pay.java.service.payments.jsapi.model.Amount payAmount =

@@ -91,6 +91,8 @@ secure:
       - /product/**
       - /brand/**
       - /alipay/notify
+      - /member/recharge/notify/alipay
+      - /member/recharge/notify/wechat
       - /member/membership/notify/alipay
       - /member/membership/notify/wechat
       - /wechatPay/notify

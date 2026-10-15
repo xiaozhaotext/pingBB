@@ -6,6 +6,7 @@
     }
   },
   "pages": [
+    {"path":"pages/member/recharge","style":{"navigationBarTitleText":"账户充值"}},
     {
       "path": "pages/index/index",
       "style": {

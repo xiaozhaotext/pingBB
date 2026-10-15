@@ -355,7 +355,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      */
     private void grantOrderGiftPoints(Long orderId, com.macro.mall.portal.domain.OmsOrderDetail orderDetail) {
         int giftPoints = 0;
-        for (com.macro.mall.portal.domain.OmsOrderItem item : orderDetail.getOrderItemList()) {
+        for (com.macro.mall.model.OmsOrderItem item : orderDetail.getOrderItemList()) {
             if (item.getGiftIntegration() != null) {
                 giftPoints += item.getGiftIntegration() * (item.getProductQuantity() == null ? 1 : item.getProductQuantity());
             }
