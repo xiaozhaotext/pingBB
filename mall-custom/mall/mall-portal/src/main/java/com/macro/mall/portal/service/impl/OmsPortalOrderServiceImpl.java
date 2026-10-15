@@ -196,11 +196,12 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         orderItem.setProductCategoryId(cartPromotionItem.getProductCategoryId());
         orderItem.setPromotionAmount(zeroIfNull(cartPromotionItem.getReduceAmount()));
         orderItem.setPromotionName(cartPromotionItem.getPromotionMessage());
-        orderItem.setGiftIntegration(cartPromotionItem.getIntegration());
+        orderItem.setGiftIntegration(ZoneRules.PICK.equals(ZoneRules.normalize(cartPromotionItem.getZoneCode()))
+                ? cartPromotionItem.getIntegration() : 0);
         orderItem.setGiftGrowth(cartPromotionItem.getGrowth());
         orderItem.setCouponAmount(BigDecimal.ZERO);
         orderItem.setIntegrationAmount(BigDecimal.ZERO);
-        orderItem.setZoneCode(ZoneRules.settlementZone(cartPromotionItem.getZoneCode()));
+        orderItem.setZoneCode(ZoneRules.normalize(cartPromotionItem.getZoneCode()));
         return orderItem;
     }
 
@@ -462,12 +463,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      * 幂等：用 order:gift:{orderId} 做幂等键，重复调用不重复发放。
      */
     private void grantOrderGiftPoints(Long orderId, com.macro.mall.portal.domain.OmsOrderDetail orderDetail) {
-        int giftPoints = 0;
-        for (com.macro.mall.model.OmsOrderItem item : orderDetail.getOrderItemList()) {
-            if (item.getGiftIntegration() != null) {
-                giftPoints += item.getGiftIntegration() * (item.getProductQuantity() == null ? 1 : item.getProductQuantity());
-            }
-        }
+        int giftPoints = calcGifIntegration(orderDetail.getOrderItemList());
         if (giftPoints <= 0) return;
         Long memberId = orderDetail.getMemberId();
         String idempotency = "order:gift:" + orderId;
@@ -712,8 +708,13 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      */
     private Integer calcGifIntegration(List<OmsOrderItem> orderItemList) {
         int sum = 0;
-        for (OmsOrderItem orderItem : orderItemList) {
-            sum += orderItem.getGiftIntegration() * orderItem.getProductQuantity();
+        for (OmsOrderItem item : orderItemList) {
+            // 按订单行记录的购买专区判定，禁止复购/消费/未分区商品赠积分。
+            // 同一个商品在不同专区购买也必须分别处理，旧待支付订单同样受此限制。
+            if (!ZoneRules.PICK.equals(item.getZoneCode())) continue;
+            int gift = item.getGiftIntegration() == null ? 0 : item.getGiftIntegration();
+            int quantity = item.getProductQuantity() == null ? 0 : item.getProductQuantity();
+            if (gift > 0 && quantity > 0) sum = Math.addExact(sum, Math.multiplyExact(gift, quantity));
         }
         return sum;
     }

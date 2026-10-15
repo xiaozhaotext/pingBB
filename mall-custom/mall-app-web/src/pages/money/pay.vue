@@ -27,7 +27,7 @@
       </view>
     </view>
 
-    <view v-else-if="USE_MOCK_PAYMENT" class="mock-notice">本地演示支付：不会扣款，也不会调用支付宝或微信。仅更新测试订单状态。</view>
+    <view v-else-if="USE_MOCK_PAYMENT" class="mock-notice">沙盒演示支付：不扣真实资金。支付成功后按真实业务规则更新测试订单、库存和积分。</view>
     <view v-else class="mock-notice">在线支付尚未开放，请勿付款。</view>
 
     <text v-if="USE_ALIPAY || USE_WECHAT_PAY || USE_MOCK_PAYMENT" class="mix-btn" @click="handleConfirmPay">{{ USE_ALIPAY || USE_WECHAT_PAY ? '确认支付' : '确认模拟支付' }}</text>
@@ -114,6 +114,10 @@ const handleConfirmPay = async () => {
   }
   // #endif
 
+  if (!USE_MOCK_PAYMENT) {
+    uni.showToast({ title: '在线支付尚未开放', icon: 'none' })
+    return
+  }
   try {
     await confirmMockPaymentAPI(orderId.value!)
     uni.redirectTo({

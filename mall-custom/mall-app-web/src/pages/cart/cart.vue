@@ -70,16 +70,21 @@
           ></image>
           <view class="clear-btn" :class="{ show: allChecked }" @click="handleClearCart">清空</view>
         </view>
-        <view class="total-box">
+        <view class="total-box" @click="settlementExpanded = !settlementExpanded">
+          <text class="summary-amount">已选 {{ selectedCount }} 件</text>
+          <view class="detail-toggle" role="button" :aria-expanded="settlementExpanded" aria-label="展开或收起结算详情">
+            <text>结算明细</text><text class="detail-arrow" :class="{ expanded: settlementExpanded }">∨</text>
+          </view>
+        </view>
+        <view v-if="settlementExpanded" class="settlement-details">
+          <text class="details-title">已选商品小计</text>
           <view class="zone-total-line" v-for="line in zoneTotals" :key="line.key">
             <text class="zone-total-name">{{ line.label }}</text>
             <text class="zone-total-value" :class="{ points: !line.cash }">{{ line.text }}</text>
           </view>
-          <view class="zone-total-line cash-line" v-if="hasCashZone">
-            <text class="zone-total-name">现金应付</text>
-            <text class="price">¥{{ totalPrice }}元</text>
-          </view>
-          <text class="zone-total-hint" v-if="zoneTotals.length">各专区按自身规则结算，提交后以确认页金额为准</text>
+          <view v-if="hasCashZone" class="zone-total-line"><text>现金类商品小计</text><text>¥{{ totalPrice.toFixed(2) }}</text></view>
+          <text class="zone-total-hint">自选区：现金或余额；复购区：全现金或按配置使用复购积分＋现金；消费区：商品积分。</text>
+          <text class="zone-total-hint">此处为商品小计，实际抵扣和应付以确认订单页为准。</text>
         </view>
         <button type="primary" class="no-border confirm-btn" @click="handleCreateOrder"
           >去结算</button
@@ -111,6 +116,8 @@ const hasLogin = computed(() => !!memberStore.memberInfo)
 const totalPrice = ref(0)
 // 购物车中商品是否全部选中
 const allChecked = ref(false)
+const settlementExpanded = ref(false)
+const selectedCount = computed(() => cartList.value.filter(item => item.checked).reduce((n, item) => n + Number(item.quantity || 0), 0))
 // 购物车中商品是否为空
 const empty = ref(false)
 // 购物车中商品列表
@@ -345,7 +352,7 @@ const calcTotal = () => {
 
 <style lang="scss" scoped>
 .container {
-  padding-bottom: 134rpx;
+  padding-bottom: calc(240rpx + env(safe-area-inset-bottom));
 
   .empty {
     position: fixed;
@@ -388,6 +395,7 @@ const calcTotal = () => {
     width: 230rpx;
     height: 230rpx;
     flex-shrink: 0;
+    width: 120rpx;
     position: relative;
 
     image {
@@ -464,7 +472,9 @@ const calcTotal = () => {
   z-index: 95;
   display: flex;
   align-items: center;
-  width: 690rpx;
+  right: 30rpx;
+  width: auto;
+  box-sizing: border-box;
   height: 100rpx;
   padding: 0 30rpx;
   background: rgba(255, 255, 255, 0.9);
@@ -473,6 +483,7 @@ const calcTotal = () => {
 
   .checkbox {
     height: 52rpx;
+    flex-shrink: 0;
     position: relative;
 
     image {
@@ -484,25 +495,9 @@ const calcTotal = () => {
   }
 
   .clear-btn {
-    position: absolute;
-    left: 26rpx;
-    top: 0;
-    z-index: 4;
-    width: 0;
-    height: 52rpx;
-    line-height: 52rpx;
-    padding-left: 38rpx;
-    font-size: 28rpx;
-    color: #fff;
-    background: #c0c4cc;
-    border-radius: 0 50px 50px 0;
-    opacity: 0;
-    transition: 0.2s;
-
-    &.show {
-      opacity: 1;
-      width: 120rpx;
-    }
+    position: absolute; left: 40rpx; top: 0; height: 52rpx; line-height: 52rpx;
+    padding: 0 12rpx; font-size: 22rpx; color: #707782; white-space: nowrap; display: none;
+    &.show { display: block; }
   }
 
   .total-box {
@@ -510,7 +505,8 @@ const calcTotal = () => {
     display: flex;
     flex-direction: column;
     text-align: right;
-    padding-right: 40rpx;
+    min-width: 0;
+    padding: 0 16rpx;
 
     .price {
       font-size: 32rpx;
@@ -519,7 +515,8 @@ const calcTotal = () => {
   }
 
   .confirm-btn {
-    padding: 0 38rpx;
+    padding: 0 26rpx;
+    flex-shrink: 0;
     margin: 0;
     border-radius: 100px;
     height: 76rpx;
@@ -539,13 +536,18 @@ const calcTotal = () => {
 <style scoped>.action-section{bottom:calc(76px + env(safe-area-inset-bottom));margin-bottom:8px;z-index:98}</style>
 
 <style scoped>
-.zone-group-head{display:flex;align-items:center;gap:16rpx;padding:16rpx 30rpx;background:#f7f8f6}
+.zone-group-head{display:flex;align-items:center;gap:16rpx;padding:16rpx 30rpx;background:#f7f8f6;flex-wrap:wrap}
 .zone-group-title{font-size:26rpx;font-weight:600;color:#303133}
 .zone-group-rule{font-size:22rpx;color:#909399}
-.total-box .zone-total-line{display:flex;justify-content:flex-end;gap:16rpx;font-size:24rpx;line-height:34rpx}
-.total-box .zone-total-name{color:#909399}
-.total-box .zone-total-value{color:#303133}
-.total-box .zone-total-value.points{color:#b78235;font-weight:600}
-.total-box .zone-total-line.cash-line .price{font-size:30rpx}
-.total-box .zone-total-hint{font-size:20rpx;line-height:28rpx;color:#b0b4bb;margin-top:4rpx}
+.summary-amount{font-size:26rpx;line-height:36rpx;color:#303133}
+.detail-toggle{display:flex;justify-content:flex-end;align-items:center;gap:12rpx;font-size:24rpx;color:#707782;min-height:40rpx}
+.detail-arrow{display:inline-block;transition:transform .2s;font-size:30rpx}
+.detail-arrow.expanded{transform:rotate(180deg)}
+.settlement-details{position:absolute;bottom:calc(100% + 12rpx);left:0;right:0;box-sizing:border-box;padding:24rpx;background:#fff;border-radius:16rpx;box-shadow:0 0 16rpx #0002;max-height:40vh;overflow-y:auto;overflow-wrap:anywhere}
+.details-title{display:block;font-size:26rpx;font-weight:600;margin-bottom:12rpx}
+.zone-total-line{display:flex;justify-content:space-between;gap:16rpx;font-size:24rpx;line-height:38rpx;flex-wrap:wrap}
+.zone-total-name{color:#707782}
+.zone-total-value{color:#303133}
+.zone-total-value.points{color:#b78235;font-weight:600}
+.zone-total-hint{display:block;font-size:22rpx;line-height:32rpx;color:#707782;margin-top:12rpx}
 </style>
