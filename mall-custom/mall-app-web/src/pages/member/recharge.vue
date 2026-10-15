@@ -28,6 +28,12 @@ let storageKey='',supported=false
 supported=true
 // #endif
 const api=<T,>(url:string,method:'GET'|'POST'='GET',data?:any)=>http<T>({url:'/member/recharge'+url,method,data})
+function amountCents(value:string):number | null {
+  if(!/^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$/.test(value)) return null
+  const [yuan,fraction='']=value.split('.')
+  const cents=Number(yuan)*100+Number(fraction.padEnd(2,'0'))
+  return cents>=1 && cents<=5000000 ? cents : null
+}
 async function refresh() {
   error.value=''
   try {
@@ -37,6 +43,11 @@ async function refresh() {
     storageKey=nextKey
     const [a,h]=await Promise.all([api<{balance:string}>('/account'),api<Order[]>('/orders')])
     balance.value=a.data.balance; orders.value=h.data; loaded.value=true
+    const pending=uni.getStorageSync(storageKey)
+    if(!current.value && pending && typeof pending.amount==='string' && amountCents(pending.amount)!==null
+      && ['WECHAT','ALIPAY'].includes(pending.channel) && /^[A-Za-z0-9-]{16,64}$/.test(pending.requestId)) {
+      amount.value=pending.amount;channel.value=pending.channel
+    }
     if (current.value) current.value=orders.value.find(o=>o.orderNo===current.value?.orderNo) || (await api<Order>('/orders/'+current.value.orderNo)).data
     if (current.value?.status==='PAID') uni.removeStorageSync(storageKey)
   } catch(e:any) {loaded.value=false;balance.value='—';orders.value=[];current.value=null;error.value=e?.data?.message || '请登录并重试，账户数据加载失败'}
@@ -45,14 +56,12 @@ onShow(refresh)
 function select(o:Order) {current.value=o;amount.value=o.amount;channel.value=o.channel}
 async function create() {
   if(busy.value) return
-  if(!/^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$/.test(amount.value)) {error.value='请输入最多两位小数的金额';return}
-  const [yuan,fraction='']=amount.value.split('.')
-  const cents=Number(yuan)*100+Number(fraction.padEnd(2,'0'))
-  if(cents<1 || cents>5000000) {error.value='单笔范围0.01至50000.00元';return}
+  const cents=amountCents(amount.value)
+  if(cents===null) {error.value='请输入0.01至50000.00元，最多两位小数';return}
   busy.value=true;error.value=''
   try {
     let pending=uni.getStorageSync(storageKey)
-    if(pending && (pending.amount!==amount.value || pending.channel!==channel.value)) {
+    if(pending && (amountCents(pending.amount)!==cents || pending.channel!==channel.value)) {
       error.value='上一笔请求结果尚未确认，请使用原金额和渠道重试，或刷新充值记录查看原订单';return
     }
     if(!pending) {pending={amount:amount.value,channel:channel.value,requestId:'RC'+Date.now()+Math.random().toString(36).slice(2,15)};uni.setStorageSync(storageKey,pending)}

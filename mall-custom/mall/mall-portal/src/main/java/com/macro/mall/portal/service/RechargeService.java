@@ -39,7 +39,9 @@ public class RechargeService {
         return view(row);
     }
     public Map<String,Object> order(long member, String no) {
-        return view(jdbc.queryForMap("SELECT * FROM ums_recharge_order WHERE member_id=? AND order_no=?", member, no));
+        var rows = jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? AND order_no=?", member, no);
+        if (rows.isEmpty()) throw new IllegalArgumentException("充值订单不存在或无权访问");
+        return view(rows.get(0));
     }
     public List<Map<String,Object>> history(long member) {
         return jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? ORDER BY created_at DESC,order_no DESC LIMIT 50", member)

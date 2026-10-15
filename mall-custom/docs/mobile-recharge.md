@@ -37,3 +37,20 @@
 `RechargeServiceTest` 使用隔离的 H2 MySQL 模式数据库验证金额精度、少付、多付、重复通知、交易号复用时事务回滚、并发到账、请求重试和权限归属；`MembershipPaymentGatewayTest` 验证未配置渠道拒绝支付。H2 不代替真实 MySQL 与支付平台联调验收。
 
 最新 main 原有 `OmsPortalOrderServiceImpl` 引用了不存在的 `portal.domain.OmsOrderItem`，本分支将其修正为实际的 `model.OmsOrderItem` 以通过后端编译。
+
+## 2026-10-15 扩展回归
+
+发现并修复两项页面问题：网络结果不明后重开页面未恢复原金额与渠道；`100.10` 与 `100.1` 被误判为不同金额，阻止原请求重试。另将无权限或不存在的订单查询改为明确业务错误，避免返回通用500错误。
+
+- `node --test scripts/test-recharge.cjs`：5项通过，覆盖刷新恢复、非法金额拒绝、超时请求幂等重试、重复点击、渠道未开通。
+- `RechargeHttpTest`：4项通过。启动真实嵌入式 Tomcat，通过 HTTP 请求调用控制器及 Spring 事务代理服务、读写隔离 H2 数据库，覆盖创建/支付/回调/读取余额、验签失败边界、金额不符、补偿查单和跨会员访问。认证用户与支付平台 SDK 使用测试替身；不代表真实商户验签已完成联调。
+- `RechargeServiceTest`：7项通过；`MembershipPaymentGatewayTest`：1项通过。
+- H5生产构建、TypeScript检查、后端JAR打包通过。
+- 全量 portal 测试首次运行64项：55项通过，6项环境错误，3项跳过；环境错误来自默认 MySQL `localhost:3306/mall` 未启动，包含应用启动、商品查询和库存并发测试。3项真实 MySQL会员入账测试因未配置隔离测试库跳过。
+- 增加HTTP测试后，排除上述3个依赖外部数据库的测试类再次执行其余 portal 测试及打包：62项中59项通过、3项上述MySQL测试跳过。不能据此宣称完整商城在本机已启动，或生产MySQL与真实微信/支付宝付款链路已验收。
+
+复现后端回归与打包（在 `mall` 目录，需JDK17及Maven）：
+
+```powershell
+mvn -pl mall-portal -am package -DskipTests=false '-Dtest=*,!MallPortalApplicationTests,!PortalProductDaoTests,!PortalOrderStockConcurrencyTests' -Dsurefire.failIfNoSpecifiedTests=false -Ddocker.skip=true
+```

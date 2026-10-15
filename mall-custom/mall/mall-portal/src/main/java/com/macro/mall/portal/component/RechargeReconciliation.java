@@ -19,7 +19,8 @@ public class RechargeReconciliation {
     public void reconcile() {
         if(!properties.getPayment().isEnabled()) return;
         try {
-            for (var row:jdbc.queryForList("SELECT order_no,channel FROM ums_recharge_order WHERE status='PENDING' AND created_at<CURRENT_TIMESTAMP - INTERVAL 30 SECOND ORDER BY checked_at ASC,created_at ASC LIMIT 100")) {
+            var cutoff=java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(30));
+            for (var row:jdbc.queryForList("SELECT order_no,channel FROM ums_recharge_order WHERE status='PENDING' AND created_at<? ORDER BY checked_at ASC,created_at ASC LIMIT 100",cutoff)) {
                 String no=(String)row.get("order_no");
                 try {
                     var payment=service.gateway().query(no,(String)row.get("channel"));
