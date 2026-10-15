@@ -27,7 +27,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Requires an isolated MySQL 8 schema containing ums_member, the existing identity/point
- * tables, and 12_membership_real_payment.sql. Never point this test at a live database.
+ * tables, 12_membership_real_payment.sql, 15_dividend_pool.sql and
+ * 50_bonus_dividend_pools.sql. Never point this test at a live database.
  */
 class MembershipVerifiedPaymentHandlerMysqlTest {
     private JdbcTemplate jdbc;
@@ -73,6 +74,10 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
         assertEquals(1, count("SELECT identity_type FROM ums_member_identity WHERE member_id=?", memberId));
         assertEquals(1, count("SELECT COUNT(*) FROM member_level_change_log WHERE order_id=?", orderId));
         assertEquals(1, count("SELECT COUNT(*) FROM sys_audit_log WHERE target_type='membership_purchase_order' AND target_id=?", orderId));
+        assertEquals(1, count("SELECT COUNT(*) FROM dividend_pool_ledger WHERE source_type='MEMBERSHIP_PURCHASE' AND source_id=? AND change_amount=900.00", orderId));
+        assertEquals(1, count("SELECT COUNT(*) FROM bonus_dividend_pool_ledger WHERE pool_code='PARTNER' AND source_id=? AND change_amount=500.00", orderId));
+        assertEquals(1, count("SELECT COUNT(*) FROM bonus_dividend_pool_ledger WHERE pool_code='COFOUNDER' AND source_id=? AND change_amount=200.00", orderId));
+        assertEquals(1, count("SELECT COUNT(*) FROM bonus_dividend_pool_ledger WHERE pool_code='OPERATIONS' AND source_id=? AND change_amount=200.00", orderId));
     }
 
     @Test
