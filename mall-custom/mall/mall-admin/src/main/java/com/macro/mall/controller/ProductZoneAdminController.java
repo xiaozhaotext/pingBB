@@ -15,7 +15,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
-/** Brand is the existing PICK zone. Consumption remains reserved with no trading rules. */
+/** 自选区(PICK)、复购区(REBUY)、消费区(CONSUME)三个专区的商品归属管理，专区之间相互独立。 */
 @RestController
 @RequestMapping("/p0/zones")
 public class ProductZoneAdminController {
@@ -28,8 +28,8 @@ public class ProductZoneAdminController {
     }
 
     private void validateZone(String zone) {
-        if (!"PICK".equals(zone) && !"REBUY".equals(zone))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "专区无效，消费区暂未开放");
+        if (!"PICK".equals(zone) && !"REBUY".equals(zone) && !"CONSUME".equals(zone))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "专区无效");
     }
 
     @GetMapping("/{zone}/products")

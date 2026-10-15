@@ -295,11 +295,12 @@ const groupTitles: Record<string, string> = {
           </el-tab-pane>
           <el-tab-pane label="会员操作" name="operations">
             <h3>查看收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
-            <h3>查看自选 / 复购商品订单</h3>
+            <h3>查看自选 / 复购 / 消费商品订单</h3>
             <el-radio-group v-model="memberZone" size="small" style="margin-bottom:10px" @change="loadMemberOrders">
               <el-radio-button :value="''">全部</el-radio-button>
               <el-radio-button :value="'PICK'">自选区</el-radio-button>
               <el-radio-button :value="'REBUY'">复购区</el-radio-button>
+              <el-radio-button :value="'CONSUME'">消费区</el-radio-button>
             </el-radio-group><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
             <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
             <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>

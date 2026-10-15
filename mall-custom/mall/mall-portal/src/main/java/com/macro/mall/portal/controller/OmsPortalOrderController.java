@@ -5,6 +5,7 @@ import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.ConfirmOrderResult;
 import com.macro.mall.portal.domain.OmsOrderDetail;
 import com.macro.mall.portal.domain.OrderParam;
+import com.macro.mall.portal.domain.SettlementPreviewParam;
 import com.macro.mall.portal.service.OmsPortalOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,6 +37,14 @@ public class OmsPortalOrderController {
     @ResponseBody
     public CommonResult<ConfirmOrderResult> generateConfirmOrder(@RequestBody List<Long> cartIds) {
         ConfirmOrderResult confirmOrderResult = portalOrderService.generateConfirmOrder(cartIds);
+        return CommonResult.success(confirmOrderResult);
+    }
+
+    @Operation(summary = "按专区隔离预览结算金额（切换优惠券或支付方式时调用）")
+    @RequestMapping(value = "/settlementPreview", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult<ConfirmOrderResult> settlementPreview(@RequestBody SettlementPreviewParam param) {
+        ConfirmOrderResult confirmOrderResult = portalOrderService.settlementPreview(param);
         return CommonResult.success(confirmOrderResult);
     }
 

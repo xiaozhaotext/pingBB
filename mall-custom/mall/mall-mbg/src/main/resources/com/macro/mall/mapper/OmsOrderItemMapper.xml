@@ -23,6 +23,7 @@
     <result column="gift_integration" jdbcType="INTEGER" property="giftIntegration" />
     <result column="gift_growth" jdbcType="INTEGER" property="giftGrowth" />
     <result column="product_attr" jdbcType="VARCHAR" property="productAttr" />
+    <result column="zone_code" jdbcType="VARCHAR" property="zoneCode" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -86,7 +87,7 @@
     id, order_id, order_sn, product_id, product_pic, product_name, product_brand, product_sn, 
     product_price, product_quantity, product_sku_id, product_sku_code, product_category_id, 
     promotion_name, promotion_amount, coupon_amount, integration_amount, real_amount, 
-    gift_integration, gift_growth, product_attr
+    gift_integration, gift_growth, product_attr, zone_code
   </sql>
   <select id="selectByExample" parameterType="com.macro.mall.model.OmsOrderItemExample" resultMap="BaseResultMap">
     select
@@ -128,14 +129,14 @@
       product_sku_id, product_sku_code, product_category_id, 
       promotion_name, promotion_amount, coupon_amount, 
       integration_amount, real_amount, gift_integration, 
-      gift_growth, product_attr)
+      gift_growth, product_attr, zone_code)
     values (#{orderId,jdbcType=BIGINT}, #{orderSn,jdbcType=VARCHAR}, #{productId,jdbcType=BIGINT}, 
       #{productPic,jdbcType=VARCHAR}, #{productName,jdbcType=VARCHAR}, #{productBrand,jdbcType=VARCHAR}, 
       #{productSn,jdbcType=VARCHAR}, #{productPrice,jdbcType=DECIMAL}, #{productQuantity,jdbcType=INTEGER}, 
       #{productSkuId,jdbcType=BIGINT}, #{productSkuCode,jdbcType=VARCHAR}, #{productCategoryId,jdbcType=BIGINT}, 
       #{promotionName,jdbcType=VARCHAR}, #{promotionAmount,jdbcType=DECIMAL}, #{couponAmount,jdbcType=DECIMAL}, 
       #{integrationAmount,jdbcType=DECIMAL}, #{realAmount,jdbcType=DECIMAL}, #{giftIntegration,jdbcType=INTEGER}, 
-      #{giftGrowth,jdbcType=INTEGER}, #{productAttr,jdbcType=VARCHAR})
+      #{giftGrowth,jdbcType=INTEGER}, #{productAttr,jdbcType=VARCHAR}, #{zoneCode,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="com.macro.mall.model.OmsOrderItem">
     <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Long">
@@ -203,6 +204,9 @@
       <if test="productAttr != null">
         product_attr,
       </if>
+      <if test="zoneCode != null">
+        zone_code,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="orderId != null">
@@ -264,6 +268,9 @@
       </if>
       <if test="productAttr != null">
         #{productAttr,jdbcType=VARCHAR},
+      </if>
+      <if test="zoneCode != null">
+        #{zoneCode,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>

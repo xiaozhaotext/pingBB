@@ -36,6 +36,12 @@ public class ConfirmOrderResult {
     private Long repurchasePointsBalance;
     @Schema(title = "复购积分抵扣比例")
     private BigDecimal rebuyPointsRatio;
+    @Schema(title = "商品积分可用余额")
+    private Long productPointsBalance;
+    @Schema(title = "余额（充值本金）可用金额")
+    private BigDecimal rechargeBalance;
+    @Schema(title = "按专区隔离的结算明细")
+    private ZoneSettlement zoneSettlement;
     @Schema(title = "计算的金额")
     private CalcAmount calcAmount;
 

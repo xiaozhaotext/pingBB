@@ -87,8 +87,8 @@ public class P0AdminController {
                                                                 @RequestParam(defaultValue = "20") int size) {
         access.requireAuthorized(principal);
         String zoneCode = zone == null ? "" : zone.trim().toUpperCase();
-        if (!zoneCode.isEmpty() && !"PICK".equals(zoneCode) && !"REBUY".equals(zoneCode)) {
-            return CommonResult.validateFailed("专区标识仅支持 PICK 或 REBUY");
+        if (!zoneCode.isEmpty() && !"PICK".equals(zoneCode) && !"REBUY".equals(zoneCode) && !"CONSUME".equals(zoneCode)) {
+            return CommonResult.validateFailed("专区标识仅支持 PICK、REBUY 或 CONSUME");
         }
         int limit = Math.min(Math.max(size, 1), 100);
         int offset = (Math.max(page, 1) - 1) * limit;

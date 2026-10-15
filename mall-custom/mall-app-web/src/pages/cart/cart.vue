@@ -18,40 +18,46 @@
     <view v-else>
       <!-- 列表 -->
       <view class="cart-list">
-        <block v-for="(item, index) in cartList" :key="item.id">
-          <view class="cart-item" :class="{ 'b-b': index !== cartList.length - 1 }">
-            <view class="image-wrapper" @click="handleNavToProductDetail(item.productId)">
+        <block v-for="group in zoneGroups" :key="group.key">
+          <view class="zone-group-head">
+            <text class="zone-group-title">{{ group.label }}</text>
+            <text class="zone-group-rule">{{ group.rule }}</text>
+          </view>
+          <block v-for="row in group.items" :key="row.item.id">
+          <view class="cart-item" :class="{ 'b-b': row.index !== cartList.length - 1 }">
+            <view class="image-wrapper" @click="handleNavToProductDetail(row.item.productId)">
               <image
-                :src="item.productPic"
-                :class="[item.loaded]"
+                :src="row.item.productPic"
+                :class="[row.item.loaded]"
                 mode="aspectFill"
                 lazy-load
-                @load="handleImageLoad(index)"
-                @error="handleImageError(index)"
+                @load="handleImageLoad(row.index)"
+                @error="handleImageError(row.index)"
               ></image>
               <view
                 class="yticon icon-xuanzhong2 checkbox"
-                :class="{ checked: item.checked }"
-                @click.stop="handleCheck(index)"
+                :class="{ checked: row.item.checked }"
+                @click.stop="handleCheck(row.index)"
               ></view>
             </view>
-            <view class="item-right" @click="handleNavToProductDetail(item.productId)">
-              <text class="shop">{{ item.shopName }}</text>
-              <text class="clamp title">{{ item.productName }}</text>
-              <text class="clamp attr">{{ item.spDataStr }}</text>
-              <text class="price">¥{{ item.price }}</text>
+            <view class="item-right" @click="handleNavToProductDetail(row.item.productId)">
+              <text class="shop">{{ group.label }} · {{ row.item.shopName }}</text>
+              <text class="clamp title">{{ row.item.productName }}</text>
+              <text class="clamp attr">{{ row.item.spDataStr }}</text>
+              <text class="price">{{ priceLabel(row.item) }}</text>
               <uni-number-box
                 class="step"
                 :min="1"
                 :max="100"
-                :value="item.quantity"
-                :index="index"
+                :value="row.item.quantity"
+                :index="row.index"
                 @eventChange="handleNumberChange"
                 @click.stop
               ></uni-number-box>
             </view>
-            <text class="del-btn yticon icon-fork" @click.stop="handleDeleteCartItem(index)"></text>
+            <text class="del-btn yticon icon-fork" @click.stop="handleDeleteCartItem(row.index)"></text>
           </view>
+          </block>
         </block>
       </view>
       <!-- 底部菜单栏 -->
@@ -65,7 +71,15 @@
           <view class="clear-btn" :class="{ show: allChecked }" @click="handleClearCart">清空</view>
         </view>
         <view class="total-box">
-          <text class="price">¥{{ totalPrice }}元</text>
+          <view class="zone-total-line" v-for="line in zoneTotals" :key="line.key">
+            <text class="zone-total-name">{{ line.label }}</text>
+            <text class="zone-total-value" :class="{ points: !line.cash }">{{ line.text }}</text>
+          </view>
+          <view class="zone-total-line cash-line" v-if="hasCashZone">
+            <text class="zone-total-name">现金应付</text>
+            <text class="price">¥{{ totalPrice }}元</text>
+          </view>
+          <text class="zone-total-hint" v-if="zoneTotals.length">各专区按自身规则结算，提交后以确认页金额为准</text>
         </view>
         <button type="primary" class="no-border confirm-btn" @click="handleCreateOrder"
           >去结算</button
@@ -264,27 +278,68 @@ const handleCreateOrder = () => {
 }
 
 // ===== 其他方法 =====
+// 专区隔离：不同专区按各自规则展示与汇总，不能混算
+type ZoneMeta = { label: string; rule: string; cash: boolean }
+const zoneMetaMap: Record<string, ZoneMeta> = {
+  PICK: { label: '自选区', rule: '现金或余额购买', cash: true },
+  REBUY: { label: '复购区', rule: '30%复购积分 + 70%现金', cash: true },
+  CONSUME: { label: '消费区', rule: '商品积分购买', cash: false },
+  NONE: { label: '普通商品', rule: '现金或余额购买', cash: true },
+}
+const zoneKeyOf = (item: CartItem) => {
+  const code = String(item.zoneCode || '').toUpperCase()
+  return code === 'PICK' || code === 'REBUY' || code === 'CONSUME' ? code : 'NONE'
+}
+// 按专区展示顺序分组，保持购物车商品原始索引以便沿用既有交互
+const zoneGroups = computed(() =>
+  ['PICK', 'REBUY', 'CONSUME', 'NONE']
+    .map((key) => ({
+      key,
+      label: zoneMetaMap[key].label,
+      rule: zoneMetaMap[key].rule,
+      items: cartList.value
+        .map((item, index) => ({ item, index }))
+        .filter((row) => zoneKeyOf(row.item) === key),
+    }))
+    .filter((group) => group.items.length > 0),
+)
+// 已选商品的专区小计：消费区按商品积分展示，其余专区按现金展示
+const zoneTotals = computed(() =>
+  zoneGroups.value
+    .map((group) => {
+      const checked = group.items.filter((row) => row.item.checked === true)
+      if (checked.length === 0) return null
+      const sum = checked.reduce(
+        (acc, row) => acc + (Number(row.item.price) || 0) * (Number(row.item.quantity) || 0),
+        0,
+      )
+      const amount = Number(sum.toFixed(2))
+      const cash = zoneMetaMap[group.key].cash
+      return { key: group.key, label: group.label, cash, amount, text: cash ? `¥${amount}` : `${amount} 积分` }
+    })
+    .filter((line): line is { key: string; label: string; cash: boolean; amount: number; text: string } => line !== null),
+)
+const hasCashZone = computed(() => zoneTotals.value.some((line) => line.cash))
+// 消费区按商品积分计价，其余专区按现金计价
+const priceLabel = (item: CartItem) => (zoneKeyOf(item) === 'CONSUME' ? `${item.price} 积分` : `¥${item.price}`)
 // 计算商品总价
 const calcTotal = () => {
   const list = cartList.value
   if (list.length === 0) {
     empty.value = true
     totalPrice.value = 0
+    allChecked.value = false
     return
   }
-  let sum = 0
   let checked = true
   list.forEach((item) => {
-    const price = item.price || 0
-    const quantity = item.quantity || 0
-    if (item.checked === true) {
-      sum += price * quantity
-    } else if (checked === true) {
-      checked = false
-    }
+    if (item.checked !== true) checked = false
   })
   allChecked.value = checked
-  totalPrice.value = Number(sum.toFixed(2))
+  // 现金应付只汇总现金专区，消费区的商品积分不折算成现金
+  totalPrice.value = Number(
+    zoneTotals.value.filter((line) => line.cash).reduce((acc, line) => acc + line.amount, 0).toFixed(2),
+  )
 }
 </script>
 
@@ -482,3 +537,15 @@ const calcTotal = () => {
 </style>
 
 <style scoped>.action-section{bottom:calc(76px + env(safe-area-inset-bottom));margin-bottom:8px;z-index:98}</style>
+
+<style scoped>
+.zone-group-head{display:flex;align-items:center;gap:16rpx;padding:16rpx 30rpx;background:#f7f8f6}
+.zone-group-title{font-size:26rpx;font-weight:600;color:#303133}
+.zone-group-rule{font-size:22rpx;color:#909399}
+.total-box .zone-total-line{display:flex;justify-content:flex-end;gap:16rpx;font-size:24rpx;line-height:34rpx}
+.total-box .zone-total-name{color:#909399}
+.total-box .zone-total-value{color:#303133}
+.total-box .zone-total-value.points{color:#b78235;font-weight:600}
+.total-box .zone-total-line.cash-line .price{font-size:30rpx}
+.total-box .zone-total-hint{font-size:20rpx;line-height:28rpx;color:#b0b4bb;margin-top:4rpx}
+</style>

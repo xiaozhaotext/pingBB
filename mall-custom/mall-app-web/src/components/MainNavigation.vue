@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-onMounted(()=>uni.hideTabBar({animation:false}))
 defineProps<{ active: string }>()
 const items=[
  {key:'home',label:'首页',url:'/pages/index/index',icon:'home'},
@@ -9,6 +8,13 @@ const items=[
  {key:'user',label:'我的',url:'/pages/user/user',icon:'user'},
 ]
 const tabs=new Set(items.map(item=>item.url))
+// 只有 tabBar 页面才需要隐藏原生标签栏；自选区/复购区/消费区等非 tabBar 页面调用会失败并在控制台抛错
+onMounted(()=>{
+ const pages=getCurrentPages()
+ const route='/'+((pages[pages.length-1] as any)?.route||'')
+ if(!tabs.has(route))return
+ uni.hideTabBar({animation:false,fail:()=>{}})
+})
 function go(url:string){
  const pages=getCurrentPages();if(pages[pages.length-1]?.route===url.slice(1))return
  if(tabs.has(url)) uni.switchTab({url})

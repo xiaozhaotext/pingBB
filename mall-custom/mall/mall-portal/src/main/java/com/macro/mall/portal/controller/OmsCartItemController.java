@@ -2,8 +2,10 @@ package com.macro.mall.portal.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.OmsCartItem;
+import com.macro.mall.portal.domain.CartAddParam;
 import com.macro.mall.portal.domain.CartProduct;
 import com.macro.mall.portal.domain.CartPromotionItem;
+import com.macro.mall.portal.domain.ZoneCartItem;
 import com.macro.mall.portal.service.OmsCartItemService;
 import com.macro.mall.portal.service.UmsMemberService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,19 +36,19 @@ public class OmsCartItemController {
     @Operation(summary = "添加商品到购物车")
     @RequestMapping(value = "/add", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult add(@RequestBody OmsCartItem cartItem) {
-        int count = cartItemService.add(cartItem);
+    public CommonResult add(@RequestBody CartAddParam cartItem) {
+        int count = cartItemService.add(cartItem, cartItem.getZoneCode());
         if (count > 0) {
             return CommonResult.success(count);
         }
         return CommonResult.failed();
     }
 
-    @Operation(summary = "获取当前会员的购物车列表")
+    @Operation(summary = "获取当前会员的购物车列表，包含商品加入时所在专区")
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
-    public CommonResult<List<OmsCartItem>> list() {
-        List<OmsCartItem> cartItemList = cartItemService.list(memberService.getCurrentMember().getId());
+    public CommonResult<List<ZoneCartItem>> list() {
+        List<ZoneCartItem> cartItemList = cartItemService.list(memberService.getCurrentMember().getId());
         return CommonResult.success(cartItemList);
     }
 
@@ -94,8 +96,8 @@ public class OmsCartItemController {
     @Operation(summary = "修改购物车中商品的规格")
     @RequestMapping(value = "/update/attr", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult updateAttr(@RequestBody OmsCartItem cartItem) {
-        int count = cartItemService.updateAttr(cartItem);
+    public CommonResult updateAttr(@RequestBody CartAddParam cartItem) {
+        int count = cartItemService.updateAttr(cartItem, cartItem.getZoneCode());
         if (count > 0) {
             return CommonResult.success(count);
         }

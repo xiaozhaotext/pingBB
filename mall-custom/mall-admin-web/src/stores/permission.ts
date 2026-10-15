@@ -10,11 +10,14 @@ function hasPermission(menus: UmsMenu[], route: RouteRecordExt) {
     const currMenu = getMenu(route.name as string, menus)
     if (currMenu != null) {
       //设置菜单的标题、图标和可见性
-      if (currMenu.title != null && currMenu.title !== '') {
-        route.meta!.title = currMenu.title
-      }
-      if (currMenu.icon != null && currMenu.title !== '') {
-        route.meta!.icon = currMenu.icon
+      //部分跳转型路由（如 orderMgrLegacyList）没有 meta，菜单命中时不能直接写入
+      if (route.meta) {
+        if (currMenu.title != null && currMenu.title !== '') {
+          route.meta.title = currMenu.title
+        }
+        if (currMenu.icon != null && currMenu.icon !== '') {
+          route.meta.icon = currMenu.icon
+        }
       }
       if (currMenu.hidden != null) {
         route.hidden = currMenu.hidden !== 0
@@ -79,7 +82,7 @@ export const usePermissionStore = defineStore('permission', () => {
   // 生成可访问的路由表
   const generateRoutes = (data: { menus: UmsMenu[]; username: string }) => {
     const { menus, username } = data
-    const hasNewConsole = ['pick', 'rebuy', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr', 'systemSettings'].every(name => menus.some(menu => menu.name === name))
+    const hasNewConsole = ['pick', 'rebuy', 'consume', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr', 'systemSettings'].every(name => menus.some(menu => menu.name === name))
     const filterRouteTree = (routes: RouteRecordExt[]): RouteRecordExt[] => routes.filter(v => {
       // Keep legacy menu assignments for other roles; hide duplicates only for this new-console user.
       if (hasNewConsole && ['pms', 'oms', 'sms', 'p0', 'ums'].includes(String(v.name))) return false

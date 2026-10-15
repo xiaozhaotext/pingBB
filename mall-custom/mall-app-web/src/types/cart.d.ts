@@ -47,6 +47,12 @@ export type CartItem = {
   spDataStr?: string
   /** 前端扩展字段：所属商家名称（平台自营或第三方入驻） */
   shopName?: string
+  /** 商品所属专区：PICK 自选区 / REBUY 复购区 / CONSUME 消费区；空表示未分配专区 */
+  zoneCode?: string
+  /** 专区名称（后端回填） */
+  zoneLabel?: string
+  /** 专区结算规则说明（后端回填） */
+  zoneRule?: string
 }
 
 /** 购物车中带规格的商品 SKU 摘要 */

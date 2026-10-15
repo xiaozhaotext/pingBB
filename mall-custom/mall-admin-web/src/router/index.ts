@@ -47,7 +47,20 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'update-product', name: 'rebuyUpdateProduct', component: () => import('@/views/pms/product/update.vue'), meta: { title: '编辑商品' }, hidden: true },
     ],
   },
-  // 3 订单管理
+  // 3 消费区商品管理
+  {
+    path: '/consume', component: Layout, redirect: '/consume/category', name: 'consume', alwaysShow: true,
+    meta: { title: '消费区商品管理', icon: 'product-list' },
+    children: [
+      { path: 'category', name: 'consumeCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+      { path: 'product', name: 'consumeProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'add-category', name: 'consumeAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
+      { path: 'update-category', name: 'consumeUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
+      { path: 'add-product', name: 'consumeAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
+      { path: 'update-product', name: 'consumeUpdateProduct', component: () => import('@/views/pms/product/update.vue'), meta: { title: '编辑商品' }, hidden: true },
+    ],
+  },
+  // 4 订单管理
   {
     path: '/orderMgr', component: Layout, redirect: '/orderMgr/filter', name: 'orderMgr', alwaysShow: true,
     meta: { title: '订单管理', icon: 'order' },
@@ -61,7 +74,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'deliverOrderList', name: 'orderMgrDeliverOrderList', component: () => import('@/views/oms/order/deliverOrderList.vue'), meta: { title: '订单发货' }, hidden: true },
     ],
   },
-  // 4 会员
+  // 5 会员
   {
     path: '/memberMgr', component: Layout, redirect: '/memberMgr/management/list', name: 'memberMgr', alwaysShow: true,
     meta: { title: '会员', icon: 'ums-admin' },
@@ -81,7 +94,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
       ] },
     ],
   },
-  // 5 财务中心
+  // 6 财务中心
   {
     path: '/financeMgr', component: Layout, redirect: '/financeMgr/analysis', name: 'financeMgr', alwaysShow: true,
     meta: { title: '财务中心', icon: 'total-today' },
@@ -101,7 +114,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'dividend', name: 'financeDividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池', icon: 'total-yesterday', section: 'p0Dividend' } },
     ],
   },
-  // 6 服务中心
+  // 7 服务中心
   {
     path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,
     meta: { title: '服务中心', icon: 'ums' },
@@ -127,7 +140,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     ],
   },
 
-  // 7 系统设置：管理首页、管理员设置、数据库管理
+  // 8 系统设置：管理首页、管理员设置、数据库管理
   {
     path: '/systemSettings', component: Layout, redirect: '/systemSettings/management/config/parameters', name: 'systemSettings', alwaysShow: true,
     meta: { title: '系统设置', icon: 'ums' },

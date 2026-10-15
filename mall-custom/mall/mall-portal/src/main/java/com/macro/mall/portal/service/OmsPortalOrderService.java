@@ -5,6 +5,7 @@ import com.macro.mall.model.OmsOrder;
 import com.macro.mall.portal.domain.ConfirmOrderResult;
 import com.macro.mall.portal.domain.OmsOrderDetail;
 import com.macro.mall.portal.domain.OrderParam;
+import com.macro.mall.portal.domain.SettlementPreviewParam;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -19,6 +20,11 @@ public interface OmsPortalOrderService {
      * 根据用户购物车信息生成确认单信息
      */
     ConfirmOrderResult generateConfirmOrder(List<Long> cartIds);
+
+    /**
+     * 确认页切换优惠券或支付方式后，按专区隔离重新计算各专区最终金额
+     */
+    ConfirmOrderResult settlementPreview(SettlementPreviewParam param);
 
     /**
      * 根据提交信息生成订单

@@ -31,6 +31,7 @@
       <view class="g-item" v-for="item in cartPromotionItemList" :key="item.id">
         <image :src="item.productPic"></image>
         <view class="right">
+          <text class="zone-tag">{{ item.zoneLabel || '普通商品' }}</text>
           <text class="title clamp">{{ item.productName }}</text>
           <text class="spec">{{ formatProductAttr(item.productAttr) }}</text>
           <text class="promotion clamp">{{ item.promotionMessage }}</text>
@@ -47,43 +48,47 @@
       <view class="g-header b-b">
         <text class="name">支付方式</text>
       </view>
-      <!-- 品牌区/普通商品：产品积分支付 vs 现金支付 -->
-      <view v-if="!hasRebuyGoods">
-        <view class="yt-list-cell b-b" @click="selectPayMethod('product_points')">
-          <view class="cell-icon hb">积</view>
-          <text class="cell-tit clamp">产品积分支付<text class="cell-sub">（可用 {{ memberIntegration }} 积分）</text></text>
-          <text class="cell-tip">{{ payMethod === 'product_points' ? '✓' : '' }}</text>
+      <view class="zone-plan-empty" v-if="zonePlans.length === 0">暂无可结算商品</view>
+      <!-- 按专区隔离结算：各专区只能使用本专区规则，不能串用 -->
+      <view class="zone-plan" v-for="plan in zonePlans" :key="plan.zoneCode">
+        <view class="zone-plan-head">
+          <text class="zone-plan-title">{{ plan.zoneLabel }}</text>
+          <text class="zone-plan-rule">{{ plan.zoneRule }}</text>
+          <text class="zone-plan-state" :class="{ blocked: !plan.payable }">{{ plan.payable ? '可结算' : '不可结算' }}</text>
         </view>
-        <view class="yt-list-cell b-b" v-if="payMethod === 'product_points'">
-          <text class="cell-tit clamp">使用积分数量</text>
-          <input
-            class="integration"
-            type="number"
-            v-model="useIntegration"
-            placeholder="输入积分数量"
-            placeholder-class="placeholder"
-            @input="handleIntegrationInput"
-          />
-          <text class="cell-tip">抵扣 ￥{{ calcIntegrationAmount(useIntegration) }}</text>
+        <view class="yt-list-cell b-b">
+          <text class="cell-tit clamp">商品金额</text>
+          <text class="cell-tip">{{ money(plan.grossAmount) }}</text>
         </view>
-        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
-          <view class="cell-icon">￥</view>
-          <text class="cell-tit clamp">现金支付<text class="cell-sub">（微信/支付宝）</text></text>
-          <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
+        <view class="yt-list-cell b-b" v-if="num(plan.promotionAmount) > 0">
+          <text class="cell-tit clamp">活动优惠</text>
+          <text class="cell-tip red">-{{ money(plan.promotionAmount) }}</text>
         </view>
-      </view>
-      <!-- 复购区：全现金 vs 30%积分+70%现金 -->
-      <view v-else>
-        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
-          <view class="cell-icon">￥</view>
-          <text class="cell-tit clamp">全现金支付<text class="cell-sub">（微信/支付宝）</text></text>
-          <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
+        <view class="yt-list-cell b-b" v-if="num(plan.couponAmount) > 0">
+          <text class="cell-tit clamp">优惠券抵扣</text>
+          <text class="cell-tip red">-{{ money(plan.couponAmount) }}</text>
         </view>
-        <view class="yt-list-cell b-b" @click="selectPayMethod('rebuy_mixed')">
-          <view class="cell-icon hb">复</view>
-          <text class="cell-tit clamp">30%复购积分+70%现金<text class="cell-sub">（需 {{ rebuyRequiredPoints }} 积分，可用 {{ repurchasePointsBalance }}）</text></text>
-          <text class="cell-tip">{{ payMethod === 'rebuy_mixed' ? '✓' : '' }}</text>
+        <!-- 自选区：现金或余额（充值本金）二选一 -->
+        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'PICK'">
+          <text class="cell-tit clamp">使用余额支付<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，余额与现金二选一）</text></text>
+          <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
+        <!-- 复购区：30%复购积分 + 70%现金 -->
+        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'REBUY'">
+          <text class="cell-tit clamp">复购积分{{ rebuyPercent }}%+现金<text class="cell-sub">（需 {{ plan.repurchasePoints }} 积分，可用 {{ repurchasePointsBalance }}）</text></text>
+          <switch :checked="useRepurchasePoints" @change="handleRepurchaseToggle" />
+        </view>
+        <!-- 消费区：仅用商品积分购买 -->
+        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
+          <text class="cell-tit clamp">商品积分购买<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}）</text></text>
+        </view>
+        <view class="zone-plan-foot">
+          <text v-if="plan.zoneCode === 'CONSUME'">本专区应付 {{ plan.productPoints }} 商品积分</text>
+          <text v-else>本专区现金应付 {{ money(plan.cashAmount) }}</text>
+          <text v-if="num(plan.balanceAmount) > 0"> · 余额抵扣 {{ money(plan.balanceAmount) }}</text>
+          <text v-if="num(plan.repurchasePointAmount) > 0"> · 复购积分抵扣 {{ money(plan.repurchasePointAmount) }}</text>
+        </view>
+        <view class="zone-plan-blocked" v-if="!plan.payable">{{ plan.zoneLabel }}：{{ plan.blockedReason }}</view>
       </view>
     </view>
 
@@ -92,25 +97,9 @@
       <view class="yt-list-cell b-b" @click="handleToggleMask('show')">
         <view class="cell-icon">券</view>
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip active">选择优惠券</text>
+        <text class="cell-tip active" v-if="currCoupon != null">-￥{{ currCoupon.amount }}</text>
+        <text class="cell-tip active" v-else>选择优惠券</text>
         <text class="cell-more wanjia wanjia-gengduo-d"></text>
-      </view>
-      <view class="yt-list-cell b-b" v-if="false">
-        <view class="cell-icon hb">积</view>
-        <text class="cell-tit clamp">积分抵扣</text>
-        <input
-          class="integration"
-          type="number"
-          v-model="useIntegration"          placeholder="使用积分数量"
-          placeholder-class="placeholder"
-          @input="handleIntegrationInput"
-        />
-        <text class="cell-tip">可用 {{ memberIntegration }}</text>
-      </view>
-      <view class="yt-list-cell b-b" v-if="false">
-        <view class="cell-icon hb">复</view>
-        <text class="cell-tit clamp">复购积分抵扣{{ Math.round(rebuyPointsRatio * 100) }}%（可用 {{ repurchasePointsBalance }}）</text>
-        <switch :checked="useRepurchasePoints" @change="handleRepurchaseToggle" />
       </view>
     </view>
 
@@ -130,16 +119,19 @@
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip red" v-if="currCoupon != null">-￥{{ currCoupon.amount }}</text>
-        <text class="cell-tip red" v-else>-￥0</text>
+        <text class="cell-tip red">-￥{{ num(zoneSettlement.couponAmount) }}</text>
       </view>
-      <view class="yt-list-cell b-b">
-        <text class="cell-tit clamp">积分抵扣</text>
-        <text class="cell-tip red">-￥{{ calcIntegrationAmount(useIntegration) }}</text>
+      <view class="yt-list-cell b-b" v-if="num(zoneSettlement.balanceAmount) > 0">
+        <text class="cell-tit clamp">余额抵扣（自选区）</text>
+        <text class="cell-tip red">-￥{{ zoneSettlement.balanceAmount }}</text>
       </view>
-      <view class="yt-list-cell b-b" v-if="useRepurchasePoints">
-        <text class="cell-tit clamp">复购积分抵扣</text>
-        <text class="cell-tip red">-￥{{ repurchaseDeductionPoints }}</text>
+      <view class="yt-list-cell b-b" v-if="num(zoneSettlement.repurchasePointAmount) > 0">
+        <text class="cell-tit clamp">复购积分抵扣（复购区）</text>
+        <text class="cell-tip red">-￥{{ zoneSettlement.repurchasePointAmount }}</text>
+      </view>
+      <view class="yt-list-cell b-b" v-if="num(zoneSettlement.productPointAmount) > 0">
+        <text class="cell-tit clamp">商品积分抵扣（消费区）</text>
+        <text class="cell-tip red">-￥{{ zoneSettlement.productPointAmount }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
         <text class="cell-tit clamp">备注</text>
@@ -156,9 +148,13 @@
     <!-- 底部 -->
     <view class="footer">
       <view class="price-content">
-        <text>实付款</text>
-        <text class="price-tip">￥</text>
-        <text class="price">{{ calcAmount.payAmount }}</text>
+        <view class="pay-total">
+          <text>现金应付</text>
+          <text class="price-tip">￥</text>
+          <text class="price">{{ calcAmount.payAmount }}</text>
+        </view>
+        <text class="pay-points" v-if="consumePoints > 0">消费区另需 {{ consumePoints }} 商品积分</text>
+        <text class="pay-points pay-warn" v-if="hasBlockedZone">存在不可结算专区，请调整支付方式或移除后提交</text>
       </view>
       <text class="submit" @click="handleSubmit">提交订单</text>
     </view>
@@ -198,11 +194,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { generateConfirmOrderAPI, generateOrderAPI } from '@/apis/order'
+import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI } from '@/apis/order'
 import { formatDate } from '@/utils/date'
-import type { CartPromotionItem, CalcAmount, UmsIntegrationConsumeSetting } from '@/types/order'
+import type { CartPromotionItem, CalcAmount, ConfirmOrderResult, ZoneSettlement } from '@/types/order'
 import type { SmsCoupon } from '@/types/coupon'
 import type { MemberReceiveAddress } from '@/types/address'
 
@@ -223,91 +219,86 @@ const cartPromotionItemList = ref<CartPromotionItem[]>([])
 const calcAmount = ref<CalcAmount>({} as CalcAmount)
 // 当前选中的优惠券
 const currCoupon = ref<SmsCoupon | null>(null)
-// 使用积分数量
-const useIntegration = ref(0)
-// 是否使用复购积分（仅复购区商品）
+// 自选区是否使用余额（充值本金）支付；余额与现金二选一
+const useBalance = ref(false)
+// 复购区是否使用「30%复购积分 + 70%现金」模式
 const useRepurchasePoints = ref(false)
-// 支付方式：cash=现金，product_points=产品积分，rebuy_mixed=30%复购积分+70%现金
-const payMethod = ref<'cash' | 'product_points' | 'rebuy_mixed'>('cash')
-// 复购区30%所需积分（按当前应付金额计算）
-const rebuyRequiredPoints = computed(() => {
-  const payable = Math.max(0, (calcAmount.value.totalAmount || 0) - (calcAmount.value.promotionAmount || 0) - (currCoupon.value?.amount || 0))
-  return Math.floor(payable * rebuyPointsRatio.value)
-})
-// 选择支付方式
-const selectPayMethod = (method: 'cash' | 'product_points' | 'rebuy_mixed') => {
-  payMethod.value = method
-  if (method === 'product_points') {
-    // 产品积分支付：默认用满可用积分（不超过应付）
-    useRepurchasePoints.value = false
-    const payable = Math.max(0, (calcAmount.value.totalAmount || 0) - (calcAmount.value.promotionAmount || 0) - (currCoupon.value?.amount || 0))
-    const maxPoints = Math.floor(payable * productPointMaxRatio.value / productPointYuanPerPoint.value)
-    useIntegration.value = Math.min(memberIntegration.value, maxPoints)
-    if (useIntegration.value <= 0) {
-      uni.showToast({ icon: 'none', title: '产品积分余额不足' })
-      payMethod.value = 'cash'
-      return
-    }
-  } else if (method === 'rebuy_mixed') {
-    // 30%复购积分+70%现金
-    useIntegration.value = 0
-    if (repurchasePointsBalance.value < rebuyRequiredPoints.value) {
-      uni.showToast({ icon: 'none', title: `复购积分不足，需要${rebuyRequiredPoints.value}积分` })
-      payMethod.value = 'cash'
-      return
-    }
-    useRepurchasePoints.value = true
-  } else {
-    // 纯现金
-    useIntegration.value = 0
-    useRepurchasePoints.value = false
-  }
-  calcPayAmount()
-}
-// 复购区商品标识（从购物车商品判断，暂默认显示由后端校验）
-const hasRebuyGoods = ref(false)
-const productPointYuanPerPoint = ref(1)
-const productPointMaxRatio = ref(1)
+// 三个账户可用余额：商品积分（消费区）、复购积分（复购区）、余额（自选区）
+const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
+const rechargeBalance = ref(0)
+// 复购积分抵扣比例
 const rebuyPointsRatio = ref(0.3)
-const repurchaseDeductionPoints = ref(0)
-// 积分消费设置
-const integrationConsumeSetting = ref<UmsIntegrationConsumeSetting>(
-  {} as UmsIntegrationConsumeSetting,
-)
-// 会员积分
-const memberIntegration = ref(0)
+// 按专区隔离的结算明细
+const zoneSettlement = ref<ZoneSettlement>({ plans: [] } as unknown as ZoneSettlement)
 // 购物车ID列表
 const cartIds = ref<number[]>([])
 // 同一次确认页提交沿用同一幂等键，避免双击与网络重试产生重复订单。
 const orderRequestKey = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
 const submitting = ref(false)
 
+// ===== 计算属性 =====
+// 各专区结算明细：每个专区只能使用本专区规则，不能串用
+const zonePlans = computed(() => zoneSettlement.value?.plans || [])
+// 复购积分抵扣百分比
+const rebuyPercent = computed(() => Math.round((Number(rebuyPointsRatio.value) || 0) * 100))
+// 消费区需要支付的商品积分总数
+const consumePoints = computed(() =>
+  zonePlans.value
+    .filter((plan) => plan.zoneCode === 'CONSUME')
+    .reduce((acc, plan) => acc + (Number(plan.productPoints) || 0), 0),
+)
+// 是否存在不可结算的专区（如积分/余额不足）
+const hasBlockedZone = computed(() => zonePlans.value.some((plan) => !plan.payable))
+// 金额显示：空值补 0
+const num = (value: number | undefined | null) => Number(value ?? 0)
+const money = (value: number | undefined | null) => `￥${num(value).toFixed(2)}`
+
 // ===== 加载数据 =====
-// 生成确认单信息
+// 生成确认单信息并按专区完成一次结算
 const loadData = async () => {
   try {
     const res = await generateConfirmOrderAPI(cartIds.value)
-    const data = res.data
-    memberReceiveAddressList.value = data.memberReceiveAddressList || []
-    currentAddress.value = getDefaultAddress()
-    cartPromotionItemList.value = data.cartPromotionItemList || []
-    couponList.value = []
-    for (const item of data.couponHistoryDetailList || []) {
-      couponList.value.push(item.coupon)
-    }
-    calcAmount.value = data.calcAmount
-    integrationConsumeSetting.value = data.integrationConsumeSetting
-    memberIntegration.value = data.memberIntegration
-    productPointYuanPerPoint.value = data.productPointYuanPerPoint
-    productPointMaxRatio.value = data.productPointMaxRatio
-    repurchasePointsBalance.value = data.repurchasePointsBalance
-    rebuyPointsRatio.value = data.rebuyPointsRatio
-    hasRebuyGoods.value = data.rebuyEligible
-    calcPayAmount()
+    applyConfirmOrder(res.data)
   } catch (e) {
     console.error('加载确认单失败', e)
   }
+}
+
+// 切换优惠券或支付方式后，按专区重新计算最终金额
+const refreshSettlement = async () => {
+  try {
+    const res = await settlementPreviewAPI({
+      cartIds: cartIds.value.map(Number),
+      couponId: currCoupon.value?.id,
+      useBalance: useBalance.value,
+      useRepurchasePoints: useRepurchasePoints.value,
+    })
+    applyConfirmOrder(res.data)
+  } catch (e) {
+    console.error('重新结算失败', e)
+  }
+}
+
+// 将后端返回的确认单信息写入页面状态
+const applyConfirmOrder = (data: ConfirmOrderResult) => {
+  if (!data) return
+  memberReceiveAddressList.value = data.memberReceiveAddressList || []
+  if (!currentAddress.value?.id) {
+    currentAddress.value = getDefaultAddress()
+  }
+  cartPromotionItemList.value = data.cartPromotionItemList || []
+  if (couponList.value.length === 0) {
+    for (const item of data.couponHistoryDetailList || []) {
+      couponList.value.push(item.coupon)
+    }
+  }
+  calcAmount.value = data.calcAmount
+  zoneSettlement.value = data.zoneSettlement
+  productPointsBalance.value = num(data.productPointsBalance)
+  repurchasePointsBalance.value = num(data.repurchasePointsBalance)
+  rechargeBalance.value = num(data.rechargeBalance)
+  rebuyPointsRatio.value = num(data.rebuyPointsRatio) || 0.3
 }
 
 // 设置当前地址（供 address.vue 调用）
@@ -358,17 +349,42 @@ const handleToggleMask = (type?: string) => {
 // 阻止事件冒泡
 const stopPrevent = () => {}
 
+// 自选区切换余额支付（余额与现金二选一）
+const handleBalanceToggle = async (event: any) => {
+  useBalance.value = Boolean(event.detail.value)
+  await refreshSettlement()
+}
+
+// 复购区切换「复购积分 + 现金」模式
+const handleRepurchaseToggle = async (event: any) => {
+  useRepurchasePoints.value = Boolean(event.detail.value)
+  await refreshSettlement()
+}
+
 // 提交订单
 const handleSubmit = async () => {
   if (submitting.value) return
+  if (hasBlockedZone.value) {
+    const blocked = zonePlans.value.find((plan) => !plan.payable)
+    uni.showToast({
+      icon: 'none',
+      title: blocked ? `${blocked.zoneLabel}：${blocked.blockedReason}` : '当前专区不可结算',
+    })
+    return
+  }
+  if (!currentAddress.value?.id) {
+    uni.showToast({ icon: 'none', title: '请选择收货地址' })
+    return
+  }
   submitting.value = true
   const orderParam = {
     payType: 0,
     couponId: undefined as number | undefined,
     cartIds: cartIds.value.map(Number),
     memberReceiveAddressId: currentAddress.value?.id as number | undefined,
-    useIntegration: useIntegration.value,
-    useRepurchasePoints: useRepurchasePoints.value ? repurchaseDeductionPoints.value : 0,
+    useIntegration: 0,
+    useBalance: useBalance.value,
+    useRepurchasePoints: useRepurchasePoints.value ? 1 : 0,
   }
   if (currCoupon.value != null) {
     orderParam.couponId = currCoupon.value.id
@@ -376,6 +392,14 @@ const handleSubmit = async () => {
   try {
     const res = await generateOrderAPI(orderParam, orderRequestKey)
     const orderId = res.data.order.id
+    if (res.data.paidImmediately) {
+      // 已由余额或商品积分全额抵扣，订单直接完成支付，无需再进入支付页
+      uni.showToast({ icon: 'success', title: '下单成功' })
+      setTimeout(() => {
+        uni.redirectTo({ url: '/pages/order/order?state=0' })
+      }, 800)
+      return
+    }
     uni.showModal({
       title: '提示',
       content: '订单创建成功，是否要立即支付？',
@@ -400,11 +424,11 @@ const handleSubmit = async () => {
   }
 }
 
-// 选择优惠券
-const handleSelectCoupon = (coupon: SmsCoupon) => {
+// 选择优惠券并按专区重新结算
+const handleSelectCoupon = async (coupon: SmsCoupon) => {
   currCoupon.value = coupon
-  calcPayAmount()
   handleToggleMask()
+  await refreshSettlement()
 }
 
 // ===== 辅助方法 =====
@@ -419,58 +443,6 @@ const getDefaultAddress = () => {
     return memberReceiveAddressList.value[0]
   }
   return {} as MemberReceiveAddress
-}
-
-// 计算支付金额
-const calcPayAmount = () => {
-  calcAmount.value.payAmount =
-    calcAmount.value.totalAmount - calcAmount.value.promotionAmount + calcAmount.value.freightAmount
-  if (currCoupon.value != null) {
-    calcAmount.value.payAmount = calcAmount.value.payAmount - currCoupon.value.amount
-  }
-  repurchaseDeductionPoints.value = useRepurchasePoints.value
-    ? Math.floor(Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
-      - (currCoupon.value?.amount || 0)) * rebuyPointsRatio.value)
-    : 0
-  if (useIntegration.value !== 0) {
-    calcAmount.value.payAmount =
-      calcAmount.value.payAmount - calcIntegrationAmount(useIntegration.value)
-  }
-  calcAmount.value.payAmount = Math.max(0, Number((calcAmount.value.payAmount - repurchaseDeductionPoints.value).toFixed(2)))
-}
-
-// 积分转金额
-const calcIntegrationAmount = (integration: number) => {
-  return Number((integration * productPointYuanPerPoint.value).toFixed(2))
-}
-
-// 积分输入处理
-const handleIntegrationInput = (event: any) => {
-  const value = Math.max(0, Math.floor(Number(event.detail.value) || 0))
-  const payable = Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
-    - (currCoupon.value?.amount || 0))
-  const maxPoints = Math.floor(payable * productPointMaxRatio.value / productPointYuanPerPoint.value)
-  useIntegration.value = Math.min(value, memberIntegration.value, maxPoints)
-  if (value > useIntegration.value) {
-    uni.showToast({
-      title: `本单最多使用${useIntegration.value}产品积分`,
-      duration: 1000,
-    })
-  }
-  if (useIntegration.value > 0) useRepurchasePoints.value = false
-  calcPayAmount()
-}
-
-const handleRepurchaseToggle = (event: any) => {
-  useRepurchasePoints.value = Boolean(event.detail.value)
-  const required = Math.floor(Math.max(0, calcAmount.value.totalAmount - calcAmount.value.promotionAmount
-    - (currCoupon.value?.amount || 0)) * rebuyPointsRatio.value)
-  if (useRepurchasePoints.value && repurchasePointsBalance.value < required) {
-    useRepurchasePoints.value = false
-    uni.showToast({ icon: 'none', title: `复购积分不足，需要${required}积分` })
-  }
-  if (useRepurchasePoints.value) useIntegration.value = 0
-  calcPayAmount()
 }
 
 // 格式化商品属性
@@ -516,7 +488,8 @@ const formatCouponUseType = (useType: number) => {
 <style lang="scss">
 page {
   background: $page-color-base;
-  padding-bottom: 100rpx;
+  /* 底部结算栏高度随专区提示行数变化，预留足够空间避免遮挡最后一行 */
+  padding-bottom: 180rpx;
 }
 </style>
 
@@ -808,7 +781,8 @@ page {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 90rpx;
+  min-height: 90rpx;
+  padding: 8rpx 0;
   justify-content: space-between;
   font-size: 30rpx;
   background-color: #fff;
@@ -835,7 +809,7 @@ page {
     align-items: center;
     justify-content: center;
     width: 280rpx;
-    height: 100%;
+    height: 90rpx;
     color: #fff;
     font-size: 32rpx;
     background-color: $base-color;
@@ -967,4 +941,21 @@ page {
     }
   }
 }
+</style>
+
+<style lang="scss" scoped>
+.zone-plan-empty{padding:30rpx;text-align:center;font-size:26rpx;color:#909399}
+.zone-tag{display:inline-block;align-self:flex-start;font-size:20rpx;color:#8a6d3b;background:#f6efe0;border-radius:8rpx;padding:2rpx 10rpx;margin-bottom:6rpx}
+.zone-plan{border-top:1rpx solid #f0f0f0}
+.zone-plan:first-of-type{border-top:0}
+.zone-plan-head{display:flex;align-items:center;gap:14rpx;padding:20rpx 30rpx 6rpx}
+.zone-plan-title{font-size:28rpx;font-weight:600;color:#303133}
+.zone-plan-rule{font-size:22rpx;color:#909399}
+.zone-plan-state{margin-left:auto;font-size:20rpx;color:#2e8b57;border:1rpx solid #cfe8db;border-radius:10rpx;padding:2rpx 10rpx}
+.zone-plan-state.blocked{color:#e93b3d;border-color:#f6cfd0}
+.zone-plan-foot{padding:12rpx 30rpx 20rpx;font-size:24rpx;color:#606266;line-height:34rpx}
+.zone-plan-blocked{padding:0 30rpx 18rpx;font-size:22rpx;color:#e93b3d;line-height:32rpx}
+.footer .price-content .pay-total{display:flex;align-items:center}
+.footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
+.footer .price-content .pay-warn{color:#e93b3d}
 </style>

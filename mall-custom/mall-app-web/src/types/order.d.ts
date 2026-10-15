@@ -53,6 +53,12 @@ export type CartPromotionItem = {
   modifyDate: string
   /** 是否删除 */
   deleteStatus: number
+  /** 商品所属专区：PICK/REBUY/CONSUME；空表示未分配专区 */
+  zoneCode?: string
+  /** 专区名称 */
+  zoneLabel?: string
+  /** 专区结算方式说明 */
+  zoneRule?: string
 }
 
 /** 计算金额 */
@@ -128,6 +134,68 @@ export type ConfirmOrderResult = {
   repurchasePointsBalance: number
   rebuyPointsRatio: number
   rebuyEligible: boolean
+  /** 商品积分可用余额（消费区使用） */
+  productPointsBalance: number
+  /** 余额（充值本金）可用金额（自选区使用） */
+  rechargeBalance: number
+  /** 按专区隔离的结算明细 */
+  zoneSettlement: ZoneSettlement
+}
+
+/** 单个专区的结算明细（对应后端 ZoneSettlement.Plan） */
+export type ZoneSettlementPlan = {
+  /** 专区标识：PICK/REBUY/CONSUME */
+  zoneCode: string
+  /** 专区名称 */
+  zoneLabel: string
+  /** 专区结算方式说明 */
+  zoneRule: string
+  /** 该专区商品金额 */
+  grossAmount: number
+  /** 该专区活动优惠 */
+  promotionAmount: number
+  /** 该专区优惠券优惠 */
+  couponAmount: number
+  /** 该专区应收金额（扣券后） */
+  netAmount: number
+  /** 该专区使用的商品积分数（消费区） */
+  productPoints: number
+  /** 该专区商品积分抵扣金额（消费区） */
+  productPointAmount: number
+  /** 该专区使用的复购积分数（复购区） */
+  repurchasePoints: number
+  /** 该专区复购积分抵扣金额（复购区） */
+  repurchasePointAmount: number
+  /** 该专区使用的余额（自选区） */
+  balanceAmount: number
+  /** 该专区现金应付金额 */
+  cashAmount: number
+  /** 该专区结算方式是否已满足；false 时不能下单 */
+  payable: boolean
+  /** 不可下单原因 */
+  blockedReason: string
+  /** 商品件数 */
+  quantity: number
+}
+
+/** 按专区隔离的结算结果（对应后端 ZoneSettlement） */
+export type ZoneSettlement = {
+  /** 各专区结算明细 */
+  plans: ZoneSettlementPlan[]
+  /** 商品总金额 */
+  totalAmount: number
+  /** 活动优惠合计 */
+  promotionAmount: number
+  /** 优惠券优惠合计 */
+  couponAmount: number
+  /** 消费区商品积分抵扣金额 */
+  productPointAmount: number
+  /** 复购区复购积分抵扣金额 */
+  repurchasePointAmount: number
+  /** 自选区余额抵扣金额 */
+  balanceAmount: number
+  /** 最终现金应付金额 */
+  cashAmount: number
 }
 
 /** 创建订单请求参数（对应API文档 OrderParam） */
@@ -140,8 +208,12 @@ export type OrderParam = {
   cartIds: number[]
   /** 收货地址ID */
   memberReceiveAddressId?: number
-  /** 使用的积分数 */
+  /** 使用的积分数（后端按专区自动计算，已忽略） */
   useIntegration: number
+  /** 自选区是否使用余额（充值本金）支付；余额与现金二选一 */
+  useBalance?: boolean
+  /** 复购区是否使用「30%复购积分 + 70%现金」模式；大于 0 表示启用 */
+  useRepurchasePoints?: number
 }
 
 /** 生成订单返回结果（对应后端 OrderResult） */
@@ -150,6 +222,8 @@ export type GenerateOrderResult = {
   order: OmsOrderDetail
   /** 订单商品列表 */
   orderItemsList: OmsOrderItem[]
+  /** 订单已由余额或积分全额抵扣时直接完成支付，无需再进入支付页 */
+  paidImmediately?: boolean
 }
 
 /** 订单商品项 */

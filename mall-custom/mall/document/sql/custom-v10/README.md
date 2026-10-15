@@ -44,12 +44,28 @@ mysql -u<user> -p<pass> mall < 10_admin_p0.sql
 mysql -u<user> -p<pass> mall < 32_admin_menu_ia.sql
 mysql -u<user> -p<pass> mall < 33_admin_order_layout.sql
 mysql -u<user> -p<pass> mall < 34_admin_mindmap_navigation.sql
+mysql -u<user> -p<pass> mall < 42_product_point_checkout.sql
+mysql -u<user> -p<pass> mall < 43_mobile_recharge.sql
+mysql -u<user> -p<pass> mall < 44_zone_purchase_rules.sql
+mysql --default-character-set=utf8mb4 -u<user> -p<pass> mall < 45_admin_menu_route_mirror.sql
 ```
 
 一键执行（bash）：
 ```bash
 for f in 0*.sql 10_admin_p0.sql; do mysql -u<user> -p<pass> mall < "$f"; done
 ```
+
+## 45 后台菜单与前端路由对齐（2026-10-15）
+
+后台侧边栏由前端路由表（`mall-admin-web/src/router/index.ts` 的 `asyncRouterMap`）按角色菜单过滤生成，过滤规则是「路由 name == `ums_menu.name`」；名字对不上且非 hidden 的路由会被整棵丢弃。历史脚本 33/34/35/41 在不同环境给同一批页面写了不同的菜单 name（`desk` / `sysMgr` …），于是后台会缺少 `后台桌面`、`系统设置`、`订单筛选`、`会员管理`、`财务钱包` 等一二级菜单。
+
+`45_admin_menu_route_mirror.sql` 把 `ums_menu` 与前端路由表按 name 对齐：补齐缺失菜单、归一标题/图标/排序/隐藏/父子关系、给已开通新控制台的角色补齐授权，并隐藏被新控制台取代的旧菜单记录。脚本幂等，不删除任何菜单、授权或业务数据；执行 45 后 35/39/40/41 中关于 `后台桌面`、`系统设置` 的处理即被覆盖。
+
+```bash
+mysql --default-character-set=utf8mb4 -u<user> -p<pass> mall < 45_admin_menu_route_mirror.sql
+```
+
+前端路由调整后重新生成（不要手工改 SQL）：`node tools/gen_admin_menu_mirror.mjs`。脚本默认读取 `../../../../../mall-admin-web/src/router/index.ts`，输出 `../45_admin_menu_route_mirror.sql`；线上排序/隐藏基准内嵌在脚本的 `CLOUD_LOCK`（来自 `GET /admin-api/admin/info`）。
 
 ## 回滚
 
