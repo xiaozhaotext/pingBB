@@ -51,6 +51,7 @@
         <view class="price-box">
           <text class="price">{{ item.price }}</text>
           <text>已售 {{ item.sale }}</text>
+          <text class="add-cart-btn" @click.stop="handleAddCart(item)">加入购物车</text>
         </view>
       </view>
     </view>
@@ -104,6 +105,7 @@ import { ref } from 'vue'
 import { onLoad, onPageScroll, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { getCategoryTreeAPI, searchProductListAPI } from '@/apis/product'
 import type { CategoryTreeNode, ProductListParam, PmsProduct } from '@/types/product'
+import { addFirstAvailableSkuToCart } from '@/utils/cart'
 
 // ===== 常量 =====
 // 导航栏位置
@@ -329,6 +331,10 @@ const handleClearCate = () => {
 
 // 阻止事件冒泡
 const stopPrevent = () => {}
+// 列表页快速加购：自动选取该商品第一个有货规格
+const handleAddCart = (item: PmsProduct) => {
+  addFirstAvailableSkuToCart(item.id)
+}
 </script>
 
 <style lang="scss">
@@ -611,5 +617,14 @@ page {
   padding: 30rpx;
   font-size: 28rpx;
   color: #999;
+}
+
+.add-cart-btn {
+  margin-left: auto;
+  padding: 6rpx 16rpx;
+  border-radius: 24rpx;
+  background: $base-color;
+  color: #fff;
+  font-size: 22rpx;
 }
 </style>

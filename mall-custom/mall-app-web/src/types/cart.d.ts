@@ -48,3 +48,24 @@ export type CartItem = {
   /** 前端扩展字段：所属商家名称（平台自营或第三方入驻） */
   shopName?: string
 }
+
+/** 购物车中带规格的商品 SKU 摘要 */
+export type CartProductSku = {
+  id: number
+  skuCode?: string
+  price: number
+  stock: number
+  lockStock: number
+  spData: string
+}
+
+/** 购物车中带规格的商品 - 对应后端 CartProduct */
+export type CartProduct = {
+  id: number
+  name: string
+  pic: string
+  price: number
+  subTitle?: string
+  productSn?: string
+  skuStockList?: CartProductSku[]
+}

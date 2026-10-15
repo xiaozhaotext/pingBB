@@ -114,8 +114,8 @@
         <button class="action-btn recom" @click="handleReceiveOrder(order.id)">确认收货</button>
       </view>
       <view class="action-box b-t" v-if="order.status === 3">
-        <button class="action-btn">申请售后</button>
-        <button class="action-btn recom">评价商品</button>
+        <button class="action-btn" @click="handleReturnApply(order.id)">申请售后</button>
+        <button class="action-btn recom" @click="handleComment(order.id)">评价商品</button>
       </view>
       <view class="price-content" v-if="order.status === 0">
         <text>应付金额</text>
@@ -190,6 +190,16 @@ const handlePayOrder = (id: number) => {
   uni.redirectTo({
     url: `/pages/money/pay?orderId=${id}`,
   })
+}
+
+// 评价商品
+const handleComment = (id: number) => {
+  uni.navigateTo({ url: '/pages/order/comment?orderId=' + id })
+}
+
+// 申请售后
+const handleReturnApply = (id: number) => {
+  uni.navigateTo({ url: '/pages/order/returnApply?orderId=' + id })
 }
 
 // 确认收货

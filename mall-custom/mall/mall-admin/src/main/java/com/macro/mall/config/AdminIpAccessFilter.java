@@ -34,7 +34,15 @@ public class AdminIpAccessFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        IpAccessRule rule = currentRule();
+        IpAccessRule rule;
+        try {
+            rule = currentRule();
+        } catch (RuntimeException e) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":503,\"message\":\"后台访问策略暂不可用，请稍后重试\",\"data\":null}");
+            return;
+        }
         if (rule.enabled()) {
             String clientIp = resolveClientIp(request);
             if (!rule.allows(clientIp)) {
@@ -60,7 +68,7 @@ public class AdminIpAccessFilter extends OncePerRequestFilter {
             } catch (RuntimeException e) {
                 LOGGER.warn("ip access settings unavailable, keeping previous rule: {}", e.getMessage());
                 if (rule == null) {
-                    rule = new IpAccessRule(false, "allow", java.util.List.of());
+                    throw e;
                 }
             }
         }

@@ -11,6 +11,7 @@ import com.macro.mall.portal.domain.PmsProductCategoryNode;
 import com.macro.mall.portal.service.PmsPortalProductService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -40,6 +41,10 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
     private PmsProductFullReductionMapper productFullReductionMapper;
     @Autowired
     private PortalProductDao portalProductDao;
+    @Autowired
+    private PmsCommentMapper commentMapper;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public List<PmsProduct> search(String keyword, Long brandId, Long productCategoryId, Integer pageNum, Integer pageSize, Integer sort) {
@@ -134,6 +139,19 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         }
         //商品可用优惠券
         result.setCouponList(portalProductDao.getAvailableCouponList(product.getId(),product.getProductCategoryId()));
+        //商品所属商家（店铺）：商家表缺失时回退为平台自营，不阻断详情
+        try {
+            String shopName = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(m.name,'平台自营') FROM pms_product p LEFT JOIN pms_merchant m ON m.id=p.merchant_id WHERE p.id=?",
+                    String.class, product.getId());
+            result.setShopName(shopName);
+        } catch (Exception e) {
+            result.setShopName("平台自营");
+        }
+        //商品已核验评价数
+        PmsCommentExample commentExample = new PmsCommentExample();
+        commentExample.createCriteria().andProductIdEqualTo(product.getId()).andShowStatusEqualTo(1);
+        result.setCommentCount((int) commentMapper.countByExample(commentExample));
         return result;
     }
 

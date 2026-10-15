@@ -24,12 +24,12 @@
       <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
       <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view></view></view>
       <view class="home-product-heading"><view><text>复购区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/rebuy')">更多 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view></view></view>
     </view>
   </view>
   <MainNavigation active="home" />
@@ -42,6 +42,7 @@ const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url
 
 import { ref, computed } from 'vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
+import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import {
   onLoad,
   onPullDownRefresh,
@@ -67,6 +68,7 @@ const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
 const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=((await getZoneProductsAPI('REBUY')).data||[]).slice(0,4)}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
 const openRebuyProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=REBUY`})
+const addCart=(item:ZoneProduct)=>{void addFirstAvailableSkuToCart(item.id)}
 // 后台 Banner（/home/content → advertiseList）：后台启用/停用后应用端即时生效
 const normalizeBannerPic=(pic:string)=>pic.replace(/^https?:\/\/macro-oss\.oss-cn-shenzhen\.aliyuncs\.com\//i,'/oss/')
 const loadBanner=async()=>{try{const r=await getHomeContentAPI();const list=(r.data?.advertiseList||[]).filter(i=>!!i.pic).map(i=>({...i,pic:normalizeBannerPic(i.pic)}));advertiseList.value=list;swiperLength.value=list.length;if(!brandList.value.length&&r.data?.brandList?.length){brandList.value=r.data.brandList}}catch{advertiseList.value=[];swiperLength.value=0}}
@@ -897,4 +899,8 @@ page {
 .banner-dots text.active{background:#fff}
 @media(min-width:900px){.banner-swiper{height:300px}.banner-image{height:300px}}
 .home-quick-links{display:flex;gap:12px;margin:14px 0}.home-quick-links>view{flex:1;min-width:0;padding:14px 18px;background:#fff;border:1px solid #dcebe6;border-radius:12px;box-shadow:0 3px 14px #2752490d;cursor:pointer}.home-quick-links text,.home-quick-links small{display:block}.home-quick-links text{font-size:16px;font-weight:700;color:#285a62}.home-quick-links small{margin-top:4px;font-size:11px;color:#7a9992}
+</style>
+
+<style scoped>
+.home-add-cart{margin-left:auto;padding:4px 10px;border-radius:14px;background:#285b40;color:#fff !important;font-size:12px;line-height:1.5;white-space:nowrap}
 </style>

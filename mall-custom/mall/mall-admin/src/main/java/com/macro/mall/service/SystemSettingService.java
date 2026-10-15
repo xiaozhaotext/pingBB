@@ -45,6 +45,7 @@ public class SystemSettingService {
     public static final String CONTENT_PRIVACY_POLICY = "privacy_policy";
     public static final String CONTENT_USER_AGREEMENT = "user_agreement";
     public static final String CONTENT_REGISTER_NOTICE = "register_notice";
+    public static final String CONTENT_REGISTRATION_NOTICE = CONTENT_REGISTER_NOTICE;
     private static final int CONTENT_MAX_LENGTH = 60000;
 
     private static final int MAX_VALUE_LENGTH = 512;
@@ -294,6 +295,7 @@ public class SystemSettingService {
                     operatorId, operatorName, module, action, target + ": " + detail, clientIp);
         } catch (org.springframework.dao.DataAccessException e) {
             LOGGER.warn("audit log insert failed for {}: {}", action, e.getMessage());
+            throw e;
         }
     }
 

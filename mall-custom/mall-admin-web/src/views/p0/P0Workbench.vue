@@ -29,6 +29,8 @@ const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
 const memberDetailTab = ref('identity')
+const memberStats = ref<Record<string, unknown> | null>(null)
+const memberZone = ref('')
 const identityType = ref(0)
 const identityReason = ref('')
 const referrerId = ref<number | null>(null)
@@ -89,6 +91,14 @@ async function load() {
       if (sectionKey.value === 'p0SmsSettings' && !settingForm.value.key.startsWith('sms.')) settingForm.value.key = 'sms.provider'
       selectSetting(settingForm.value.key)
     }
+    if (sectionKey.value === 'p0Members') {
+      try {
+        const stats = await getP0<Record<string, unknown>>('members/stats')
+        memberStats.value = stats.data
+      } catch { memberStats.value = null }
+    } else {
+      memberStats.value = null
+    }
   } catch {
     data.value = {}
   } finally {
@@ -130,6 +140,17 @@ async function openMember(id: number) {
     referrerReason.value = ''
   } finally { loading.value = false }
 }
+async function loadMemberOrders(zone: string | number | boolean | undefined) {
+  if (!memberId.value) return
+  const code = zone ? String(zone) : ''
+  memberZone.value = code
+  try {
+    const response = await getP0<Record<string, unknown>[]>(
+      'members/' + memberId.value + '/orders' + (code ? '?zone=' + code : ''))
+    if (memberDetail.value) memberDetail.value.orders = response.data
+  } catch { /* 保持原有列表，不阻断详情 */ }
+}
+
 async function changeMemberStatus() {
   if (!memberId.value || !memberDetail.value) return
   const { value: reason } = await ElMessageBox.prompt('请输入至少5个字的变更原因', '登录权限', { inputValidator: value => value.trim().length >= 5 || '原因至少5个字' })
@@ -213,6 +234,23 @@ const groupTitles: Record<string, string> = {
       <el-input v-model="memberKeyword" placeholder="按账号、昵称或手机号查找会员" clearable @keyup.enter="load" />
       <el-button type="primary" @click="load">查询</el-button>
     </el-card>
+    <el-card v-if="sectionKey === 'p0Members' && memberStats" class="stat-card" shadow="never">
+      <div class="stat-grid">
+        <div class="stat"><span>会员总数</span><strong>{{ display(memberStats.totalMembers) }}</strong></div>
+        <div class="stat"><span>今日新增</span><strong>{{ display(memberStats.todayNewMembers) }}</strong></div>
+        <div class="stat"><span>近30天新增</span><strong>{{ display(memberStats.newMembers30d) }}</strong></div>
+        <div class="stat"><span>近30天活跃</span><strong>{{ display(memberStats.activeMembers30d) }}</strong></div>
+        <div class="stat"><span>今日活跃</span><strong>{{ display(memberStats.todayActiveMembers) }}</strong></div>
+        <div class="stat"><span>今日下单会员</span><strong>{{ display(memberStats.todayConsumingMembers) }}</strong></div>
+        <div class="stat"><span>今日消费额</span><strong>{{ display(memberStats.todayConsumingAmount) }}</strong></div>
+        <div class="stat"><span>累计消费会员</span><strong>{{ display(memberStats.totalConsumingMembers) }}</strong></div>
+        <div class="stat"><span>累计消费额</span><strong>{{ display(memberStats.totalConsumingAmount) }}</strong></div>
+        <div class="stat"><span>客单价</span><strong>{{ display(memberStats.avgOrderAmount) }}</strong></div>
+      </div>
+      <div class="stat-trend">
+        <span v-for="t in rows(memberStats.trend)" :key="String(t.day)">{{ t.day }} 新增 {{ display(t.newMembers) }} / 活跃 {{ display(t.activeMembers) }} / 金额 {{ display(t.amount) }}</span>
+      </div>
+    </el-card>
     <el-card v-if="sectionKey === 'p0Points'" class="action-card" shadow="never">
       <strong>提交积分调整申请</strong>
       <el-input-number v-model="pointsForm.memberId" :min="1" placeholder="会员 ID" />
@@ -257,7 +295,12 @@ const groupTitles: Record<string, string> = {
           </el-tab-pane>
           <el-tab-pane label="会员操作" name="operations">
             <h3>查看收货地址</h3><el-table :data="rows(memberDetail.addresses)"><el-table-column prop="name" label="收件人"/><el-table-column prop="phone_number" label="手机号"/><el-table-column prop="detail_address" label="地址"/></el-table>
-            <h3>查看自选 / 复购商品订单</h3><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
+            <h3>查看自选 / 复购商品订单</h3>
+            <el-radio-group v-model="memberZone" size="small" style="margin-bottom:10px" @change="loadMemberOrders">
+              <el-radio-button :value="''">全部</el-radio-button>
+              <el-radio-button :value="'PICK'">自选区</el-radio-button>
+              <el-radio-button :value="'REBUY'">复购区</el-radio-button>
+            </el-radio-group><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
             <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
             <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
             <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />
@@ -278,5 +321,5 @@ const groupTitles: Record<string, string> = {
 </template>
 
 <style scoped>
-.p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}
+.p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.stat-card{margin-top:20px}.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.stat{background:#f3f7f4;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}.stat span{font-size:12px;color:#61746b}.stat strong{font-size:20px;color:#203a32}.stat-trend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#61746b}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}
 </style>

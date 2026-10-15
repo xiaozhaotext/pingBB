@@ -52,6 +52,63 @@ public class P0AdminController {
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
                 "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset));
     }
+    @GetMapping("/members/stats")
+    public CommonResult<Map<String, Object>> memberStats(Principal principal) {
+        access.requireAuthorized(principal);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("totalMembers", scalarLong("SELECT COUNT(*) FROM ums_member"));
+        data.put("todayNewMembers", scalarLong("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE()"));
+        data.put("newMembers30d", scalarLong("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE() - INTERVAL 29 DAY"));
+        data.put("activeMembers30d", scalarLong("SELECT COUNT(DISTINCT member_id) FROM ums_member_login_log WHERE create_time >= CURDATE() - INTERVAL 29 DAY"));
+        data.put("todayActiveMembers", scalarLong("SELECT COUNT(DISTINCT member_id) FROM ums_member_login_log WHERE create_time >= CURDATE()"));
+        data.put("todayConsumingMembers", scalarLong("SELECT COUNT(DISTINCT member_id) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3) AND create_time >= CURDATE()"));
+        data.put("todayConsumingAmount", scalarDecimal("SELECT COALESCE(SUM(pay_amount),0) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3) AND create_time >= CURDATE()"));
+        data.put("totalConsumingMembers", scalarLong("SELECT COUNT(DISTINCT member_id) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3)"));
+        data.put("totalConsumingAmount", scalarDecimal("SELECT COALESCE(SUM(pay_amount),0) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3)"));
+        data.put("avgOrderAmount", scalarDecimal("SELECT COALESCE(AVG(pay_amount),0) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3)"));
+        data.put("trend", jdbc.queryForList(
+                "SELECT DATE_FORMAT(d.day,'%Y-%m-%d') AS day,"
+                        + " (SELECT COUNT(*) FROM ums_member m WHERE DATE(m.create_time)=d.day) AS newMembers,"
+                        + " (SELECT COUNT(DISTINCT l.member_id) FROM ums_member_login_log l WHERE DATE(l.create_time)=d.day) AS activeMembers,"
+                        + " (SELECT COALESCE(SUM(o.pay_amount),0) FROM oms_order o WHERE o.delete_status=0 AND o.status IN(1,2,3) AND DATE(o.create_time)=d.day) AS amount"
+                        + " FROM (SELECT CURDATE() - INTERVAL n DAY AS day FROM"
+                        + " (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4"
+                        + "  UNION ALL SELECT 5 UNION ALL SELECT 6) t) d ORDER BY d.day"));
+        data.put("identityStats", jdbc.queryForList(
+                "SELECT COALESCE(i.identity_type,0) AS identityType,COUNT(*) AS members FROM ums_member m"
+                        + " LEFT JOIN ums_member_identity i ON i.member_id=m.id GROUP BY COALESCE(i.identity_type,0) ORDER BY identityType"));
+        return CommonResult.success(data);
+    }
+
+    @GetMapping("/members/{memberId}/orders")
+    public CommonResult<List<Map<String, Object>>> memberOrders(Principal principal, @PathVariable long memberId,
+                                                                @RequestParam(defaultValue = "") String zone,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        access.requireAuthorized(principal);
+        String zoneCode = zone == null ? "" : zone.trim().toUpperCase();
+        if (!zoneCode.isEmpty() && !"PICK".equals(zoneCode) && !"REBUY".equals(zoneCode)) {
+            return CommonResult.validateFailed("专区标识仅支持 PICK 或 REBUY");
+        }
+        int limit = Math.min(Math.max(size, 1), 100);
+        int offset = (Math.max(page, 1) - 1) * limit;
+        if (zoneCode.isEmpty()) {
+            return CommonResult.success(jdbc.queryForList(
+                    "SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,"
+                            + "GROUP_CONCAT(DISTINCT z.zone_code) AS product_zones "
+                            + "FROM oms_order o LEFT JOIN oms_order_item i ON i.order_id=o.id "
+                            + "LEFT JOIN pms_product_zone z ON z.product_id=i.product_id "
+                            + "WHERE o.member_id=? AND o.delete_status=0 GROUP BY o.id ORDER BY o.id DESC LIMIT ? OFFSET ?",
+                    memberId, limit, offset));
+        }
+        return CommonResult.success(jdbc.queryForList(
+                "SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,"
+                        + "GROUP_CONCAT(DISTINCT i.product_name) AS product_names "
+                        + "FROM oms_order o JOIN oms_order_item i ON i.order_id=o.id "
+                        + "JOIN pms_product_zone z ON z.product_id=i.product_id "
+                        + "WHERE o.member_id=? AND o.delete_status=0 AND z.zone_code=? GROUP BY o.id ORDER BY o.id DESC LIMIT ? OFFSET ?",
+                memberId, zoneCode, limit, offset));
+    }
 
     @GetMapping("/members/{memberId}")
     public CommonResult<Map<String, Object>> member(Principal principal, @PathVariable long memberId) {
@@ -710,5 +767,14 @@ public class P0AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, key + " 长度无效");
         }
         return value;
+    }
+    private long scalarLong(String sql) {
+        Long value = jdbc.queryForObject(sql, Long.class);
+        return value == null ? 0L : value;
+    }
+
+    private BigDecimal scalarDecimal(String sql) {
+        BigDecimal value = jdbc.queryForObject(sql, BigDecimal.class);
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

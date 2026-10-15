@@ -206,6 +206,18 @@
       }
     },
     {
+      "path": "pages/order/comment",
+      "style": {
+        "navigationBarTitleText": "评价商品"
+      }
+    },
+    {
+      "path": "pages/order/returnApply",
+      "style": {
+        "navigationBarTitleText": "申请售后"
+      }
+    },
+    {
       "path": "pages/money/pay",
       "style": {
         "navigationBarTitleText": "支付订单"
@@ -341,6 +353,12 @@
       "path": "pages/member/dividend",
       "style": {
         "navigationBarTitleText": "每日分红池(模拟)"
+      }
+    },
+    {
+      "path": "pages/member/points",
+      "style": {
+        "navigationBarTitleText": "我的钱包与积分"
       }
     },
     {

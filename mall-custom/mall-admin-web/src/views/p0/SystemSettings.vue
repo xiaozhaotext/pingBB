@@ -31,7 +31,7 @@ const selects: Record<string, { value: string; label: string }[]> = {
   ],
 }
 const multiline = ['ip.access.list']
-const contentLabels: Record<string, string> = { privacy_policy: '隐私政策', user_agreement: '用户协议' }
+const contentLabels: Record<string, string> = { privacy_policy: '隐私政策', user_agreement: '用户协议', register_notice: '注册须知', registration_notice: '注册须知（旧版）' }
 
 const active = ref('company')
 const loading = ref(false)
@@ -68,6 +68,8 @@ async function load() {
     ipSummary.value = (data.ipAccess as typeof ipSummary.value) ?? null
     const snapshot: Record<string, string> = {}
     Object.values(groups.value).forEach(list => list.forEach(field => { snapshot[field.config_key] = text(field.config_value) }))
+    // 开关类配置统一为 '1'/'0'，与开关组件的 active/inactive 取值保持一致（空值视为关闭）
+    switches.forEach(key => { if (key in snapshot) snapshot[key] = snapshot[key] === '1' ? '1' : '0' })
     drafts.value = { ...snapshot }
     original.value = { ...snapshot }
   } finally {
@@ -172,7 +174,7 @@ onMounted(async () => { await load(); await loadContent() })
                 description="支持单个 IP 或 CIDR，例如 203.0.113.7, 10.0.0.0/24。请先确认列表包含当前访问 IP。" />
               <el-form label-position="top" class="form">
                 <el-form-item v-for="field in fields" :key="field.config_key" :label="field.label">
-                  <el-switch v-if="switches.includes(field.config_key)" :model-value="drafts[field.config_key] === '1'"
+                  <el-switch v-if="switches.includes(field.config_key)" :model-value="drafts[field.config_key] === '1' ? '1' : '0'"
                     active-value="1" inactive-value="0"
                     @update:model-value="value => drafts[field.config_key] = String(value)" />
                   <el-select v-else-if="selects[field.config_key]" v-model="drafts[field.config_key]" class="wide">

@@ -81,7 +81,8 @@ public class SystemSettingController {
                 "mode", rule.mode(),
                 "entries", rule.tokens().size()));
         data.put("contentKeys", List.of(SystemSettingService.CONTENT_PRIVACY_POLICY,
-                SystemSettingService.CONTENT_USER_AGREEMENT));
+                SystemSettingService.CONTENT_USER_AGREEMENT,
+                SystemSettingService.CONTENT_REGISTRATION_NOTICE));
         return CommonResult.success(data);
     }
 
@@ -219,7 +220,7 @@ public class SystemSettingController {
 
         int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int pageNo = Math.max(page, 1);
-        int from = Math.min((pageNo - 1) * pageSize, assets.size());
+        int from = (int) Math.min((long) (pageNo - 1) * pageSize, assets.size());
         int to = Math.min(from + pageSize, assets.size());
 
         Map<String, Object> data = new LinkedHashMap<>();

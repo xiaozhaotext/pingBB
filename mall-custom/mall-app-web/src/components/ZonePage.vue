@@ -22,7 +22,7 @@
       <view v-else class="zone-grid">
         <view v-for="item in products" :key="item.id" class="zone-card" @click="goPage('/pages/product/product?id=' + item.id)">
           <image :src="item.pic" mode="aspectFill" />
-          <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>¥{{ item.price }}</text><text>已售 {{ item.sale || 0 }}</text></view></view>
+          <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>¥{{ item.price }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view>
         </view>
       </view>
     </view>
@@ -37,6 +37,7 @@ import { onShow } from '@dcloudio/uni-app'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
 import { getCategoryTreeAPI } from '@/apis/product'
+import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import type { CategoryTreeNode } from '@/types/product'
 const props = defineProps<{ zone: 'PICK' | 'REBUY'; title: string; description: string }>()
 const products = ref<ZoneProduct[]>([])
@@ -68,6 +69,7 @@ const load = async () => {
   catch { error.value = true }
   finally { loading.value = false }
 }
+const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id) }
 onShow(() => { loadCategories(); load() })
 </script>
 
@@ -97,6 +99,7 @@ onShow(() => { loadCategories(); load() })
 .zone-card-foot { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
 .zone-card-foot text:first-child { color: #bb6540; font-weight: 800; font-size: 20px; }
 .zone-card-foot text:last-child { color: #87958c; font-size: 12px; }
+.zone-add-cart { padding: 4px 10px; border-radius: 14px; background: #285b40; color: #fff !important; font-size: 12px !important; }
 .zone-empty { padding: 70px 15px; background: #fff; border-radius: 14px; text-align: center; color: #718277; }
 .zone-empty text { display: block; margin-top: 10px; color: #287749; cursor: pointer; }
 @media(max-width:800px) { .zone-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; } .zone-card image { height: 155px; } .zone-head { padding: 22px; align-items: start; flex-direction: column; } .zone-title { font-size: 26px; } .zone-wrap { padding: 12px 12px 85px; } }

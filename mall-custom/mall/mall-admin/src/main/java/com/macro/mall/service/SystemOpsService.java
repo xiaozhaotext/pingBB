@@ -3,6 +3,7 @@ package com.macro.mall.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -41,6 +44,7 @@ public class SystemOpsService {
     private static final Pattern SAFE_BACKUP = Pattern.compile("mall_demo-[0-9]{8}-[0-9]{6}-[0-9a-f]{6}[.]sql");
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int RESTORE_COMMIT_BATCH = 500;
     private static final int MAX_TABLES_PER_COMMAND = 50;
     private static final int MAX_LIST_SIZE = 200;
 
@@ -374,24 +378,51 @@ public class SystemOpsService {
     public Map<String, Object> restoreBackup(String name) {
         Path source = resolveBackup(name);
         String safetyBackup = createBackup();
-        int executed = 0;
+        int executed;
         try {
             List<String> lines = Files.readAllLines(source, StandardCharsets.UTF_8);
-            StringBuilder statement = new StringBuilder();
-            for (String line : lines) {
-                if (line.startsWith("--")) {
-                    continue;
-                }
-                statement.append(line).append(System.lineSeparator());
-                if (line.endsWith(";")) {
-                    String sql = statement.toString().trim();
-                    statement.setLength(0);
-                    if (!sql.isEmpty()) {
-                        jdbc.execute(sql);
-                        executed++;
+            // 复用单连接并关闭自动提交，每 RESTORE_COMMIT_BATCH 条提交一次。
+            // 原实现逐条 jdbc.execute，等于每条语句一次事务提交（MySQL 每次提交一次 fsync），
+            // 数百 KB 的备份即可耗时数分钟，超过前端 5 分钟超时导致“还原失败”的假象。
+            executed = jdbc.execute((ConnectionCallback<Integer>) connection -> {
+                boolean originalAutoCommit = connection.getAutoCommit();
+                connection.setAutoCommit(false);
+                int count = 0;
+                int pending = 0;
+                StringBuilder statement = new StringBuilder();
+                try (Statement stmt = connection.createStatement()) {
+                    for (String line : lines) {
+                        if (line.startsWith("--")) {
+                            continue;
+                        }
+                        statement.append(line).append(System.lineSeparator());
+                        if (line.endsWith(";")) {
+                            String sql = statement.toString().trim();
+                            statement.setLength(0);
+                            if (!sql.isEmpty()) {
+                                stmt.execute(sql);
+                                count++;
+                                pending++;
+                                if (pending >= RESTORE_COMMIT_BATCH) {
+                                    connection.commit();
+                                    pending = 0;
+                                }
+                            }
+                        }
                     }
+                    connection.commit();
+                } catch (SQLException e) {
+                    try {
+                        connection.rollback();
+                    } catch (SQLException ignored) {
+                        // 回滚失败时保留原始异常
+                    }
+                    throw e;
+                } finally {
+                    connection.setAutoCommit(originalAutoCommit);
                 }
-            }
+                return count;
+            });
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "读取备份失败: " + e.getMessage());
         }

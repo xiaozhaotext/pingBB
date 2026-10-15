@@ -195,6 +195,15 @@ public class UmsMemberServiceImpl implements UmsMemberService {
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);
             token = jwtTokenUtil.generateToken(userDetails);
+            // 会员登录日志：供后台「会员统计 / 活跃会员 / 登录封禁追溯」使用，写入失败不阻断登录
+            try {
+                if (userDetails instanceof MemberDetails) {
+                    jdbcTemplate.update("INSERT INTO ums_member_login_log(member_id,create_time,login_type) VALUES(?,NOW(),0)",
+                            ((MemberDetails) userDetails).getUmsMember().getId());
+                }
+            } catch (Exception e) {
+                LOGGER.warn("会员登录日志写入失败:{}", e.getMessage());
+            }
         } catch (AuthenticationException e) {
             LOGGER.warn("登录异常:{}", e.getMessage());
         }

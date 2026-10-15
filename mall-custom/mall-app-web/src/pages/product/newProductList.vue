@@ -20,6 +20,7 @@
         <view class="price-box">
           <text class="price">{{ item.price }}</text>
           <text>已售 {{ item.sale }}</text>
+          <text class="add-cart-btn" @click.stop="handleAddCart(item)">加入购物车</text>
         </view>
       </view>
     </view>
@@ -35,6 +36,7 @@ import { ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { getNewProductListAPI } from '@/apis/home'
 import type { PmsProduct } from '@/types/product'
+import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import type { PageParam } from '@/types/common'
 
 // ===== 页面数据 =====
@@ -122,6 +124,10 @@ const handleNavToDetail = (item: PmsProduct) => {
   uni.navigateTo({
     url: `/pages/product/product?id=${item.id}`,
   })
+}
+// 列表页快速加购：自动选取该商品第一个有货规格
+const handleAddCart = (item: PmsProduct) => {
+  addFirstAvailableSkuToCart(item.id)
 }
 </script>
 
@@ -219,5 +225,14 @@ page,
   padding: 20rpx;
   font-size: 28rpx;
   color: $font-color-light;
+}
+
+.add-cart-btn {
+  margin-left: auto;
+  padding: 6rpx 16rpx;
+  border-radius: 24rpx;
+  background: $base-color;
+  color: #fff;
+  font-size: 22rpx;
 }
 </style>
