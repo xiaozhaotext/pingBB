@@ -296,6 +296,8 @@
 
 <script setup lang="ts">
 const fallbackPage=ref('/pages/index/index')
+// 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集
+const zoneCode = ref<ZoneCode | undefined>()
 const goFallbackPage=()=>{
   const url=fallbackPage.value
   if(url.startsWith('/pages/zone/')) uni.redirectTo({url})
@@ -394,6 +396,7 @@ import { getTheme, type AppTheme } from '@/utils/theme'
 import { getProductDetailAPI, searchProductListAPI, getProductCommentListAPI, createProductCommentAPI, getProductCommentPendingAPI } from '@/apis/product'
 import { getSiteInfoAPI } from '@/apis/home'
 import { addCartAPI, getCartListAPI } from '@/apis/cart'
+import type { ZoneCode } from '@/apis/zone'
 import { getProductCouponListAPI, addMemberCouponAPI } from '@/apis/coupon'
 import { createReadHistoryAPI } from '@/apis/memberReadHistory'
 import {
@@ -586,7 +589,11 @@ onShow(() => {
 
 // 页面加载
 onLoad((options) => {
-  fallbackPage.value=options?.zone==='REBUY'?'/pages/zone/rebuy':options?.zone==='PICK'?'/pages/zone/pick':'/pages/index/index'
+  const requestedZone = options?.zone ? String(options.zone).toUpperCase() : ''
+  zoneCode.value = requestedZone === 'PICK' || requestedZone === 'REBUY' || requestedZone === 'CONSUME'
+    ? (requestedZone as ZoneCode)
+    : undefined
+  fallbackPage.value=options?.zone==='REBUY'?'/pages/zone/rebuy':options?.zone==='CONSUME'?'/pages/zone/consume':options?.zone==='PICK'?'/pages/zone/pick':'/pages/index/index'
   guardDirectEntry()
   // 获取状态栏高度
   const systemInfo = uni.getSystemInfoSync()
@@ -1002,11 +1009,12 @@ const handleBuy = async () => {
   }
   try {
     uni.showLoading({ title: '处理中', mask: true })
-    await addCartAPI({ productId: product.value.id, productSkuId: skuStock.id, quantity: 1 })
+    await addCartAPI({ productId: product.value.id, productSkuId: skuStock.id, quantity: 1, zoneCode: zoneCode.value })
     const res = await getCartListAPI()
     const target = (res.data || []).find(
       (item) => Number(item.productId) === Number(product.value.id)
-        && Number(item.productSkuId) === Number(skuStock.id),
+        && Number(item.productSkuId) === Number(skuStock.id)
+        && (!zoneCode.value || String(item.zoneCode || '') === zoneCode.value),
     )
     uni.hideLoading()
     if (!target) {
@@ -1138,6 +1146,7 @@ const handleAddToCart = async () => {
       productSn: product.value.productSn,
       productSubTitle: product.value.subTitle,
       quantity: 1,
+      zoneCode: zoneCode.value,
     })
     uni.showToast({
       title: res.message,

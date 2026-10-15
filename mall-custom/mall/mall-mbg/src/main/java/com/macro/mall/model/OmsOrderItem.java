@@ -60,6 +60,9 @@ public class OmsOrderItem implements Serializable {
     @Schema(title = "商品销售属性:[{'key':'颜色','value':'颜色'},{'key':'容量','value':'4G'}]")
     private String productAttr;
 
+    @Schema(title = "结算专区：PICK 自选区/REBUY 复购区/CONSUME 消费区，空为旧订单")
+    private String zoneCode;
+
     private static final long serialVersionUID = 1L;
 
     public Long getId() {
@@ -230,6 +233,14 @@ public class OmsOrderItem implements Serializable {
         this.productAttr = productAttr;
     }
 
+    public String getZoneCode() {
+        return zoneCode;
+    }
+
+    public void setZoneCode(String zoneCode) {
+        this.zoneCode = zoneCode;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -257,6 +268,7 @@ public class OmsOrderItem implements Serializable {
         sb.append(", giftIntegration=").append(giftIntegration);
         sb.append(", giftGrowth=").append(giftGrowth);
         sb.append(", productAttr=").append(productAttr);
+        sb.append(", zoneCode=").append(zoneCode);
         sb.append(", serialVersionUID=").append(serialVersionUID);
         sb.append("]");
         return sb.toString();

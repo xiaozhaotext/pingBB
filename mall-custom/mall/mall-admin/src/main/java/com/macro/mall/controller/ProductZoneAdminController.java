@@ -15,7 +15,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
-/** Brand is the existing PICK zone. Consumption remains reserved with no trading rules. */
+/** 自选区(PICK)、复购区(REBUY)、消费区(CONSUME)三个专区的商品归属管理，专区之间相互独立。 */
 @RestController
 @RequestMapping("/p0/zones")
 public class ProductZoneAdminController {
@@ -60,9 +60,6 @@ public class ProductZoneAdminController {
         // Product row lock serializes retries and concurrent zone edits for the same product.
         List<Long> products = jdbc.queryForList("SELECT id FROM pms_product WHERE id=? AND delete_status=0 FOR UPDATE",Long.class,body.productId());
         if (products.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"商品不存在");
-        Integer incompatible = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product_zone WHERE product_id=? AND "
-                + ("CONSUME".equals(zone) ? "zone_code<>'CONSUME'" : "zone_code='CONSUME'"), Integer.class, body.productId());
-        if (incompatible != null && incompatible > 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"消费区商品不能与其他专区重复分配，请先移出原专区");
         List<Integer> old = jdbc.queryForList("SELECT sort_order FROM pms_product_zone WHERE product_id=? AND zone_code=?",Integer.class,body.productId(),zone);
         if (!old.isEmpty() && old.get(0)==body.sortOrder()) return CommonResult.success(null);
         if (old.isEmpty()) jdbc.update("INSERT INTO pms_product_zone(product_id,zone_code,sort_order) VALUES(?,?,?)",body.productId(),zone,body.sortOrder());

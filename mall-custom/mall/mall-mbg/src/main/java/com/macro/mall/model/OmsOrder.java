@@ -43,6 +43,9 @@ public class OmsOrder implements Serializable {
     @Schema(title = "管理员后台调整订单使用的折扣金额")
     private BigDecimal discountAmount;
 
+    @Schema(title = "余额（充值本金）抵扣金额")
+    private BigDecimal balanceAmount;
+
     @Schema(title = "支付方式：0->未支付；1->支付宝；2->微信")
     private Integer payType;
 
@@ -240,6 +243,14 @@ public class OmsOrder implements Serializable {
 
     public void setDiscountAmount(BigDecimal discountAmount) {
         this.discountAmount = discountAmount;
+    }
+
+    public BigDecimal getBalanceAmount() {
+        return balanceAmount;
+    }
+
+    public void setBalanceAmount(BigDecimal balanceAmount) {
+        this.balanceAmount = balanceAmount;
     }
 
     public Integer getPayType() {
@@ -509,6 +520,7 @@ public class OmsOrder implements Serializable {
         sb.append(", integrationAmount=").append(integrationAmount);
         sb.append(", couponAmount=").append(couponAmount);
         sb.append(", discountAmount=").append(discountAmount);
+        sb.append(", balanceAmount=").append(balanceAmount);
         sb.append(", payType=").append(payType);
         sb.append(", sourceType=").append(sourceType);
         sb.append(", status=").append(status);

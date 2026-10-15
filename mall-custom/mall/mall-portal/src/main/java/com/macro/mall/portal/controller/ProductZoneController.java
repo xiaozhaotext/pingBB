@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 
-/** 原图自选/复购专区，仅展示明确分配的在售商品，不参与积分结算。 */
+/** 自选/复购/消费专区商品列表：仅展示明确分配的在售商品，结算规则由各专区独立决定。 */
 @RestController
 @RequestMapping("/product/zone")
 public class ProductZoneController {

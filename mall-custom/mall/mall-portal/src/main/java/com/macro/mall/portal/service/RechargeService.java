@@ -51,6 +51,81 @@ public class RechargeService {
         List<Long> values = jdbc.query("SELECT balance_cents FROM ums_recharge_account WHERE member_id=?", (rs,n)->rs.getLong(1), member);
         return Map.of("balance", money(values.isEmpty()?0:values.get(0)), "currency", "CNY");
     }
+
+    /** 充值本金余额（分）。未开户返回 0。 */
+    public long balanceCents(long member) {
+        List<Long> values = jdbc.query("SELECT balance_cents FROM ums_recharge_account WHERE member_id=?",
+                (rs,n)->rs.getLong(1), member);
+        return values.isEmpty()?0:values.get(0);
+    }
+
+    /**
+     * 余额（充值本金）抵扣订单：同一事务内锁定账户、校验余额、扣减并写流水。
+     * 同一幂等键重复调用只扣减一次，返回扣减后余额。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public long spendBalance(long member, long cents, String bizId, String idempotencyKey, String remark) {
+        validateBalanceRequest(cents, bizId, idempotencyKey);
+        long balance = lockBalance(member);
+        Long replay = balanceReplay(member, -cents, bizId, idempotencyKey, "order_pay");
+        if (replay != null) return replay;
+        if (balance < cents) throw new IllegalArgumentException("余额不足，无法用余额支付本专区商品");
+        long next = Math.subtractExact(balance, cents);
+        jdbc.update("UPDATE ums_recharge_account SET balance_cents=? WHERE member_id=?", next, member);
+        recordLedger(member, "order_pay", -cents, next, bizId, idempotencyKey, remark);
+        return next;
+    }
+
+    /** 仅可退还同一会员、同一业务单真实扣减的本金，累计退款不能超过原扣减。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void refundBalance(long member, long cents, String bizId, String idempotencyKey, String remark) {
+        if (cents <= 0) return;
+        validateBalanceRequest(cents, bizId, idempotencyKey);
+        long balance = lockBalance(member);
+        if (balanceReplay(member, cents, bizId, idempotencyKey, "order_refund") != null) return;
+        // Locking read sees committed ledger rows even under MySQL REPEATABLE READ.
+        List<Map<String,Object>> ledger = jdbc.queryForList("SELECT change_type,amount_cents FROM ums_recharge_ledger WHERE member_id=? AND biz_id=? AND change_type IN ('order_pay','order_refund') FOR UPDATE", member, bizId);
+        long paid = 0, returned = 0;
+        for (Map<String,Object> row : ledger) {
+            long value = ((Number)row.get("amount_cents")).longValue();
+            if ("order_pay".equals(row.get("change_type"))) paid = Math.subtractExact(paid, value);
+            else returned = Math.addExact(returned, value);
+        }
+        if (cents > Math.subtractExact(paid, returned)) throw new IllegalArgumentException("余额退款超过该会员订单实际扣减的未退本金");
+        long next = Math.addExact(balance, cents);
+        jdbc.update("UPDATE ums_recharge_account SET balance_cents=? WHERE member_id=?", next, member);
+        recordLedger(member, "order_refund", cents, next, bizId, idempotencyKey, remark);
+    }
+
+    private void validateBalanceRequest(long cents, String bizId, String key) {
+        if (cents <= 0) throw new IllegalArgumentException("余额变动金额必须大于0");
+        if (bizId == null || bizId.isBlank() || bizId.length() > 64) throw new IllegalArgumentException("余额业务单号无效");
+        if (key == null || !key.matches("[A-Za-z0-9:_-]{8,64}")) throw new IllegalArgumentException("余额请求编号无效");
+    }
+
+    private long lockBalance(long member) {
+        jdbc.update("INSERT INTO ums_recharge_account(member_id,balance_cents) VALUES(?,0) ON DUPLICATE KEY UPDATE member_id=member_id", member);
+        return jdbc.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=? FOR UPDATE", Long.class, member);
+    }
+
+    private Long balanceReplay(long member, long signedCents, String bizId, String key, String type) {
+        List<Map<String,Object>> rows = jdbc.queryForList("SELECT member_id,change_type,amount_cents,biz_id,balance_after_cents FROM ums_recharge_ledger WHERE idempotency_key=? FOR UPDATE", key);
+        if (rows.isEmpty()) return null;
+        Map<String,Object> row = rows.get(0);
+        if (((Number)row.get("member_id")).longValue() != member || ((Number)row.get("amount_cents")).longValue() != signedCents
+                || !bizId.equals(row.get("biz_id")) || !type.equals(row.get("change_type"))) {
+            throw new IllegalArgumentException("同一余额请求编号不可修改会员、金额或业务单号");
+        }
+        return ((Number)row.get("balance_after_cents")).longValue();
+    }
+
+    private void recordLedger(long member, String changeType, long amountCents, long balanceAfter,
+                              String bizId, String idempotencyKey, String remark) {
+        jdbc.update("INSERT INTO ums_recharge_ledger"
+                        + "(member_id,change_type,amount_cents,balance_after_cents,biz_id,idempotency_key,remark)"
+                        + " VALUES(?,?,?,?,?,?,?)",
+                member, changeType, amountCents, balanceAfter, bizId, idempotencyKey, remark);
+    }
     public Map<String,String> pay(long member, String no, String ip) {
         Map<String,Object> row = order(member,no);
         if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");

@@ -15,14 +15,15 @@ import static org.mockito.Mockito.*;
 class ConsumptionAndContactTest {
  JdbcTemplate j; OmsPortalOrderServiceImpl orders;
  @BeforeEach void setup(){j=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:policy;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa",""));j.execute("DROP ALL OBJECTS");j.execute("CREATE TABLE pms_product_zone(product_id BIGINT,zone_code VARCHAR(20))");j.execute("CREATE TABLE sys_config(config_key VARCHAR(100),config_value VARCHAR(100))");j.update("INSERT INTO pms_product_zone VALUES(1,'CONSUME'),(2,'PICK')");orders=new OmsPortalOrderServiceImpl();ReflectionTestUtils.setField(orders,"jdbcTemplate",j);}
- @Test void consumptionCannotBeMixedWithCashZoneGoods(){assertTrue((Boolean)ReflectionTestUtils.invokeMethod(orders,"consumptionCart",List.of(1L)));assertFalse((Boolean)ReflectionTestUtils.invokeMethod(orders,"consumptionCart",List.of(2L)));assertThrows(ApiException.class,()->ReflectionTestUtils.invokeMethod(orders,"consumptionCart",List.of(1L,2L)));}
- @Test void explicitlyMappedTravelMustUseMembershipFulfillment(){j.update("INSERT INTO sys_config VALUES('membership.partner.product_id','2')");assertThrows(ApiException.class,()->ReflectionTestUtils.invokeMethod(orders,"consumptionCart",List.of(2L)));}
- @Test void consumptionUsesFullProductPointAmountDespitePickCap(){
+ @Test void mixedZonesRemainIndependent(){
+  var settlement=new ZoneSettlementService(j).settle(List.of(new ZoneSettlementService.Line("PICK",new BigDecimal("100"),1,BigDecimal.ZERO,BigDecimal.ZERO),new ZoneSettlementService.Line("CONSUME",new BigDecimal("50"),1,BigDecimal.ZERO,BigDecimal.ZERO)),false,false,new ZoneSettlementService.Wallets(50,0,BigDecimal.ZERO));
+  assertEquals(0,new BigDecimal("100.00").compareTo(settlement.getCashAmount()));assertEquals(0,new BigDecimal("50.00").compareTo(settlement.getProductPointAmount()));
+ }
+ @Test void explicitlyMappedTravelMustUseMembershipFulfillment(){j.update("INSERT INTO sys_config VALUES('membership.partner.product_id','2')");assertThrows(ApiException.class,()->ReflectionTestUtils.invokeMethod(orders,"assertMembershipOffers",List.of(2L)));}
+ @Test void consumptionCanNeverBecomePartialCashPayment(){
   j.update("INSERT INTO sys_config VALUES('product.points.max_ratio','0.5')");
-  var wallet=mock(PointsWalletService.class);var a=new UmsPointsAccount();a.setAvailable(3999L);when(wallet.getAccount(1L,1)).thenReturn(a);ReflectionTestUtils.setField(orders,"pointsWalletService",wallet);
-  var member=new UmsMember();member.setId(1L);var item=new OmsOrderItem();item.setProductId(1L);item.setProductPrice(new BigDecimal("3999.00"));item.setProductQuantity(1);item.setPromotionAmount(BigDecimal.ZERO);item.setCouponAmount(BigDecimal.ZERO);
-  BigDecimal amount=ReflectionTestUtils.invokeMethod(orders,"getUseIntegrationAmount",3999,List.of(item),member);assertEquals(0,amount.compareTo(new BigDecimal("3999.00")));
-  item.setProductId(2L);assertThrows(ApiException.class,()->ReflectionTestUtils.invokeMethod(orders,"getUseIntegrationAmount",3999,List.of(item),member));
+  var result=new ZoneSettlementService(j).settle(List.of(new ZoneSettlementService.Line("CONSUME",new BigDecimal("100.00"),1,BigDecimal.ZERO,BigDecimal.ZERO)),false,false,new ZoneSettlementService.Wallets(1000,0,BigDecimal.ZERO));
+  var plan=result.getPlans().get(0);assertTrue(!plan.isPayable() || plan.getCashAmount().signum()==0,"Consumption zone must never request cash even with a partial points cap");
  }
  @Test void contactsAreMemberScopedAndEmailIsValidated(){
   j.execute("CREATE TABLE ums_member_contact(member_id BIGINT PRIMARY KEY,real_name VARCHAR(64),email VARCHAR(128),wechat_account VARCHAR(64))");

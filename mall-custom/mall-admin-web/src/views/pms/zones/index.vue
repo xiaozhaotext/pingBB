@@ -28,12 +28,12 @@ onMounted(load)
 </script>
 <template>
   <main class="zones-admin">
-    <header><small>商品管理 · 首页专区</small><h1>三个专区，清晰管理</h1><p>品牌区沿用自选区，首页“为你优选”读取复购区在售商品。</p></header>
+    <header><small>商品管理 · 首页专区</small><h1>三个专区，清晰管理</h1><p>自选区用现金或余额，复购区用复购积分加现金，消费区用商品积分，各专区结算规则互不串用。</p></header>
     <el-card shadow="never">
       <el-tabs v-model="zone"><el-tab-pane label="品牌区（自选区）" name="PICK"/><el-tab-pane label="复购区" name="REBUY"/><el-tab-pane label="消费区" name="CONSUME"/></el-tabs>
       <template>
         <div class="filters"><el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable @keyup.enter="load"/><el-checkbox v-model="assignedOnly" @change="load">仅看已分配商品</el-checkbox><el-button type="primary" @click="load">查询</el-button></div>
-        <el-alert title="消费区商品仅限100%商品积分兑换，请勿与其他专区重复分配；排序数字越大越靠前。下架商品不会在商城显示。" type="info" :closable="false"/>
+        <el-alert title="商品可以分别归属自选区、复购区、消费区；排序数字越大越靠前。下架商品可管理，但不会在商城显示。" type="info" :closable="false"/>
         <el-table :data="rows" v-loading="loading" empty-text="暂无符合条件的商品">
           <el-table-column prop="id" label="ID" width="75"/><el-table-column label="图片" width="90"><template #default="{row}"><el-image :src="row.pic" fit="contain" style="width:56px;height:56px"/></template></el-table-column>
           <el-table-column prop="name" label="商品名称" min-width="240"/><el-table-column prop="price" label="价格" width="100"/>
@@ -42,7 +42,6 @@ onMounted(load)
           <el-table-column label="操作" width="190"><template #default="{row}"><el-button type="primary" link :loading="saving===row.id" @click="save(row)">{{row.assigned?'保存排序':'加入专区'}}</el-button><el-button v-if="row.assigned" type="danger" link :disabled="saving!==null" @click="remove(row)">移出</el-button></template></el-table-column>
         </el-table><p class="note">最多显示 100 条，请用搜索缩小范围。</p>
       </template>
-
     </el-card>
   </main>
 </template>

@@ -10,7 +10,9 @@ export interface ZoneProduct {
   productCategoryId: number
 }
 
-export const getZoneProductsAPI = (zone: 'PICK' | 'REBUY' | 'CONSUME', params: {
+export type ZoneCode = 'PICK' | 'REBUY' | 'CONSUME'
+
+export const getZoneProductsAPI = (zone: ZoneCode, params: {
   keyword?: string; categoryId?: number; sort?: 'latest' | 'sale' | 'price_asc' | 'price_desc'
 } = {}) =>
   http<ZoneProduct[]>({ method: 'GET', url: `/product/zone/${zone}`, params })

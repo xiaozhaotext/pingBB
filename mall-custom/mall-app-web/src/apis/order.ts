@@ -17,6 +17,23 @@ export const generateConfirmOrderAPI = (cartIds: number[]) => {
   })
 }
 
+/**
+ * 按专区隔离预览结算金额：切换优惠券或支付方式后重新计算。
+ * 自选区只能现金或余额，复购区只能复购积分加现金，消费区只能用商品积分。
+ */
+export const settlementPreviewAPI = (data: {
+  cartIds: number[]
+  couponId?: number
+  useBalance?: boolean
+  useRepurchasePoints?: boolean
+}) => {
+  return http<ConfirmOrderResult>({
+    method: 'POST',
+    url: '/order/settlementPreview',
+    data,
+  })
+}
+
 /** 生成订单 */
 export const generateOrderAPI = (data: OrderParam, idempotencyKey: string) => {
   return http<GenerateOrderResult>({

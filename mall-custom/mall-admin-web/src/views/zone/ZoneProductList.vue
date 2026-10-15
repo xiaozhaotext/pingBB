@@ -21,8 +21,16 @@ interface ZoneProduct {
 
 const route = useRoute()
 const router = useRouter()
-const zone = computed(() => (route.name === 'rebuyProduct' ? 'REBUY' : 'PICK'))
-const zoneLabel = computed(() => (zone.value === 'PICK' ? '自选区' : '复购区'))
+// 自选/复购/消费三个专区共用同一套商品管理页面，专区由当前路由名决定
+const ZONES = {
+  pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区商品用现金或余额（充值本金）购买，不能使用产品积分或复购积分。' },
+  rebuyProduct: { code: 'REBUY', label: '复购区', prefix: 'rebuy', rule: '复购区商品按 30% 复购积分 + 70% 现金结算，不能使用产品积分或余额。' },
+  consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区商品只能用商品积分购买，不能使用复购积分、余额或现金。' },
+} as const
+const currentZone = computed(() => ZONES[route.name as keyof typeof ZONES] ?? ZONES.pickProduct)
+const zone = computed(() => currentZone.value.code)
+const zoneLabel = computed(() => currentZone.value.label)
+const zoneRule = computed(() => currentZone.value.rule)
 const keyword = ref('')
 const assignedOnly = ref(false)
 const loading = ref(false)
@@ -56,10 +64,10 @@ watch(zone, () => {
 onMounted(load)
 
 function goAdd() {
-  router.push({ name: zone.value === 'PICK' ? 'pickAddProduct' : 'rebuyAddProduct' })
+  router.push({ name: `${currentZone.value.prefix}AddProduct` })
 }
 function goEdit(row: ZoneProduct) {
-  router.push({ name: zone.value === 'PICK' ? 'pickUpdateProduct' : 'rebuyUpdateProduct', query: { id: row.id } })
+  router.push({ name: `${currentZone.value.prefix}UpdateProduct`, query: { id: row.id } })
 }
 async function assign(row: ZoneProduct) {
   busy.value = row.id
@@ -139,11 +147,12 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-checkbox v-model="assignedOnly" @change="load">仅看已加入{{ zoneLabel }}</el-checkbox>
         <el-button type="primary" @click="load">查询</el-button>
       </div>
-      <el-alert
-        title="商品可以分别归属自选区与复购区；下架商品仍可管理，但不会在商城显示。"
-        type="info"
-        :closable="false"
-      />
+      <el-alert type="info" :closable="false">
+        <template #title>
+          <span>{{ zoneRule }}</span>
+        </template>
+        <span>商品可以分别归属自选区、复购区、消费区，各专区结算规则互不串用；下架商品仍可管理，但不会在商城显示。</span>
+      </el-alert>
       <el-table :data="rows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">

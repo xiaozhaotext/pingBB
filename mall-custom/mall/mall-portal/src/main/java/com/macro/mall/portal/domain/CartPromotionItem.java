@@ -24,4 +24,10 @@ public class CartPromotionItem extends OmsCartItem{
     private Integer integration;
     @Schema(title = "购买商品赠送成长值")
     private Integer growth;
+    @Schema(title = "加入购物车时的专区：PICK/REBUY/CONSUME，空为未分配专区")
+    private String zoneCode;
+    @Schema(title = "专区名称")
+    private String zoneLabel;
+    @Schema(title = "专区结算方式")
+    private String zoneRule;
 }

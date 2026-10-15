@@ -32,11 +32,16 @@ public class ConfirmOrderResult {
     private BigDecimal productPointMaxRatio;
     @Schema(title = "购物车商品是否全部属于复购区")
     private Boolean rebuyEligible;
-    private Boolean consumeOnly;
     @Schema(title = "可用复购积分")
     private Long repurchasePointsBalance;
     @Schema(title = "复购积分抵扣比例")
     private BigDecimal rebuyPointsRatio;
+    @Schema(title = "商品积分可用余额")
+    private Long productPointsBalance;
+    @Schema(title = "余额（充值本金）可用金额")
+    private BigDecimal rechargeBalance;
+    @Schema(title = "按专区隔离的结算明细")
+    private ZoneSettlement zoneSettlement;
     @Schema(title = "计算的金额")
     private CalcAmount calcAmount;
 

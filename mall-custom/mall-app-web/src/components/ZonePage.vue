@@ -6,23 +6,23 @@
         <view><text class="zone-kicker">智美游 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=-1')">我的订单</text></view>
       </view>
-      <view class="zone-tip">{{ zone === 'CONSUME' ? '消费区使用100%商品积分兑换；请与其他专区商品分开结算。' : '商品积分与复购积分按确认订单页面所示规则使用。' }}</view>
+      <view class="zone-tip">本地测试环境：专区仅展示已分配商品。{{ zoneTip }}</view>
       <view class="zone-filters">
         <input v-model="keyword" placeholder="搜索专区商品" confirm-type="search" @confirm="load" />
         <text class="zone-search-button" @click="load">搜索</text>
         <picker :range="categoryNames" :value="categoryIndex" @change="selectCategory"><view class="zone-category">{{ categoryNames[categoryIndex] }} ⌄</view></picker>
         <text :class="{ active: sort === 'latest' }" @click="changeSort('latest')">综合</text>
         <text :class="{ active: sort === 'sale' }" @click="changeSort('sale')">销量</text>
-        <text :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">价格↑</text>
-        <text :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">价格↓</text>
+        <text :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">{{ isConsume ? '积分' : '价格' }}↑</text>
+        <text :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">{{ isConsume ? '积分' : '价格' }}↓</text>
       </view>
       <view v-if="loading" class="zone-empty">正在加载商品…</view>
       <view v-else-if="error" class="zone-empty">商品加载失败，请稍后重试。<text @click="load">重试</text></view>
       <view v-else-if="products.length === 0" class="zone-empty">{{ keyword || categoryIndex ? '没有符合筛选条件的商品' : '当前专区暂无已上架商品' }}</view>
       <view v-else class="zone-grid">
-        <view v-for="item in products" :key="item.id" class="zone-card" @click="goPage('/pages/product/product?id=' + item.id)">
+        <view v-for="item in products" :key="item.id" class="zone-card" @click="goPage('/pages/product/product?id=' + item.id + '&zone=' + props.zone)">
           <image :src="item.pic" mode="aspectFill" />
-          <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>¥{{ item.price }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view>
+          <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>{{ priceText(item) }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view>
         </view>
       </view>
     </view>
@@ -32,7 +32,7 @@
 <script setup lang="ts">
 const goPage = (url: string) => uni.navigateTo({ url })
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
@@ -69,7 +69,14 @@ const load = async () => {
   catch { error.value = true }
   finally { loading.value = false }
 }
-const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id) }
+const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id, props.zone) }
+const isConsume = computed(() => props.zone === 'CONSUME')
+const zoneTip = computed(() => {
+  if (props.zone === 'REBUY') return '复购区商品按 30% 复购积分 + 70% 现金结算，不能使用商品积分或余额。'
+  if (props.zone === 'CONSUME') return '消费区商品仅用商品积分购买，不收取现金，也不使用复购积分或余额。'
+  return '自选区商品按现金或余额（充值本金）结算，不能使用商品积分或复购积分。'
+})
+const priceText = (item: ZoneProduct) => (isConsume.value ? `${item.price} 积分` : `¥${item.price}`)
 onShow(() => { loadCategories(); load() })
 </script>
 

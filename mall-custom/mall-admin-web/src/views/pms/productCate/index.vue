@@ -47,6 +47,13 @@ onMounted(() => {
   getList()
 })
 
+// 自选/复购/消费三个专区的分类管理共用同一页面，按当前路由名决定增改跳转前缀
+const categoryRoutePrefix = () => {
+  if (route.name === 'rebuyCategory') return 'rebuy'
+  if (route.name === 'consumeCategory') return 'consume'
+  return 'pick'
+}
+
 // 监听查询参数变化
 watch(() => route.query, () => {
   resetParentId()
@@ -55,7 +62,7 @@ watch(() => route.query, () => {
 
 // 添加商品分类
 const handleAddProductCate = () => {
-  router.push({ name: route.name === 'rebuyCategory' ? 'rebuyAddCategory' : 'pickAddCategory', query: route.query })
+  router.push({ name: `${categoryRoutePrefix()}AddCategory`, query: route.query })
 }
 
 // 处理分页大小变化
@@ -103,7 +110,7 @@ const handleTransferProduct = (index: number, row: PmsProductCategory) => {
 
 // 更新分类
 const handleUpdate = (index: number, row: PmsProductCategory) => {
-  router.push({ name: route.name === 'rebuyCategory' ? 'rebuyUpdateCategory' : 'pickUpdateCategory', query: { id: row.id } })
+  router.push({ name: `${categoryRoutePrefix()}UpdateCategory`, query: { id: row.id } })
 }
 
 // 删除分类

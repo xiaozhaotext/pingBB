@@ -35,6 +35,9 @@ import java.util.stream.Collectors;
  */
 @Service
 public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
+    /** 非现金渠道支付方式：余额或商品积分已全额抵扣，订单没有现金部分。 */
+    private static final int PAY_TYPE_BALANCE_POINTS = 4;
+
     @Autowired
     private UmsMemberService memberService;
     @Autowired
@@ -77,49 +80,158 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private ShareOrderBonusService shareOrderBonusService;
+    @Autowired
+    private ZoneSettlementService zoneSettlementService;
+    @Autowired
+    private RechargeService rechargeService;
 
     @Override
     public ConfirmOrderResult generateConfirmOrder(List<Long> cartIds) {
+        return buildConfirmOrder(cartIds, null, false, false);
+    }
+
+    @Override
+    public ConfirmOrderResult settlementPreview(SettlementPreviewParam param) {
+        SettlementPreviewParam request = param == null ? new SettlementPreviewParam() : param;
+        return buildConfirmOrder(request.getCartIds(), request.getCouponId(),
+                Boolean.TRUE.equals(request.getUseBalance()),
+                Boolean.TRUE.equals(request.getUseRepurchasePoints()));
+    }
+
+    /**
+     * 生成确认单：按专区隔离计算每个专区的结算方式与最终金额。
+     *
+     * <p>自选区只能现金或余额（充值本金），复购区只能复购积分加现金，消费区只能用商品积分，
+     * 专区之间不允许串用；最终现金应付 = 各专区现金部分之和。
+     *
+     * @param useBalance          自选区是否用余额（充值本金）支付
+     * @param useRepurchasePoints 复购区是否用「复购积分 + 现金」模式，false 表示复购区全现金
+     */
+    private ConfirmOrderResult buildConfirmOrder(List<Long> cartIds, Long couponId,
+                                                 boolean useBalance, boolean useRepurchasePoints) {
         ConfirmOrderResult result = new ConfirmOrderResult();
-        //获取购物车信息
+        //获取购物车信息（含加入购物车时所在专区）
         UmsMember currentMember = memberService.getCurrentMember();
-        List<CartPromotionItem> cartPromotionItemList = cartItemService.listPromotion(currentMember.getId(),cartIds);
+        List<CartPromotionItem> cartPromotionItemList = cartItemService.listPromotion(currentMember.getId(), cartIds);
         result.setCartPromotionItemList(cartPromotionItemList);
         //获取用户收货地址列表
-        List<UmsMemberReceiveAddress> memberReceiveAddressList = memberReceiveAddressService.list();
-        result.setMemberReceiveAddressList(memberReceiveAddressList);
+        result.setMemberReceiveAddressList(memberReceiveAddressService.list());
         //获取用户可用优惠券列表
         List<SmsCouponHistoryDetail> couponHistoryDetailList = memberCouponService.listCart(cartPromotionItemList, 1);
         result.setCouponHistoryDetailList(couponHistoryDetailList);
-        //获取用户积分
-        com.macro.mall.portal.domain.UmsPointsAccount productAccount =
-                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_PRODUCT);
-        long productBalance = productAccount == null || productAccount.getAvailable() == null
-                ? 0 : productAccount.getAvailable();
-        result.setMemberIntegration((int) Math.min(productBalance, Integer.MAX_VALUE));
-        result.setProductPointYuanPerPoint(productPointYuanPerPoint());
-        result.setProductPointMaxRatio(productPointMaxRatio());
-        com.macro.mall.portal.domain.UmsPointsAccount repurchaseAccount =
-                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_REPURCHASE);
-        result.setRepurchasePointsBalance(repurchaseAccount == null || repurchaseAccount.getAvailable() == null
-                ? 0 : repurchaseAccount.getAvailable());
-        result.setRebuyPointsRatio(repurchasePointsRatio());
-        result.setRebuyEligible(!cartPromotionItemList.isEmpty() && cartPromotionItemList.stream().allMatch(item -> {
-            Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM pms_product_zone WHERE zone_code='REBUY' AND product_id=?",
-                    Integer.class, item.getProductId());
-            return count != null && count > 0;
-        }));
-        boolean consumeOnly = consumptionCart(cartPromotionItemList.stream().map(CartPromotionItem::getProductId).collect(java.util.stream.Collectors.toList()));
-        result.setConsumeOnly(consumeOnly);
-        if (consumeOnly) result.setProductPointMaxRatio(BigDecimal.ONE);
+        //获取用户可用余额：商品积分、复购积分、余额（充值本金）
+        ZoneSettlementService.Wallets wallets = wallets(currentMember.getId());
+        result.setMemberIntegration((int) Math.min(wallets.productPoints(), Integer.MAX_VALUE));
+        result.setProductPointsBalance(wallets.productPoints());
+        result.setRepurchasePointsBalance(wallets.repurchasePoints());
+        result.setRechargeBalance(wallets.balance());
+        result.setProductPointYuanPerPoint(zoneSettlementService.productPointYuanPerPoint());
+        result.setProductPointMaxRatio(zoneSettlementService.productPointMaxRatio());
+        result.setRebuyPointsRatio(zoneSettlementService.rebuyPointsRatio());
         //获取积分使用规则
-        UmsIntegrationConsumeSetting integrationConsumeSetting = integrationConsumeSettingMapper.selectByPrimaryKey(1L);
-        result.setIntegrationConsumeSetting(integrationConsumeSetting);
-        //计算总金额、活动优惠、应付金额
-        ConfirmOrderResult.CalcAmount calcAmount = calcCartAmount(cartPromotionItemList);
+        result.setIntegrationConsumeSetting(integrationConsumeSettingMapper.selectByPrimaryKey(1L));
+        //优惠券只在本专区商品内分摊，不跨专区抵扣
+        List<OmsOrderItem> couponItemList = draftOrderItemsWithCoupon(
+                cartPromotionItemList, couponHistoryDetailList, couponId);
+        ZoneSettlement settlement = zoneSettlementService.settle(
+                settlementLines(cartPromotionItemList, couponItemList), useRepurchasePoints, useBalance, wallets);
+        result.setZoneSettlement(settlement);
+        result.setRebuyEligible(!settlement.getPlans().isEmpty() && settlement.getPlans().stream()
+                .allMatch(plan -> ZoneRules.REBUY.equals(plan.getZoneCode())));
+        //计算总金额、活动优惠、优惠券、最终应付金额
+        ConfirmOrderResult.CalcAmount calcAmount = new ConfirmOrderResult.CalcAmount();
+        calcAmount.setTotalAmount(settlement.getTotalAmount());
+        calcAmount.setFreightAmount(BigDecimal.ZERO);
+        calcAmount.setPromotionAmount(settlement.getPromotionAmount());
+        calcAmount.setPayAmount(settlement.getCashAmount());
         result.setCalcAmount(calcAmount);
         return result;
+    }
+
+    /** 会员三个可用账户：商品积分、复购积分、余额（充值本金，元）。 */
+    private ZoneSettlementService.Wallets wallets(Long memberId) {
+        return new ZoneSettlementService.Wallets(
+                availablePoints(memberId, PointsWalletService.TYPE_PRODUCT),
+                availablePoints(memberId, PointsWalletService.TYPE_REPURCHASE),
+                BigDecimal.valueOf(rechargeService.balanceCents(memberId), 2));
+    }
+
+    private long availablePoints(Long memberId, int walletType) {
+        com.macro.mall.portal.domain.UmsPointsAccount account = pointsWalletService.getAccount(memberId, walletType);
+        return account == null || account.getAvailable() == null ? 0 : account.getAvailable();
+    }
+
+    /** 生成用于优惠券分摊的临时订单行：专区与购物车保持一致。 */
+    private List<OmsOrderItem> draftOrderItemsWithCoupon(List<CartPromotionItem> cartPromotionItemList,
+                                                        List<SmsCouponHistoryDetail> couponHistoryDetailList,
+                                                        Long couponId) {
+        List<OmsOrderItem> items = new ArrayList<>();
+        for (CartPromotionItem cartPromotionItem : cartPromotionItemList) {
+            items.add(toOrderItem(cartPromotionItem));
+        }
+        if (couponId != null && couponHistoryDetailList != null) {
+            for (SmsCouponHistoryDetail detail : couponHistoryDetailList) {
+                if (detail.getCoupon() != null && couponId.equals(detail.getCoupon().getId())) {
+                    handleCouponAmount(items, detail);
+                    break;
+                }
+            }
+        }
+        return items;
+    }
+
+    /** 购物车促销项转订单行，并记录加入购物车时所在专区（专区规则隔离的依据）。 */
+    private OmsOrderItem toOrderItem(CartPromotionItem cartPromotionItem) {
+        OmsOrderItem orderItem = new OmsOrderItem();
+        orderItem.setProductId(cartPromotionItem.getProductId());
+        orderItem.setProductName(cartPromotionItem.getProductName());
+        orderItem.setProductPic(cartPromotionItem.getProductPic());
+        orderItem.setProductAttr(cartPromotionItem.getProductAttr());
+        orderItem.setProductBrand(cartPromotionItem.getProductBrand());
+        orderItem.setProductSn(cartPromotionItem.getProductSn());
+        orderItem.setProductPrice(cartPromotionItem.getPrice());
+        orderItem.setProductQuantity(cartPromotionItem.getQuantity());
+        orderItem.setProductSkuId(cartPromotionItem.getProductSkuId());
+        orderItem.setProductSkuCode(cartPromotionItem.getProductSkuCode());
+        orderItem.setProductCategoryId(cartPromotionItem.getProductCategoryId());
+        orderItem.setPromotionAmount(zeroIfNull(cartPromotionItem.getReduceAmount()));
+        orderItem.setPromotionName(cartPromotionItem.getPromotionMessage());
+        orderItem.setGiftIntegration(cartPromotionItem.getIntegration());
+        orderItem.setGiftGrowth(cartPromotionItem.getGrowth());
+        orderItem.setCouponAmount(BigDecimal.ZERO);
+        orderItem.setIntegrationAmount(BigDecimal.ZERO);
+        orderItem.setZoneCode(ZoneRules.settlementZone(cartPromotionItem.getZoneCode()));
+        return orderItem;
+    }
+
+    /** 把购物车促销项与优惠券结果合并成按专区结算的输入行。 */
+    private void assertMembershipOffers(List<Long> productIds) {
+        for (Long id : productIds) {
+            Integer offer = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_value=?", Integer.class, id.toString());
+            if (offer != null && offer > 0) Asserts.fail("旅游权益商品请通过商品详情的权益购买入口下单，以确保双积分和会员权益正确发放");
+        }
+    }
+
+    private List<ZoneSettlementService.Line> settlementLines(List<CartPromotionItem> cartPromotionItemList,
+                                                             List<OmsOrderItem> couponItemList) {
+        assertMembershipOffers(cartPromotionItemList.stream().map(CartPromotionItem::getProductId).collect(Collectors.toList()));
+        List<ZoneSettlementService.Line> lines = new ArrayList<>();
+        for (int index = 0; index < cartPromotionItemList.size(); index++) {
+            CartPromotionItem cartPromotionItem = cartPromotionItemList.get(index);
+            BigDecimal couponAmount = couponItemList == null ? BigDecimal.ZERO
+                    : zeroIfNull(couponItemList.get(index).getCouponAmount());
+            lines.add(new ZoneSettlementService.Line(
+                    ZoneRules.settlementZone(cartPromotionItem.getZoneCode()),
+                    zeroIfNull(cartPromotionItem.getPrice()),
+                    cartPromotionItem.getQuantity() == null ? 0 : cartPromotionItem.getQuantity(),
+                    zeroIfNull(cartPromotionItem.getReduceAmount()),
+                    couponAmount));
+        }
+        return lines;
+    }
+
+    private static BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     @Override
@@ -167,24 +279,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             Asserts.fail("购物车中没有可下单商品");
         }
         for (CartPromotionItem cartPromotionItem : cartPromotionItemList) {
-            //生成下单商品信息
-            OmsOrderItem orderItem = new OmsOrderItem();
-            orderItem.setProductId(cartPromotionItem.getProductId());
-            orderItem.setProductName(cartPromotionItem.getProductName());
-            orderItem.setProductPic(cartPromotionItem.getProductPic());
-            orderItem.setProductAttr(cartPromotionItem.getProductAttr());
-            orderItem.setProductBrand(cartPromotionItem.getProductBrand());
-            orderItem.setProductSn(cartPromotionItem.getProductSn());
-            orderItem.setProductPrice(cartPromotionItem.getPrice());
-            orderItem.setProductQuantity(cartPromotionItem.getQuantity());
-            orderItem.setProductSkuId(cartPromotionItem.getProductSkuId());
-            orderItem.setProductSkuCode(cartPromotionItem.getProductSkuCode());
-            orderItem.setProductCategoryId(cartPromotionItem.getProductCategoryId());
-            orderItem.setPromotionAmount(cartPromotionItem.getReduceAmount());
-            orderItem.setPromotionName(cartPromotionItem.getPromotionMessage());
-            orderItem.setGiftIntegration(cartPromotionItem.getIntegration());
-            orderItem.setGiftGrowth(cartPromotionItem.getGrowth());
-            orderItemList.add(orderItem);
+            //生成下单商品信息，并保留加入购物车时所在专区
+            orderItemList.add(toOrderItem(cartPromotionItem));
         }
         //判断购物车中商品是否都有库存
         if (!hasStock(cartPromotionItemList)) {
@@ -194,7 +290,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         if (orderParam.getCouponId() == null) {
             //不用优惠券
             for (OmsOrderItem orderItem : orderItemList) {
-                orderItem.setCouponAmount(new BigDecimal(0));
+                orderItem.setCouponAmount(BigDecimal.ZERO);
             }
         } else {
             //使用优惠券
@@ -205,32 +301,20 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //对下单商品的优惠券进行处理
             handleCouponAmount(orderItemList, couponHistoryDetail);
         }
-        boolean consumeOnly = consumptionCart(orderItemList.stream().map(OmsOrderItem::getProductId).collect(java.util.stream.Collectors.toList()));
-        if (consumeOnly) {
-            if (orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) Asserts.fail("消费区仅可使用商品积分");
-            BigDecimal net = calcTotalAmount(orderItemList).subtract(calcPromotionAmount(orderItemList)).subtract(calcCouponAmount(orderItemList));
-            int required;
-            try { required = net.divide(productPointYuanPerPoint()).intValueExact(); }
-            catch (ArithmeticException ex) { throw new com.macro.mall.common.exception.ApiException("消费区金额无法按当前积分兑换比例精确兑换，请联系商家"); }
-            if (required <= 0 || orderParam.getUseIntegration() == null || orderParam.getUseIntegration() != required) Asserts.fail("消费区必须使用100%商品积分兑换");
-        }
-        if (orderParam.getUseIntegration() != null && orderParam.getUseIntegration() > 0
-                && orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) {
-            Asserts.fail("产品积分与复购积分不能在同一订单叠加使用");
-        }
-        //判断是否使用产品积分
-        if (orderParam.getUseIntegration() == null||orderParam.getUseIntegration().equals(0)) {
-            //不使用积分
-            for (OmsOrderItem orderItem : orderItemList) {
-                orderItem.setIntegrationAmount(new BigDecimal(0));
+        //按专区隔离结算：自选区现金/余额，复购区复购积分+现金，消费区商品积分，专区之间不能串用
+        boolean useBalance = Boolean.TRUE.equals(orderParam.getUseBalance());
+        boolean useRepurchasePoints = orderParam.getUseRepurchasePoints() != null
+                && orderParam.getUseRepurchasePoints() > 0;
+        ZoneSettlementService.Wallets wallets = wallets(currentMember.getId());
+        ZoneSettlement settlement = zoneSettlementService.settle(
+                settlementLines(cartPromotionItemList, orderItemList), useRepurchasePoints, useBalance, wallets);
+        for (ZoneSettlement.Plan plan : settlement.getPlans()) {
+            if (!plan.isPayable()) {
+                Asserts.fail(plan.getZoneLabel() + "：" + plan.getBlockedReason());
             }
-        } else {
-            //使用积分
-            BigDecimal integrationAmount = getUseIntegrationAmount(orderParam.getUseIntegration(), orderItemList, currentMember);
-            allocateProductPointDiscount(orderItemList, integrationAmount);
         }
-        //计算order_item的实付金额前：处理复购区30%复购积分+70%现金
-        BigDecimal repurchaseDeduction = handleRepurchasePoints(orderParam, orderItemList, currentMember);
+        //把各专区抵扣金额分摊回本专区订单行，专区之间不互相抵扣
+        allocateZoneDeduction(orderItemList, settlement);
         //计算order_item的实付金额
         handleRealAmount(orderItemList);
         //进行库存锁定
@@ -238,26 +322,24 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         //根据商品合计、运费、活动优惠、优惠券、积分计算应付金额
         OmsOrder order = new OmsOrder();
         order.setDiscountAmount(new BigDecimal(0));
-        order.setTotalAmount(calcTotalAmount(orderItemList));
+        order.setTotalAmount(settlement.getTotalAmount());
         order.setFreightAmount(new BigDecimal(0));
-        order.setPromotionAmount(calcPromotionAmount(orderItemList));
+        order.setPromotionAmount(settlement.getPromotionAmount());
         order.setPromotionInfo(getOrderPromotionInfo(orderItemList));
         if (orderParam.getCouponId() == null) {
             order.setCouponAmount(new BigDecimal(0));
         } else {
             order.setCouponId(orderParam.getCouponId());
-            order.setCouponAmount(calcCouponAmount(orderItemList));
+            order.setCouponAmount(settlement.getCouponAmount());
         }
-        if (orderParam.getUseIntegration() == null) {
-            order.setIntegration(0);
-            order.setIntegrationAmount(new BigDecimal(0));
-        } else {
-            order.setIntegration(orderParam.getUseIntegration());
-            order.setIntegrationAmount(calcIntegrationAmount(orderItemList));
-        }
-        order.setPayAmount(calcPayAmount(order));
+        //消费区商品积分与复购区复购积分一起记入积分抵扣金额；余额（充值本金）单独记录，最终以专区结算为准
+        long productPointsUsed = pointsUsed(settlement, ZoneRules.CONSUME);
+        long repurchasePointsUsed = pointsUsed(settlement, ZoneRules.REBUY);
+        order.setUseIntegration((int) Math.min(productPointsUsed, Integer.MAX_VALUE));
+        order.setIntegrationAmount(settlement.getProductPointAmount().add(settlement.getRepurchasePointAmount()));
+        order.setBalanceAmount(settlement.getBalanceAmount());
+        order.setPayAmount(settlement.getCashAmount());
         if (order.getPayAmount().signum() < 0) Asserts.fail("订单应付金额不能小于 0");
-        order.setUseIntegration(orderParam.getUseIntegration() == null ? 0 : orderParam.getUseIntegration());
         //转化为订单信息并插入数据库
         order.setMemberId(currentMember.getId());
         order.setCreateTime(new Date());
@@ -299,13 +381,19 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // TODO: 2018/9/3 bill_*,delivery_*
         //插入order表和order_item表
         orderMapper.insert(order);
-        if (order.getUseIntegration() != null && order.getUseIntegration() > 0) {
+        if (productPointsUsed > 0) {
             consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_PRODUCT,
-                    "PRODUCT", order.getUseIntegration(), order.getIntegrationAmount());
+                    "PRODUCT", productPointsUsed, settlement.getProductPointAmount());
         }
-        if (orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) {
+        if (repurchasePointsUsed > 0) {
             consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_REPURCHASE,
-                    "REPURCHASE", orderParam.getUseRepurchasePoints(), repurchaseDeduction);
+                    "REPURCHASE", repurchasePointsUsed, settlement.getRepurchasePointAmount());
+        }
+        //自选区使用余额（充值本金）支付：与现金二选一，同一事务内扣减并写流水
+        if (settlement.getBalanceAmount().signum() > 0) {
+            rechargeService.spendBalance(currentMember.getId(),
+                    settlement.getBalanceAmount().movePointRight(2).longValueExact(),
+                    Long.toString(order.getId()), "order:balance:" + order.getId(), "自选区订单余额支付");
         }
         for (OmsOrderItem orderItem : orderItemList) {
             orderItem.setOrderId(order.getId());
@@ -323,23 +411,25 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         //如使用积分需要扣除积分
         //删除购物车中的下单商品
         deleteCartItemList(cartPromotionItemList, currentMember);
-        if (consumeOnly) {
-            if (order.getPayAmount().signum() != 0) Asserts.fail("消费区订单不可存在现金应付金额");
-            // Points were already debited in this transaction. Complete fulfillment without an external payment request.
-            paySuccess(order.getId(), 3);
-            order = orderMapper.selectByPrimaryKey(order.getId());
+        boolean cashFree = order.getPayAmount() != null && order.getPayAmount().signum() == 0;
+        if (cashFree) {
+            // 余额或商品积分已全额抵扣，订单没有现金部分，不需要再走现金渠道
+            settleWithoutCash(order.getId(), productPointsUsed + repurchasePointsUsed, order.getPayAmount());
         } else {
+            //发送延迟消息取消订单
             sendDelayMessageCancelOrder(order.getId());
         }
         Map<String, Object> result = new HashMap<>();
         result.put("order", order);
         result.put("orderItemList", orderItemList);
+        result.put("paidImmediately", cashFree);
         return result;
     }
 
     @Override
     public Integer paySuccess(Long orderId, Integer payType) {
-        if (orderId == null || payType == null || (payType != 1 && payType != 2 && payType != 3)) {
+        if (orderId == null || payType == null
+                || (payType != 1 && payType != 2 && payType != 3 && payType != PAY_TYPE_BALANCE_POINTS)) {
             Asserts.fail("支付参数无效");
         }
         // 条件更新是状态转换和支付/超时取消竞争的唯一入口。
@@ -442,6 +532,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //修改优惠券使用状态
             updateCouponStatus(cancelOrder.getCouponId(), cancelOrder.getMemberId(), 0);
             refundOrderPoints(cancelOrder);
+            //自选区余额（充值本金）抵扣部分原路退回
+            refundBalanceToMember(cancelOrder);
         }
     }
 
@@ -676,193 +768,91 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     /**
-     * 计算订单应付金额
+     * 把各专区结算出的抵扣金额分摊到本专区的订单行。
+     *
+     * <p>只有同一专区的商品参与分摊，专区之间不互相抵扣；消费区商品积分与复购区复购积分
+     * 都记入 order_item.integration_amount，最终金额以专区结算结果为准。
      */
-    private BigDecimal calcPayAmount(OmsOrder order) {
-        //总金额+运费-促销优惠-优惠券优惠-积分抵扣
-        BigDecimal payAmount = order.getTotalAmount()
-                .add(order.getFreightAmount())
-                .subtract(order.getPromotionAmount())
-                .subtract(order.getCouponAmount())
-                .subtract(order.getIntegrationAmount());
-        return payAmount;
-    }
-
-    /**
-     * 计算订单优惠券金额
-     */
-    private BigDecimal calcIntegrationAmount(List<OmsOrderItem> orderItemList) {
-        BigDecimal integrationAmount = new BigDecimal(0);
-        for (OmsOrderItem orderItem : orderItemList) {
-            if (orderItem.getIntegrationAmount() != null) {
-                integrationAmount = integrationAmount.add(orderItem.getIntegrationAmount().multiply(new BigDecimal(orderItem.getProductQuantity())));
+    private void allocateZoneDeduction(List<OmsOrderItem> orderItemList, ZoneSettlement settlement) {
+        for (ZoneSettlement.Plan plan : settlement.getPlans()) {
+            BigDecimal deduction = plan.getProductPointAmount().add(plan.getRepurchasePointAmount());
+            if (deduction.signum() <= 0) {
+                continue;
             }
+            List<OmsOrderItem> zoneItems = orderItemList.stream()
+                    .filter(item -> plan.getZoneCode().equals(ZoneRules.settlementZone(item.getZoneCode())))
+                    .collect(Collectors.toList());
+            allocateDeduction(zoneItems, deduction, plan.getZoneLabel());
         }
-        return integrationAmount;
     }
 
-    /**
-     * 计算订单优惠券金额
-     */
-    private BigDecimal calcCouponAmount(List<OmsOrderItem> orderItemList) {
-        BigDecimal couponAmount = new BigDecimal(0);
-        for (OmsOrderItem orderItem : orderItemList) {
-            if (orderItem.getCouponAmount() != null) {
-                couponAmount = couponAmount.add(orderItem.getCouponAmount().multiply(new BigDecimal(orderItem.getProductQuantity())));
-            }
+    /** 按商品金额占比把专区抵扣金额分摊到订单行，最后一件吸收尾差，保证分摊合计等于专区抵扣金额。 */
+    private void allocateDeduction(List<OmsOrderItem> items, BigDecimal deduction, String zoneLabel) {
+        BigDecimal netTotal = BigDecimal.ZERO;
+        for (OmsOrderItem item : items) {
+            netTotal = netTotal.add(unitNetAmount(item).multiply(BigDecimal.valueOf(item.getProductQuantity())));
         }
-        return couponAmount;
-    }
-
-    /**
-     * 计算订单活动优惠
-     */
-    private BigDecimal calcPromotionAmount(List<OmsOrderItem> orderItemList) {
-        BigDecimal promotionAmount = new BigDecimal(0);
-        for (OmsOrderItem orderItem : orderItemList) {
-            if (orderItem.getPromotionAmount() != null) {
-                promotionAmount = promotionAmount.add(orderItem.getPromotionAmount().multiply(new BigDecimal(orderItem.getProductQuantity())));
-            }
+        if (netTotal.signum() <= 0) {
+            Asserts.fail(zoneLabel + "订单应付金额无效");
         }
-        return promotionAmount;
-    }
-
-    private BigDecimal configuredPointDecimal(String key, BigDecimal fallback, boolean ratio) {
-        try {
-            String raw = jdbcTemplate.queryForObject(
-                    "SELECT config_value FROM sys_config WHERE config_key=?", String.class, key);
-            BigDecimal value = new BigDecimal(raw);
-            if (value.signum() > 0 && (!ratio || value.compareTo(BigDecimal.ONE) <= 0)) return value;
-        } catch (Exception ignored) { }
-        return fallback;
-    }
-
-    private boolean consumptionCart(List<Long> productIds) {
-        for (Long id : productIds) {
-            Integer offer = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_value=?", Integer.class, id.toString());
-            if (offer != null && offer > 0) Asserts.fail("旅游权益商品请通过商品详情的权益购买入口下单，以确保双积分和会员权益正确发放");
-        }
-        int consume = 0;
-        for (Long id : productIds) {
-            Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pms_product_zone WHERE product_id=? AND zone_code='CONSUME'", Integer.class, id);
-            if (count != null && count > 0) consume++;
-        }
-        if (consume > 0 && consume != productIds.size()) Asserts.fail("消费区商品请单独结算");
-        return consume > 0;
-    }
-
-    private BigDecimal productPointYuanPerPoint() {
-        return configuredPointDecimal("product.points.yuan_per_point", BigDecimal.ONE, false);
-    }
-
-    private BigDecimal productPointMaxRatio() {
-        return configuredPointDecimal("product.points.max_ratio", BigDecimal.ONE, true);
-    }
-
-    private BigDecimal getUseIntegrationAmount(Integer useIntegration, List<OmsOrderItem> items, UmsMember member) {
-        if (useIntegration == null || useIntegration <= 0) Asserts.fail("产品积分必须大于 0");
-        com.macro.mall.portal.domain.UmsPointsAccount account =
-                pointsWalletService.getAccount(member.getId(), PointsWalletService.TYPE_PRODUCT);
-        long available = account == null || account.getAvailable() == null ? 0 : account.getAvailable();
-        if (available < useIntegration) Asserts.fail("产品积分余额不足");
-        BigDecimal amount = productPointYuanPerPoint().multiply(BigDecimal.valueOf(useIntegration));
-        if (amount.scale() > 2) Asserts.fail("产品积分换算金额最多支持两位小数");
-        BigDecimal netAmount = calcTotalAmount(items)
-                .subtract(calcPromotionAmount(items)).subtract(calcCouponAmount(items));
-        if (netAmount.signum() <= 0 || amount.compareTo(netAmount.multiply(consumptionCart(items.stream().map(OmsOrderItem::getProductId).collect(java.util.stream.Collectors.toList())) ? BigDecimal.ONE : productPointMaxRatio())) > 0) {
-            Asserts.fail("产品积分最多抵扣当前应付商品金额");
-        }
-        return amount.setScale(2, RoundingMode.UNNECESSARY);
-    }
-
-    private void allocateProductPointDiscount(List<OmsOrderItem> items, BigDecimal amount) {
-        BigDecimal netTotal = calcTotalAmount(items)
-                .subtract(calcPromotionAmount(items)).subtract(calcCouponAmount(items));
-        BigDecimal remaining = amount;
-        for (int i = 0; i < items.size(); i++) {
-            OmsOrderItem item = items.get(i);
-            BigDecimal unitNet = item.getProductPrice().subtract(item.getPromotionAmount())
-                    .subtract(item.getCouponAmount());
+        BigDecimal remaining = deduction;
+        for (int index = 0; index < items.size(); index++) {
+            OmsOrderItem item = items.get(index);
+            BigDecimal unitNet = unitNetAmount(item);
             BigDecimal lineNet = unitNet.multiply(BigDecimal.valueOf(item.getProductQuantity()));
-            BigDecimal lineDiscount = i == items.size() - 1 ? remaining
-                    : amount.multiply(lineNet).divide(netTotal, 2, RoundingMode.DOWN);
+            BigDecimal lineDeduction = index == items.size() - 1 ? remaining
+                    : deduction.multiply(lineNet).divide(netTotal, 2, RoundingMode.DOWN);
             try {
-                BigDecimal perUnit = lineDiscount.divide(BigDecimal.valueOf(item.getProductQuantity()),
+                BigDecimal perUnit = lineDeduction.divide(BigDecimal.valueOf(item.getProductQuantity()),
                         2, RoundingMode.UNNECESSARY);
-                if (perUnit.signum() < 0 || perUnit.compareTo(unitNet) > 0) Asserts.fail("积分分摊金额无效");
+                if (perUnit.signum() < 0 || perUnit.compareTo(unitNet) > 0) {
+                    Asserts.fail(zoneLabel + "积分分摊金额无效");
+                }
                 item.setIntegrationAmount(perUnit);
             } catch (ArithmeticException ex) {
-                Asserts.fail("当前多件商品的积分金额无法按分分摊，请调整积分数或分开下单");
+                Asserts.fail(zoneLabel + "当前多件商品的积分金额无法按分分摊，请调整数量或分开下单");
             }
-            remaining = remaining.subtract(lineDiscount);
+            remaining = remaining.subtract(lineDeduction);
         }
+    }
+
+    /** 订单行「每件」的应收金额：原价 - 活动优惠 - 优惠券。 */
+    private BigDecimal unitNetAmount(OmsOrderItem item) {
+        return zeroIfNull(item.getProductPrice()).subtract(zeroIfNull(item.getPromotionAmount()))
+                .subtract(zeroIfNull(item.getCouponAmount()));
+    }
+
+    /** 某专区实际使用的积分数：消费区为商品积分，复购区为复购积分。 */
+    private long pointsUsed(ZoneSettlement settlement, String zoneCode) {
+        long points = 0;
+        for (ZoneSettlement.Plan plan : settlement.getPlans()) {
+            if (plan.getZoneCode().equals(zoneCode)) {
+                points += ZoneRules.CONSUME.equals(zoneCode) ? plan.getProductPoints() : plan.getRepurchasePoints();
+            }
+        }
+        return points;
     }
 
     /**
-     * 复购区30%复购积分+70%现金：仅当订单商品全部来自复购区(REBUY)且传入 useRepurchasePoints>0 时生效。
-     * 1复购积分=1元，最高抵扣订单金额的30%。积分通过 PointsWalletService 实时扣减。
+     * 订单最终应付现金为 0（余额或商品积分已全额抵扣）时，直接按非现金渠道确认支付，
+     * 避免订单停留在待付款、无法通过现金渠道支付。
      */
-    /** 复购区积分抵扣比例，来自后台配置 rebuy.points.ratio（默认 30%）。 */
-    private BigDecimal repurchasePointsRatio() {
-        BigDecimal fallback = new BigDecimal("0.30");
-        try {
-            String raw = jdbcTemplate.queryForObject(
-                    "SELECT config_value FROM sys_config WHERE config_key='rebuy.points.ratio'", String.class);
-            if (raw != null && !raw.isBlank() && !"NULL".equalsIgnoreCase(raw.trim())) {
-                BigDecimal ratio = new BigDecimal(raw.trim());
-                if (ratio.signum() >= 0 && ratio.compareTo(BigDecimal.ONE) <= 0) return ratio;
-            }
-        } catch (Exception ignored) {
-            // 配置缺失/非法时回退默认值
-        }
-        return fallback;
+    private void settleWithoutCash(Long orderId, long pointsUsed, BigDecimal cashAmount) {
+        String channel = pointsUsed > 0 ? "POINTS" : "BALANCE";
+        jdbcTemplate.update("INSERT INTO oms_payment_confirmation"
+                        + "(order_id,channel_code,channel_trade_no,paid_amount,currency_code) VALUES(?,?,?,?,'CNY')",
+                orderId, channel, channel + "-" + orderId, cashAmount);
+        paySuccess(orderId, PAY_TYPE_BALANCE_POINTS);
     }
 
-    private BigDecimal handleRepurchasePoints(OrderParam orderParam, List<OmsOrderItem> orderItemList, UmsMember currentMember) {
-        Long usePoints = orderParam.getUseRepurchasePoints();
-        if (usePoints == null || usePoints <= 0) return BigDecimal.ZERO;
-        // 校验订单商品是否全部来自复购区
-        for (OmsOrderItem item : orderItemList) {
-            Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM pms_product_zone WHERE zone_code='REBUY' AND product_id=?",
-                    Integer.class, item.getProductId());
-            if (count == null || count == 0) {
-                Asserts.fail("复购积分仅可用于复购区商品");
-            }
+    /** 待付款订单取消时把余额（充值本金）原路退回，幂等键绑定订单。 */
+    private void refundBalanceToMember(OmsOrder order) {
+        BigDecimal balance = zeroIfNull(order.getBalanceAmount());
+        if (balance.signum() <= 0) {
+            return;
         }
-        BigDecimal totalAmount = calcTotalAmount(orderItemList)
-                .subtract(calcPromotionAmount(orderItemList)).subtract(calcCouponAmount(orderItemList));
-        if (totalAmount.signum() <= 0) Asserts.fail("复购区订单应付金额无效");
-        // 抵扣比例由后台配置 rebuy.points.ratio 决定（默认 0.30 = 30% 积分 + 70% 现金）
-        BigDecimal ratio = repurchasePointsRatio();
-        BigDecimal maxDeduct = totalAmount.multiply(ratio).setScale(2, RoundingMode.DOWN);
-        BigDecimal deductAmount = new BigDecimal(usePoints).setScale(2, RoundingMode.HALF_UP);
-        if (deductAmount.compareTo(maxDeduct) > 0) {
-            Asserts.fail("复购积分最多抵扣订单金额的 " + ratio.multiply(new BigDecimal("100")).stripTrailingZeros().toPlainString() + "%");
-        }
-        // 校验余额并扣减（幂等键与订单绑定）
-        com.macro.mall.portal.domain.UmsPointsAccount account =
-                pointsWalletService.getAccount(currentMember.getId(), PointsWalletService.TYPE_REPURCHASE);
-        long balance = account == null || account.getAvailable() == null ? 0 : account.getAvailable();
-        if (balance < usePoints) {
-            Asserts.fail("复购积分余额不足");
-        }
-        BigDecimal beforePromotion = calcPromotionAmount(orderItemList);
-        // 按商品金额比例分摊抵扣
-        for (OmsOrderItem orderItem : orderItemList) {
-            BigDecimal lineAmount = orderItem.getProductPrice()
-                    .subtract(orderItem.getPromotionAmount()).subtract(orderItem.getCouponAmount())
-                    .multiply(new BigDecimal(orderItem.getProductQuantity()));
-            BigDecimal perAmount = lineAmount.divide(totalAmount, 6, RoundingMode.HALF_EVEN)
-                    .multiply(deductAmount).divide(BigDecimal.valueOf(orderItem.getProductQuantity()),
-                            2, RoundingMode.HALF_UP);
-            // 复用 promotionAmount 字段记录复购积分抵扣（前端展示为优惠）
-            orderItem.setPromotionAmount(orderItem.getPromotionAmount().add(perAmount));
-        }
-        if (calcPromotionAmount(orderItemList).subtract(beforePromotion).compareTo(deductAmount) != 0) {
-            Asserts.fail("复购积分金额无法按分分摊，请调整购买数量");
-        }
-        return deductAmount;
+        rechargeService.refundBalance(order.getMemberId(), balance.movePointRight(2).longValueExact(),
+                Long.toString(order.getId()), "order:balance-refund:" + order.getId(), "未支付订单取消退回余额");
     }
 
     private void consumeOrderPoints(long orderId, long memberId, int walletType, String pointType,
@@ -1039,24 +1029,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
         }
         return true;
-    }
-
-    /**
-     * 计算购物车中商品的价格
-     */
-    private ConfirmOrderResult.CalcAmount calcCartAmount(List<CartPromotionItem> cartPromotionItemList) {
-        ConfirmOrderResult.CalcAmount calcAmount = new ConfirmOrderResult.CalcAmount();
-        calcAmount.setFreightAmount(new BigDecimal(0));
-        BigDecimal totalAmount = new BigDecimal("0");
-        BigDecimal promotionAmount = new BigDecimal("0");
-        for (CartPromotionItem cartPromotionItem : cartPromotionItemList) {
-            totalAmount = totalAmount.add(cartPromotionItem.getPrice().multiply(new BigDecimal(cartPromotionItem.getQuantity())));
-            promotionAmount = promotionAmount.add(cartPromotionItem.getReduceAmount().multiply(new BigDecimal(cartPromotionItem.getQuantity())));
-        }
-        calcAmount.setTotalAmount(totalAmount);
-        calcAmount.setPromotionAmount(promotionAmount);
-        calcAmount.setPayAmount(totalAmount.subtract(promotionAmount));
-        return calcAmount;
     }
 
 }
