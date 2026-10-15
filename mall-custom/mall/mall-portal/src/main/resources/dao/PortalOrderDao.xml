@@ -13,12 +13,15 @@
             o.order_sn,
             o.coupon_id,
             o.integration,
+            o.pay_amount,
             o.member_id,
             ot.id ot_id,
             ot.product_name ot_product_name,
             ot.product_sku_id ot_product_sku_id,
             ot.product_sku_code ot_product_sku_code,
             ot.product_quantity ot_product_quantity,
+            ot.gift_integration ot_gift_integration,
+            ot.gift_growth ot_gift_growth,
             ot.zone_code        ot_zone_code
         FROM
             oms_order o
