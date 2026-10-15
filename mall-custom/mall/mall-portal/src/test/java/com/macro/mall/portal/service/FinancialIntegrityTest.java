@@ -33,8 +33,11 @@ class FinancialIntegrityTest {
   j.execute("CREATE TABLE dividend_pool(id INT PRIMARY KEY,pool_balance DECIMAL(18,2),total_out DECIMAL(18,2))");j.update("INSERT INTO dividend_pool VALUES(1,0.05,0)");
   j.execute("CREATE TABLE ums_member_identity(member_id BIGINT,identity_type INT,status INT)");j.update("INSERT INTO ums_member_identity VALUES(1,1,1),(2,1,1)");
   j.execute("CREATE TABLE ums_member_recommend(inviter_id BIGINT)");
-  j.execute("CREATE TABLE member_dividend_ledger(member_id BIGINT,stat_date DATE,shares INT,dividend_amount DECIMAL(18,2),cap_amount DECIMAL(18,2),cumulative_received DECIMAL(18,2),calc_batch VARCHAR(100),UNIQUE(member_id,stat_date))");
+  j.execute("CREATE TABLE member_dividend_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,stat_date DATE,shares INT,dividend_amount DECIMAL(18,2),cap_amount DECIMAL(18,2),cumulative_received DECIMAL(18,2),calc_batch VARCHAR(100),UNIQUE(member_id,stat_date))");
   j.execute("CREATE TABLE dividend_pool_ledger(change_amount DECIMAL(18,2),balance_after DECIMAL(18,2),source_type VARCHAR(100),source_id BIGINT,remark VARCHAR(255))");
+  j.execute("CREATE TABLE bonus_dividend_pool(pool_code VARCHAR(16) PRIMARY KEY,pool_balance DECIMAL(18,2),total_out DECIMAL(18,2))");
+  j.update("INSERT INTO bonus_dividend_pool VALUES('PARTNER',0.05,0),('COFOUNDER',0,0),('OPERATIONS',0,0)");
+  j.execute("CREATE TABLE bonus_dividend_pool_ledger(pool_code VARCHAR(16),change_amount DECIMAL(18,2),balance_after DECIMAL(18,2),source_type VARCHAR(32),source_id BIGINT,receiver_member_id BIGINT,receiver_identity VARCHAR(32),remark VARCHAR(255))");
  }
  @Test void concurrentRetriesFreezeExactlyOnce() throws Exception {
   var pool=Executors.newFixedThreadPool(8);try {
@@ -54,6 +57,8 @@ class FinancialIntegrityTest {
   assertEquals(2,tx.execute(s->dividends.distributeDaily(LocalDate.of(2026,10,15))).intValue());
   assertEquals(new BigDecimal("0.04"),j.queryForObject("SELECT SUM(dividend_amount) FROM member_dividend_ledger",BigDecimal.class));
   assertEquals(new BigDecimal("0.01"),j.queryForObject("SELECT pool_balance FROM dividend_pool",BigDecimal.class));
+  assertEquals(new BigDecimal("0.01"),j.queryForObject("SELECT pool_balance FROM bonus_dividend_pool WHERE pool_code='PARTNER'",BigDecimal.class));
+  assertEquals(2,j.queryForObject("SELECT COUNT(*) FROM bonus_dividend_pool_ledger WHERE source_type='DAILY_DIVIDEND'",Integer.class));
   assertEquals(0,tx.execute(s->dividends.distributeDaily(LocalDate.of(2026,10,15))).intValue());
  }
  @Test void creditFailureRollsBackAll(){
