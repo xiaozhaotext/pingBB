@@ -437,6 +437,156 @@ public class P0AdminController {
         return CommonResult.success(data);
     }
 
+    @GetMapping("/bonus-pools")
+    @Transactional(readOnly = true)
+    public CommonResult<Map<String, Object>> bonusPools(Principal principal,
+            @RequestParam(defaultValue = "PARTNER") String poolCode,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "1") int payoutPage) {
+        access.requireAuthorized(principal);
+        if (!List.of("PARTNER", "COFOUNDER", "OPERATIONS").contains(poolCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "奖金池不存在");
+        }
+        int currentPage = Math.max(1, page);
+        int pageSize = 30;
+        int offset = (currentPage - 1) * pageSize;
+        int payoutOffset = (Math.max(1, payoutPage) - 1) * pageSize;
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("legacyPool", jdbc.queryForMap("SELECT pool_balance,total_in,total_out,update_time"
+                + " FROM dividend_pool WHERE id=1"));
+        data.put("pools", jdbc.queryForList("SELECT pool_code,pool_balance,total_in,total_out,update_time"
+                + " FROM bonus_dividend_pool ORDER BY FIELD(pool_code,'PARTNER','COFOUNDER','OPERATIONS')"));
+        data.put("ledgerTotal", jdbc.queryForObject("SELECT COUNT(*) FROM bonus_dividend_pool_ledger"
+                + " WHERE pool_code=?", Integer.class, poolCode));
+        data.put("ledger", jdbc.queryForList("SELECT l.id,l.pool_code,l.change_amount,l.balance_after,"
+                + "l.source_type,l.source_id,l.receiver_member_id,m.username AS receiver_username,"
+                + "l.receiver_identity,l.remark,l.create_time"
+                + " FROM bonus_dividend_pool_ledger l LEFT JOIN ums_member m ON m.id=l.receiver_member_id"
+                + " WHERE l.pool_code=? ORDER BY l.id DESC LIMIT ? OFFSET ?",
+                poolCode, pageSize, offset));
+        data.put("payoutTotal", jdbc.queryForObject("SELECT COUNT(*) FROM bonus_dividend_pool_ledger"
+                + " WHERE pool_code=? AND change_amount<0", Integer.class, poolCode));
+        data.put("payouts", jdbc.queryForList("SELECT l.id,l.pool_code,l.change_amount,l.balance_after,"
+                + "l.source_type,l.source_id,l.receiver_member_id,m.username AS receiver_username,"
+                + "l.receiver_identity,l.remark,l.create_time"
+                + " FROM bonus_dividend_pool_ledger l LEFT JOIN ums_member m ON m.id=l.receiver_member_id"
+                + " WHERE l.pool_code=? AND l.change_amount<0 ORDER BY l.id DESC LIMIT ? OFFSET ?",
+                poolCode, pageSize, payoutOffset));
+        data.put("legacyDistributions", jdbc.queryForList("SELECT d.id,d.member_id,m.username,"
+                + "d.stat_date,d.shares,d.dividend_amount,d.create_time"
+                + " FROM member_dividend_ledger d JOIN ums_member m ON m.id=d.member_id"
+                + " ORDER BY d.id DESC LIMIT 100"));
+        data.put("payoutRequests", jdbc.queryForList("SELECT p.id,p.pool_code,p.receiver_member_id,"
+                + "m.username AS receiver_username,p.amount,p.reason,p.status,p.created_by,"
+                + "p.reviewed_by,p.review_remark,p.create_time,p.review_time"
+                + " FROM bonus_dividend_payout_request p JOIN ums_member m ON m.id=p.receiver_member_id"
+                + " ORDER BY p.id DESC LIMIT 100"));
+        return CommonResult.success(data);
+    }
+
+    @PostMapping("/bonus-pools/operations/requests")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Long> requestOperationsDividend(Principal principal,
+            @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        long memberId = longValue(body, "memberId");
+        String reason = requiredText(body, "reason", 3, 255);
+        BigDecimal amount;
+        try { amount = new BigDecimal(String.valueOf(body.get("amount"))); }
+        catch (RuntimeException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "金额无效"); }
+        if (amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "金额须为正数且最多两位小数");
+        }
+        List<Long> memberIds = jdbc.queryForList("SELECT id FROM ums_member WHERE id=? AND status=1",
+                Long.class, memberId);
+        if (memberIds.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "领取人不存在或已停用");
+        jdbc.update("INSERT INTO bonus_dividend_payout_request"
+                        + "(pool_code,receiver_member_id,amount,reason,created_by)"
+                        + " VALUES('OPERATIONS',?,?,?,?)", memberId, amount, reason, operatorId);
+        Long requestId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        audit(operatorId, principal.getName(), "bonus_dividend_pool", "operations_request", requestId,
+                "领取会员 " + memberId + "，申请金额 " + amount);
+        return CommonResult.success(requestId);
+    }
+
+    @PostMapping("/bonus-pools/operations/requests/{requestId}/review")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> reviewOperationsDividend(Principal principal, @PathVariable long requestId,
+            @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        boolean approve = Boolean.parseBoolean(String.valueOf(body.get("approve")));
+        String remark = requiredText(body, "remark", 3, 255);
+        List<Map<String, Object>> requests = jdbc.queryForList("SELECT receiver_member_id,amount,status"
+                + " FROM bonus_dividend_payout_request WHERE id=? AND pool_code='OPERATIONS' FOR UPDATE", requestId);
+        if (requests.size() != 1 || !"PENDING".equals(requests.get(0).get("status"))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "申请不存在或已处理");
+        }
+        Map<String, Object> request = requests.get(0);
+        long memberId = ((Number) request.get("receiver_member_id")).longValue();
+        BigDecimal amount = (BigDecimal) request.get("amount");
+        if (approve) {
+            List<Long> activeMembers = jdbc.queryForList(
+                    "SELECT id FROM ums_member WHERE id=? AND status=1", Long.class, memberId);
+            if (activeMembers.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "领取人已停用");
+            }
+            BigDecimal totalBalance = jdbc.queryForObject(
+                    "SELECT pool_balance FROM dividend_pool WHERE id=1 FOR UPDATE", BigDecimal.class);
+            if (totalBalance == null || totalBalance.compareTo(amount) < 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "奖金总池余额不足");
+            }
+            BigDecimal balance = jdbc.queryForObject("SELECT pool_balance FROM bonus_dividend_pool"
+                    + " WHERE pool_code='OPERATIONS' FOR UPDATE", BigDecimal.class);
+            if (balance == null || balance.compareTo(amount) < 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "运营池余额不足");
+            }
+            jdbc.update("INSERT INTO ums_earnings(member_id,total_earnings,available_earnings,"
+                    + "frozen_earnings,withdrawn,version) VALUES(?,0,0,0,0,0)"
+                    + " ON DUPLICATE KEY UPDATE member_id=member_id", memberId);
+            Map<String, Object> earnings = jdbc.queryForMap("SELECT total_earnings,available_earnings"
+                    + " FROM ums_earnings WHERE member_id=? FOR UPDATE", memberId);
+            BigDecimal availableAfter = ((BigDecimal) earnings.get("available_earnings")).add(amount);
+            jdbc.update("UPDATE ums_earnings SET total_earnings=total_earnings+?,"
+                    + "available_earnings=?,version=version+1 WHERE member_id=?",
+                    amount, availableAfter, memberId);
+            jdbc.update("INSERT INTO ums_earnings_ledger(member_id,change_type,amount,balance_after,"
+                            + "biz_id,idempotency_key,remark) VALUES(?,'dividend',?,?,?,?,?)",
+                    memberId, amount, availableAfter, "bonus-operations-" + requestId,
+                    "bonus-operations-" + requestId, "运营池审核发放：" + remark);
+            if (jdbc.update("UPDATE bonus_dividend_pool SET pool_balance=pool_balance-?,"
+                            + "total_out=total_out+? WHERE pool_code='OPERATIONS' AND pool_balance>=?",
+                    amount, amount, amount) != 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "运营池余额不足");
+            }
+            BigDecimal balanceAfter = jdbc.queryForObject("SELECT pool_balance FROM bonus_dividend_pool"
+                    + " WHERE pool_code='OPERATIONS'", BigDecimal.class);
+            Integer identityType = jdbc.queryForObject("SELECT COALESCE(MAX(identity_type),0)"
+                    + " FROM ums_member_identity WHERE member_id=? AND status=1", Integer.class, memberId);
+            int type = identityType == null ? 0 : identityType;
+            String identity = type == 2 ? "COFOUNDER" : type == 1 ? "PARTNER" : "NORMAL";
+            jdbc.update("INSERT INTO bonus_dividend_pool_ledger"
+                            + "(pool_code,change_amount,balance_after,source_type,source_id,"
+                            + "receiver_member_id,receiver_identity,remark)"
+                            + " VALUES('OPERATIONS',?,?,'OPERATIONS_PAYOUT',?,?,?,?)",
+                    amount.negate(), balanceAfter, requestId, memberId, identity, remark);
+            if (jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance-?,"
+                            + "total_out=total_out+? WHERE id=1 AND pool_balance>=?",
+                    amount, amount, amount) != 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "奖金总池余额不足");
+            }
+            jdbc.update("INSERT INTO dividend_pool_ledger(change_amount,balance_after,source_type,source_id,remark)"
+                            + " SELECT ?,pool_balance,'OPERATIONS_PAYOUT',?,? FROM dividend_pool WHERE id=1",
+                    amount.negate(), requestId, "运营池审核发放：" + remark);
+        }
+        jdbc.update("UPDATE bonus_dividend_payout_request SET status=?,reviewed_by=?,"
+                        + "review_remark=?,review_time=NOW() WHERE id=?",
+                approve ? "APPROVED" : "REJECTED", operatorId, remark, requestId);
+        audit(operatorId, principal.getName(), "bonus_dividend_pool",
+                approve ? "operations_approve" : "operations_reject", requestId,
+                "领取会员 " + memberId + "，金额 " + amount + "，说明 " + remark);
+        return CommonResult.success(null);
+    }
+
     @GetMapping("/notices")
     public CommonResult<List<Map<String, Object>>> notices(Principal principal) {
         access.requireAuthorized(principal);

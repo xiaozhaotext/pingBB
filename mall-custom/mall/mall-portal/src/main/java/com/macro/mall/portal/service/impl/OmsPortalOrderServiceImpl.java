@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -428,6 +429,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Integer paySuccess(Long orderId, Integer payType) {
         if (orderId == null || payType == null
                 || (payType != 1 && payType != 2 && payType != 3 && payType != PAY_TYPE_BALANCE_POINTS)) {
@@ -451,6 +453,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 Asserts.fail("库存预占异常，支付确认已回滚");
             }
         }
+        grantOrderProductPoints(orderDetail);
         // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）
         shareOrderBonusService.postForOrder(orderId, orderDetail.getMemberId(), orderDetail.getPayAmount());
         // 购买赠送产品积分：按订单 giftIntegration 入账到买家产品积分钱包
@@ -640,6 +643,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void paySuccessByOrderSn(String orderSn, Integer payType) {
         OmsOrder order = getOrderByOrderSn(orderSn);
         if (order == null) {
@@ -854,6 +858,25 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         }
         rechargeService.refundBalance(order.getMemberId(), balance.movePointRight(2).longValueExact(),
                 Long.toString(order.getId()), "order:balance-refund:" + order.getId(), "未支付订单取消退回余额");
+    }
+
+    private void grantOrderProductPoints(OmsOrderDetail order) {
+        long points = order.getIntegration() == null ? 0 : order.getIntegration();
+        if (points <= 0) return;
+        com.macro.mall.common.api.CommonResult<Void> changed = pointsWalletService.changePoints(
+                order.getMemberId(), PointsWalletService.TYPE_PRODUCT, "earn", points,
+                Long.toString(order.getId()), "order:gift-points:" + order.getId(), null,
+                "商品订单支付赠送产品积分");
+        if (changed.getCode() != 200) Asserts.fail("赠送积分入账失败: " + changed.getMessage());
+        com.macro.mall.portal.domain.UmsPointsAccount account =
+                pointsWalletService.getAccount(order.getMemberId(), PointsWalletService.TYPE_PRODUCT);
+        if (account == null || account.getBalance() == null) Asserts.fail("赠送积分余额读取失败");
+        jdbcTemplate.update("INSERT INTO member_point_ledger"
+                        + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
+                        + " VALUES(?,'PRODUCT',?,?,'PURCHASE_GRANT',?)",
+                order.getMemberId(), points, account.getBalance(), order.getId());
+        jdbcTemplate.update("UPDATE ums_member SET integration=? WHERE id=?",
+                account.getBalance(), order.getMemberId());
     }
 
     private void consumeOrderPoints(long orderId, long memberId, int walletType, String pointType,

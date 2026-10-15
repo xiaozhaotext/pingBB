@@ -153,6 +153,27 @@ public class DividendPoolController {
         return CommonResult.success(info);
     }
 
+    @Operation(summary = "查询我的累计已分红及剩余额度")
+    @GetMapping("/quota")
+    public CommonResult<Map<String, Object>> quota() {
+        return CommonResult.success(dividendDistributionService.quota(memberService.getCurrentMember().getId()));
+    }
+
+    @Operation(summary = "查询我的已发放分红明细")
+    @GetMapping("/myLedger")
+    public CommonResult<List<Map<String, Object>>> myLedger() {
+        Long memberId = memberService.getCurrentMember().getId();
+        return CommonResult.success(jdbc.queryForList("SELECT * FROM ("
+                        + "SELECT id,stat_date,shares,dividend_amount,cap_amount,cumulative_received,"
+                        + "create_time,CASE WHEN shares=3 THEN 'COFOUNDER' ELSE 'PARTNER' END AS pool_code"
+                        + " FROM member_dividend_ledger WHERE member_id=?"
+                        + " UNION ALL SELECT id,DATE(create_time),0,-change_amount,NULL,NULL,create_time,"
+                        + "'OPERATIONS' FROM bonus_dividend_pool_ledger"
+                        + " WHERE pool_code='OPERATIONS' AND source_type='OPERATIONS_PAYOUT'"
+                        + " AND receiver_member_id=? ) records ORDER BY create_time DESC LIMIT 100",
+                memberId, memberId));
+    }
+
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")
     @PostMapping("/contribution")
     public CommonResult<Void> contribution(@RequestBody Map<String, Object> body) {

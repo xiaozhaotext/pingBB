@@ -11,7 +11,7 @@
         </view>
         <view class="detail-search" @click="openProductSearch"><text>⌕</text><text class="search-placeholder">搜索你喜欢的好物</text><text class="search-action">搜索</text></view>
         <view class="header-action" aria-label="分享商品" @click="handleShare"><text class="yticon icon-fenxiang2"></text></view>
-        <navigator class="header-action" url="/pages/cart/cart"><text class="yticon icon-gouwuche"></text></navigator>
+        <navigator class="header-action" url="/pages/cart/cart" open-type="switchTab"><text class="yticon icon-gouwuche"></text></navigator>
       </view>
       <view class="detail-tabs"><text @click="scrollSection('.introduce-section')">商品</text><text @click="scrollSection('.eva-section')">评价</text><text @click="scrollSection('.detail-desc')">详情</text><text @click="scrollSection('.recommend-section')">推荐</text></view>
     </view>

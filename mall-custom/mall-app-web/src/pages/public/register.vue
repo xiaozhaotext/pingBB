@@ -8,7 +8,8 @@
     <view class="wrapper">
       <view class="left-top-sign">REGISTER</view>
       <view class="welcome">注册账号！</view>
-      <view class="registration-note">当前是功能测试环境；验证码为演示验证码，不会发送真实短信。</view>
+      <view v-if="testRegistrationEnabled" class="registration-note">当前是功能测试环境；生成的手机号仅作账号标识，验证码不会发送真实短信。</view>
+      <button v-if="testRegistrationEnabled" class="test-account-btn" :disabled="generatingTestAccount" @click="generateTestAccount">生成测试账号资料</button>
       <view v-if="demoCode" class="registration-note">本次演示验证码：{{ demoCode }}</view>
       <view v-if="registrationError" class="registration-error">{{ registrationError }}</view>
       <view class="input-content">
@@ -67,7 +68,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { registerAPI, getAuthCodeAPI } from '@/apis/member'
+import { onLoad } from '@dcloudio/uni-app'
+import { registerAPI, getAuthCodeAPI, getTestRegistrationEnabledAPI } from '@/apis/member'
 import type { RegisterParam } from '@/types/member'
 
 // ===== 页面数据 =====
@@ -82,6 +84,31 @@ const formData = ref<RegisterParam>({
 const registering = ref(false)
 const demoCode = ref('')
 const registrationError = ref('')
+const testRegistrationEnabled = ref(false)
+const generatingTestAccount = ref(false)
+onLoad(async () => {
+  try {
+    testRegistrationEnabled.value = (await getTestRegistrationEnabledAPI()).data === true
+  } catch {
+    testRegistrationEnabled.value = false
+  }
+})
+const generateTestAccount = async () => {
+  if (!testRegistrationEnabled.value || generatingTestAccount.value) return
+  generatingTestAccount.value = true
+  const random = Math.floor(Math.random() * 100_000_000).toString().padStart(8, '0')
+  formData.value.username = `test_${Date.now().toString(36)}_${random.slice(-4)}`
+  formData.value.telephone = `199${random}`
+  formData.value.authCode = ''
+  demoCode.value = ''
+  registrationError.value = ''
+  try {
+    await handleGetAuthCode()
+    if (demoCode.value) formData.value.authCode = demoCode.value
+  } finally {
+    generatingTestAccount.value = false
+  }
+}
 function errorMessage(error: unknown): string {
   const value=error as {data?:{message?:string};errMsg?:string;message?:string}
   return value?.data?.message || value?.message || (value?.errMsg ? '网络连接失败，请重试' : '请求失败，请重试')
@@ -395,3 +422,4 @@ page {
 </style>
 
 <style scoped>.registration-note{font-size:12px;color:#557f87;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}</style>
+<style scoped>.test-account-btn{margin:4px 24px 12px;padding:0 12px;height:38px;line-height:38px;border:1px solid #98c9ca;border-radius:8px;background:#eff8f7;color:#216d73;font-size:13px}.test-account-btn::after{border:0}</style>

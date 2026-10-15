@@ -33,6 +33,10 @@ export const registerAPI = (data: RegisterParam) => {
   })
 }
 
+/** 仅沙盒且短信关闭时允许生成虚拟测试账号 */
+export const getTestRegistrationEnabledAPI = () =>
+  http<boolean>({ method: 'GET', url: '/sso/testRegistrationEnabled' })
+
 /** 获取验证码 */
 export const getAuthCodeAPI = (telephone: string) => {
   return http({
@@ -137,6 +141,31 @@ export const getDividendInfoAPI = () =>
 /** 我的分红记录（真实数据） */
 export const getDividendRecordsAPI = (params: { page?: number; size?: number }) =>
   http<any[]>({ method: 'GET', url: '/member/dividend/records', params })
+
+export type DividendQuota = {
+  identityType: number
+  referralCount: number
+  capAmount: number
+  receivedAmount: number
+  operationsReceivedAmount: number
+  remainingAmount: number
+  payoutEnabled: boolean
+  updatedAt: string
+}
+export type DividendPayment = {
+  id: number
+  stat_date: string
+  shares: number
+  dividend_amount: number
+  cap_amount: number
+  cumulative_received: number
+  create_time: string
+  pool_code: 'PARTNER' | 'COFOUNDER' | 'OPERATIONS'
+}
+export const getMyDividendQuotaAPI = () =>
+  http<DividendQuota>({ method: 'GET', url: '/member/dividend/quota' })
+export const getMyDividendLedgerAPI = () =>
+  http<DividendPayment[]>({ method: 'GET', url: '/member/dividend/myLedger' })
 
 // ===== 以下旧模拟购买接口已下线，统一走上方真实链路 createMembershipOrderAPI =====
 

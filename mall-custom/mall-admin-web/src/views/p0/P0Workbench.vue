@@ -82,7 +82,7 @@ const settingOptions = [
   { key: 'sms.access_secret', label: '短信 AccessSecret（敏感）' },
   { key: 'sms.sign_name', label: '短信签名' },
   { key: 'sms.template_code', label: '短信模板 Code' },
-  { key: 'dividend.pool.ratio', label: '分红池比例（0–1）' },
+  { key: 'dividend.pool.ratio', label: '其它价格会员购买划入旧总池比例（0–1）' },
   { key: 'dividend.daily.base', label: '每日每份分红基数（元）' },
 ]
 const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings'

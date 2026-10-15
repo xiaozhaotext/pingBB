@@ -98,22 +98,48 @@ public class MembershipVerifiedPaymentHandler {
                 (BigDecimal) order.get("referral_cash_cap"),
                 referralPoints == null ? null : referralPoints.longValue());
         fundDividendPool(orderId, payment.amount());
+        fundBonusPools(orderId, payment.amount());
     }
 
     /** Fund the dividend pool with a configurable portion of the membership purchase amount. */
     private void fundDividendPool(long orderId, BigDecimal paidAmount) {
         BigDecimal ratio = configDecimal("dividend.pool.ratio", new BigDecimal("0.10"));
-        if (ratio.signum() <= 0 || paidAmount.signum() <= 0) return;
-        BigDecimal contribution = paidAmount.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
+        if (paidAmount.signum() <= 0) return;
+        boolean splitPurchase = paidAmount.compareTo(new BigDecimal("3999.00")) == 0;
+        if (!splitPurchase && ratio.signum() <= 0) return;
+        BigDecimal contribution = splitPurchase ? new BigDecimal("900.00")
+                : paidAmount.multiply(ratio).setScale(2, RoundingMode.HALF_UP);
         if (contribution.signum() <= 0) return;
-        // Idempotent: unique source prevents double funding on retry.
-        int inserted = jdbc.update("INSERT IGNORE INTO dividend_pool_ledger"
+        BigDecimal balanceBefore = jdbc.queryForObject(
+                "SELECT pool_balance FROM dividend_pool WHERE id=1 FOR UPDATE", BigDecimal.class);
+        if (balanceBefore == null) throw new IllegalStateException("总分红池不存在");
+        jdbc.update("INSERT INTO dividend_pool_ledger"
                         + "(change_amount,balance_after,source_type,source_id,remark)"
-                        + " SELECT ?,pool_balance+?, 'MEMBERSHIP_PURCHASE', ?, ? FROM dividend_pool WHERE id=1",
-                contribution, contribution, orderId, "会员订单 " + orderId + " 按 " + ratio + " 注入分红池");
-        if (inserted == 1) {
-            jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance+?,total_in=total_in+? WHERE id=1",
-                    contribution, contribution);
+                        + " VALUES(?,?,'MEMBERSHIP_PURCHASE',?,?)",
+                contribution, balanceBefore.add(contribution), orderId, splitPurchase
+                        ? "会员订单 " + orderId + " 分入三类奖金池共900元"
+                        : "会员订单 " + orderId + " 按 " + ratio + " 注入分红池");
+        jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance+?,total_in=total_in+? WHERE id=1",
+                contribution, contribution);
+    }
+
+    /** One verified 3999-yuan purchase contributes 500/200/200 to the three pools. */
+    private void fundBonusPools(long orderId, BigDecimal paidAmount) {
+        if (paidAmount.compareTo(new BigDecimal("3999.00")) != 0) return;
+        String[] codes = {"PARTNER", "COFOUNDER", "OPERATIONS"};
+        BigDecimal[] amounts = {new BigDecimal("500.00"), new BigDecimal("200.00"), new BigDecimal("200.00")};
+        for (int i = 0; i < codes.length; i++) {
+            BigDecimal balanceBefore = jdbc.queryForObject("SELECT pool_balance FROM bonus_dividend_pool"
+                    + " WHERE pool_code=? FOR UPDATE", BigDecimal.class, codes[i]);
+            if (balanceBefore == null) throw new IllegalStateException("奖金池不存在: " + codes[i]);
+            jdbc.update("INSERT INTO bonus_dividend_pool_ledger"
+                            + "(pool_code,change_amount,balance_after,source_type,source_id,remark)"
+                            + " VALUES(?,?,?,'MEMBERSHIP_PURCHASE',?,?)",
+                    codes[i], amounts[i], balanceBefore.add(amounts[i]), orderId, "3999元会员订单奖金池划入");
+            if (jdbc.update("UPDATE bonus_dividend_pool SET pool_balance=pool_balance+?,total_in=total_in+?"
+                            + " WHERE pool_code=?", amounts[i], amounts[i], codes[i]) != 1) {
+                throw new IllegalStateException("奖金池余额更新失败: " + codes[i]);
+            }
         }
     }
 

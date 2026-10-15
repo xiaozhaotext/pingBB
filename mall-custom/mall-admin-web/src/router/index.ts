@@ -94,6 +94,17 @@ export const asyncRouterMap: RouteRecordExt[] = [
       ] },
     ],
   },
+  // 奖金分红池：三个独立资金池与可核对的入账、发放流水。
+  {
+    path: '/bonusDividendPool', component: Layout, redirect: '/bonusDividendPool/partner',
+    name: 'bonusDividendPool', alwaysShow: true,
+    meta: { title: '奖金分红池', icon: 'total-yesterday' },
+    children: [
+      { path: 'partner', name: 'bonusPoolPartner', component: () => import('@/views/finance/BonusDividendPools.vue'), meta: { title: '合伙人池', poolCode: 'PARTNER' } },
+      { path: 'cofounder', name: 'bonusPoolCofounder', component: () => import('@/views/finance/BonusDividendPools.vue'), meta: { title: '联创池', poolCode: 'COFOUNDER' } },
+      { path: 'operations', name: 'bonusPoolOperations', component: () => import('@/views/finance/BonusDividendPools.vue'), meta: { title: '运营池', poolCode: 'OPERATIONS' } },
+    ],
+  },
   // 6 财务中心
   {
     path: '/financeMgr', component: Layout, redirect: '/financeMgr/analysis', name: 'financeMgr', alwaysShow: true,

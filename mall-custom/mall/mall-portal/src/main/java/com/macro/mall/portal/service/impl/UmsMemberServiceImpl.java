@@ -88,13 +88,16 @@ public class UmsMemberServiceImpl implements UmsMemberService {
         if(!verifyAuthCode(authCode,telephone)){
             Asserts.fail("验证码错误");
         }
-        //查询是否已有该用户
-        UmsMemberExample example = new UmsMemberExample();
-        example.createCriteria().andUsernameEqualTo(username);
-        example.or(example.createCriteria().andPhoneEqualTo(telephone));
-        List<UmsMember> umsMembers = memberMapper.selectByExample(example);
-        if (!CollectionUtils.isEmpty(umsMembers)) {
-            Asserts.fail("该用户已经存在");
+        // 用户名和手机号分别提示，避免新用户名配已注册手机号时误以为账号冲突。
+        UmsMemberExample usernameExample = new UmsMemberExample();
+        usernameExample.createCriteria().andUsernameEqualTo(username);
+        if (!CollectionUtils.isEmpty(memberMapper.selectByExample(usernameExample))) {
+            Asserts.fail("用户名已存在，请更换用户名或直接登录");
+        }
+        UmsMemberExample phoneExample = new UmsMemberExample();
+        phoneExample.createCriteria().andPhoneEqualTo(telephone);
+        if (!CollectionUtils.isEmpty(memberMapper.selectByExample(phoneExample))) {
+            Asserts.fail("手机号已注册，请直接登录或找回密码");
         }
         //没有该用户进行添加操作
         UmsMember umsMember = new UmsMember();

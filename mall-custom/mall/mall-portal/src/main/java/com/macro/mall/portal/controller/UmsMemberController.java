@@ -34,6 +34,10 @@ public class UmsMemberController {
     private String tokenHeader;
     @Value("${jwt.tokenHead}")
     private String tokenHead;
+    @Value("${mall.registration.test-accounts.enabled:false}")
+    private boolean testAccountsEnabled;
+    @Value("${mall.sms.enabled:false}")
+    private boolean smsEnabled;
     @Autowired
     private UmsMemberService memberService;
     @Autowired
@@ -50,6 +54,13 @@ public class UmsMemberController {
                                  @RequestParam String authCode) {
         memberService.register(username, password, telephone, authCode);
         return CommonResult.success(null,"注册成功");
+    }
+
+    @Operation(summary = "测试账号注册能力")
+    @RequestMapping(value = "/testRegistrationEnabled", method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<Boolean> testRegistrationEnabled() {
+        return CommonResult.success(testAccountsEnabled && !smsEnabled);
     }
 
     @Operation(summary = "会员登录")

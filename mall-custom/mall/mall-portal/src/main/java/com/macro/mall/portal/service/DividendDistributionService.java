@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -35,6 +36,45 @@ public class DividendDistributionService {
         this.jdbc = jdbc;
         this.pointsWallet = pointsWallet;
         this.earningsCreditService = earningsCreditService;
+    }
+
+    /** Current personal ceiling, paid amount and unused ceiling; this is not a cash balance. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> quota(long memberId) {
+        List<Integer> identities = jdbc.query("SELECT identity_type FROM ums_member_identity"
+                        + " WHERE member_id=? AND status=1 LIMIT 1",
+                (rs, rowNum) -> rs.getInt(1), memberId);
+        int identityType = identities.isEmpty() ? 0 : identities.get(0);
+        BigDecimal received = jdbc.queryForObject("SELECT COALESCE(SUM(dividend_amount),0)"
+                + " FROM member_dividend_ledger WHERE member_id=?", BigDecimal.class, memberId);
+        if (received == null) received = BigDecimal.ZERO;
+        BigDecimal operationsReceived = jdbc.queryForObject("SELECT COALESCE(SUM(-change_amount),0)"
+                        + " FROM bonus_dividend_pool_ledger WHERE pool_code='OPERATIONS'"
+                        + " AND source_type='OPERATIONS_PAYOUT' AND receiver_member_id=?",
+                BigDecimal.class, memberId);
+        if (operationsReceived == null) operationsReceived = BigDecimal.ZERO;
+        BigDecimal cap = BigDecimal.ZERO;
+        int refs = 0;
+        if (identityType == 1 || identityType == 2) {
+            Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM ums_member_recommend"
+                    + " WHERE inviter_id=?", Integer.class, memberId);
+            refs = count == null ? 0 : count;
+            cap = configDecimal("dividend.cap.base", new BigDecimal("1200.00"))
+                    .add(configDecimal("dividend.cap.per_referral", new BigDecimal("1200.00"))
+                            .multiply(BigDecimal.valueOf(Math.min(refs,
+                                    configInt("dividend.cap.max_referrals", 999999)))));
+            cap = cap.min(configDecimal("dividend.cap.max", new BigDecimal("12000.00")));
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("identityType", identityType);
+        result.put("referralCount", refs);
+        result.put("capAmount", cap);
+        result.put("receivedAmount", received.add(operationsReceived));
+        result.put("operationsReceivedAmount", operationsReceived);
+        result.put("remainingAmount", cap.subtract(received).subtract(operationsReceived).max(BigDecimal.ZERO));
+        result.put("payoutEnabled", payoutEnabled && distributionApproved());
+        result.put("updatedAt", java.time.LocalDateTime.now());
+        return result;
     }
 
     /**
@@ -102,12 +142,24 @@ public class DividendDistributionService {
                     "SELECT COALESCE(SUM(dividend_amount),0) FROM member_dividend_ledger WHERE member_id=?",
                     BigDecimal.class, memberId);
             if (received == null) received = BigDecimal.ZERO;
+            BigDecimal operationsReceived = jdbc.queryForObject(
+                    "SELECT COALESCE(SUM(-change_amount),0) FROM bonus_dividend_pool_ledger"
+                            + " WHERE pool_code='OPERATIONS' AND source_type='OPERATIONS_PAYOUT'"
+                            + " AND receiver_member_id=?",
+                    BigDecimal.class, memberId);
+            if (operationsReceived != null) received = received.add(operationsReceived);
 
             BigDecimal remaining = cap.subtract(received);
             if (remaining.signum() <= 0) continue;
 
             BigDecimal amount = perShare.multiply(new BigDecimal(shares)).setScale(2, RoundingMode.DOWN);
             if (amount.compareTo(remaining) > 0) amount = remaining;
+            String poolCode = type == 2 ? "COFOUNDER" : "PARTNER";
+            BigDecimal categoryBalance = jdbc.queryForObject(
+                    "SELECT pool_balance FROM bonus_dividend_pool WHERE pool_code=? FOR UPDATE",
+                    BigDecimal.class, poolCode);
+            if (categoryBalance == null) throw new IllegalStateException("奖金池不存在: " + poolCode);
+            if (amount.compareTo(categoryBalance) > 0) amount = categoryBalance;
             if (amount.signum() <= 0) continue;
 
             BigDecimal cumulative = received.add(amount);
@@ -121,6 +173,21 @@ public class DividendDistributionService {
                     "dividend:" + memberId + ":" + statDate, "每日分红 " + statDate);
 
             if (!credited) throw new IllegalStateException("分红账本与收益账本不一致，已回滚");
+            if (jdbc.update("UPDATE bonus_dividend_pool SET pool_balance=pool_balance-?,"
+                            + "total_out=total_out+? WHERE pool_code=? AND pool_balance>=?",
+                    amount, amount, poolCode, amount) != 1) {
+                throw new IllegalStateException("奖金池余额不足: " + poolCode);
+            }
+            Long payoutId = jdbc.queryForObject("SELECT id FROM member_dividend_ledger"
+                    + " WHERE member_id=? AND stat_date=?", Long.class, memberId, statDate);
+            BigDecimal balanceAfter = jdbc.queryForObject("SELECT pool_balance FROM bonus_dividend_pool"
+                    + " WHERE pool_code=?", BigDecimal.class, poolCode);
+            jdbc.update("INSERT INTO bonus_dividend_pool_ledger"
+                            + "(pool_code,change_amount,balance_after,source_type,source_id,"
+                            + "receiver_member_id,receiver_identity,remark)"
+                            + " VALUES(?,?,?,'DAILY_DIVIDEND',?,?,?,?)",
+                    poolCode, amount.negate(), balanceAfter, payoutId, memberId, poolCode,
+                    "每日分红 " + statDate);
             totalPaid = totalPaid.add(amount);
             paid++;
         }

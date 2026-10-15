@@ -6,7 +6,8 @@
     <view class="account-panels">
       <view class="account-panel" @click="handleNavTo('/pages/member/benefits')"><view class="account-section-title">奖励与旅游权益<small>审核与核销记录 ›</small></view></view>
       <view class="account-panel" @click="handleNavTo('/pages/member/recharge')"><view class="account-section-title">账户充值<small>查看充值余额 · 微信 / 支付宝 ›</small></view></view>
-      <view class="account-panel"><view class="account-section-title">我的钱包<small>账户实际数据</small></view><view class="account-assets"><view><text>{{walletAvailable}}</text><small>可提现余额</small></view><view @click="handleNavTo('/pages/member/dividend')"><text>{{dividendCap}}</text><small>分红额度 ›</small></view><view @click="handleNavTo('/pages/member/earnings')"><text class="yticon icon-lishijilu"></text><small>余额明细 ›</small></view></view></view>
+      <view class="account-panel"><view class="account-section-title">我的钱包<small>账户实际数据</small></view><view class="account-assets"><view><text>{{walletAvailable}}</text><small>可提现余额</small></view><view @click="handleNavTo('/pages/member/earnings')"><text class="yticon icon-qianbao"></text><small>提现申请 ›</small></view><view @click="handleNavTo('/pages/member/earnings')"><text class="yticon icon-lishijilu"></text><small>余额明细 ›</small></view></view></view>
+      <view class="account-panel"><view class="account-section-title">分红额度<small>按账户数据实时更新</small></view><view class="account-assets points-summary"><view><text>{{dividendRemaining}}</text><small>剩余额度上限</small></view><view><text>{{dividendReceived}}</text><small>累计已分红</small></view><view @click="handleNavTo('/pages/member/dividend')"><text class="yticon icon-lishijilu"></text><small>发放明细 ›</small></view></view><view class="dividend-note">额度上限不是可提现余额；{{dividendPayoutEnabled ? '已发放金额以明细为准' : '分红发放暂未启用'}}</view></view>
       <view class="account-panel"><view class="account-section-title">商品积分<small>可用积分</small></view><view class="account-assets points-summary"><view><text>{{productBalance}}</text><small>可用商品积分</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=1')"><text class="yticon icon-lishijilu"></text><small>积分明细 ›</small></view></view></view>
       <view class="account-panel"><view class="account-section-title">复购积分<small>可用积分</small></view><view class="account-assets points-summary"><view><text>{{rebuyBalance}}</text><small>可用复购积分</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=2')"><text class="yticon icon-lishijilu"></text><small>积分明细 ›</small></view></view></view>
       <view class="account-panel"><view class="account-section-title">我的订单<small @click="handleNavTo('/pages/order/order?state=0')">查看全部 »</small></view><view class="account-services"><view v-for="item in orderEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
@@ -21,9 +22,9 @@
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import MainNavigation from '@/components/MainNavigation.vue'
 import { ref, computed } from 'vue'
-import { onShow, onNavigationBarButtonTap } from '@dcloudio/uni-app'
+import { onShow, onHide, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
-import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI, getDividendInfoAPI } from '@/apis/member'
+import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI, getMyDividendQuotaAPI } from '@/apis/member'
 import mixListCell from '@/components/mix-list-cell.vue'
 
 // ===== Store 相关 =====
@@ -38,7 +39,9 @@ const memberInfo = computed(() => memberStore.memberInfo)
 // 优惠券数量
 const identityLabel = ref('会员身份加载中')
 const productBalance=ref<string | number>('—'),rebuyBalance=ref<string | number>('—'),accountError=ref('')
-const walletAvailable=ref<string | number>('—'),walletFrozen=ref<string | number>('—'),walletWithdrawn=ref<string | number>('—'),dividendCap=ref<string | number>('—')
+const walletAvailable=ref<string | number>('—'),walletFrozen=ref<string | number>('—'),walletWithdrawn=ref<string | number>('—')
+const dividendRemaining=ref<string | number>('—'),dividendReceived=ref<string | number>('—'),dividendPayoutEnabled=ref(false)
+let quotaTimer: ReturnType<typeof setInterval> | null = null
 const orderEntries=[{label:'全部订单',icon:'icon-shouye',url:'/pages/order/order?state=0'},{label:'待付款',icon:'icon-daifukuan',url:'/pages/order/order?state=1'},{label:'待发货',icon:'icon-yishouhuo',url:'/pages/order/order?state=2'},{label:'待收货',icon:'icon-yishouhuo',url:'/pages/order/order?state=3'},{label:'已完成',icon:'icon-shouhoutuikuan',url:'/pages/order/order?state=4'},{label:'退货售后',icon:'icon-shouhoutuikuan',url:'/pages/order/order?state=6'}]
 const serviceEntries=[{label:'联系资料',icon:'service-privacy',url:'/pages/member/contact'},{label:'在线咨询',icon:'service-chat',url:'/pages/consultation/consultation'},{label:'消息通知',icon:'service-bell',url:'/pages/notice/notice'},{label:'会员中心',icon:'icon-iLinkapp-',url:'/pages/member/promotion'},{label:'收货地址',icon:'icon-dizhi',url:'/pages/address/address'},{label:'钱包',icon:'service-wallet',url:'/pages/member/earnings'},{label:'积分明细',icon:'icon-shouye',url:'/pages/member/pointsLedger'},{label:'我的收益',icon:'service-earnings',url:'/pages/member/earnings'},{label:'我的分红',icon:'service-dividend',url:'/pages/member/dividend'},{label:'我的推荐',icon:'icon-shoucang',url:'/pages/member/invitation'},{label:'我的足迹',icon:'icon-lishijilu',url:'/pages/user/readHistory'},{label:'我的收藏',icon:'icon-shoucang_xuanzhongzhuangtai',url:'/pages/user/productCollection'},{label:'品牌关注',icon:'icon-shoucang',url:'/pages/user/brandAttention'},{label:'隐私政策',icon:'service-privacy',url:'/pages/support/privacy'},{label:'设置',icon:'icon-shezhi1',url:'/pages/set/set'}]
 // 遮罩层变换样式
@@ -57,14 +60,14 @@ let pageAtTop = true
 // ===== 数据加载 =====
 // 加载优惠券数据
 const loadData = async () => {
-  accountError.value=''; productBalance.value='—'; rebuyBalance.value='—'; walletAvailable.value='—'; walletFrozen.value='—'; walletWithdrawn.value='—'
+  accountError.value=''; productBalance.value='—'; rebuyBalance.value='—'; walletAvailable.value='—'; walletFrozen.value='—'; walletWithdrawn.value='—'; dividendRemaining.value='—'; dividendReceived.value='—'
   if (hasLogin.value) {
-    const results=await Promise.allSettled([getPointsAccountAPI(1),getPointsAccountAPI(2),getEarningsAccountAPI()])
+    const results=await Promise.allSettled([getPointsAccountAPI(1),getPointsAccountAPI(2),getEarningsAccountAPI(),getMyDividendQuotaAPI()])
     if (!hasLogin.value) {
       identityLabel.value='游客'
       return
     }
-    results.forEach((result,index)=>{if(result.status==='fulfilled'){const data=result.value.data;if(index===0)productBalance.value=data?.available??data?.balance??'未开户';if(index===1)rebuyBalance.value=data?.available??data?.balance??'未开户';if(index===2){walletAvailable.value=data?.availableEarnings??'—';walletFrozen.value=data?.frozenEarnings??'—';walletWithdrawn.value=data?.withdrawn??'—'}}else{accountError.value='部分账户信息暂不可用'}})
+    results.forEach((result,index)=>{if(result.status==='fulfilled'){const data=result.value.data;if(index===0)productBalance.value=data?.available??data?.balance??'未开户';if(index===1)rebuyBalance.value=data?.available??data?.balance??'未开户';if(index===2){walletAvailable.value=data?.availableEarnings??'—';walletFrozen.value=data?.frozenEarnings??'—';walletWithdrawn.value=data?.withdrawn??'—'}if(index===3){dividendRemaining.value=data?.remainingAmount??'—';dividendReceived.value=data?.receivedAmount??'—';dividendPayoutEnabled.value=Boolean(data?.payoutEnabled)}}else{accountError.value='部分账户信息暂不可用'}})
 
     try {
       const identity = await getMyIdentityAPI()
@@ -73,13 +76,6 @@ const loadData = async () => {
         : ({ 0: '普通会员', 1: '合伙人', 2: '联创' } as Record<number, string>)[identity.data.identityType] || '未知身份'
     } catch {
       identityLabel.value = '会员身份获取失败'
-    }
-    try {
-      const dividend = await getDividendInfoAPI()
-      const cap = dividend.data?.capAmount
-      dividendCap.value = cap == null || cap === '' ? '—' : cap
-    } catch {
-      dividendCap.value = '—'
     }
   } else {
     identityLabel.value = '游客'
@@ -90,7 +86,18 @@ const loadData = async () => {
 // 页面显示时加载数据
 onShow(() => {
   loadData()
+  if (quotaTimer) clearInterval(quotaTimer)
+  quotaTimer = setInterval(async () => {
+    if (!hasLogin.value) return
+    try {
+      const { data } = await getMyDividendQuotaAPI()
+      dividendRemaining.value = data.remainingAmount
+      dividendReceived.value = data.receivedAmount
+      dividendPayoutEnabled.value = data.payoutEnabled
+    } catch { accountError.value = '分红额度暂不可用' }
+  }, 15000)
 })
+onHide(() => { if (quotaTimer) clearInterval(quotaTimer); quotaTimer = null })
 
 // 导航栏按钮点击事件
 onNavigationBarButtonTap((e: { index: number }) => {
@@ -371,6 +378,7 @@ const handleCoverTouchend = () => {
 
 <style scoped>
 .account-reference{background:#f2f6f5}.account-top{position:static;background:#e5f0ef;color:#245660;border-bottom:1px solid #d7e6e5}.account-panel{background:#fff;border:1px solid #e7eeeb;box-shadow:0 5px 20px #315c4f05}.account-section-title{border-color:#2a8a88;color:#284b51}.account-assets text{color:#167a80}.account-assets small,.account-section-title small{color:#819599}.account-stat-grid>view{background:#f3f8f6}.account-stat-grid text,.recommend-count text{color:#326f62}.account-stat-grid small{color:#7e9890}.recommend-stage{background:#f7faf9}.stage-dot{background:#e7f0ec;color:#628c7c}.recommend-count{background:#eaf3ef}.account-section-footer text:last-child,.account-services .yticon{color:#288784}.account-services>view{color:#405e62}.account-section-footer{color:#829896}.account-error{color:#386c73}
+.dividend-note{padding:0 12px 10px;color:#819599;font-size:11px;line-height:1.5}
 .account-services .service-svg{width:23px;height:23px;fill:none;stroke:#288784;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 </style>
 

@@ -1,91 +1,48 @@
 <template>
-  <view class="app">
-    <view v-if="loadError" class="card error">{{ loadError }}</view>
-
-    <view class="card" v-if="info">
-      <text class="title">我的分红</text>
-      <view class="row"><text>我的身份</text><text class="v">{{ info.identityName }}</text></view>
-      <view class="row"><text>分红份数</text><text class="v">{{ info.shares }} 份</text></view>
-      <view class="row"><text>今日分红</text><text class="v highlight">¥{{ fmt(info.todayDividend) }}</text></view>
-      <view class="row"><text>累计分红</text><text class="v">¥{{ fmt(info.totalDividend) }}</text></view>
-      <view class="row"><text>我的推荐人数</text><text class="v">{{ info.referralCount }} 人</text></view>
-      <view class="row"><text>分红封顶</text><text class="v">¥{{ fmt(info.capAmount) }}</text></view>
-      <view class="tip">封顶规则：基础 ¥{{ fmt(info.capBase) }} + ¥{{ fmt(info.capPerReferral) }}×推荐人数，上限 ¥{{ fmt(info.capMax) }}。</view>
-      <view class="tip" v-if="!info.distributionEnabled">每日分红发放当前未启用，数据为历史记录。</view>
+  <view class="dividend-page">
+    <view class="summary">
+      <text class="title">我的分红额度</text>
+      <view class="amounts"><view><strong>{{ money(quota?.remainingAmount) }}</strong><text>剩余额度上限</text></view><view><strong>{{ money(quota?.receivedAmount) }}</strong><text>累计已分红</text></view></view>
+      <text class="note">{{ quota?.identityType ? `当前身份：${identityName} · 推荐人数：${quota?.referralCount || 0}` : '普通会员暂无分红额度' }}</text>
+      <text class="note">额度上限不是可提现余额。{{ quota?.payoutEnabled ? '发放结果以账本为准。' : '分红发放暂未启用。' }}</text>
     </view>
-
-    <view class="card">
-      <text class="title">分红记录</text>
-      <view class="list" v-if="records.length">
-        <view class="item" v-for="(r, i) in records" :key="i">
-          <text>{{ r.stat_date }}　{{ r.shares }}份　+¥{{ fmt(r.dividend_amount) }}</text>
-          <text class="sub">累计：¥{{ fmt(r.cumulative_received) }}　封顶：¥{{ fmt(r.cap_amount) }}</text>
-        </view>
+    <view class="ledger-card">
+      <view class="heading"><text>已发放分红明细</text><text class="refresh" @click="load">刷新</text></view>
+      <view v-if="error" class="error" @click="load">{{ error }}，点击重试</view>
+      <view v-else-if="!ledger.length" class="empty">暂无已发放分红</view>
+      <view v-for="item in ledger" :key="item.id" class="entry">
+        <view><text>{{ item.create_time || item.stat_date }}</text><strong>+{{ money(item.dividend_amount) }}</strong></view>
+        <text class="meta">{{ item.pool_code === 'OPERATIONS' ? '运营池' : item.pool_code === 'COFOUNDER' ? '联创池' : '合伙人池' }} · 分红日期 {{ item.stat_date }}<template v-if="item.cumulative_received != null"> · 发放后累计 {{ money(item.cumulative_received) }}</template></text>
       </view>
-      <text class="tip" v-else>暂无分红记录</text>
-      <button class="btn" v-if="hasMore" @click="loadMore">加载更多</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getDividendInfoAPI, getDividendRecordsAPI } from '@/apis/member'
+import { computed, ref } from 'vue'
+import { onShow, onHide } from '@dcloudio/uni-app'
+import { getMyDividendQuotaAPI, getMyDividendLedgerAPI, type DividendQuota, type DividendPayment } from '@/apis/member'
 
-const info = ref<any>(null)
-const records = ref<any[]>([])
-const loadError = ref('')
-const page = ref(1)
-const hasMore = ref(false)
-const PAGE_SIZE = 20
-
-const fmt = (v: any) => {
-  const n = Number(v || 0)
-  return n.toFixed(2)
+const quota = ref<DividendQuota | null>(null)
+const ledger = ref<DividendPayment[]>([])
+const error = ref('')
+const identityName = computed(() => quota.value?.identityType === 2 ? '联创' : '合伙人')
+const money = (value: number | undefined) => value == null ? '—' : `¥${Number(value).toFixed(2)}`
+let timer: ReturnType<typeof setInterval> | null = null
+async function load() {
+  const results = await Promise.allSettled([getMyDividendQuotaAPI(), getMyDividendLedgerAPI()])
+  if (results[0].status === 'fulfilled') quota.value = results[0].value.data
+  if (results[1].status === 'fulfilled') ledger.value = results[1].value.data || []
+  error.value = results.some(result => result.status === 'rejected') ? '部分分红数据加载失败' : ''
 }
-
-const loadInfo = async () => {
-  try {
-    const r = await getDividendInfoAPI()
-    info.value = r.data || null
-  } catch (e) {
-    loadError.value = '分红信息加载失败，请登录后重试。'
-  }
-}
-
-const loadRecords = async (reset = false) => {
-  if (reset) { page.value = 1; records.value = [] }
-  try {
-    const r = await getDividendRecordsAPI({ page: page.value, size: PAGE_SIZE })
-    const list = r.data || []
-    records.value = reset ? list : records.value.concat(list)
-    hasMore.value = list.length >= PAGE_SIZE
-  } catch (e) {
-    if (reset) records.value = []
-  }
-}
-
-const loadMore = () => {
-  page.value += 1
-  loadRecords(false)
-}
-
-onMounted(async () => {
-  await loadInfo()
-  await loadRecords(true)
+onShow(() => {
+  load()
+  if (timer) clearInterval(timer)
+  timer = setInterval(load, 15000)
 })
+onHide(() => { if (timer) clearInterval(timer); timer = null })
 </script>
 
 <style lang="scss" scoped>
-.app { padding: 20rpx; }
-.card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; align-items: center; padding: 14rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
-.row .v.highlight { color: #e65a3c; font-size: 32rpx; }
-.tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; line-height: 1.6; }
-.error { color: #b42318; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
-.btn { background: #f4f4f5; color: #606266; border-radius: 12rpx; margin-top: 12rpx; font-size: 26rpx; }
+.dividend-page{min-height:100vh;padding:24rpx;background:#f2f6f5;box-sizing:border-box}.summary,.ledger-card{padding:32rpx;margin-bottom:24rpx;border:1rpx solid #e5eeea;border-radius:24rpx;background:#fff}.title{display:block;color:#28565a;font-size:34rpx;font-weight:700}.amounts{display:flex;gap:20rpx;margin:32rpx 0}.amounts view{flex:1;min-width:0}.amounts strong{display:block;color:#167a80;font-size:40rpx}.amounts text,.note{display:block;color:#829599;font-size:24rpx;line-height:1.7}.heading{display:flex;justify-content:space-between;color:#28565a;font-size:30rpx;font-weight:600}.refresh{color:#167a80;font-size:24rpx}.entry{padding:24rpx 0;border-bottom:1rpx solid #edf2f1}.entry>view{display:flex;justify-content:space-between;font-size:26rpx;color:#405e62}.entry strong{color:#167a80}.meta,.empty,.error{display:block;margin-top:10rpx;color:#87999b;font-size:23rpx}.empty{padding:48rpx 0;text-align:center}.error{color:#bd4747}
 </style>
