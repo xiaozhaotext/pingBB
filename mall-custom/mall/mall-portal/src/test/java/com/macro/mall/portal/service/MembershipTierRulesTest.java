@@ -20,11 +20,12 @@ class MembershipTierRulesTest {
     @Test void tiersFollowOnlyPaidDirectMemberThresholds() {
         assertTier(false, 9, 0, 0, 0, 0, 0);
         assertTier(true, 0, 1, 1, 1200, 0, 0);
-        assertTier(true, 2, 1, 1, 1200, 0, 0);
-        assertTier(true, 3, 2, 2, 8000, 0, 0);
-        assertTier(true, 6, 2, 4, 16000, 0, 0);
-        assertTier(true, 9, 3, 6, 24000, 1, 1200);
-        assertTier(true, 12, 3, 6, 24000, 1, 1200);
+        assertTier(true, 2, 1, 3, 1200, 0, 0);
+        assertTier(true, 3, 2, 4, 8000, 0, 0);
+        assertTier(true, 5, 2, 6, 8000, 0, 0);
+        assertTier(true, 6, 2, 7, 16000, 0, 0);
+        assertTier(true, 9, 3, 10, 24000, 1, 1200);
+        assertTier(true, 12, 3, 13, 24000, 1, 1200);
     }
 
     private static void assertTier(boolean paid, int refs, int identity, int partnerShares,

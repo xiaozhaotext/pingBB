@@ -12,10 +12,11 @@ public final class MembershipTierRules {
 
     public static Tier forMember(boolean purchasedMembership, int paidDirectReferrals) {
         if (!purchasedMembership) return new Tier(0, "游客", 0, BigDecimal.ZERO, 0, BigDecimal.ZERO);
-        if (paidDirectReferrals >= 9) return new Tier(3, "联创", 6, amount(24000), 1, amount(1200));
-        if (paidDirectReferrals >= 6) return new Tier(2, "合伙人", 4, amount(16000), 0, BigDecimal.ZERO);
-        if (paidDirectReferrals >= 3) return new Tier(2, "合伙人", 2, amount(8000), 0, BigDecimal.ZERO);
-        return new Tier(1, "会员", 1, amount(1200), 0, BigDecimal.ZERO);
+        int partnerShares = Math.addExact(1, Math.max(0, paidDirectReferrals));
+        if (paidDirectReferrals >= 9) return new Tier(3, "联创", partnerShares, amount(24000), 1, amount(1200));
+        if (paidDirectReferrals >= 6) return new Tier(2, "合伙人", partnerShares, amount(16000), 0, BigDecimal.ZERO);
+        if (paidDirectReferrals >= 3) return new Tier(2, "合伙人", partnerShares, amount(8000), 0, BigDecimal.ZERO);
+        return new Tier(1, "会员", partnerShares, amount(1200), 0, BigDecimal.ZERO);
     }
 
     public static BigDecimal poolShare(BigDecimal poolAmount, int heldShares, int totalShares) {

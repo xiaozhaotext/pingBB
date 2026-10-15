@@ -4,7 +4,7 @@
       <text class="title">我的分红额度</text>
       <view class="amounts"><view><strong>{{ money(quota?.capAmount) }}</strong><text>个人累计分红上限</text></view><view><strong>{{ money(quota?.remainingAmount) }}</strong><text>尚可领取额度</text></view></view>
       <text class="note">当前身份：{{ quota?.identityName || '游客' }} · 有效直邀会员：{{ quota?.referralCount || 0 }}</text>
-      <view v-if="quota?.partnerShares" class="pool-limit"><view><strong>合伙人池</strong><text>{{ quota.partnerShares }} 份</text></view><view><text>个人累计上限</text><strong>{{ money(quota.partnerCap) }}</strong></view><view><text>已领取 {{ money(quota.partnerReceived) }}</text><text>剩余 {{ money(quota.partnerRemaining) }}</text></view></view>
+      <view v-if="quota?.partnerShares" class="pool-limit"><view><strong>合伙人池</strong><text>{{ quota.partnerShares }} 份（本人 1 份＋有效直邀 {{ quota.referralCount }} 份）</text></view><view><text>个人累计上限</text><strong>{{ money(quota.partnerCap) }}</strong></view><view><text>已领取 {{ money(quota.partnerReceived) }}</text><text>剩余 {{ money(quota.partnerRemaining) }}</text></view></view>
       <view v-if="quota?.cofounderShares" class="pool-limit"><view><strong>联创池</strong><text>{{ quota.cofounderShares }} 份</text></view><view><text>个人累计上限</text><strong>{{ money(quota.cofounderCap) }}</strong></view><view><text>已领取 {{ money(quota.cofounderReceived) }}</text><text>剩余 {{ money(quota.cofounderRemaining) }}</text></view></view>
       <text class="note">以上是个人累计领取上限，不限制池内总余额；实际分红按池内总份数计算。{{ quota?.payoutEnabled ? '发放结果以账本为准。' : '分红发放暂未启用。' }}</text>
     </view>

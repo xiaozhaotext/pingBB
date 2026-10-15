@@ -8,6 +8,8 @@
       <view class="row"><text>赠送复购积分</text><text class="v">3999</text></view>
       <view class="row"><text>直邀会员奖励</text><text class="v">1200 复购积分 + 399.9 元返利</text></view>
       <view class="row"><text>合伙人池分红</text><text class="v">1 份，上限 1200 元</text></view>
+      <view class="row"><text>每成功直邀 1 位会员</text><text class="v">合伙人池加 1 份</text></view>
+      <view class="row"><text>晋级合伙人</text><text class="v">直邀 3 人成功购买会员</text></view>
       <view class="row"><text>旅游路线</text><text class="v">可自定义</text></view>
       <button class="btn-primary mt" @click="openTravel">提交旅游路线需求</button>
     </view>
@@ -126,7 +128,7 @@ const handleBuy = async () => {
     if (code === 56003) {
       actionError.value = '会员购买暂未开放，敬请期待。'
     } else if (code === 56004) {
-      actionError.value = '您已是合伙人，无需重复购买。'
+      actionError.value = '您已购买会员身份牌，无需重复购买。'
     } else if (code === 56002) {
       actionError.value = '支付渠道尚未开通，请稍后再试。'
     } else {

@@ -324,7 +324,7 @@
     {
       "path": "pages/member/partner",
       "style": {
-        "navigationBarTitleText": "合伙人(模拟)"
+        "navigationBarTitleText": "会员身份牌"
       }
     },
     {

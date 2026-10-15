@@ -86,23 +86,23 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <el-card v-if="code !== 'OPERATIONS'" shadow="never" class="section">
       <template #header>个人累计分红上限</template>
       <el-table v-if="code === 'PARTNER'" :data="[
-        { identity: '会员', referrals: '0–2 人', shares: 1, cap: 1200 },
-        { identity: '合伙人', referrals: '3–5 人', shares: 2, cap: 8000 },
-        { identity: '合伙人', referrals: '6–8 人', shares: 4, cap: 16000 },
-        { identity: '联创', referrals: '9 人及以上', shares: 6, cap: 24000 },
+        { identity: '会员', referrals: '0–2 人', shares: '1–3 份', cap: 1200 },
+        { identity: '合伙人', referrals: '3–5 人', shares: '4–6 份', cap: 8000 },
+        { identity: '合伙人', referrals: '6–8 人', shares: '7–9 份', cap: 16000 },
+        { identity: '联创', referrals: '9 人及以上', shares: '10 份起', cap: 24000 },
       ]" border>
         <el-table-column prop="identity" label="身份" min-width="100" />
         <el-table-column prop="referrals" label="有效直邀会员" min-width="140" />
         <el-table-column prop="shares" label="持有份数" min-width="100" />
         <el-table-column label="个人累计上限" min-width="150"><template #default="{ row }">{{ money(row.cap) }}</template></el-table-column>
       </el-table>
-      <el-table v-else :data="[{ identity: '联创', referrals: '9 人及以上', shares: 1, cap: 1200 }]" border>
+      <el-table v-else :data="[{ identity: '联创', referrals: '9 人及以上', shares: '1 份', cap: 1200 }]" border>
         <el-table-column prop="identity" label="身份" min-width="100" />
         <el-table-column prop="referrals" label="有效直邀会员" min-width="140" />
         <el-table-column prop="shares" label="持有份数" min-width="100" />
         <el-table-column label="个人累计上限" min-width="150"><template #default="{ row }">{{ money(row.cap) }}</template></el-table-column>
       </el-table>
-      <p class="limit-note">上限按每人、每池累计领取金额计算，不限制分红池总余额。联创同时持有合伙人池 6 份，两池个人累计上限合计 ¥25,200.00。</p>
+      <p class="limit-note">合伙人池份数＝本人 1 份＋每位有效直邀会员 1 份。上限按每人、每池累计领取金额计算，不限制分红池总余额；联创两池个人累计上限合计 ¥25,200.00。</p>
     </el-card>
     <el-card v-if="code === 'OPERATIONS'" shadow="never" class="section">
       <template #header>运营池指定领取人（审核后模拟入账）</template>
