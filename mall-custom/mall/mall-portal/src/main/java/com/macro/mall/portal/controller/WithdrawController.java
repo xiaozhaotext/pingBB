@@ -31,7 +31,9 @@ public class WithdrawController {
     @PostMapping("/apply")
     public CommonResult<UmsWithdrawApply> apply(@RequestBody Map<String, Object> body) {
         Long memberId = memberService.getCurrentMember().getId();
-        BigDecimal amount = new BigDecimal(String.valueOf(body.get("amount")));
+        BigDecimal amount;
+        try { amount = new BigDecimal(String.valueOf(body.get("amount"))); }
+        catch (NumberFormatException ex) { return CommonResult.validateFailed("请输入有效的提现金额"); }
         String idempotencyKey = String.valueOf(body.get("idempotencyKey"));
         return earningsService.applyWithdraw(memberId, amount, idempotencyKey);
     }
@@ -46,10 +48,6 @@ public class WithdrawController {
     @Operation(summary = "后台处理提现(模拟)：approve=true完成入账 / false拒绝退回")
     @PostMapping("/process")
     public CommonResult<Void> process(@RequestBody Map<String, Object> body) {
-        Long applyId = Long.parseLong(String.valueOf(body.get("applyId")));
-        Long operatorId = memberService.getCurrentMember().getId();
-        boolean approve = Boolean.parseBoolean(String.valueOf(body.get("approve")));
-        String remark = body.get("remark") == null ? null : String.valueOf(body.get("remark"));
-        return earningsService.processWithdraw(applyId, operatorId, approve, remark);
+        return CommonResult.forbidden(null);
     }
 }

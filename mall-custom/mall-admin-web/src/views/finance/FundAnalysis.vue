@@ -1,43 +1,45 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { getDashboardOverviewAPI, type DashboardOverview, type PaidTrendDay } from '@/apis/dashboard'
+import { getDashboardOverviewAPI, getFundTrendAPI, type DashboardOverview, type FundPeriod } from '@/apis/dashboard'
 import { ElMessage } from 'element-plus'
-
-interface DayRow extends PaidTrendDay {
-  chainRatio: string
-}
 
 const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
 const dimension = ref<'day' | 'month'>('day')
-
-const dayRows = computed<DayRow[]>(() => {
-  const trend = overview.value ? overview.value.paidTrend : []
-  return trend.map((item, index) => {
-    if (index === 0) return { ...item, chainRatio: '—' }
-    const prev = trend[index - 1]
-    if (!prev || !prev.paidAmount) return { ...item, chainRatio: '—' }
-    const ratio = ((item.paidAmount - prev.paidAmount) / prev.paidAmount) * 100
-    return { ...item, chainRatio: (ratio >= 0 ? '+' : '') + ratio.toFixed(1) + '%' }
-  })
-})
-
-const monthRows = computed(() => {
-  const trend = overview.value ? overview.value.paidTrend : []
-  const buckets: Record<string, { month: string; orderCount: number; paidAmount: number }> = {}
-  trend.forEach(item => {
-    const month = item.day.slice(0, 7)
-    if (!buckets[month]) buckets[month] = { month, orderCount: 0, paidAmount: 0 }
-    buckets[month].orderCount += item.orderCount
-    buckets[month].paidAmount += item.paidAmount
-  })
-  return Object.values(buckets).sort((a, b) => (a.month < b.month ? 1 : -1))
-})
+const trend = ref<{ days: FundPeriod[]; months: FundPeriod[] }>({ days: [], months: [] })
+function ratio(current: number, previous?: FundPeriod) {
+  if (!previous || !Number(previous.paidAmount)) return '—'
+  const change = (current - Number(previous.paidAmount)) / Number(previous.paidAmount) * 100
+  return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
+}
+function periodRows(monthly: boolean) {
+  const source = monthly ? trend.value.months : trend.value.days
+  const map = new Map(source.map(row => [row.period, row]))
+  const today = new Date()
+  const result = []
+  for (let offset = monthly ? 11 : 29; offset >= 0; offset--) {
+    const date = monthly ? new Date(today.getFullYear(), today.getMonth() - offset, 1) : new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset)
+    const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}${monthly ? '' : '-' + String(d.getDate()).padStart(2, '0')}`
+    const period = key(date)
+    const row = map.get(period) || { period, orderCount: 0, paidAmount: 0 }
+    const previous = new Date(date)
+    if (monthly) previous.setMonth(previous.getMonth() - 1)
+    else previous.setDate(previous.getDate() - 1)
+    const priorYear = new Date(date)
+    priorYear.setFullYear(priorYear.getFullYear() - 1)
+    result.push({ ...row, day: period, month: period, chainRatio: ratio(Number(row.paidAmount), map.get(key(previous)) || { period: '', paidAmount: 0, orderCount: 0 }), yearRatio: ratio(Number(row.paidAmount), map.get(key(priorYear)) || { period: '', paidAmount: 0, orderCount: 0 }) })
+  }
+  return result.reverse()
+}
+const dayRows = computed(() => periodRows(false))
+const monthRows = computed(() => periodRows(true))
 
 async function load() {
   loading.value = true
   try {
-    overview.value = (await getDashboardOverviewAPI()).data
+    const [summary, periods] = await Promise.all([getDashboardOverviewAPI(), getFundTrendAPI()])
+    overview.value = summary.data
+    trend.value = periods.data
   } catch {
     ElMessage.error('资金分析加载失败')
   } finally {
@@ -58,7 +60,7 @@ function money(value: unknown) {
       <div>
         <small>财务中心</small>
         <h1>资金分析</h1>
-        <p>按日、按月统计已支付金额与订单数，并给出环比，数据表形式呈现。</p>
+        <p>按日、按月统计已支付金额与订单数，显示环比、同比。当前日/月为截至今日数据，比较时请注意期间未结束。</p>
       </div>
       <el-button @click="load">刷新</el-button>
     </header>
@@ -83,7 +85,7 @@ function money(value: unknown) {
           <el-table-column prop="day" label="日期" min-width="150" />
           <el-table-column prop="orderCount" label="已支付订单数" width="140" />
           <el-table-column label="已支付金额" width="160"><template #default="{ row }">{{ money(row.paidAmount) }}</template></el-table-column>
-          <el-table-column prop="chainRatio" label="环比（较前一日）" width="180" />
+          <el-table-column prop="chainRatio" label="日环比" width="140" /><el-table-column prop="yearRatio" label="日同比" width="140" />
         </el-table>
       </template>
       <template v-else>
@@ -91,9 +93,10 @@ function money(value: unknown) {
           <el-table-column prop="month" label="月份" min-width="150" />
           <el-table-column prop="orderCount" label="已支付订单数" width="140" />
           <el-table-column label="已支付金额" width="160"><template #default="{ row }">{{ money(row.paidAmount) }}</template></el-table-column>
+          <el-table-column prop="chainRatio" label="月环比" width="140" /><el-table-column prop="yearRatio" label="月同比" width="140" />
         </el-table>
         <el-alert
-          title="按月口径基于当前已支付流水累计；历史月份数据随业务运行逐步累积。"
+          title="月统计查询完整月份；当前月为截至今日支付总额。此表为支付金额口径，退款净额见上方指标。"
           type="info"
           :closable="false"
           class="note"

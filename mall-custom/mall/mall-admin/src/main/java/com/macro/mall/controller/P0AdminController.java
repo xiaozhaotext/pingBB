@@ -38,16 +38,16 @@ public class P0AdminController {
             @RequestParam(defaultValue = "20") int size) {
         access.requireAuthorized(principal);
         int limit = Math.min(Math.max(size, 1), 100);
-        int offset = (Math.max(page, 1) - 1) * limit;
+        long offset = (Math.max(page, 1) - 1L) * limit;
         String like = "%" + keyword.trim() + "%";
         return CommonResult.success(jdbc.queryForList(
-                "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time," +
+                "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
                 "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
                 "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS member_balance," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=1),0) AS product_points," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=2),0) AS rebuy_points " +
-                "FROM ums_member m LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
+                "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
                 "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
                 "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset));
@@ -91,7 +91,7 @@ public class P0AdminController {
             return CommonResult.validateFailed("专区标识仅支持 PICK 或 REBUY");
         }
         int limit = Math.min(Math.max(size, 1), 100);
-        int offset = (Math.max(page, 1) - 1) * limit;
+        long offset = (Math.max(page, 1) - 1L) * limit;
         if (zoneCode.isEmpty()) {
             return CommonResult.success(jdbc.queryForList(
                     "SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,"
@@ -534,6 +534,15 @@ public class P0AdminController {
             if (value.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "设置内容不能为空");
             return;
         }
+        if (key.equals("membership.partner.product_id") || key.equals("membership.cofounder.product_id")) {
+            if (value.isEmpty()) return;
+            if (!value.matches("[1-9][0-9]{0,17}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请填写有效旅游商品ID，或留空取消关联");
+            Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.id=? AND p.delete_status=0 AND p.publish_status=1 AND z.zone_code='PICK'",Integer.class,Long.valueOf(value));
+            if (count == null || count != 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请先选择已上架的自选区旅游商品");
+            Integer other = jdbc.queryForObject("SELECT COUNT(*) FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_key<>? AND config_value=?",Integer.class,key,value);
+            if (other != null && other > 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"同一旅游商品不可关联两个权益方案");
+            return;
+        }
         boolean priceOrCap = key.equals("membership.partner.price")
                 || key.equals("membership.cofounder.price")
                 || key.equals("membership.referral.partner.cash_cap")
@@ -630,7 +639,7 @@ public class P0AdminController {
             @RequestParam(defaultValue = "20") int size) {
         access.requireAuthorized(principal);
         int limit = Math.min(Math.max(size, 1), 100);
-        int offset = (Math.max(page, 1) - 1) * limit;
+        long offset = (Math.max(page, 1) - 1L) * limit;
         String like = "%" + keyword.trim() + "%";
         List<Map<String, Object>> list = jdbc.queryForList(
                 "SELECT l.id,l.admin_id,COALESCE(a.username,'') AS username,l.ip,l.address,l.user_agent,l.create_time "

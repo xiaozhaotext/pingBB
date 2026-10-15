@@ -114,17 +114,29 @@ public class EarningsServiceImpl implements EarningsService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<UmsWithdrawApply> applyWithdraw(Long memberId, BigDecimal amount, String idempotencyKey) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return CommonResult.failed("提现金额必须大于0");
+        if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2 || amount.precision() - amount.scale() > 10) {
+            return CommonResult.validateFailed("提现金额必须大于0，最多两位小数且不得超出金额范围");
+        }
+        if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9:_-]{8,64}")) {
+            return CommonResult.validateFailed("请提供有效的提现请求编号");
+        }
+        // Serialize requests for this member across application instances, including account initialization.
+        List<Long> locked = jdbc.query("SELECT id FROM ums_member WHERE id=? FOR UPDATE",
+                (rs, n) -> rs.getLong(1), memberId);
+        if (locked.isEmpty()) return CommonResult.validateFailed("会员不存在");
+        UmsWithdrawApply existing = withdrawMapper.selectByRequest(memberId, idempotencyKey);
+        if (existing != null) {
+            return existing.getAmount().compareTo(amount) == 0 ? CommonResult.success(existing)
+                    : CommonResult.validateFailed("同一请求编号不可更改提现金额");
         }
         BigDecimal minAmount = minWithdrawAmount();
         if (minAmount.signum() > 0 && amount.compareTo(minAmount) < 0) {
-            return CommonResult.failed("单笔提现金额不得低于 " + minAmount.stripTrailingZeros().toPlainString() + " 元");
+            return CommonResult.validateFailed("单笔提现金额不得低于 " + minAmount.stripTrailingZeros().toPlainString() + " 元");
         }
         for (int attempt = 0; attempt < 5; attempt++) {
             UmsEarnings e = getOrInit(memberId);
             if (e.getAvailableEarnings().compareTo(amount) < 0) {
-                return CommonResult.failed("可提现余额不足");
+                return CommonResult.validateFailed("可提现余额不足");
             }
             e.setAvailableEarnings(e.getAvailableEarnings().subtract(amount));
             e.setFrozenEarnings(e.getFrozenEarnings().add(amount));
@@ -135,6 +147,7 @@ public class EarningsServiceImpl implements EarningsService {
                 BigDecimal actual = amount.subtract(fee).setScale(2, RoundingMode.HALF_UP);
                 UmsWithdrawApply a = new UmsWithdrawApply();
                 a.setMemberId(memberId);
+                a.setIdempotencyKey(idempotencyKey);
                 a.setAmount(amount);
                 a.setFeeRate(rate);
                 a.setFeeAmount(fee);
@@ -147,7 +160,7 @@ public class EarningsServiceImpl implements EarningsService {
                 return CommonResult.success(withdrawMapper.selectById(a.getId()));
             }
         }
-        return CommonResult.failed("并发更新冲突，请重试");
+        return CommonResult.validateFailed("并发更新冲突，请重试");
     }
 
     @Override

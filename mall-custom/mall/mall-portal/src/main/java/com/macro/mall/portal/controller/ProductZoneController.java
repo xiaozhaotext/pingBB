@@ -28,7 +28,7 @@ public class ProductZoneController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "latest") String sort) {
-        if (!"PICK".equals(zone) && !"REBUY".equals(zone)) {
+        if (!"PICK".equals(zone) && !"REBUY".equals(zone) && !"CONSUME".equals(zone)) {
             throw new ApiException("未知商品专区：" + zone);
         }
         if (keyword != null && keyword.length() > 80) {

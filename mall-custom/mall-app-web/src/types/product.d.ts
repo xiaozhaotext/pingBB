@@ -212,6 +212,7 @@ export type PmsProductLadder = {
 
 /** 商品详情响应结果 - 对应后端 PmsPortalProductDetail Schema */
 export type PmsPortalProductDetail = {
+  membershipOffer?: 'PARTNER' | 'COFOUNDER'
   /** 商品信息 */
   product: PmsProduct
   /** 品牌信息 */

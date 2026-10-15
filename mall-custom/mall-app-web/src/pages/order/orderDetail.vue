@@ -92,7 +92,7 @@
         v-if="order.status === 1 || order.status === 2 || order.status === 3"
       >
         <text class="cell-tit clamp">实付金额</text>
-        <text class="cell-tip">￥{{ order.payAmount }}</text>
+        <text class="cell-tip">￥{{ formatOrderMoney(order.payAmount) }}</text>
       </view>
       <view
         class="yt-list-cell b-b"
@@ -110,7 +110,7 @@
         <button class="action-btn recom" @click="handlePayOrder(order.id)">立即付款</button>
       </view>
       <view class="action-box b-t" v-if="order.status === 2">
-        <button class="action-btn">查看物流</button>
+        <button class="action-btn" @click="showOrderLogistics(order)">查看物流</button>
         <button class="action-btn recom" @click="handleReceiveOrder(order.id)">确认收货</button>
       </view>
       <view class="action-box b-t" v-if="order.status === 3">
@@ -120,7 +120,7 @@
       <view class="price-content" v-if="order.status === 0">
         <text>应付金额</text>
         <text class="price-tip">￥</text>
-        <text class="price">{{ order.payAmount }}</text>
+        <text class="price">{{ formatOrderMoney(order.payAmount) }}</text>
       </view>
     </view>
   </view>
@@ -128,6 +128,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
 import { onLoad } from '@dcloudio/uni-app'
 import { formatDate } from '@/utils/date'
 import { getOrderDetailAPI, cancelUserOrderAPI, confirmReceiveOrderAPI } from '@/apis/order'

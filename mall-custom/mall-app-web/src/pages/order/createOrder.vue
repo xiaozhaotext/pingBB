@@ -66,7 +66,7 @@
           />
           <text class="cell-tip">抵扣 ￥{{ calcIntegrationAmount(useIntegration) }}</text>
         </view>
-        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
+        <view class="yt-list-cell b-b" v-if="!consumeOnly" @click="selectPayMethod('cash')">
           <view class="cell-icon">￥</view>
           <text class="cell-tit clamp">现金支付<text class="cell-sub">（微信/支付宝）</text></text>
           <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
@@ -74,7 +74,7 @@
       </view>
       <!-- 复购区：全现金 vs 30%积分+70%现金 -->
       <view v-else>
-        <view class="yt-list-cell b-b" @click="selectPayMethod('cash')">
+        <view class="yt-list-cell b-b" v-if="!consumeOnly" @click="selectPayMethod('cash')">
           <view class="cell-icon">￥</view>
           <text class="cell-tit clamp">全现金支付<text class="cell-sub">（微信/支付宝）</text></text>
           <text class="cell-tip">{{ payMethod === 'cash' ? '✓' : '' }}</text>
@@ -228,6 +228,7 @@ const useIntegration = ref(0)
 // 是否使用复购积分（仅复购区商品）
 const useRepurchasePoints = ref(false)
 // 支付方式：cash=现金，product_points=产品积分，rebuy_mixed=30%复购积分+70%现金
+const consumeOnly = ref(false)
 const payMethod = ref<'cash' | 'product_points' | 'rebuy_mixed'>('cash')
 // 复购区30%所需积分（按当前应付金额计算）
 const rebuyRequiredPoints = computed(() => {
@@ -236,6 +237,7 @@ const rebuyRequiredPoints = computed(() => {
 })
 // 选择支付方式
 const selectPayMethod = (method: 'cash' | 'product_points' | 'rebuy_mixed') => {
+  if (consumeOnly.value && method !== 'product_points') { uni.showToast({ title: '消费区仅支持商品积分', icon: 'none' }); return }
   payMethod.value = method
   if (method === 'product_points') {
     // 产品积分支付：默认用满可用积分（不超过应付）
@@ -304,6 +306,8 @@ const loadData = async () => {
     repurchasePointsBalance.value = data.repurchasePointsBalance
     rebuyPointsRatio.value = data.rebuyPointsRatio
     hasRebuyGoods.value = data.rebuyEligible
+    consumeOnly.value = !!data.consumeOnly
+    if (consumeOnly.value) selectPayMethod('product_points')
     calcPayAmount()
   } catch (e) {
     console.error('加载确认单失败', e)
@@ -376,6 +380,11 @@ const handleSubmit = async () => {
   try {
     const res = await generateOrderAPI(orderParam, orderRequestKey)
     const orderId = res.data.order.id
+    if (res.data.order.status === 1) {
+      uni.showToast({ title: '积分兑换成功', icon: 'success' })
+      uni.redirectTo({ url: '/pages/order/order?state=1' })
+      return
+    }
     uni.showModal({
       title: '提示',
       content: '订单创建成功，是否要立即支付？',

@@ -58,15 +58,15 @@
             <view class="price-box">
               共
               <text class="num">{{ calcTotalQuantity(item) }}</text>
-              件商品 实付款
-              <text class="price">{{ item.payAmount }}</text>
+              件商品 {{ item.paymentTime ? '实付款' : (item.status === 0 ? '应付款' : '订单金额') }}
+              <text class="price">{{ formatOrderMoney(item.payAmount) }}</text>
             </view>
             <view v-if="item.status === 0" class="action-box b-t">
               <button class="action-btn" @click="handleCancelOrder(item.id)">取消订单</button>
               <button class="action-btn recom" @click="handlePayOrder(item.id)">立即付款</button>
             </view>
             <view v-if="item.status === 2" class="action-box b-t">
-              <button class="action-btn">查看物流</button>
+              <button class="action-btn" @click="showOrderLogistics(item)">查看物流</button>
               <button class="action-btn recom" @click="handleReceiveOrder(item.id)">
                 确认收货
               </button>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'

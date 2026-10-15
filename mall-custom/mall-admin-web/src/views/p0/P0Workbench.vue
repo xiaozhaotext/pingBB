@@ -24,6 +24,8 @@ const sectionKey = computed(() => {
 const section = computed(() => sections[sectionKey.value])
 const loading = ref(false)
 const data = ref<Record<string, unknown>>({})
+const poolStats = computed(() => data.value.poolStats as Record<string, unknown> | undefined)
+const poolTodayIn = computed(() => data.value.poolTodayIn as Record<string, unknown> | undefined)
 const memberKeyword = ref('')
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
@@ -36,9 +38,28 @@ const identityReason = ref('')
 const referrerId = ref<number | null>(null)
 const referrerReason = ref('')
 const pointsForm = ref({ memberId: 0, pointsType: 1, delta: 0, reason: '', idempotencyKey: '' })
+const benefitTypeLabel = (type: unknown) => type === 'TRAVEL' ? '一次旅游权益' : '每月200元奖励'
+const benefitStatusLabel = (status: unknown) => (({ PENDING: '待人工审核', APPROVED: '已审核入账', REDEEMED: '已核销', REJECTED: '已拒绝' } as Record<string, string>)[String(status)] || String(status))
+const money = (value: unknown) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
+const benefitRows = ref<P0Row[]>([])
+const benefitForm = ref({ memberId: 0, type: 'MONTHLY_REWARD', period: new Date().toISOString().slice(0, 7), reason: '' })
+async function loadBenefits() { benefitRows.value = (await getP0<P0Row[]>('benefits')).data }
+async function requestBenefit() {
+  await postP0('benefits', benefitForm.value)
+  ElMessage.success('已提交，等待人工审核或核销')
+  await loadBenefits()
+}
+async function reviewBenefit(id: number, approve: boolean) {
+  const { value } = await ElMessageBox.prompt('填写审核依据或旅游核销凭据（至少5字）', approve ? '通过审核 / 确认核销' : '拒绝申请', { inputValidator: (v: string) => v.trim().length >= 5 || '至少填写5字' })
+  await postP0(`benefits/${id}/review`, { approve, note: value })
+  ElMessage.success('已处理并记录审核信息')
+  await loadBenefits()
+}
 const settingForm = ref({ key: 'site.title', value: '' })
 const settingOptions = [
   { key: 'site.title', label: '站点标题' }, { key: 'site.notice', label: '站点公告' },
+  { key: 'membership.partner.product_id', label: '合伙人旅游商品ID（留空取消）' },
+  { key: 'membership.cofounder.product_id', label: '联创旅游商品ID（留空取消）' },
   { key: 'membership.partner.price', label: '合伙人价格（元）' },
   { key: 'membership.partner.product_points', label: '合伙人赠送产品积分' },
   { key: 'membership.partner.repurchase_points', label: '合伙人赠送复购积分' },
@@ -68,8 +89,9 @@ const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings
   ? settingOptions.filter(option => option.key.startsWith('sms.'))
   : settingOptions)
 const labels: Record<string, string> = {
+  wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
-  real_name: '真实姓名', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
+  real_name: '真实姓名（本人填写）', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
   identity_type: '身份', inviter_id: '推荐人', member_balance: '会员余额', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
@@ -86,6 +108,7 @@ async function load() {
     const params = sectionKey.value === 'p0Members' ? { keyword: memberKeyword.value } : undefined
     const response = await getP0(section.value.path, params)
     const value = response.data
+    if (['p0Partner', 'p0Cofounder', 'p0Finance'].includes(sectionKey.value)) await loadBenefits()
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
     if (sectionKey.value === 'p0Settings' || sectionKey.value === 'p0SmsSettings') {
       if (sectionKey.value === 'p0SmsSettings' && !settingForm.value.key.startsWith('sms.')) settingForm.value.key = 'sms.provider'
@@ -209,7 +232,7 @@ async function completeSimulatedWithdraw(id: number) {
   await load()
 }
 async function updateSetting() {
-  if (!settingForm.value.value.trim() && settingForm.value.key !== 'membership.referral.partner.cash_cap') return ElMessage.warning('请输入设置内容')
+  if (!settingForm.value.value.trim() && !['membership.referral.partner.cash_cap', 'membership.partner.product_id', 'membership.cofounder.product_id'].includes(settingForm.value.key)) return ElMessage.warning('请输入设置内容')
   await postP0('settings', settingForm.value)
   ElMessage.success('配置已保存并记录审计')
   await load()
@@ -217,7 +240,7 @@ async function updateSetting() {
 const groupTitles: Record<string, string> = {
   members: '会员列表', config: '权益方案', orders: '模拟购买记录', identities: '当前身份',
   accounts: '账户余额', ledger: '流水记录', adjustments: '积分调整审核', withdraws: '提现申请',
-  contributions: '贡献事件', snapshots: '模拟分配历史', exceptions: '异常记录',
+  dailyDetails: '每日分红明细', contributions: '贡献事件', snapshots: '模拟分配历史', exceptions: '异常记录',
   configs: '系统参数', audit: '操作日志',
 }
 </script>
@@ -267,6 +290,31 @@ const groupTitles: Record<string, string> = {
       <el-text v-if="isMaskedSettingValue" type="warning" size="small">敏感信息已脱敏显示；如需修改请直接输入新值后保存，不修改请勿提交。</el-text>
     </el-card>
 
+    <el-card v-if="poolStats" class="stat-card" shadow="never">
+      <template #header><strong>分红池</strong></template>
+      <div class="stat-grid">
+        <div class="stat"><span>当前余额（元）</span><strong>{{ money(poolStats.pool_balance) }}</strong></div>
+        <div class="stat"><span>累计注入（元）</span><strong>{{ money(poolStats.total_in) }}</strong></div>
+        <div class="stat"><span>累计发放（元）</span><strong>{{ money(poolStats.total_out) }}</strong></div>
+        <div class="stat"><span>今日注入（元）</span><strong>{{ money(poolTodayIn?.today_in ?? 0) }}</strong></div>
+      </div>
+    </el-card>
+
+    <el-card v-if="['p0Partner', 'p0Cofounder', 'p0Finance'].includes(sectionKey)" shadow="never" class="action-card">
+      <template #header><strong>人工权益审核与旅游核销</strong></template>
+      <p>月奖励审核通过后计入可提现收益，未直接打款。旅游核销需填写实际服务凭据。</p>
+      <el-input-number v-model="benefitForm.memberId" :min="1" placeholder="会员ID" />
+      <el-select v-model="benefitForm.type" style="width:180px"><el-option label="联创每月200元奖励" value="MONTHLY_REWARD"/><el-option label="一次旅游权益核销" value="TRAVEL"/></el-select>
+      <el-input v-if="benefitForm.type === 'MONTHLY_REWARD'" v-model="benefitForm.period" placeholder="YYYY-MM" />
+      <el-input v-model="benefitForm.reason" placeholder="申请依据（至少5字）" />
+      <el-button @click="requestBenefit">提交待审核</el-button>
+      <el-table :data="benefitRows" max-height="400">
+        <el-table-column prop="member_id" label="会员ID"/><el-table-column label="权益类型"><template #default="{row}">{{ benefitTypeLabel(row.benefit_type) }}</template></el-table-column><el-table-column label="所属月份/次数"><template #default="{row}">{{ row.benefit_period === 'ONCE' ? '一次' : row.benefit_period }}</template></el-table-column>
+        <el-table-column label="金额（元）"><template #default="{row}">{{ money(row.amount) }}</template></el-table-column><el-table-column label="状态"><template #default="{row}">{{ benefitStatusLabel(row.status) }}</template></el-table-column><el-table-column prop="request_reason" label="申请依据"/><el-table-column prop="review_note" label="审核/核销凭据"/>
+        <el-table-column label="操作"><template #default="{ row }"><template v-if="row.status === 'PENDING'"><el-button link @click="reviewBenefit(Number(row.id), true)">通过/核销</el-button><el-button link type="danger" @click="reviewBenefit(Number(row.id), false)">拒绝</el-button></template></template></el-table-column>
+      </el-table>
+    </el-card>
+
     <section v-for="(value, key) in data" :key="key" class="data-section">
       <el-card v-if="Array.isArray(value)" shadow="never">
         <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ rows(value).length }})</small></strong></template>
@@ -300,7 +348,7 @@ const groupTitles: Record<string, string> = {
               <el-radio-button :value="''">全部</el-radio-button>
               <el-radio-button :value="'PICK'">自选区</el-radio-button>
               <el-radio-button :value="'REBUY'">复购区</el-radio-button>
-            </el-radio-group><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column prop="status" label="状态"/><el-table-column prop="pay_amount" label="金额"/></el-table>
+            </el-radio-group><el-table :data="rows(memberDetail.orders)" max-height="300"><el-table-column prop="order_sn" label="订单号"/><el-table-column prop="product_zones" label="专区"/><el-table-column label="状态"><template #default="{row}">{{ benefitStatusLabel(row.status) }}</template></el-table-column><el-table-column prop="pay_amount" label="金额"/></el-table>
             <h3>消费统计（已支付毛额，未扣退款）</h3><el-table :data="rows(memberDetail.consumption)"><el-table-column prop="order_count" label="订单数"/><el-table-column prop="paid_amount" label="已支付金额"/></el-table>
             <h3>推荐关系</h3><p>推荐人：{{ display(rows(memberDetail.inviter)[0]?.inviter_name) }}</p><p>直接邀请：{{ rows(memberDetail.invitees).length }} 人</p>
             <el-input-number v-model="referrerId" :min="1" placeholder="新推荐人 ID" style="width:100%;margin-bottom:12px" />

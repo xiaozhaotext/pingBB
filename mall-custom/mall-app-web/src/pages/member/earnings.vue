@@ -28,7 +28,7 @@
     <view class="card">
       <text class="title">申请提现</text>
       <input class="input" v-model="withdrawAmount" placeholder="输入提现金额" type="digit" />
-      <button class="btn-primary" @click="handleWithdraw">申请提现</button>
+      <button class="btn-primary" :disabled="withdrawing" @click="handleWithdraw">申请提现</button>
     </view>
 
     <view class="card">
@@ -46,16 +46,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI } from '@/apis/member'
+import { getMemberInfoAPI, getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI } from '@/apis/member'
 
 const account = ref<any>(null)
 const withdraws = ref<any[]>([])
 const ledger = ref<any[]>([])
 const withdrawAmount = ref('')
 const loadError = ref('')
+const withdrawing = ref(false)
+let withdrawalStorageKey = ''
 
 const loadData = async () => {
   loadError.value = ''
+  try {
+    const member = await getMemberInfoAPI()
+    withdrawalStorageKey = 'withdraw-request-' + member.data.id
+    const pending = uni.getStorageSync(withdrawalStorageKey)
+    if (pending?.amount) withdrawAmount.value = pending.amount
+  } catch { /* Account requests below provide the visible login error. */ }
   try { const r = await getEarningsAccountAPI(); account.value = r.data }
   catch (e) { account.value = null; loadError.value = '收益账户加载失败，请登录后重试。' }
   try { const r = await getWithdrawListAPI(); withdraws.value = r.data || [] }
@@ -65,12 +73,32 @@ const loadData = async () => {
 }
 
 const handleWithdraw = async () => {
-  if (!withdrawAmount.value) return
+  if (withdrawing.value) return
+  const input = withdrawAmount.value.trim()
+  if (!/^\d{1,10}(\.\d{1,2})?$/.test(input) || Number(input) <= 0) {
+    uni.showToast({ title: '请输入大于0且最多两位小数的金额', icon: 'none' }); return
+  }
+  withdrawing.value = true
   try {
-    await applyWithdrawAPI({ amount: withdrawAmount.value, idempotencyKey: 'W' + Date.now() + '_' + Math.floor(Math.random() * 1000) })
+    const member = await getMemberInfoAPI()
+    withdrawalStorageKey = 'withdraw-request-' + member.data.id
+    let pending = uni.getStorageSync(withdrawalStorageKey)
+    if (pending && Number(pending.amount) !== Number(input)) {
+      uni.showToast({ title: '上一请求结果待确认，请按原金额重试', icon: 'none' }); return
+    }
+    if (!pending) {
+      pending = { amount: input, idempotencyKey: 'W' + Date.now() + '_' + Math.random().toString(36).slice(2, 14) }
+      uni.setStorageSync(withdrawalStorageKey, pending)
+    }
+    await applyWithdrawAPI(pending)
+    uni.removeStorageSync(withdrawalStorageKey)
+    withdrawAmount.value = ''
     uni.showToast({ title: '已提交提现申请', icon: 'success' })
-    loadData()
-  } catch (e) {}
+    await loadData()
+  } catch (e: any) {
+    // An HTTP/network timeout may have happened after commit: retain the same request key.
+    if (e?.data?.code === 404 && withdrawalStorageKey) uni.removeStorageSync(withdrawalStorageKey)
+  } finally { withdrawing.value = false }
 }
 
 const statusText = (s: number) => {
@@ -80,6 +108,7 @@ const statusText = (s: number) => {
 const typeText = (t: string) => {
   const map: Record<string, string> = {
     referral_reward: '直推奖励',
+    monthly_reward: '人工审核月奖励',
     dividend: '每日分红',
     share_bonus: '分享下单奖励',
     simulate_reward: '后台发放',

@@ -48,3 +48,6 @@ export interface DashboardOverview {
 export function getDashboardOverviewAPI() {
   return http<DashboardOverview>({ url: '/dashboard/overview', method: 'get' })
 }
+
+export interface FundPeriod { period: string; orderCount: number; paidAmount: number }
+export const getFundTrendAPI = () => http<{ days: FundPeriod[]; months: FundPeriod[] }>({ url: '/dashboard/fund-trend', method: 'get' })

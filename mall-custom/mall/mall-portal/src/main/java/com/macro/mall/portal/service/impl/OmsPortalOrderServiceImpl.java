@@ -110,6 +110,9 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                     Integer.class, item.getProductId());
             return count != null && count > 0;
         }));
+        boolean consumeOnly = consumptionCart(cartPromotionItemList.stream().map(CartPromotionItem::getProductId).collect(java.util.stream.Collectors.toList()));
+        result.setConsumeOnly(consumeOnly);
+        if (consumeOnly) result.setProductPointMaxRatio(BigDecimal.ONE);
         //获取积分使用规则
         UmsIntegrationConsumeSetting integrationConsumeSetting = integrationConsumeSettingMapper.selectByPrimaryKey(1L);
         result.setIntegrationConsumeSetting(integrationConsumeSetting);
@@ -201,6 +204,15 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
             //对下单商品的优惠券进行处理
             handleCouponAmount(orderItemList, couponHistoryDetail);
+        }
+        boolean consumeOnly = consumptionCart(orderItemList.stream().map(OmsOrderItem::getProductId).collect(java.util.stream.Collectors.toList()));
+        if (consumeOnly) {
+            if (orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) Asserts.fail("消费区仅可使用商品积分");
+            BigDecimal net = calcTotalAmount(orderItemList).subtract(calcPromotionAmount(orderItemList)).subtract(calcCouponAmount(orderItemList));
+            int required;
+            try { required = net.divide(productPointYuanPerPoint()).intValueExact(); }
+            catch (ArithmeticException ex) { throw new com.macro.mall.common.exception.ApiException("消费区金额无法按当前积分兑换比例精确兑换，请联系商家"); }
+            if (required <= 0 || orderParam.getUseIntegration() == null || orderParam.getUseIntegration() != required) Asserts.fail("消费区必须使用100%商品积分兑换");
         }
         if (orderParam.getUseIntegration() != null && orderParam.getUseIntegration() > 0
                 && orderParam.getUseRepurchasePoints() != null && orderParam.getUseRepurchasePoints() > 0) {
@@ -311,8 +323,14 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         //如使用积分需要扣除积分
         //删除购物车中的下单商品
         deleteCartItemList(cartPromotionItemList, currentMember);
-        //发送延迟消息取消订单
-        sendDelayMessageCancelOrder(order.getId());
+        if (consumeOnly) {
+            if (order.getPayAmount().signum() != 0) Asserts.fail("消费区订单不可存在现金应付金额");
+            // Points were already debited in this transaction. Complete fulfillment without an external payment request.
+            paySuccess(order.getId(), 3);
+            order = orderMapper.selectByPrimaryKey(order.getId());
+        } else {
+            sendDelayMessageCancelOrder(order.getId());
+        }
         Map<String, Object> result = new HashMap<>();
         result.put("order", order);
         result.put("orderItemList", orderItemList);
@@ -719,6 +737,20 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         return fallback;
     }
 
+    private boolean consumptionCart(List<Long> productIds) {
+        for (Long id : productIds) {
+            Integer offer = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_value=?", Integer.class, id.toString());
+            if (offer != null && offer > 0) Asserts.fail("旅游权益商品请通过商品详情的权益购买入口下单，以确保双积分和会员权益正确发放");
+        }
+        int consume = 0;
+        for (Long id : productIds) {
+            Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pms_product_zone WHERE product_id=? AND zone_code='CONSUME'", Integer.class, id);
+            if (count != null && count > 0) consume++;
+        }
+        if (consume > 0 && consume != productIds.size()) Asserts.fail("消费区商品请单独结算");
+        return consume > 0;
+    }
+
     private BigDecimal productPointYuanPerPoint() {
         return configuredPointDecimal("product.points.yuan_per_point", BigDecimal.ONE, false);
     }
@@ -737,7 +769,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         if (amount.scale() > 2) Asserts.fail("产品积分换算金额最多支持两位小数");
         BigDecimal netAmount = calcTotalAmount(items)
                 .subtract(calcPromotionAmount(items)).subtract(calcCouponAmount(items));
-        if (netAmount.signum() <= 0 || amount.compareTo(netAmount.multiply(productPointMaxRatio())) > 0) {
+        if (netAmount.signum() <= 0 || amount.compareTo(netAmount.multiply(consumptionCart(items.stream().map(OmsOrderItem::getProductId).collect(java.util.stream.Collectors.toList())) ? BigDecimal.ONE : productPointMaxRatio())) > 0) {
             Asserts.fail("产品积分最多抵扣当前应付商品金额");
         }
         return amount.setScale(2, RoundingMode.UNNECESSARY);

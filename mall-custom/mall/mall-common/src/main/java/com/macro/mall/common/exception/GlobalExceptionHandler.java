@@ -59,10 +59,13 @@ public class GlobalExceptionHandler {
     @ResponseBody
     @ExceptionHandler(value = SQLSyntaxErrorException.class)
     public CommonResult handleSQLSyntaxErrorException(SQLSyntaxErrorException e) {
-        String message = e.getMessage();
-        if (StrUtil.isNotEmpty(message) && message.contains("denied")) {
-            message = "演示环境暂无修改权限，如需修改数据可本地搭建后台服务！";
-        }
-        return CommonResult.failed(message);
+        return CommonResult.failed("数据处理失败，请联系管理员");
+    }
+
+    @ResponseBody
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public CommonResult handleDatabaseException(org.springframework.dao.DataAccessException e) {
+        org.slf4j.LoggerFactory.getLogger(getClass()).error("Database operation failed", e);
+        return CommonResult.failed("数据处理失败，请联系管理员");
     }
 }

@@ -42,12 +42,13 @@ public class SecurityConfig {
         httpSecurity.authorizeHttpRequests(registry -> {
             //错误分发（/error）放行：否则异常转发到 /error 后会被再次认证，把真实错误覆盖成 401
             registry.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
+            registry.requestMatchers(HttpMethod.OPTIONS).permitAll();
+            // Private product actions stay authenticated even if a deployment retains the legacy /product/** whitelist.
+            registry.requestMatchers("/product/comment/pending", "/product/comment/create").authenticated();
             //不需要保护的资源路径允许访问
             for (String url : ignoreUrlsConfig.getUrls()) {
                 registry.requestMatchers(url).permitAll();
             }
-            //允许跨域请求的OPTIONS请求
-            registry.requestMatchers(HttpMethod.OPTIONS).permitAll();
             //任何请求需要身份认证
         })
         //任何请求需要身份认证

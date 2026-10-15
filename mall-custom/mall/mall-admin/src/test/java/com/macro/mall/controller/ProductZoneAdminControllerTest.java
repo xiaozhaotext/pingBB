@@ -22,9 +22,9 @@ class ProductZoneAdminControllerTest {
         assertThrows(ResponseStatusException.class,()->controller.assign(principal,"REBUY",new ProductZoneAdminController.Assignment(7L,0)));
         verifyNoInteractions(jdbc);
     }
-    @Test void consumptionZoneCannotAcceptProducts() {
+    @Test void unknownZoneCannotAcceptProducts() {
         when(access.requireAuthorized(principal)).thenReturn(3L);
-        ResponseStatusException e=assertThrows(ResponseStatusException.class,()->controller.assign(principal,"CONSUME",new ProductZoneAdminController.Assignment(7L,0)));
+        ResponseStatusException e=assertThrows(ResponseStatusException.class,()->controller.assign(principal,"UNKNOWN",new ProductZoneAdminController.Assignment(7L,0)));
         assertEquals(HttpStatus.BAD_REQUEST,e.getStatusCode());
         verifyNoInteractions(jdbc);
     }

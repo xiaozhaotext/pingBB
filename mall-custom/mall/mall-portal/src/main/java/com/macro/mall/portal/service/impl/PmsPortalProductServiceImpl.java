@@ -94,10 +94,13 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         PmsPortalProductDetail result = new PmsPortalProductDetail();
         //获取商品信息
         PmsProduct product = productMapper.selectByPrimaryKey(id);
-        if (product == null || !Integer.valueOf(0).equals(product.getDeleteStatus())) {
+        if (product == null || !Integer.valueOf(0).equals(product.getDeleteStatus()) || !Integer.valueOf(1).equals(product.getPublishStatus())) {
             return null;
         }
         result.setProduct(product);
+        List<String> offers = jdbcTemplate.queryForList("SELECT config_key FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_value=?", String.class, id.toString());
+        if (offers.size() > 1) throw new com.macro.mall.common.exception.ApiException("该旅游商品权益配置冲突，请联系商家");
+        if (offers.size() == 1) result.setMembershipOffer(offers.get(0).contains("cofounder") ? "COFOUNDER" : "PARTNER");
         //获取品牌信息（品牌被后台关闭显示后前台不再展示）
         PmsBrand brand = product.getBrandId() == null ? null : brandMapper.selectByPrimaryKey(product.getBrandId());
         if (brand != null && !Integer.valueOf(1).equals(brand.getShowStatus())) {

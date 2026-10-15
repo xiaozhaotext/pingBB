@@ -14,6 +14,7 @@ import java.util.Date;
 public class UmsWithdrawApply implements Serializable {
     private Long id;
     private Long memberId;
+    private String idempotencyKey;
     private BigDecimal amount;       // 申请金额
     private BigDecimal feeRate;      // 手续费率(默认0.6%,待审批)
     private BigDecimal feeAmount;    // 手续费(模拟计算)

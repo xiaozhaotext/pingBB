@@ -79,7 +79,7 @@ public class PmsPortalProductController {
                 "SELECT id,member_nick_name AS memberNickName,member_icon AS memberIcon,star,content,pics,"
                         + "product_attribute AS productAttribute,create_time AS createTime,replay_count AS replayCount "
                         + "FROM pms_comment WHERE product_id=? AND show_status=1 ORDER BY id DESC LIMIT ? OFFSET ?",
-                productId, limit, (page - 1) * limit);
+                productId, limit, (page - 1L) * limit);
         if (!list.isEmpty()) {
             List<Long> ids = new ArrayList<>();
             for (Map<String, Object> row : list) {

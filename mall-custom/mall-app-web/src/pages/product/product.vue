@@ -475,6 +475,7 @@ watch([specClass,attrClass,couponState],([spec,attr,coupon])=>{
 
 
 // 商品数据
+const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
 const brand = ref<PmsBrand>({} as PmsBrand)
 const imgList = ref<string[]>([])
@@ -548,6 +549,7 @@ const loadData = async (id: number) => {
     const res = await getProductDetailAPI(id)
     if (res.data) {
       const data = res.data
+      membershipOffer.value = data.membershipOffer
       product.value = data.product
       skuStockList.value = data.skuStockList
       brand.value = data.brand
@@ -986,6 +988,9 @@ const handleToggleFavorite = async () => {
 
 // 立即购买：加购后直接进入确认订单页
 const handleBuy = async () => {
+  if (membershipOffer.value) {
+    uni.navigateTo({ url: '/pages/member/' + (membershipOffer.value === 'COFOUNDER' ? 'cofounder' : 'partner') }); return
+  }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return
@@ -1104,6 +1109,7 @@ const submitComment = async () => {
 
 // 加入购物车
 const handleAddToCart = async () => {
+  if (membershipOffer.value) { uni.showToast({ title: '旅游权益请点立即购买，查看双积分与会员权益', icon: 'none' }); return }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return

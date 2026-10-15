@@ -112,7 +112,7 @@ public class DividendPoolController {
         Long memberId = memberService.getCurrentMember().getId();
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        int offset = (safePage - 1) * safeSize;
+        long offset = (safePage - 1L) * safeSize;
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT stat_date, shares, dividend_amount, cap_amount, cumulative_received, create_time"
                         + " FROM member_dividend_ledger WHERE member_id=? ORDER BY stat_date DESC LIMIT ? OFFSET ?",

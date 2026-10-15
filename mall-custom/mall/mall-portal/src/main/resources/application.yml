@@ -88,7 +88,11 @@ secure:
       - /druid/**
       - /sso/**
       - /home/**
-      - /product/**
+      - /product/search
+      - /product/categoryTreeList
+      - /product/detail/*
+      - /product/comment/list
+      - /product/zone/**
       - /brand/**
       - /alipay/notify
       - /member/recharge/notify/alipay

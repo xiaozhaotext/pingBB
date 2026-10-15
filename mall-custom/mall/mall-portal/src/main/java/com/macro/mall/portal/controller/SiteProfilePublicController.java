@@ -23,6 +23,9 @@ public class SiteProfilePublicController {
     @GetMapping("/privacy")
     public CommonResult<Map<String,Object>> privacy() {
         List<Map<String,Object>> rows=jdbc.queryForList("SELECT published_title AS title,published_content AS content,published_revision AS revision,published_at FROM sys_site_profile WHERE id=1 AND published_revision IS NOT NULL");
-        return rows.isEmpty()?CommonResult.failed("隐私政策尚未发布"):CommonResult.success(rows.get(0));
+        if (rows.isEmpty()) return CommonResult.success(Map.of("published",false,"title","隐私政策尚未发布","content",""));
+        Map<String,Object> result = new java.util.LinkedHashMap<>(rows.get(0));
+        result.put("published",true);
+        return CommonResult.success(result);
     }
 }

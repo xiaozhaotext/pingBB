@@ -6,7 +6,7 @@
         <view><text class="zone-kicker">智美游 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=-1')">我的订单</text></view>
       </view>
-      <view class="zone-tip">本地测试环境：专区仅展示已分配商品。积分与现金组合规则尚未确认，当前不提供专区积分结算。</view>
+      <view class="zone-tip">{{ zone === 'CONSUME' ? '消费区使用100%商品积分兑换；请与其他专区商品分开结算。' : '商品积分与复购积分按确认订单页面所示规则使用。' }}</view>
       <view class="zone-filters">
         <input v-model="keyword" placeholder="搜索专区商品" confirm-type="search" @confirm="load" />
         <text class="zone-search-button" @click="load">搜索</text>
@@ -39,7 +39,7 @@ import { getZoneProductsAPI, type ZoneProduct } from '@/apis/zone'
 import { getCategoryTreeAPI } from '@/apis/product'
 import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import type { CategoryTreeNode } from '@/types/product'
-const props = defineProps<{ zone: 'PICK' | 'REBUY'; title: string; description: string }>()
+const props = defineProps<{ zone: 'PICK' | 'REBUY' | 'CONSUME'; title: string; description: string }>()
 const products = ref<ZoneProduct[]>([])
 const loading = ref(false)
 const error = ref(false)

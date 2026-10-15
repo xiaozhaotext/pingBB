@@ -127,6 +127,7 @@ export type ConfirmOrderResult = {
   productPointMaxRatio: number
   repurchasePointsBalance: number
   rebuyPointsRatio: number
+  consumeOnly: boolean
   rebuyEligible: boolean
 }
 

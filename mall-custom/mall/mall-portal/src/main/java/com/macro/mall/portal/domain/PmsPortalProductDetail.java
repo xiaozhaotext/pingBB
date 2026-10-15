@@ -16,6 +16,7 @@ import java.util.List;
 public class PmsPortalProductDetail{
     @Schema(title = "商品信息")
     private PmsProduct product;
+    private String membershipOffer;
     @Schema(title = "商品品牌")
     private PmsBrand brand;
     @Schema(title = "商品属性与参数")

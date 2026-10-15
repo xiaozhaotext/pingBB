@@ -79,6 +79,18 @@ public class DashboardController {
         return CommonResult.success(result);
     }
 
+    @GetMapping("/fund-trend")
+    public CommonResult<Map<String,Object>> fundTrend() {
+        // Full months and days, including the preceding year; never derive monthly totals from a seven-day chart.
+        List<Map<String,Object>> days = jdbcTemplate.queryForList(
+            "SELECT DATE_FORMAT(payment_time,'%Y-%m-%d') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount FROM oms_order "
+            + "WHERE delete_status=0 AND status IN(1,2,3) AND payment_time>=DATE_SUB(CURDATE(),INTERVAL 400 DAY) AND payment_time<CURDATE()+INTERVAL 1 DAY GROUP BY period ORDER BY period");
+        List<Map<String,Object>> months = jdbcTemplate.queryForList(
+            "SELECT DATE_FORMAT(payment_time,'%Y-%m') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount FROM oms_order "
+            + "WHERE delete_status=0 AND status IN(1,2,3) AND payment_time>=DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL 25 MONTH),'%Y-%m-01') AND payment_time<CURDATE()+INTERVAL 1 DAY GROUP BY period ORDER BY period");
+        return CommonResult.success(Map.of("days",days,"months",months));
+    }
+
     /** 近 USER_TREND_DAYS 日的总用户（累计）、活跃用户、新增用户。 */
     private List<Map<String, Object>> userTrend() {
         Map<String, long[]> byDay = new HashMap<>();

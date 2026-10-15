@@ -46,7 +46,7 @@ public class DividendDistributionService {
         // No config or consumer request can enable cash posting before business/compliance review.
         if (!payoutEnabled || !distributionApproved()) throw new IllegalStateException("每日分红发放未启用");
         BigDecimal poolBalance = jdbc.queryForObject(
-                "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
+                "SELECT pool_balance FROM dividend_pool WHERE id=1 FOR UPDATE", BigDecimal.class);
         if (poolBalance == null || poolBalance.signum() <= 0) return 0;
 
         // All dividend-eligible members: PARTNER=1 share, COFOUNDER=3 shares
@@ -64,10 +64,10 @@ public class DividendDistributionService {
 
         // 每份分红：默认按池余额等比分配；若后台配置了「每日每份分红基数」，
         // 则以该基数为上限（池余额不足时自动缩水到池能支撑的金额）。
-        BigDecimal perShare = poolBalance.divide(new BigDecimal(totalShares), 2, RoundingMode.HALF_UP);
+        BigDecimal perShare = poolBalance.divide(new BigDecimal(totalShares), 2, RoundingMode.DOWN);
         BigDecimal dailyBase = configDecimal("dividend.daily.base", BigDecimal.ZERO);
         if (dailyBase.signum() > 0 && dailyBase.compareTo(perShare) < 0) {
-            perShare = dailyBase.setScale(2, RoundingMode.HALF_UP);
+            perShare = dailyBase.setScale(2, RoundingMode.DOWN);
         }
         if (perShare.signum() <= 0) return 0;
 
@@ -106,7 +106,7 @@ public class DividendDistributionService {
             BigDecimal remaining = cap.subtract(received);
             if (remaining.signum() <= 0) continue;
 
-            BigDecimal amount = perShare.multiply(new BigDecimal(shares)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal amount = perShare.multiply(new BigDecimal(shares)).setScale(2, RoundingMode.DOWN);
             if (amount.compareTo(remaining) > 0) amount = remaining;
             if (amount.signum() <= 0) continue;
 
@@ -117,17 +117,19 @@ public class DividendDistributionService {
                     memberId, statDate, shares, amount, cap, cumulative, statDate.toString());
 
             // 入账到统一收益账本 ums_earnings：消费者端「我的收益/提现」与后台「佣金」读的都是这一套账本
-            earningsCreditService.credit(memberId, amount, "dividend", statDate.toString(),
+            boolean credited = earningsCreditService.credit(memberId, amount, "dividend", statDate.toString(),
                     "dividend:" + memberId + ":" + statDate, "每日分红 " + statDate);
 
+            if (!credited) throw new IllegalStateException("分红账本与收益账本不一致，已回滚");
             totalPaid = totalPaid.add(amount);
             paid++;
         }
 
         // Deduct from pool
         if (totalPaid.signum() > 0) {
-            jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance-?,total_out=total_out+? WHERE id=1",
-                    totalPaid, totalPaid);
+            int changed = jdbc.update("UPDATE dividend_pool SET pool_balance=pool_balance-?,total_out=total_out+? WHERE id=1 AND pool_balance>=?",
+                    totalPaid, totalPaid, totalPaid);
+            if (changed != 1) throw new IllegalStateException("分红池余额不足，已回滚");
             jdbc.update("INSERT INTO dividend_pool_ledger(change_amount,balance_after,source_type,source_id,remark)"
                             + " SELECT ?*-1, pool_balance, 'DAILY_DIVIDEND', NULL, ? FROM dividend_pool WHERE id=1",
                     totalPaid, "每日分红 " + statDate + "，共 " + paid + " 人");
