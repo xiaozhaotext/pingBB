@@ -15,9 +15,14 @@
 
     <view class="card">
       <text class="title">绑定推荐人</text>
-      <input class="input" v-model="bindCode" placeholder="输入邀请码" />
-      <button class="btn-primary" @click="handleBind">绑定</button>
-      <text class="tip" v-if="inviter">当前推荐人：{{ inviter.inviterId || '—' }}</text>
+      <view v-if="bindState === 'bound'" class="bound-note">已绑定推荐人：会员 ID {{ inviter?.inviterId }}。推荐关系只能绑定一次，不能更换。</view>
+      <template v-else-if="bindState === 'unbound'">
+        <input class="input" v-model="bindCode" placeholder="输入邀请码" />
+        <button class="btn-primary" :disabled="binding" :loading="binding" @click="handleBind">{{ binding ? '绑定中…' : '确认绑定' }}</button>
+        <text class="tip">绑定成功后不能修改推荐人。</text>
+      </template>
+      <text v-else-if="bindState === 'loading'" class="tip">正在查询推荐关系…</text>
+      <view v-else><text class="tip">推荐关系加载失败，请重试后再绑定。</text><button class="btn" @click="loadInviter">重试</button></view>
     </view>
 
     <view class="card">
@@ -34,8 +39,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import QRCode from 'qrcode'
 import {
   getMyInviteCodeAPI,
@@ -55,12 +60,29 @@ const inviteeCount = ref(0)
 const bindCode = ref('')
 onLoad((options) => { if (options?.inviteCode) { bindCode.value = String(options.inviteCode); uni.setStorageSync('pendingInviteCode',bindCode.value) } else bindCode.value=uni.getStorageSync('pendingInviteCode')||'' })
 const inviter = ref<any>(null)
+const bindState = ref<'loading' | 'unbound' | 'bound' | 'error'>('loading')
+const binding = ref(false)
 const invitees = ref<any[]>([])
 
+const loadInviter = async () => {
+  bindState.value = 'loading'
+  try {
+    const result = await getMyInviterAPI()
+    inviter.value = result.data || null
+    bindState.value = inviter.value ? 'bound' : 'unbound'
+    if (inviter.value) {
+      bindCode.value = ''
+      uni.removeStorageSync('pendingInviteCode')
+    }
+  } catch {
+    bindState.value = 'error'
+  }
+}
+
 const loadData = async () => {
+  await loadInviter()
   try { const r = await getMyInviteCodeAPI(); myCode.value = r.data || '' } catch (e) {}
   try { const r = await getInvitationDetailAPI(); detail.value = r.data; inviteeCount.value = r.data?.inviteeCount ?? 0; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
-  try { const r = await getMyInviterAPI(); inviter.value = r.data || null } catch (e) {}
   try { const r = await getMyInviteesAPI(); invitees.value = r.data || [] } catch (e) {}
 }
 
@@ -70,16 +92,24 @@ const copyCode = () => {
 }
 
 const handleBind = async () => {
+  if (bindState.value !== 'unbound' || binding.value) return
   if (!bindCode.value) { uni.showToast({ title: '请输入邀请码', icon: 'none' }); return }
+  binding.value = true
   try {
-    await bindInviterAPI({ code: bindCode.value })
+    const result = await bindInviterAPI({ code: bindCode.value.trim().toUpperCase() })
+    inviter.value = result.data
+    bindState.value = 'bound'
+    bindCode.value = ''
     uni.removeStorageSync('pendingInviteCode')
     uni.showToast({ title: '绑定成功', icon: 'success' })
-    loadData()
-  } catch (e) {}
+  } catch (e) {
+    await loadInviter()
+  } finally {
+    binding.value = false
+  }
 }
 
-onMounted(loadData)
+onShow(loadData)
 </script>
 
 <style lang="scss" scoped>
@@ -93,6 +123,7 @@ onMounted(loadData)
 .btn { background: #f4f4f5; color: #606266; }
 .btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
 .tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; }
+.bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #285b40; font-size: 26rpx; line-height: 1.6; }
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #303133; }
 .list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
 </style>
