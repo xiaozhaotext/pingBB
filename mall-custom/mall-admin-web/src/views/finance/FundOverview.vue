@@ -39,16 +39,21 @@ function money(value: unknown) {
         <h1>资金管理</h1>
         <p>查看平台总交易资金与佣金账户规模；金额均为当前数据库真实汇总。</p>
       </div>
-      <el-button @click="load">刷新</el-button>
+      <div><el-button type="primary" @click="$router.push('/financeMgr/wallet/balance')">会员余额手动加款</el-button> <el-button @click="load">刷新</el-button></div>
     </header>
     <section class="cards">
-      <el-card shadow="never" class="metric"><span>平台累计交易资金</span><strong>{{ overview ? money(overview.totalPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>平台累计交易金额（现金＋余额）</span><strong>{{ overview ? money(overview.totalTradeAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>其中：现金支付</span><strong>{{ overview ? money(overview.totalCashPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>其中：余额支付</span><strong>{{ overview ? money(overview.totalBalancePaidAmount) : '—' }}</strong></el-card>
       <el-card shadow="never" class="metric"><span>累计退款</span><strong>{{ overview ? money(overview.totalRefundedAmount) : '—' }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>累计净收入</span><strong>{{ overview ? money(overview.totalNetPaidAmount) : '—' }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>今日交易资金</span><strong>{{ overview ? money(overview.todayPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计现金净额</span><strong>{{ overview ? money(overview.totalNetPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>今日交易金额（现金＋余额）</span><strong>{{ overview ? money(overview.todayTradeAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>今日现金支付</span><strong>{{ overview ? money(overview.todayCashPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>今日余额支付</span><strong>{{ overview ? money(overview.todayBalancePaidAmount) : '—' }}</strong></el-card>
       <el-card shadow="never" class="metric"><span>订单总数</span><strong>{{ overview ? overview.orderCount : '—' }}</strong></el-card>
       <el-card shadow="never" class="metric"><span>待发货订单</span><strong>{{ overview ? overview.pendingDeliveryCount : '—' }}</strong></el-card>
     </section>
+    <p class="amount-note">现金支付取订单实际现金金额，余额支付取订单余额抵扣额；平台手动加款不计入交易金额。退款单独列示。</p>
     <el-card shadow="never" class="section">
       <template #header><strong>佣金与提现概览</strong></template>
       <el-descriptions :column="4" border>

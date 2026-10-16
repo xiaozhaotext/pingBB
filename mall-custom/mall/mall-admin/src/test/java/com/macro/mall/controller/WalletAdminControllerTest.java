@@ -8,6 +8,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.UUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class WalletAdminControllerTest {
@@ -20,13 +22,13 @@ class WalletAdminControllerTest {
         jdbc.execute("CREATE TABLE ums_admin_role_relation(admin_id BIGINT,role_id BIGINT)");
         jdbc.update("INSERT INTO ums_admin VALUES(1,'admin',1),(2,'viewer',1)");
         jdbc.update("INSERT INTO ums_admin_role_relation VALUES(1,5),(2,9)");
-        jdbc.execute("CREATE TABLE ums_member(id BIGINT PRIMARY KEY,username VARCHAR(50))");
-        jdbc.update("INSERT INTO ums_member VALUES(1,'wallet-user'),(2,'other-user')");
+        jdbc.execute("CREATE TABLE ums_member(id BIGINT PRIMARY KEY,username VARCHAR(50),status INT)");
+        jdbc.update("INSERT INTO ums_member VALUES(1,'wallet-user',1),(2,'other-user',1)");
         jdbc.execute("CREATE TABLE ums_recharge_account(member_id BIGINT PRIMARY KEY,balance_cents BIGINT)");
         jdbc.update("INSERT INTO ums_recharge_account VALUES(1,11950),(2,123)");
         jdbc.execute("CREATE TABLE ums_recharge_order(order_no VARCHAR(50),member_id BIGINT,amount_cents BIGINT,channel VARCHAR(10),status VARCHAR(20),transaction_id VARCHAR(80),balance_after_cents BIGINT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,paid_at TIMESTAMP)");
         jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,amount_cents,channel,status,balance_after_cents) VALUES('RC1',1,10010,'MOCK','PAID',10010),('RC2',1,10000,'MOCK','PENDING',NULL),('RC3',2,123,'MOCK','PAID',123)");
-        jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(80),remark VARCHAR(200),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+        jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(80),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(200),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         jdbc.update("INSERT INTO ums_recharge_ledger(member_id,change_type,amount_cents,balance_after_cents,biz_id) VALUES(1,'sandbox_recharge',10010,10010,'RC1'),(1,'sandbox_withdrawal',9940,19950,'WITHDRAW:1'),(1,'order_pay',-8000,11950,'101'),(2,'sandbox_recharge',123,123,'RC3')");
         access = new P0AdminAccess(jdbc);
         org.springframework.test.util.ReflectionTestUtils.setField(access,"adminRoleId",5L);
@@ -60,6 +62,20 @@ class WalletAdminControllerTest {
             .andExpect(jsonPath("$.code").value(404));
         mvc.perform(get("/p0/wallet").principal(()->"admin").param("tab","arbitrary-table"))
             .andExpect(jsonPath("$.code").value(404));
+    }
+    @Test void manualCreditChangesRealWalletOnceAndIsNotCashRecharge() throws Exception {
+        String body = "{\"memberId\":1,\"amount\":\"12.34\",\"requestId\":\"123e4567-e89b-12d3-a456-426614174000\",\"reason\":\"客服补款\"}";
+        mvc.perform(post("/p0/wallet/manual-recharge").principal(()->"viewer").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/p0/wallet/manual-recharge").principal(()->"admin").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(jsonPath("$.data.balance").value("131.84"));
+        mvc.perform(post("/p0/wallet/manual-recharge").principal(()->"admin").contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(jsonPath("$.data.replayed").value(true));
+        mvc.perform(get("/p0/wallet").principal(()->"admin").param("memberId","1"))
+            .andExpect(jsonPath("$.data.summary.balance").value("131.84"))
+            .andExpect(jsonPath("$.data.summary.recharged").value("100.10"))
+            .andExpect(jsonPath("$.data.summary.manualCredited").value("12.34"));
+        org.junit.jupiter.api.Assertions.assertEquals(1L,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_ledger WHERE change_type='admin_recharge'",Long.class));
     }
     @Test void financeCountsCompletedSandboxWithdrawalsAtTheirNetAmount() {
         jdbc.execute("CREATE TABLE ums_earnings(member_id BIGINT,total_earnings DECIMAL(18,2),available_earnings DECIMAL(18,2),frozen_earnings DECIMAL(18,2),withdrawn DECIMAL(18,2))");

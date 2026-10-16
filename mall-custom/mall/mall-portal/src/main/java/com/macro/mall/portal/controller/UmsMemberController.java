@@ -5,6 +5,7 @@ import com.macro.mall.model.UmsMember;
 import com.macro.mall.portal.component.MessageRecorder;
 import com.macro.mall.portal.service.SmsSendService;
 import com.macro.mall.portal.service.UmsMemberService;
+import com.macro.mall.portal.service.InviteRegistrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,8 @@ public class UmsMemberController {
     @Autowired
     private UmsMemberService memberService;
     @Autowired
+    private InviteRegistrationService inviteRegistrationService;
+    @Autowired
     private MessageRecorder messageRecorder;
     @Autowired
     private SmsSendService smsSendService;
@@ -47,8 +50,9 @@ public class UmsMemberController {
     public CommonResult register(@RequestParam String username,
                                  @RequestParam String password,
                                  @RequestParam String telephone,
-                                 @RequestParam String authCode) {
-        memberService.register(username, password, telephone, authCode);
+                                 @RequestParam String authCode,
+                                 @RequestParam(required = false) String inviteCode) {
+        inviteRegistrationService.register(username, password, telephone, authCode, inviteCode);
         return CommonResult.success(null,"注册成功");
     }
 

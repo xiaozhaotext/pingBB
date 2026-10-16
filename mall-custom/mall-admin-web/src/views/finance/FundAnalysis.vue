@@ -8,8 +8,8 @@ const overview = ref<DashboardOverview | null>(null)
 const dimension = ref<'day' | 'month'>('day')
 const trend = ref<{ days: FundPeriod[]; months: FundPeriod[] }>({ days: [], months: [] })
 function ratio(current: number, previous?: FundPeriod) {
-  if (!previous || !Number(previous.paidAmount)) return '—'
-  const change = (current - Number(previous.paidAmount)) / Number(previous.paidAmount) * 100
+  if (!previous || !Number(previous.tradeAmount)) return '—'
+  const change = (current - Number(previous.tradeAmount)) / Number(previous.tradeAmount) * 100
   return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
 }
 function periodRows(monthly: boolean) {
@@ -21,13 +21,13 @@ function periodRows(monthly: boolean) {
     const date = monthly ? new Date(today.getFullYear(), today.getMonth() - offset, 1) : new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset)
     const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}${monthly ? '' : '-' + String(d.getDate()).padStart(2, '0')}`
     const period = key(date)
-    const row = map.get(period) || { period, orderCount: 0, paidAmount: 0 }
+    const row = map.get(period) || { period, orderCount: 0, paidAmount: 0, cashAmount: 0, balanceAmount: 0, tradeAmount: 0 }
     const previous = new Date(date)
     if (monthly) previous.setMonth(previous.getMonth() - 1)
     else previous.setDate(previous.getDate() - 1)
     const priorYear = new Date(date)
     priorYear.setFullYear(priorYear.getFullYear() - 1)
-    result.push({ ...row, day: period, month: period, chainRatio: ratio(Number(row.paidAmount), map.get(key(previous)) || { period: '', paidAmount: 0, orderCount: 0 }), yearRatio: ratio(Number(row.paidAmount), map.get(key(priorYear)) || { period: '', paidAmount: 0, orderCount: 0 }) })
+    result.push({ ...row, day: period, month: period, chainRatio: ratio(Number(row.tradeAmount), map.get(key(previous))), yearRatio: ratio(Number(row.tradeAmount), map.get(key(priorYear))) })
   }
   return result.reverse()
 }
@@ -60,15 +60,17 @@ function money(value: unknown) {
       <div>
         <small>财务中心</small>
         <h1>资金分析</h1>
-        <p>按日、按月统计已支付金额与订单数，显示环比、同比。当前日/月为截至今日数据，比较时请注意期间未结束。</p>
+        <p>按日、按月分别统计订单现金和余额支付，环比、同比按两者合计计算。当前日/月为截至今日数据。</p>
       </div>
       <el-button @click="load">刷新</el-button>
     </header>
     <section class="cards">
-      <el-card shadow="never" class="metric"><span>累计支付金额</span><strong>{{ overview ? money(overview.totalPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计交易金额</span><strong>{{ overview ? money(overview.totalTradeAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计现金支付</span><strong>{{ overview ? money(overview.totalCashPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计余额支付</span><strong>{{ overview ? money(overview.totalBalancePaidAmount) : '—' }}</strong></el-card>
       <el-card shadow="never" class="metric"><span>累计退款金额</span><strong>{{ overview ? money(overview.totalRefundedAmount) : '—' }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>累计净收入</span><strong>{{ overview ? money(overview.totalNetPaidAmount) : '—' }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>今日支付金额</span><strong>{{ overview ? money(overview.todayPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计现金净额</span><strong>{{ overview ? money(overview.totalNetPaidAmount) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>今日交易金额</span><strong>{{ overview ? money(overview.todayTradeAmount) : '—' }}</strong></el-card>
     </section>
     <el-card shadow="never" class="section">
       <template #header>
@@ -84,7 +86,9 @@ function money(value: unknown) {
         <el-table :data="dayRows" stripe empty-text="暂无已支付资金数据">
           <el-table-column prop="day" label="日期" min-width="150" />
           <el-table-column prop="orderCount" label="已支付订单数" width="140" />
-          <el-table-column label="已支付金额" width="160"><template #default="{ row }">{{ money(row.paidAmount) }}</template></el-table-column>
+          <el-table-column label="现金支付" width="150"><template #default="{ row }">{{ money(row.cashAmount) }}</template></el-table-column>
+          <el-table-column label="余额支付" width="150"><template #default="{ row }">{{ money(row.balanceAmount) }}</template></el-table-column>
+          <el-table-column label="交易合计" width="150"><template #default="{ row }">{{ money(row.tradeAmount) }}</template></el-table-column>
           <el-table-column prop="chainRatio" label="日环比" width="140" /><el-table-column prop="yearRatio" label="日同比" width="140" />
         </el-table>
       </template>
@@ -92,11 +96,13 @@ function money(value: unknown) {
         <el-table :data="monthRows" stripe empty-text="暂无已支付资金数据">
           <el-table-column prop="month" label="月份" min-width="150" />
           <el-table-column prop="orderCount" label="已支付订单数" width="140" />
-          <el-table-column label="已支付金额" width="160"><template #default="{ row }">{{ money(row.paidAmount) }}</template></el-table-column>
+          <el-table-column label="现金支付" width="150"><template #default="{ row }">{{ money(row.cashAmount) }}</template></el-table-column>
+          <el-table-column label="余额支付" width="150"><template #default="{ row }">{{ money(row.balanceAmount) }}</template></el-table-column>
+          <el-table-column label="交易合计" width="150"><template #default="{ row }">{{ money(row.tradeAmount) }}</template></el-table-column>
           <el-table-column prop="chainRatio" label="月环比" width="140" /><el-table-column prop="yearRatio" label="月同比" width="140" />
         </el-table>
         <el-alert
-          title="月统计查询完整月份；当前月为截至今日支付总额。此表为支付金额口径，退款净额见上方指标。"
+          title="月统计查询完整月份；当前月统计截至今日。现金与余额为订单支付金额，退款另见上方指标。"
           type="info"
           :closable="false"
           class="note"

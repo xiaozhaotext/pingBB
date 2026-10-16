@@ -10,6 +10,7 @@ import com.macro.mall.portal.domain.UmsMemberRecommendAudit;
 import com.macro.mall.portal.service.InvitationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -41,6 +42,8 @@ public class InvitationServiceImpl implements InvitationService {
     private UmsMemberRecommendMapper recommendMapper;
     @Autowired
     private UmsMemberRecommendAuditMapper auditMapper;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -74,6 +77,11 @@ public class InvitationServiceImpl implements InvitationService {
         if (!StringUtils.hasText(code)) {
             return CommonResult.failed("邀请码不能为空");
         }
+        // 同一被邀请人并发提交时串行检查，避免两次请求都通过已绑定检查。
+        jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE", Long.class, inviteeId);
+        if (recommendMapper.selectByMember(inviteeId) != null) {
+            return CommonResult.failed("您已有推荐人，无法再次绑定");
+        }
         UmsInvitationCode invCode = codeMapper.selectByCode(code.trim());
         if (invCode == null) {
             audit("bind", inviteeId, null, code, "reject", operatorId, "邀请码不存在");
@@ -84,11 +92,6 @@ public class InvitationServiceImpl implements InvitationService {
         if (inviterId.equals(inviteeId)) {
             audit("bind", inviteeId, inviterId, code, "self_blocked", operatorId, "不能绑定自己的邀请码");
             return CommonResult.failed("不能绑定自己的邀请码");
-        }
-        // 防重复绑定（一人只能有一个上级）
-        if (recommendMapper.selectByMember(inviteeId) != null) {
-            audit("bind", inviteeId, inviterId, code, "reject", operatorId, "该会员已有推荐人，禁止重复绑定/自行修改推荐人");
-            return CommonResult.failed("您已有推荐人，无法再次绑定");
         }
         // 防循环：invitee 不能处于 inviter 的祖先链中
         if (isAncestor(inviteeId, inviterId)) {

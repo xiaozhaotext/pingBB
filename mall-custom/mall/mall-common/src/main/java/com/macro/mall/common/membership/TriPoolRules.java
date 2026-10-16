@@ -7,7 +7,7 @@ import java.util.*;
 /** Versioned rules confirmed on 2026-10-16. No database or payment side effects. */
 public final class TriPoolRules {
     private TriPoolRules() { }
-    public static final String VERSION = "2026-10-16-v1";
+    public static final String VERSION = "2026-10-16-v2";
     public static final BigDecimal PRICE = new BigDecimal("3999.00");
     public static final BigDecimal REFERRAL_CASH = new BigDecimal("399.90");
     public static final long BUYER_POINTS = 3999;
@@ -32,7 +32,7 @@ public final class TriPoolRules {
     public static BigDecimal partnerCap(long referrals) {
         validateReferrals(referrals);
         if (referrals >= 9) return new BigDecimal("24000.00");
-        if (referrals < 3) return BigDecimal.valueOf(Math.max(1, referrals) * 1200).setScale(2);
+        if (referrals < 3) return BigDecimal.valueOf((referrals + 1) * 1200).setScale(2);
         return BigDecimal.valueOf((referrals / 3) * 8000 + (referrals % 3) * 1200).setScale(2);
     }
 

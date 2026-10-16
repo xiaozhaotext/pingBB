@@ -42,4 +42,6 @@ export type RegisterParam = {
   telephone: string
   /** 验证码 */
   authCode: string
+  /** 邀请人邀请码，未填写时直接注册游客 */
+  inviteCode?: string
 }
