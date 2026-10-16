@@ -6,8 +6,8 @@
       <view class="card">
         <text class="title">我的身份：{{ tierNames[tri.tier || 'VISITOR'] }}</text>
         <view class="row"><text>有效直邀会员</text><text>{{ tri.directPaidCount || 0 }} 人</text></view>
-        <text class="tip" v-if="tri.tier === 'VISITOR'">注册为游客；自选区购买3999元会员身份牌后开通会员权益。</text>
-        <text class="tip" v-else>每笔身份牌支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
+        <text class="tip" v-if="tri.tier === 'VISITOR'">注册为游客；在“我的”单独购买3999元会员后开通会员权益。</text>
+        <text class="tip" v-else>每笔会员支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
         <button v-if="tri.customTravelEligible" class="btn" @click="openTravel">定制旅游路线</button>
       </view>
       <view class="card" v-for="pool in tri.pools" :key="pool.code">
