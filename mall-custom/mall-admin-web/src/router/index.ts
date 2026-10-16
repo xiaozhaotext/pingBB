@@ -106,6 +106,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'repurchase', name: 'financeRepurchasePoints', component: () => import('@/views/finance/PointsDetail.vue'), meta: { title: '复购积分明细', icon: 'product-comment' } },
       ] },
       { path: 'wallet', name: 'financeWalletManagement', component: RouterView, redirect: '/financeMgr/wallet/withdrawals', meta: { title: '钱包明细管理', icon: 'total-week' }, children: [
+        { path: 'balance', name: 'financeSpendableWallet', component: () => import('@/views/finance/Wallet.vue'), meta: { title: '消费余额与充值', icon: 'document' } },
         { path: 'withdrawals', name: 'financeWallet', component: () => import('@/views/p0/Finance.vue'), meta: { title: '佣金提现审核', icon: 'total-week', section: 'withdraws' } },
         { path: 'accounts', name: 'financeCommissionAccounts', component: () => import('@/views/p0/Finance.vue'), meta: { title: '佣金账户', icon: 'total-week', section: 'accounts' } },
         { path: 'ledger', name: 'financeCommissionLedger', component: () => import('@/views/p0/Finance.vue'), meta: { title: '佣金明细', icon: 'document', section: 'ledger' } },

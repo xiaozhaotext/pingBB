@@ -141,6 +141,9 @@ export const getMyDividendSnapshotAPI = (statDate: number) =>
   http<any[]>({ method: 'GET', url: '/member/dividend/mySnapshot', params: { statDate } })
 
 /** 我的分红信息（份数/今日/累计/封顶，真实数据） */
+export const getRechargeAccountAPI = () => http<{balance:string}>({method:'GET',url:'/member/recharge/account'})
+export const getWithdrawalOptionsAPI = () => http<{sandbox:boolean}>({method:'GET',url:'/member/withdraw/options'})
+
 export const getDividendInfoAPI = () =>
   http<any>({ method: 'GET', url: '/member/dividend/info' })
 

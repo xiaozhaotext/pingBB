@@ -5,14 +5,14 @@ const vm = require('node:vm')
 const ts = require('typescript')
 const { parse } = require('@vue/compiler-sfc')
 
-function page(initialStorage = {}) {
+function page(initialStorage = {}, sandboxMode = false) {
   const store = new Map(Object.entries(initialStorage)), calls = [], redirects = []
   let handler = async ({ url }) => ({ data: url.endsWith('/account') ? { balance: '100.10' } : [] })
   const source = parse(fs.readFileSync(require('node:path').join(__dirname, '../src/pages/member/recharge.vue'), 'utf8')).descriptor.scriptSetup.content
   const code = ts.transpileModule(source + '\nmodule.exports={refresh,create,pay,select,amount,channel,balance,orders,current,error,busy,loaded}', { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   const context = {
     module: { exports: {} }, exports: {},
-    require: name => name === 'vue' ? require('vue') : name === '@dcloudio/uni-app' ? { onShow() {} } : name === '@/utils/http' ? { http: async options => { calls.push(options); return handler(options) } } : { getMemberInfoAPI: async () => ({ data: { id: 1 } }) },
+    require: name => name === 'vue' ? require('vue') : name === '@dcloudio/uni-app' ? { onShow() {} } : name === '@/utils/sandbox' ? {sandboxMode} : name === '@/utils/http' ? { http: async options => { calls.push(options); return handler(options) } } : { getMemberInfoAPI: async () => ({ data: { id: 1 } }) },
     uni: { getStorageSync: key => store.get(key), setStorageSync: (key, value) => store.set(key, value), removeStorageSync: key => store.delete(key) },
     window: { location: { assign: url => redirects.push(url) } }, console,
   }
@@ -61,4 +61,24 @@ test('unavailable channel never displays paid or redirects', async () => {
   assert.equal(p.current.value, null)
   assert.equal(p.redirects.length, 0)
   assert.equal(p.store.has('recharge-request-1'), false)
+})
+
+test('sandbox recharge confirms the server order and refreshes the authoritative balance',async()=>{
+ const p=page({},true);let paid=false;const order={orderNo:'RC-sandbox',amount:'100.00',channel:'MOCK',status:'PENDING'};
+ p.handle(async({url,method,data})=>{
+  if(url.endsWith('/payment-options'))return {data:{sandbox:true,channels:['MOCK']}};
+  if(url.endsWith('/account'))return {data:{balance:paid?'100.00':'0.00'}};
+  if(url.endsWith('/ledger'))return {data:[]};
+  if(url.endsWith('/orders') && method==='GET')return {data:paid?[{...order,status:'PAID'}]:[]};
+  if(url.endsWith('/orders') && method==='POST'){assert.equal(data.channel,'MOCK');return {data:order}};
+  if(url.endsWith('/pay'))return {data:{type:'SANDBOX_RECHARGE'}};
+  if(url.endsWith('/sandbox-confirm')){paid=true;return {data:{...order,status:'PAID'}}};
+  throw Error('Unexpected API '+url);
+ });
+ await p.refresh();await p.create();assert.equal(p.balance.value,'100.00');assert.equal(p.current.value.status,'PAID');assert.equal(p.redirects.length,0);
+ assert.equal(p.calls.filter(c=>c.url.endsWith('/sandbox-confirm')).length,1);
+})
+test('production frontend rejects a sandbox backend before creating any recharge order',async()=>{
+ const p=page();p.handle(async({url})=>({data:url.endsWith('/payment-options')?{sandbox:true,channels:['MOCK']}:url.endsWith('/account')?{balance:'0.00'}:[]}));
+ await p.refresh();await p.create();assert.equal(p.loaded.value,false);assert.equal(p.calls.filter(c=>c.method==='POST').length,0);
 })

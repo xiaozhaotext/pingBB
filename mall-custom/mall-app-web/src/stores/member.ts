@@ -26,16 +26,23 @@ export const useMemberStore = defineStore(
 
       // 2. 拼接完整 token 并存储
       const loginData = loginRes.data
+      if (!loginData?.token || !loginData.tokenHead) throw new Error('登录响应缺少凭证，请重试')
       const token = `${loginData.tokenHead}${loginData.token}`
       uni.setStorageSync(tokenStorageKey, token)
       uni.setStorageSync(usernameStorageKey, username)
       uni.removeStorageSync(passwordStorageKey)
 
       // 3. 获取用户信息
-      const memberRes = await getMemberInfoAPI()
-
-      // 4. 保存用户信息到 Pinia
-      setMemberInfo(memberRes.data)
+      try {
+        const memberRes = await getMemberInfoAPI()
+        if (!memberRes.data?.id) throw new Error('会员资料加载失败，请重新登录')
+        // 4. 保存用户信息到 Pinia
+        setMemberInfo(memberRes.data)
+      } catch (error) {
+        // Do not leave a partial session when login succeeded but the profile request failed.
+        if (uni.getStorageSync(tokenStorageKey) === token) memberLogout()
+        throw error
+      }
     }
 
     // 会员退出登录

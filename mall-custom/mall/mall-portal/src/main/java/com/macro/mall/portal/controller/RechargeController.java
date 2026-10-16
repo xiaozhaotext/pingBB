@@ -28,6 +28,12 @@ public class RechargeController {
     }
     @GetMapping("/account")
     public CommonResult<?> account() { return result(()->service.account(member())); }
+    @GetMapping("/ledger")
+    public CommonResult<?> ledger() { return result(()->service.ledger(member())); }
+    @GetMapping("/payment-options")
+    public CommonResult<?> paymentOptions() { member(); return result(service::paymentOptions); }
+    @PostMapping("/orders/{no}/sandbox-confirm")
+    public CommonResult<?> confirmSandbox(@PathVariable String no) { return result(()->service.confirmSandbox(member(),no)); }
     @GetMapping("/orders")
     public CommonResult<?> history() { return result(()->service.history(member())); }
     @GetMapping("/orders/{no}")

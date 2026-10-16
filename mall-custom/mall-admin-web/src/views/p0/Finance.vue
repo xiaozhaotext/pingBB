@@ -105,7 +105,7 @@ watch(() => route.meta.section, section => {
       <el-card shadow="never"><div class="kpi"><span>冻结中</span><strong>{{ money(summary.frozen_commission) }}</strong></div></el-card>
       <el-card shadow="never"><div class="kpi"><span>已提现佣金</span><strong>{{ money(summary.withdrawn_commission) }}</strong></div></el-card>
       <el-card shadow="never"><div class="kpi"><span>待审核提现</span><strong>{{ withdrawStats.pending ?? 0 }}</strong></div></el-card>
-      <el-card shadow="never"><div class="kpi"><span>累计打款</span><strong>{{ money(withdrawStats.paid_out) }}</strong></div></el-card>
+      <el-card shadow="never"><div class="kpi"><span>已完成提现实到金额</span><strong>{{ money(withdrawStats.paid_out) }}</strong></div></el-card>
     </section>
 
     <el-card shadow="never">

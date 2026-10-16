@@ -24,6 +24,19 @@ class RechargeServiceTest {
         service=new RechargeService(jdbc,new RechargeProperties());
     }
     void order(String no,long cents) {jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,1,?,?,'WECHAT')",no,no,cents);}
+    @Test void sandboxRechargeCanBeSpentAndInsufficientBalanceDoesNotDebit() {
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"sandboxEnabled",true);
+        jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(32),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(64),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(255),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+        String no=(String)tx.execute(s->service.create(1,"100.10","MOCK","sandbox-service-0001")).get("orderNo");
+        tx.execute(s->service.confirmSandbox(1,no));
+        tx.execute(s->service.confirmSandbox(1,no));
+        assertEquals("100.10",service.account(1).get("balance"));
+        long remaining=tx.execute(s->service.spendBalance(1,8000,"ORDER:1","sandbox-order-001","余额支付"));
+        assertEquals(2010L,remaining);
+        assertThrows(IllegalArgumentException.class,()->tx.execute(s->service.spendBalance(1,2011,"ORDER:2","sandbox-order-002","余额支付")));
+        assertEquals("20.10",service.account(1).get("balance"));
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_ledger",Integer.class));
+    }
     void post(String no,String trade,String amount) {tx.executeWithoutResult(s->service.accept(new MembershipPaymentGateway.VerifiedPayment(no,trade,"WECHAT",new BigDecimal(amount))));}
     long balance() {return jdbc.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=1",Long.class);}
     @Test void exactCentsAndInputValidation() {

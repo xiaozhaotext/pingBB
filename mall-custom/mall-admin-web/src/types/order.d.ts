@@ -24,6 +24,8 @@ export type OmsOrder = {
   promotionAmount?: number
   /** 积分抵扣金额 */
   integrationAmount?: number
+  /** 消费余额支付金额 */
+  balanceAmount?: number
   /** 优惠券抵扣金额 */
   couponAmount?: number
   /** 管理员后台调整订单使用的折扣金额 */

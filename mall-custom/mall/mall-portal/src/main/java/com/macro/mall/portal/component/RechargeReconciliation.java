@@ -20,7 +20,7 @@ public class RechargeReconciliation {
         if(!properties.getPayment().isEnabled()) return;
         try {
             var cutoff=java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(30));
-            for (var row:jdbc.queryForList("SELECT order_no,channel FROM ums_recharge_order WHERE status='PENDING' AND created_at<? ORDER BY checked_at ASC,created_at ASC LIMIT 100",cutoff)) {
+            for (var row:jdbc.queryForList("SELECT order_no,channel FROM ums_recharge_order WHERE status='PENDING' AND channel IN ('WECHAT','ALIPAY') AND created_at<? ORDER BY checked_at ASC,created_at ASC LIMIT 100",cutoff)) {
                 String no=(String)row.get("order_no");
                 try {
                     var payment=service.gateway().query(no,(String)row.get("channel"));

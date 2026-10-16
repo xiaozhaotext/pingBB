@@ -1,6 +1,8 @@
 <template>
   <view class="app">
-    <view class="mock-banner">收益按后台配置实时记账（可提现 / 冻结 / 已提现）；提现申请经后台人工审核，当前仅记账流转，暂未接入真实代付打款。</view>
+    <view v-if="sandbox" class="mock-banner">沙盒演示：分红和奖励先计入可提现收益；提现后扣减收益，按扣除手续费后的实到金额转入消费余额，不发生真实打款。</view>
+    <view v-else class="mock-banner">提现申请经后台人工审核，当前仅记账流转，暂未接入真实代付打款。</view>
+    <view class="card"><text class="title">可下单账户余额：¥ {{spendableBalance}}</text></view>
 
     <view class="card" v-if="account">
       <text class="title">收益账户</text>
@@ -28,7 +30,7 @@
     <view class="card">
       <text class="title">申请提现</text>
       <input class="input" v-model="withdrawAmount" placeholder="输入提现金额" type="digit" />
-      <button class="btn-primary" :disabled="withdrawing" @click="handleWithdraw">申请提现</button>
+      <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">{{sandbox?'沙盒提现到消费余额':'申请提现'}}</button>
     </view>
 
     <view class="card">
@@ -45,8 +47,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getMemberInfoAPI, getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI } from '@/apis/member'
+import { ref } from 'vue'
+import { getMemberInfoAPI, getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI, getRechargeAccountAPI, getWithdrawalOptionsAPI } from '@/apis/member'
+import { sandboxMode } from '@/utils/sandbox'
+import { onShow } from '@dcloudio/uni-app'
 
 const account = ref<any>(null)
 const withdraws = ref<any[]>([])
@@ -54,13 +58,22 @@ const ledger = ref<any[]>([])
 const withdrawAmount = ref('')
 const loadError = ref('')
 const withdrawing = ref(false)
+const sandbox=ref(false),spendableBalance=ref('—'),modeReady=ref(false)
 let withdrawalStorageKey = ''
 
 const loadData = async () => {
   loadError.value = ''
+  modeReady.value=false
+  try {
+    const options=(await getWithdrawalOptionsAPI()).data
+    sandbox.value=options.sandbox
+    modeReady.value=Boolean(sandboxMode)===sandbox.value
+    if(!modeReady.value) loadError.value='提现环境与页面不匹配，请打开正确的应用入口'
+    spendableBalance.value=(await getRechargeAccountAPI()).data.balance
+  } catch { modeReady.value=false;spendableBalance.value='—';loadError.value='消费余额或提现环境加载失败，请重试' }
   try {
     const member = await getMemberInfoAPI()
-    withdrawalStorageKey = 'withdraw-request-' + member.data.id
+    withdrawalStorageKey = (sandbox.value?'sandbox-':'')+'withdraw-request-' + member.data.id
     const pending = uni.getStorageSync(withdrawalStorageKey)
     if (pending?.amount) withdrawAmount.value = pending.amount
   } catch { /* Account requests below provide the visible login error. */ }
@@ -74,6 +87,7 @@ const loadData = async () => {
 
 const handleWithdraw = async () => {
   if (withdrawing.value) return
+  if(!modeReady.value) {uni.showToast({title:'提现环境尚未加载，请刷新后重试',icon:'none'});return}
   const input = withdrawAmount.value.trim()
   if (!/^\d{1,10}(\.\d{1,2})?$/.test(input) || Number(input) <= 0) {
     uni.showToast({ title: '请输入大于0且最多两位小数的金额', icon: 'none' }); return
@@ -81,7 +95,7 @@ const handleWithdraw = async () => {
   withdrawing.value = true
   try {
     const member = await getMemberInfoAPI()
-    withdrawalStorageKey = 'withdraw-request-' + member.data.id
+    withdrawalStorageKey = (sandbox.value?'sandbox-':'')+'withdraw-request-' + member.data.id
     let pending = uni.getStorageSync(withdrawalStorageKey)
     if (pending && Number(pending.amount) !== Number(input)) {
       uni.showToast({ title: '上一请求结果待确认，请按原金额重试', icon: 'none' }); return
@@ -93,11 +107,12 @@ const handleWithdraw = async () => {
     await applyWithdrawAPI(pending)
     uni.removeStorageSync(withdrawalStorageKey)
     withdrawAmount.value = ''
-    uni.showToast({ title: '已提交提现申请', icon: 'success' })
+    uni.showToast({ title: sandbox.value?'已转入消费余额':'已提交提现申请', icon: 'success' })
     await loadData()
   } catch (e: any) {
     // An HTTP/network timeout may have happened after commit: retain the same request key.
     if (e?.data?.code === 404 && withdrawalStorageKey) uni.removeStorageSync(withdrawalStorageKey)
+    uni.showToast({ title: e?.data?.message || e?.message || '提现结果待确认，请按原金额重试', icon: 'none' })
   } finally { withdrawing.value = false }
 }
 
@@ -118,7 +133,7 @@ const typeText = (t: string) => {
   return map[t] || t || '收益'
 }
 
-onMounted(loadData)
+onShow(loadData)
 </script>
 
 <style lang="scss" scoped>
