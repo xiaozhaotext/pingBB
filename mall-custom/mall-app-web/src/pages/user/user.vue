@@ -7,6 +7,7 @@
       <view class="account-panel" @click="handleNavTo('/pages/member/benefits')"><view class="account-section-title">奖励与旅游权益<small>审核与核销记录 ›</small></view></view>
       <view class="account-panel" @click="handleNavTo('/pages/member/recharge')"><view class="account-section-title">账户充值<small>查看充值余额 · 微信 / 支付宝 ›</small></view></view>
       <view class="account-panel"><view class="account-section-title">我的钱包<small>账户实际数据</small></view><view class="account-assets"><view><text>{{walletAvailable}}</text><small>可提现余额</small></view><view @click="handleNavTo('/pages/member/dividend')"><text>{{dividendCap}}</text><small>分红额度 ›</small></view><view @click="handleNavTo('/pages/member/earnings')"><text class="yticon icon-lishijilu"></text><small>余额明细 ›</small></view></view></view>
+      <DividendQuota :active="quotaActive" />
       <view class="account-panel"><view class="account-section-title">商品积分<small>可用积分</small></view><view class="account-assets points-summary"><view><text>{{productBalance}}</text><small>可用商品积分</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=1')"><text class="yticon icon-lishijilu"></text><small>积分明细 ›</small></view></view></view>
       <view class="account-panel"><view class="account-section-title">复购积分<small>可用积分</small></view><view class="account-assets points-summary"><view><text>{{rebuyBalance}}</text><small>可用复购积分</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=2')"><text class="yticon icon-lishijilu"></text><small>积分明细 ›</small></view></view></view>
       <view class="account-panel"><view class="account-section-title">我的订单<small @click="handleNavTo('/pages/order/order?state=0')">查看全部 »</small></view><view class="account-services"><view v-for="item in orderEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
@@ -20,8 +21,9 @@
 <script setup lang="ts">
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import MainNavigation from '@/components/MainNavigation.vue'
+import DividendQuota from '@/components/DividendQuota.vue'
 import { ref, computed } from 'vue'
-import { onShow, onNavigationBarButtonTap } from '@dcloudio/uni-app'
+import { onShow, onHide, onUnload, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
 import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI, getDividendInfoAPI } from '@/apis/member'
 import mixListCell from '@/components/mix-list-cell.vue'
@@ -38,6 +40,7 @@ const memberInfo = computed(() => memberStore.memberInfo)
 // ===== 页面数据 =====
 // 优惠券数量
 const identityLabel = ref('会员身份加载中')
+const quotaActive = ref(false)
 const productBalance=ref<string | number>('—'),rebuyBalance=ref<string | number>('—'),accountError=ref('')
 const walletAvailable=ref<string | number>('—'),walletFrozen=ref<string | number>('—'),walletWithdrawn=ref<string | number>('—'),dividendCap=ref<string | number>('—')
 const orderEntries=[{label:'全部订单',icon:'icon-shouye',url:'/pages/order/order?state=0'},{label:'待付款',icon:'icon-daifukuan',url:'/pages/order/order?state=1'},{label:'待发货',icon:'icon-yishouhuo',url:'/pages/order/order?state=2'},{label:'待收货',icon:'icon-yishouhuo',url:'/pages/order/order?state=3'},{label:'已完成',icon:'icon-shouhoutuikuan',url:'/pages/order/order?state=4'},{label:'退货售后',icon:'icon-shouhoutuikuan',url:'/pages/order/order?state=6'}]
@@ -98,8 +101,11 @@ const loadData = async () => {
 // ===== 生命周期 =====
 // 页面显示时加载数据
 onShow(() => {
+  quotaActive.value = true
   loadData()
 })
+onHide(() => { quotaActive.value = false })
+onUnload(() => { quotaActive.value = false })
 
 // 导航栏按钮点击事件
 onNavigationBarButtonTap((e: { index: number }) => {
