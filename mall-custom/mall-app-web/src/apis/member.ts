@@ -108,6 +108,16 @@ export interface MembershipOrderData {
 export const createMembershipOrderAPI = (data: MembershipPurchaseParams) =>
   http<MembershipOrderData>({ method: 'POST', url: '/member/membership/orders', data })
 
+export interface MembershipPaymentOptions {
+  purchaseEnabled: boolean
+  sandbox: boolean
+  membershipV2: boolean
+  wechatReady: boolean
+  alipayReady: boolean
+}
+export const getMembershipPaymentOptionsAPI = () =>
+  http<MembershipPaymentOptions>({ method: 'GET', url: '/member/membership/payment-options' })
+
 /**
  * 确认本地支付桩订单（仅 dev 环境下后端返回 payment.mock=true 时调用）。
  * 上线后对接真实支付渠道，该入口不可用。

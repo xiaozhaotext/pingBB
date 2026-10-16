@@ -1,0 +1,24 @@
+[Unit]
+Description=Mall isolated sandbox admin API
+After=network-online.target mysql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mall-demo
+Group=mall-demo
+WorkingDirectory=/opt/mall-demo
+EnvironmentFile=/etc/mall-demo/admin.env
+Environment=LOG_FILE=/var/log/mall-demo/admin-sandbox
+Environment=LOG_FILE_MAX_HISTORY=1
+ExecStart=/usr/bin/java -Xms64m -Xmx320m -jar /opt/mall-demo/mall-admin-sandbox.jar --spring.profiles.active=dev --server.address=127.0.0.1 --server.port=8087 --spring.datasource.url=jdbc:mysql://127.0.0.1:3306/mall_demo_sandbox --spring.data.redis.database=1 --mall.membership-v2.enabled=true --mall.dividend.schedule.enabled=false
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/mall-demo /opt/mall-demo/db-backups
+
+[Install]
+WantedBy=multi-user.target

@@ -86,13 +86,14 @@ async function refresh() {
   }
 }
 
+const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
 onMounted(refresh)
 </script>
 
 <template>
   <main class="dashboard" v-loading="loading">
-    <header class="heading"><div><p>智美游 · 演示环境</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
-    <el-alert title="以下数据来自当前本地测试数据库，包含导入的官方示例数据；不得作为真实经营报表。" type="warning" :closable="false" show-icon />
+    <header class="heading"><div><p>{{ sandboxMode ? '智美游 · 演示环境' : '智美游 · 管理后台' }}</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
+    <el-alert title="统计来自当前连接的数据库；历史示例数据可能影响汇总，请核对订单及资金流水后用于经营决策。" type="warning" :closable="false" show-icon />
     <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}</span><strong>{{ card.value }}</strong></el-card></section>
     <el-card shadow="never" class="trend"><template #header><div class="trend-head"><strong>最近 7 日已支付订单趋势</strong><small>{{ overview?.amountNote }}</small></div></template>
       <v-chart v-if="overview?.paidTrend.length" :option="chartOption" autoresize class="chart" />

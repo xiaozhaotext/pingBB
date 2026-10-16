@@ -2,28 +2,95 @@
   <view class="benefits">
     <text class="title">会员与晋升权益</text>
     <text v-if="error" class="error">{{ error }}</text>
-    <view v-if="info" class="card"><text>当前身份：{{ tierNames[info.tier || 'VISITOR'] }}</text><text>有效直邀会员：{{ info.directPaidCount || 0 }} 人</text></view>
-    <view class="card"><text class="subtitle">游客 → 会员</text><text>注册默认为游客，不享有奖励。在“我的”单独购买3999元会员身份后成为会员，获得3999复购积分、3999消费积分及旅游路线定制权益。</text><text>会员在合伙人池有本人基础1份，累计分红上限1200元。每直接邀请1位付费会员增加1份，并获1200复购积分及399.90元直邀奖励。</text></view>
-    <view class="card"><text class="subtitle">会员 → 合伙人 → 联创</text><text>直邀3名付费会员后晋升合伙人；直邀9名后晋升联创。所有奖励只计直接邀请的付费会员。</text><text>合伙人池上限：0或1人1200元，2人2400元，3人8000元，4人9200元，5人10400元，6人16000元，7人17200元，8人18400元，9人及以上24000元。</text><text>联创另享联创池1份、独立累计上限1200元，并继续享有合伙人池权益。升级不重置已领取金额。</text></view>
-    <view v-if="info?.tier === 'VISITOR'" class="card"><text class="subtitle">购买会员 · ¥3999</text><text>独立购买会员身份，无需购买自选区商品。</text><button :disabled="submitting" @click="payChannel = 'WECHAT'; handleBuy()">微信支付3999元</button><button :disabled="submitting" @click="payChannel = 'ALIPAY'; handleBuy()">支付宝支付3999元</button><text v-if="orderInfo">订单号：{{ orderInfo.merchantOrderNo }}，{{ payHint }}</text><text v-if="actionError" class="error">{{ actionError }}</text></view>
-    <button v-if="info?.tier && info.tier !== 'VISITOR'" @click="openDividend">查看我的分红与旅游权益</button>
+    <view v-if="info" class="card"
+      ><text>当前身份：{{ tierNames[info.tier || 'VISITOR'] }}</text
+      ><text>有效直邀会员：{{ info.directPaidCount || 0 }} 人</text></view
+    >
+    <view class="card"
+      ><text class="subtitle">游客 → 会员</text
+      ><text
+        >注册默认为游客，不享有奖励。在“我的”单独购买3999元会员身份后成为会员，获得3999复购积分、3999消费积分及旅游路线定制权益。</text
+      ><text
+        >会员在合伙人池有本人基础1份，累计分红上限1200元。每直接邀请1位付费会员增加1份，并获1200复购积分及399.90元直邀奖励。</text
+      ></view
+    >
+    <view class="card"
+      ><text class="subtitle">会员 → 合伙人 → 联创</text
+      ><text>直邀3名付费会员后晋升合伙人；直邀9名后晋升联创。所有奖励只计直接邀请的付费会员。</text
+      ><text
+        >合伙人池上限：0或1人1200元，2人2400元，3人8000元，4人9200元，5人10400元，6人16000元，7人17200元，8人18400元，9人及以上24000元。</text
+      ><text
+        >联创另享联创池1份、独立累计上限1200元，并继续享有合伙人池权益。升级不重置已领取金额。</text
+      ></view
+    >
+    <view v-if="info?.tier === 'VISITOR'" class="card"
+      ><text class="subtitle">购买会员 · ¥3999</text
+      ><text>独立购买会员身份，无需购买自选区商品。</text
+      ><template v-if="sandboxMode && paymentOptions?.sandbox"
+        ><text>演示沙箱：不扣真实资金，身份、积分和三池流水仅写入独立测试库。</text
+        ><button
+          :disabled="submitting || !paymentOptions.purchaseEnabled"
+          @click="buyWithChannel('ALIPAY')"
+          >{{ submitting ? '正在确认演示支付…' : '沙箱支付3999元（不扣款）' }}</button
+        ></template
+      ><template v-else-if="paymentOptions && !paymentOptions.sandbox"
+        ><button
+          :disabled="submitting || !paymentOptions.purchaseEnabled || !paymentOptions.wechatReady"
+          @click="buyWithChannel('WECHAT')"
+          >微信支付3999元{{ paymentOptions.wechatReady ? '' : '（未开通）' }}</button
+        ><button
+          :disabled="submitting || !paymentOptions.purchaseEnabled || !paymentOptions.alipayReady"
+          @click="buyWithChannel('ALIPAY')"
+          >支付宝支付3999元{{ paymentOptions.alipayReady ? '' : '（未开通）' }}</button
+        ><text v-if="!paymentOptions.wechatReady && !paymentOptions.alipayReady"
+          >真实支付尚未开通。请从独立演示沙箱测试购买与权益入账。</text
+        ></template
+      ><text v-else>{{ paymentError || '正在确认支付环境…' }}</text
+      ><text v-if="paymentOptions && !paymentOptions.purchaseEnabled"
+        >会员购买规则尚未启用，请联系管理员。</text
+      ><text v-if="orderInfo">订单号：{{ orderInfo.merchantOrderNo }}，{{ payHint }}</text
+      ><text v-if="actionError" class="error">{{ actionError }}</text></view
+    >
+    <button v-if="info?.tier && info.tier !== 'VISITOR'" @click="openDividend"
+      >查看我的分红与旅游权益</button
+    >
   </view>
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getTriPoolsAPI, tierNames, type TriSummary } from '@/apis/triPools'
-const info = ref<TriSummary | null>(null), error = ref('')
-onMounted(async () => { try { info.value = (await getTriPoolsAPI()).data } catch { error.value = '权益加载失败，请返回重试' } })
+const info = ref<TriSummary | null>(null),
+  error = ref('')
+onMounted(async () => {
+  try {
+    info.value = (await getTriPoolsAPI()).data
+  } catch {
+    error.value = '权益加载失败，请返回重试'
+  }
+  try {
+    paymentOptions.value = (await getMembershipPaymentOptionsAPI()).data
+  } catch {
+    paymentError.value = '支付环境加载失败，请返回重试'
+  }
+})
 
 const openDividend = () => uni.navigateTo({ url: '/pages/member/dividend' })
 import { useMemberStore } from '@/stores/member'
-import { createMembershipOrderAPI, confirmMockMembershipPaymentAPI, getMemberInfoAPI } from '@/apis/member'
+import {
+  createMembershipOrderAPI,
+  confirmMockMembershipPaymentAPI,
+  getMemberInfoAPI,
+  getMembershipPaymentOptionsAPI,
+  type MembershipPaymentOptions,
+} from '@/apis/member'
 const payChannel = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
 const submitting = ref(false)
 const orderInfo = ref<any>(null)
 const payHint = ref('')
 const actionError = ref('')
 const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
+const paymentOptions = ref<MembershipPaymentOptions | null>(null),
+  paymentError = ref('')
 
 /** 生成幂等键：8-64 位字母数字 */
 const genRequestId = () => {
@@ -47,19 +114,33 @@ const resolveMemberId = async (): Promise<number | undefined> => {
 const purchaseRequestId = (member: number, channel: string) => {
   const key = `membership-pending-${member}-${channel}`
   let id = uni.getStorageSync(key)
-  if (!id) { id = genRequestId(); uni.setStorageSync(key, id) }
+  if (!id) {
+    id = genRequestId()
+    uni.setStorageSync(key, id)
+  }
   return String(id)
 }
+const buyWithChannel = (channel: 'ALIPAY' | 'WECHAT') => {
+  if (submitting.value) return
+  payChannel.value = channel
+  return handleBuy()
+}
 const handleBuy = async () => {
+  if (submitting.value) return
+  if (!paymentOptions.value?.purchaseEnabled || sandboxMode !== paymentOptions.value.sandbox) {
+    actionError.value = '支付环境与页面不匹配或购买未启用，请重新进入正确的应用入口'
+    return
+  }
   actionError.value = ''
   orderInfo.value = null
   payHint.value = ''
+  submitting.value = true
   const memberId = await resolveMemberId()
   if (!memberId) {
+    submitting.value = false
     actionError.value = '请先登录后再购买。'
     return
   }
-  submitting.value = true
   try {
     const r = await createMembershipOrderAPI({
       memberId,
@@ -72,10 +153,14 @@ const handleBuy = async () => {
     orderInfo.value = o
     const payment = o.payment || {}
     if (String(payment.mock) === 'true') {
-      payHint.value = '正在确认本地演示支付…'
+      if (!sandboxMode || !paymentOptions.value.sandbox)
+        throw new Error('支付环境不匹配，未确认支付')
+      payHint.value = '正在确认演示支付…'
       await confirmMockMembershipPaymentAPI(o.orderId)
       payHint.value = '演示支付已确认，权益仅在测试库生效。'
-      uni.showToast({ icon: 'success', title: '模拟购买完成' })
+      uni.removeStorageSync(`membership-pending-${memberId}-${payChannel.value}`)
+      info.value = (await getTriPoolsAPI()).data
+      uni.showToast({ icon: 'success', title: '演示购买成功，权益已到账' })
       setTimeout(() => {
         uni.switchTab({ url: '/pages/user/user' })
       }, 800)
@@ -107,11 +192,16 @@ const handleBuy = async () => {
     }
   } catch (e: any) {
     const code = e?.data?.code
-    const msg = e?.data?.message
+    const msg =
+      e?.data?.message ||
+      e?.message ||
+      (e?.statusCode ? `请求失败（HTTP ${e.statusCode}），请检查接口代理与服务状态` : '')
     if (code === 56003) {
       actionError.value = '会员购买暂未开放，敬请期待。'
     } else if (code === 56004) {
       actionError.value = '您已是会员，无需重复购买。'
+    } else if (code === 56005) {
+      actionError.value = '已有待付款订单，请选择原支付渠道继续付款；请勿重复下单。'
     } else if (code === 56002) {
       actionError.value = '支付渠道尚未开通，请稍后再试。'
     } else {
@@ -121,6 +211,41 @@ const handleBuy = async () => {
     submitting.value = false
   }
 }
-
 </script>
-<style scoped>.benefits{max-width:800px;margin:auto;padding:24px;display:flex;flex-direction:column;gap:18px}.title{font-size:24px;font-weight:600}.card{padding:22px;background:white;border:1px solid #e8eeec;border-radius:12px;display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.8}.subtitle{font-weight:600;color:#167a80}.error{color:#ae2929}button{background:#167a80;color:white;font-size:15px}</style>
+<style scoped>
+.benefits {
+  max-width: 800px;
+  margin: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.title {
+  font-size: 24px;
+  font-weight: 600;
+}
+.card {
+  padding: 22px;
+  background: white;
+  border: 1px solid #e8eeec;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.subtitle {
+  font-weight: 600;
+  color: #167a80;
+}
+.error {
+  color: #ae2929;
+}
+button {
+  background: #167a80;
+  color: white;
+  font-size: 15px;
+}
+</style>

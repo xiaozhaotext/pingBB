@@ -3,14 +3,16 @@ import { getAdminInfoAPI, adminLoginAPI, adminLogoutAPI } from '@/apis/admin'
 import { ref } from 'vue'
 import type { LoginParam, UserInfo } from '@/types/admin'
 
+const storageKey = import.meta.env.VITE_SANDBOX_MODE === 'true' ? 'sandbox-admin-user' : 'user'
+
 // Older official builds persisted the plaintext login password in this store.
 try {
-  const saved = localStorage.getItem('user')
+  const saved = localStorage.getItem(storageKey)
   if (saved) {
     const parsed = JSON.parse(saved)
     if (parsed?.userInfo && 'password' in parsed.userInfo) {
       delete parsed.userInfo.password
-      localStorage.setItem('user', JSON.stringify(parsed))
+      localStorage.setItem(storageKey, JSON.stringify(parsed))
     }
   }
 } catch {
@@ -53,14 +55,15 @@ export const useUserStore = defineStore(
 
     // 用户登出
     const userLogout = async () => {
-      await adminLogoutAPI()
-      userInfo.value.token = ''
-      userInfo.value.roles = []
+      try { await adminLogoutAPI() } catch { /* Local logout must work when the API session has expired. */ }
+      finally {
+        userInfo.value = { username: '', avatar: '', roles: [], token: '', menus: [] }
+      }
     }
 
     // 前端登出
     const fedLogout = () => {
-      userInfo.value.token = ''
+      userInfo.value = { username: '', avatar: '', roles: [], token: '', menus: [] }
     }
 
     return {
@@ -73,6 +76,6 @@ export const useUserStore = defineStore(
   },
   {
     // 持久化配置
-    persist: true,
+    persist: { key: storageKey },
   },
 )

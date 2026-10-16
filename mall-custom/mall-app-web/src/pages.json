@@ -327,19 +327,19 @@
     {
       "path": "pages/member/partner",
       "style": {
-        "navigationBarTitleText": "合伙人(模拟)"
+        "navigationBarTitleText": "合伙人"
       }
     },
     {
       "path": "pages/member/cofounder",
       "style": {
-        "navigationBarTitleText": "联创(模拟)"
+        "navigationBarTitleText": "联创"
       }
     },
     {
       "path": "pages/member/earnings",
       "style": {
-        "navigationBarTitleText": "收益与提现(模拟)"
+        "navigationBarTitleText": "收益与提现"
       }
     },
     {
@@ -357,7 +357,7 @@
     {
       "path": "pages/member/dividend",
       "style": {
-        "navigationBarTitleText": "每日分红池(模拟)"
+        "navigationBarTitleText": "每日分红池"
       }
     },
     {

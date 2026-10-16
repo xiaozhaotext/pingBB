@@ -23,6 +23,7 @@ const sectionKey = computed(() => {
 })
 const section = computed(() => sections[sectionKey.value])
 const loading = ref(false)
+const loadError = ref('')
 const membershipV2 = ref<boolean | null>(null)
 const data = ref<Record<string, unknown>>({})
 const poolStats = computed(() => data.value.poolStats as Record<string, unknown> | undefined)
@@ -95,7 +96,7 @@ const labels: Record<string, string> = {
   wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
   real_name: '真实姓名（本人填写）', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
-  identity_type: '身份', inviter_id: '推荐人', member_balance: '会员余额', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
+  membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '会员余额', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
   contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期',
@@ -106,6 +107,7 @@ const labels: Record<string, string> = {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   memberDetail.value = null
   try {
     membershipV2.value = null
@@ -134,6 +136,7 @@ async function load() {
       memberStats.value = null
     }
   } catch {
+    loadError.value = '数据加载失败，请检查接口连接后点击刷新重试'
     data.value = {}
   } finally {
     loading.value = false
@@ -157,9 +160,10 @@ function visibleDataRows(key: string, value: unknown): P0Row[] {
 }
 function columns(value: unknown): string[] {
   const first = rows(value)[0]
-  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password'].includes(key)) : []
+  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password', 'membership_name'].includes(key)) : []
 }
-function display(value: unknown): string {
+function display(value: unknown, column?: string): string {
+  if (column === 'membership_tier') return triTierNames[String(value || 'VISITOR')] || '未知身份'
   if (value === null || value === undefined || value === '') return '—'
   return String(value)
 }
@@ -268,8 +272,9 @@ const groupTitles: Record<string, string> = {
       <div><span class="eyebrow">PLATFORM OPERATIONS</span><h1>{{ section.title }}</h1><p>{{ section.note }}</p></div>
       <el-button @click="load">刷新真实数据</el-button>
     </div>
-    <el-alert title="会员真实支付默认关闭；直推规则必须先配置。提现和分红仍为模拟，尚未真实打款。" type="warning" show-icon :closable="false" />
+    <el-alert title="会员身份、积分及分红以支付履约后的数据库流水为准。分红入账不等于银行或微信到账，提现需另行审核打款。" type="warning" show-icon :closable="false" />
 
+    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
     <el-card v-if="sectionKey === 'p0Members'" class="action-card" shadow="never">
       <el-input v-model="memberKeyword" placeholder="按账号、昵称或手机号查找会员" clearable @keyup.enter="load" />
       <el-button type="primary" @click="load">查询</el-button>
@@ -338,7 +343,7 @@ const groupTitles: Record<string, string> = {
         <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ visibleDataRows(String(key), value).length }})</small></strong></template>
         <el-table v-if="visibleDataRows(String(key), value).length" :data="visibleDataRows(String(key), value)" stripe max-height="480">
           <el-table-column v-for="column in columns(value)" :key="column" :prop="column" :label="labels[column] || column" min-width="110" show-overflow-tooltip>
-            <template #default="scope">{{ display(scope.row[column]) }}</template>
+            <template #default="scope">{{ display(scope.row[column], column) }}</template>
           </el-table-column>
           <el-table-column v-if="key === 'members'" label="操作" fixed="right" width="100"><template #default="scope"><el-button link type="primary" @click="openMember(Number(scope.row.id))">详情</el-button></template></el-table-column>
           <el-table-column v-if="key === 'adjustments'" label="审核" fixed="right" width="150"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewAdjustment(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewAdjustment(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>
