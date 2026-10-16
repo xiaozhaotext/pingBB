@@ -39,7 +39,7 @@ function money(value: unknown) {
         <h1>资金管理</h1>
         <p>查看平台总交易资金与佣金账户规模；金额均为当前数据库真实汇总。</p>
       </div>
-      <div><el-button type="primary" @click="$router.push('/financeMgr/wallet/balance')">会员余额手动加款</el-button> <el-button @click="load">刷新</el-button></div>
+      <div><el-button type="primary" @click="$router.push('/spendableWallet/index')">会员余额手动加款</el-button> <el-button @click="load">刷新</el-button></div>
     </header>
     <section class="cards">
       <el-card shadow="never" class="metric"><span>平台累计交易金额（现金＋余额）</span><strong>{{ overview ? money(overview.totalTradeAmount) : '—' }}</strong></el-card>

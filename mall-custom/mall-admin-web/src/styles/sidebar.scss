@@ -5,7 +5,7 @@
   .main-container {
     min-height: 100%;
     transition: margin-left 0.28s;
-    margin-left: 180px;
+    margin-left: 200px;
   }
 
   // 侧边栏
@@ -17,7 +17,7 @@
         0s padding-right ease-in-out;
     }
     transition: width 0.28s;
-    width: 180px !important;
+    width: 200px !important;
     height: 100%;
     position: fixed;
     font-size: 0px;
@@ -74,14 +74,14 @@
 
   .sidebar-container .nest-menu .el-sub-menu > .el-sub-menu__title,
   .sidebar-container .el-sub-menu .el-menu-item {
-    min-width: 180px !important;
+    min-width: 200px !important;
     background-color: vars.$subMenuBg !important;
     &:hover {
       background-color: vars.$menuHover !important;
     }
   }
   .el-menu--collapse .el-menu .el-sub-menu {
-    min-width: 180px !important;
+    min-width: 200px !important;
   }
 
   //适配移动端
@@ -94,12 +94,12 @@
       height: calc(100vh - 50px);
       height: calc(100dvh - 50px);
       transition: transform 0.28s;
-      width: 180px !important;
+      width: 200px !important;
     }
     &.hideSidebar {
       .sidebar-container {
         transition-duration: 0.3s;
-        transform: translate3d(-180px, 0, 0);
+        transform: translate3d(-200px, 0, 0);
       }
     }
   }

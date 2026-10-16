@@ -7,9 +7,9 @@
  * 后台桌面、系统设置、订单筛选、会员管理、财务钱包等一二级菜单。
  *
  * 生成规则：
- *   1. 结构 / 层级 / 标题 / 图标：取自 mall-admin-web/src/router/index.ts 的 asyncRouterMap（9 个一级分组）；
+ *   1. 结构 / 层级 / 标题 / 图标：取自 mall-admin-web/src/router/index.ts 的 asyncRouterMap（10 个一级分组）；
  *   2. hidden：线上已有同名菜单时以线上为准，否则取路由自带的 hidden；
- *   3. 排序：一级分组固定 pick > rebuy > consume > orderMgr > memberMgr > financeMgr > serviceMgr
+ *   3. 排序：一级分组固定 pick > rebuy > consume > orderMgr > memberMgr > financeMgr > spendableWalletMgr > serviceMgr
  *      > serviceDesktop > systemSettings（消费区排在复购之后）；其余层级线上已有的按线上 sort 降序，
  *      线上没有的按路由声明顺序排在其后；
  *   4. 角色授权沿用 34 号脚本：持有「自选商品管理(pick)」的角色获得全部新菜单。
@@ -330,7 +330,7 @@ const CLOUD_LOCK = {
   }
 };
 
-const ROOTS = ['pick', 'rebuy', 'consume', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr', 'serviceDesktop', 'systemSettings']
+const ROOTS = ['pick', 'rebuy', 'consume', 'orderMgr', 'memberMgr', 'financeMgr', 'spendableWalletMgr', 'serviceMgr', 'serviceDesktop', 'systemSettings']
 // 没有 meta 的跳转型路由，给一个占位标题，避免写入空标题
 const TITLE_FALLBACK = { orderMgrLegacyList: '订单列表（旧入口）' }
 // 已被新控制台取代的旧菜单 name：只隐藏，不删除记录与授权
@@ -400,7 +400,7 @@ function buildRows(entries) {
       r.cloudSort = lock.sort
     }
   }
-  ROOTS.forEach((name, i) => { const r = byName.get(name); if (r) r.sort = 1000 - i * 10 })
+  ROOTS.forEach((name, i) => { const r = byName.get(name); if (r) r.sort = name === 'spendableWalletMgr' ? 945 : 1000 - (i > 6 ? i - 1 : i) * 10 })
   for (const parentName of new Set(rows.map(r => r.parent))) {
     if (!parentName) continue
     const sibs = rows.filter(r => r.parent === parentName)
@@ -424,7 +424,7 @@ function renderSql(rows) {
   L.push('-- 本脚本把 ums_menu 与前端路由树（mall-admin-web/src/router/index.ts 的 asyncRouterMap）按 name 对齐：')
   L.push('--   * 结构 / 标题 / 图标 / hidden 以当前前端路由为准；')
   L.push('--   * 已上线菜单的排序与隐藏以线上 /admin-api/admin/info 为准，保证与线上顺序一致；')
-  L.push('--   * 9 个一级分组的顺序：自选商品管理 > 复购商品管理 > 消费区商品管理 > 订单管理 > 会员 > 财务中心 > 服务中心 > 后台桌面 > 系统设置。')
+  L.push('--   * 10 个一级分组的顺序：自选商品管理 > 复购商品管理 > 消费区商品管理 > 订单管理 > 会员 > 财务中心 > 消费余额与充值 > 服务中心 > 后台桌面 > 系统设置。')
   L.push('--')
   L.push('-- 幂等：按 name 只补缺失行、只归一已有行元数据、只补缺失授权，不删除菜单、角色授权或业务数据。')
   L.push('-- 本文件由 tools/gen_admin_menu_mirror.mjs 生成，路由调整后请重新生成，不要手工改。')
