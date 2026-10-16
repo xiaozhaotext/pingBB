@@ -25,7 +25,8 @@
     </view>
 
     <view class="card">收益来源：直属会员购买权益的直推奖励、每日分红、分享下单奖励；规则与开关均可在后台「平台设置 - 分销与分红」中调整。</view>
-    <view v-if="loadError" class="card error">{{ loadError }}</view>
+    <view v-for="error in loadErrors" :key="error" class="card error">{{ error }}</view>
+    <button v-if="loadErrors.length" class="btn" @click="loadData">重新加载</button>
 
     <view class="card">
       <text class="title">申请提现</text>
@@ -56,21 +57,28 @@ const account = ref<any>(null)
 const withdraws = ref<any[]>([])
 const ledger = ref<any[]>([])
 const withdrawAmount = ref('')
-const loadError = ref('')
+const loadErrors = ref<string[]>([])
 const withdrawing = ref(false)
 const sandbox=ref(false),spendableBalance=ref('—'),modeReady=ref(false)
 let withdrawalStorageKey = ''
 
+const requestFailure = (name: string, error: unknown) => {
+  const failure = error as { statusCode?: number; data?: { message?: string }; errMsg?: string }
+  const detail = failure?.data?.message || (failure?.statusCode ? `HTTP ${failure.statusCode}` : failure?.errMsg || '网络连接失败')
+  return `${name}加载失败（${detail}），请重试或联系管理员`
+}
+
 const loadData = async () => {
-  loadError.value = ''
+  loadErrors.value = []
   modeReady.value=false
   try {
     const options=(await getWithdrawalOptionsAPI()).data
     sandbox.value=options.sandbox
     modeReady.value=Boolean(sandboxMode)===sandbox.value
-    if(!modeReady.value) loadError.value='提现环境与页面不匹配，请打开正确的应用入口'
-    spendableBalance.value=(await getRechargeAccountAPI()).data.balance
-  } catch { modeReady.value=false;spendableBalance.value='—';loadError.value='消费余额或提现环境加载失败，请重试' }
+    if(!modeReady.value) loadErrors.value.push('提现环境与页面不匹配，请打开正确的应用入口')
+  } catch (error) { sandbox.value=sandboxMode; modeReady.value=false; loadErrors.value.push(requestFailure('提现环境接口', error)) }
+  try { spendableBalance.value=(await getRechargeAccountAPI()).data.balance }
+  catch (error) { spendableBalance.value='—'; loadErrors.value.push(requestFailure('消费余额接口', error)) }
   try {
     const member = await getMemberInfoAPI()
     withdrawalStorageKey = (sandbox.value?'sandbox-':'')+'withdraw-request-' + member.data.id
@@ -78,9 +86,9 @@ const loadData = async () => {
     if (pending?.amount) withdrawAmount.value = pending.amount
   } catch { /* Account requests below provide the visible login error. */ }
   try { const r = await getEarningsAccountAPI(); account.value = r.data }
-  catch (e) { account.value = null; loadError.value = '收益账户加载失败，请登录后重试。' }
+  catch (error) { account.value = null; loadErrors.value.push(requestFailure('收益账户', error)) }
   try { const r = await getWithdrawListAPI(); withdraws.value = r.data || [] }
-  catch (e) { withdraws.value = []; loadError.value = '提现记录加载失败，请重试。' }
+  catch (error) { withdraws.value = []; loadErrors.value.push(requestFailure('提现记录', error)) }
   try { const r = await getEarningsLedgerAPI(); ledger.value = r.data || [] }
   catch (e) { ledger.value = [] }
 }
