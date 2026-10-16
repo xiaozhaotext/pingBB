@@ -25,6 +25,7 @@ import { onShow, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useMemberStore } from '@/stores/member'
 import { getMyIdentityAPI, getPointsAccountAPI, getEarningsAccountAPI, getDividendInfoAPI } from '@/apis/member'
 import mixListCell from '@/components/mix-list-cell.vue'
+import { getTriPoolsAPI, tierNames } from '@/apis/triPools'
 
 // ===== Store 相关 =====
 // 获取会员store
@@ -66,15 +67,23 @@ const loadData = async () => {
     }
     results.forEach((result,index)=>{if(result.status==='fulfilled'){const data=result.value.data;if(index===0)productBalance.value=data?.available??data?.balance??'未开户';if(index===1)rebuyBalance.value=data?.available??data?.balance??'未开户';if(index===2){walletAvailable.value=data?.availableEarnings??'—';walletFrozen.value=data?.frozenEarnings??'—';walletWithdrawn.value=data?.withdrawn??'—'}}else{accountError.value='部分账户信息暂不可用'}})
 
+    let triEnabled = false
     try {
+      const tri = (await getTriPoolsAPI()).data
+      triEnabled = tri.enabled
+      if (tri.enabled) {
+        identityLabel.value = tierNames[tri.tier || 'VISITOR']
+        dividendCap.value = (tri.pools || []).reduce((sum, pool) => sum + Number(pool.cap), 0)
+      } else {
       const identity = await getMyIdentityAPI()
       identityLabel.value = identity.data?.identityType == null
         ? '普通会员'
         : ({ 0: '普通会员', 1: '合伙人', 2: '联创' } as Record<number, string>)[identity.data.identityType] || '未知身份'
+      }
     } catch {
       identityLabel.value = '会员身份获取失败'
     }
-    try {
+    if (!triEnabled) try {
       const dividend = await getDividendInfoAPI()
       const cap = dividend.data?.capAmount
       dividendCap.value = cap == null || cap === '' ? '—' : cap

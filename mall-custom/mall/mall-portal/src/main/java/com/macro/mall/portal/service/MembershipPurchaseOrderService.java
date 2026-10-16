@@ -23,6 +23,8 @@ public class MembershipPurchaseOrderService {
     private final MembershipPaymentGateway gateway;
     private final MembershipReferralRewardService referralRewards;
     private final boolean mockPaymentEnabled;
+    @Value("${mall.membership-v2.enabled:false}")
+    private boolean membershipV2Enabled;
 
     public MembershipPurchaseOrderService(JdbcTemplate jdbc, MemberIdentityService identityService,
                                           MembershipPaymentGateway gateway,
@@ -36,6 +38,7 @@ public class MembershipPurchaseOrderService {
     }
 
     public Map<String, Object> create(Long authenticatedMemberId, MembershipPurchaseRequest request, String clientIp) {
+        if (membershipV2Enabled) throw new IllegalArgumentException("请在自选区购买3999元会员身份牌，合伙人和联创通过有效直邀自动晋升");
         validate(authenticatedMemberId, request);
         if (!"1".equals(config("membership.purchase.enabled"))) {
             throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);

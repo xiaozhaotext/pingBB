@@ -7,6 +7,7 @@
   },
   "pages": [
     { "path": "pages/member/contact", "style": { "navigationBarTitleText": "联系资料" } },
+    { "path": "pages/member/travel", "style": { "navigationBarTitleText": "定制旅游路线" } },
     { "path": "pages/member/benefits", "style": { "navigationBarTitleText": "奖励与旅游权益" } },
     {"path":"pages/member/recharge","style":{"navigationBarTitleText":"账户充值"}},
     {

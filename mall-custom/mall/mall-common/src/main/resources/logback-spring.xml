@@ -35,6 +35,8 @@
             <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>
             <!--日志文件保留天数，默认30天-->
             <maxHistory>${LOG_FILE_MAX_HISTORY:-30}</maxHistory>
+            <totalSizeCap>${LOG_FILE_TOTAL_SIZE_CAP:-512MB}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
         </rollingPolicy>
     </appender>
 
@@ -59,6 +61,8 @@
             <maxFileSize>${LOG_FILE_MAX_SIZE:-10MB}</maxFileSize>
             <!--日志文件保留天数，默认30天-->
             <maxHistory>${LOG_FILE_MAX_HISTORY:-30}</maxHistory>
+            <totalSizeCap>${LOG_FILE_TOTAL_SIZE_CAP:-512MB}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
         </rollingPolicy>
     </appender>
 

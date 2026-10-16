@@ -5,6 +5,7 @@ import { useMemberStore } from '@/stores/member'
 import { getMyIdentityAPI,getMyInviteesAPI,getEarningsAccountAPI } from '@/apis/member'
 import MainNavigation from '@/components/MainNavigation.vue'
 import DesktopHeader from '@/components/DesktopHeader.vue'
+import { getTriPoolsAPI, tierNames } from '@/apis/triPools'
 const member=useMemberStore(),loggedIn=computed(()=>!!member.memberInfo)
 const identity=ref('—'),inviteCount=ref<string|number>('—'),available=ref<string|number>('—'),total=ref<string|number>('—'),error=ref('')
 async function load(){
@@ -13,6 +14,7 @@ async function load(){
  const results=await Promise.allSettled([getMyIdentityAPI(),getMyInviteesAPI(),getEarningsAccountAPI()])
  if(!loggedIn.value)return
  results.forEach((r,i)=>{if(r.status==='rejected'){error.value='部分推广数据暂时无法加载，请重试';return}const d=r.value.data;if(i===0)identity.value=({0:'普通会员',1:'合伙人',2:'联创'} as Record<number,string>)[d?.identityType??0]||'未知身份';if(i===1)inviteCount.value=Array.isArray(d)?d.length:'—';if(i===2){available.value=d?.availableEarnings??'未开户';total.value=d?.totalEarnings??'未开户'}})
+ try { const tri = (await getTriPoolsAPI()).data; if (tri.enabled) { identity.value = tierNames[tri.tier || 'VISITOR']; inviteCount.value = tri.directPaidCount || 0 } } catch { error.value = '当前身份与有效邀请人数加载失败，请重试' }
 }
 function go(url:string){uni.navigateTo({url:loggedIn.value?url:'/pages/public/login'})}
 onShow(load)

@@ -29,6 +29,8 @@ public class DividendDistributionService {
     // 规则未定稿前，部署配置和后台开关必须同时开启才能真实入账。
     @Value("${mall.dividend.payout.enabled:false}")
     private boolean payoutEnabled;
+    @Value("${mall.membership-v2.enabled:false}")
+    private boolean membershipV2Enabled;
 
     public DividendDistributionService(JdbcTemplate jdbc, PointsWalletService pointsWallet,
                                        MemberEarningsCreditService earningsCreditService) {
@@ -43,6 +45,7 @@ public class DividendDistributionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int distributeDaily(LocalDate statDate) {
+        if (membershipV2Enabled) return 0; // New pools distribute on verified card purchases, never on the old daily job.
         // No config or consumer request can enable cash posting before business/compliance review.
         if (!payoutEnabled || !distributionApproved()) throw new IllegalStateException("每日分红发放未启用");
         BigDecimal poolBalance = jdbc.queryForObject(

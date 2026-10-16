@@ -11,6 +11,9 @@ const identityOptions = [
 ]
 
 const loading = ref(false)
+const membershipV2 = ref(false)
+const v2Labels: Record<string,string> = { VISITOR: '游客', MEMBER: '会员', PARTNER: '合伙人', COFOUNDER: '联创' }
+const displayedLabels = computed(() => membershipV2.value ? ['游客', '会员', '合伙人', '联创'] : ['普通会员', '合伙人', '联创'])
 const saving = ref(false)
 const members = ref<P0Row[]>([])
 const keyword = ref('')
@@ -25,7 +28,7 @@ const filtered = computed(() => {
 const counts = computed(() => {
   const result: Record<number, number> = { 0: 0, 1: 0, 2: 0 }
   members.value.forEach(row => {
-    const type = Number(row.identity_type ?? 0)
+    const type = membershipV2.value ? ['VISITOR','MEMBER','PARTNER','COFOUNDER'].indexOf(String(row.membership_tier)) : Number(row.identity_type ?? 0)
     result[type] = (result[type] || 0) + 1
   })
   return result
@@ -34,6 +37,7 @@ const counts = computed(() => {
 async function load() {
   loading.value = true
   try {
+    membershipV2.value = !!(await getP0<{ enabled: boolean }>('tri-pools')).data.enabled
     members.value = (await getP0<P0Row[]>('members')).data || []
   } catch {
     members.value = []
@@ -91,18 +95,15 @@ async function submitReferrer() {
       <div>
         <small>会员</small>
         <h1>会员身份</h1>
-        <p>普通会员 / 合伙人 / 联创 可手动设置，并支持绑定会员推荐关系；所有变更写入审计。</p>
+        <p>{{ membershipV2 ? '游客 / 会员 / 合伙人 / 联创，身份按身份牌支付和有效直邀会员数自动晋升。' : '普通会员 / 合伙人 / 联创 可手动设置，并支持绑定会员推荐关系；所有变更写入审计。' }}</p>
       </div>
       <el-button @click="load">刷新</el-button>
     </header>
     <section class="cards">
-      <el-card shadow="never" class="metric"><span>普通会员</span><strong>{{ counts[0] || 0 }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>合伙人</span><strong>{{ counts[1] || 0 }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>联创</span><strong>{{ counts[2] || 0 }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>会员总数</span><strong>{{ members.length }}</strong></el-card>
+      <el-card v-for="(label,i) in displayedLabels" :key="label" shadow="never" class="metric"><span>{{ label }}（当前页）</span><strong>{{ counts[i] || 0 }}</strong></el-card>
     </section>
     <section class="forms">
-      <el-card shadow="never">
+      <el-card v-if="!membershipV2" shadow="never">
         <template #header><strong>手动设置会员身份</strong></template>
         <el-form label-position="top">
           <el-form-item label="会员 ID"><el-input-number v-model="identityForm.memberId" :min="1" :controls="false" /></el-form-item>
@@ -134,7 +135,7 @@ async function submitReferrer() {
         <el-table-column prop="username" label="会员名称" min-width="140" />
         <el-table-column prop="phone" label="手机号码" min-width="140" />
         <el-table-column label="身份" width="110">
-          <template #default="{ row }">{{ identityLabels[Number(row.identity_type ?? 0)] || '普通会员' }}</template>
+          <template #default="{ row }">{{ membershipV2 ? v2Labels[String(row.membership_tier)] : identityLabels[Number(row.identity_type ?? 0)] || '普通会员' }}</template>
         </el-table-column>
         <el-table-column prop="inviter_id" label="推荐人 ID" width="110" />
         <el-table-column prop="create_time" label="注册时间" min-width="170" />

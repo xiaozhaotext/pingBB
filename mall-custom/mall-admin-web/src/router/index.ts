@@ -112,6 +112,9 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'sources', name: 'financeCommissionSources', component: () => import('@/views/p0/Finance.vue'), meta: { title: '佣金来源', icon: 'document', section: 'byType' } },
       ] },
       { path: 'dividend', name: 'financeDividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池', icon: 'total-yesterday', section: 'p0Dividend' } },
+      { path: 'partner-pool', name: 'financePartnerPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '合伙人分红池', pool: 'PARTNER', icon: 'total-yesterday' } },
+      { path: 'cofounder-pool', name: 'financeCofounderPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '联创分红池', pool: 'COFOUNDER', icon: 'total-yesterday' } },
+      { path: 'operations-pool', name: 'financeOperationsPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '运营分红池', pool: 'OPERATIONS', icon: 'total-yesterday' } },
     ],
   },
   // 7 服务中心

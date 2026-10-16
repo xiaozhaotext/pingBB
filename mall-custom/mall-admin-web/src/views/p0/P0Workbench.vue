@@ -30,6 +30,8 @@ const memberKeyword = ref('')
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
+const triMembership = computed(() => memberDetail.value?.triMembership as { enabled?: boolean; tier?: string; directPaidCount?: number } | undefined)
+const triTierNames: Record<string,string> = { VISITOR: '游客', MEMBER: '会员', PARTNER: '合伙人', COFOUNDER: '联创' }
 const memberDetailTab = ref('identity')
 const memberStats = ref<Record<string, unknown> | null>(null)
 const memberZone = ref('')
@@ -334,11 +336,17 @@ const groupTitles: Record<string, string> = {
       <template v-if="memberDetail">
         <el-tabs v-model="memberDetailTab" class="member-detail-tabs">
           <el-tab-pane label="会员身份" name="identity">
+            <template v-if="triMembership?.enabled">
+              <p>当前身份：{{ triTierNames[triMembership.tier || 'VISITOR'] }}</p>
+              <p>有效直邀会员：{{ triMembership.directPaidCount || 0 }} 人；身份通过身份牌支付和有效直邀自动晋升。</p>
+            </template>
+            <template v-else>
             <p>当前身份：{{ ['普通会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
             <h3>调整身份</h3>
             <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
             <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
             <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
+            </template>
             <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
           </el-tab-pane>
           <el-tab-pane label="会员操作" name="operations">

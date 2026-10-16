@@ -5,7 +5,22 @@ import { onShow } from '@dcloudio/uni-app'
 import { http } from '@/utils/http'
 const form = ref({ real_name: '', email: '', wechat_account: '' }), busy = ref(false), loaded = ref(false), error = ref('')
 async function load() { error.value = ''; try { form.value = (await http<typeof form.value>({ method: 'GET', url: '/member/contact' })).data; loaded.value = true } catch { error.value = '资料加载失败'; loaded.value = false } }
-async function save() { if (busy.value || !loaded.value) return; busy.value = true; try { await http({ method: 'POST', url: '/member/contact', data: form.value }); uni.showToast({ title: '已保存', icon: 'success' }) } finally { busy.value = false } }
+async function save() {
+  if (busy.value || !loaded.value) return
+  busy.value = true
+  try {
+    await http({ method: 'POST', url: '/member/contact', data: form.value })
+    uni.switchTab({
+      url: '/pages/user/user',
+      success: () => uni.showToast({ title: '已保存', icon: 'success' }),
+      fail: () => uni.showToast({ title: '资料已保存，请点击底部“我的”返回', icon: 'none' }),
+    })
+  } catch {
+    // The HTTP helper displays the save error. Keep the form available for retry.
+  } finally {
+    busy.value = false
+  }
+}
 onShow(load)
 </script>
 <style scoped>.contact{padding:24px;display:flex;flex-direction:column;gap:20px}.title{font-size:24px;font-weight:bold}input{padding:16px;background:white;border-radius:8px}text{color:#51625b;font-size:14px}</style>
