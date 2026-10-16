@@ -84,6 +84,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     private ZoneSettlementService zoneSettlementService;
     @Autowired
     private RechargeService rechargeService;
+    @Autowired
+    private TriMembershipOrderService triMembershipOrders;
 
     @Override
     public ConfirmOrderResult generateConfirmOrder(List<Long> cartIds) {
@@ -401,6 +403,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             orderItem.setOrderSn(order.getOrderSn());
         }
         orderItemDao.insertList(orderItemList);
+        if (triMembershipOrders != null) triMembershipOrders.snapshot(order, orderItemList);
         if (jdbcTemplate.update("UPDATE oms_order_request SET order_id=?,state='COMPLETED' WHERE member_id=? AND idempotency_key=? AND state='CREATING'",
                 order.getId(), requestMember.getId(), idempotencyKey) != 1) {
             Asserts.fail("幂等请求记录异常");
@@ -452,9 +455,12 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             }
         }
         // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）
-        shareOrderBonusService.postForOrder(orderId, orderDetail.getMemberId(), orderDetail.getPayAmount());
+        boolean triMembership = triMembershipOrders != null && triMembershipOrders.fulfill(orderId);
+        boolean newRules = triMembershipOrders != null && triMembershipOrders.enabled();
+        if (!newRules) shareOrderBonusService.postForOrder(orderId, orderDetail.getMemberId(), orderDetail.getPayAmount());
         // 购买赠送产品积分：按订单 giftIntegration 入账到买家产品积分钱包
-        grantOrderGiftPoints(orderId, orderDetail);
+        if (!triMembership && (!newRules || triMembershipOrders.isMember(orderDetail.getMemberId())))
+            grantOrderGiftPoints(orderId, orderDetail);
         return orderDetail.getOrderItemList().size();
     }
 

@@ -2,9 +2,7 @@ import { onMounted, onBeforeMount, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 
-const { body } = document
 const WIDTH = 1024
-const RATIO = 3
 
 export default function useResizeHandler() {
   const route = useRoute()
@@ -12,7 +10,7 @@ export default function useResizeHandler() {
 
   // 监听路由变化
   watch(
-    () => route,
+    () => route.path,
     () => {
       if (appStore.device === 'mobile' && appStore.sidebar.opened) {
         appStore.closeSideBar(false)
@@ -22,16 +20,17 @@ export default function useResizeHandler() {
 
   // 判断是否为移动端访问
   const isMobile = () => {
-    const rect = body.getBoundingClientRect()
-    return rect.width - RATIO < WIDTH
+    return window.innerWidth < WIDTH
   }
 
   const resizeHandler = () => {
     if (!document.hidden) {
       const mobile = isMobile()
+      const changed = appStore.device !== (mobile ? 'mobile' : 'desktop')
       appStore.toggleDevice(mobile ? 'mobile' : 'desktop')
-
-      if (mobile) {
+      // Mobile browser chrome changes viewport height during scrolling. Only a
+      // real breakpoint transition should close an already open drawer.
+      if (mobile && changed) {
         appStore.closeSideBar(true)
       }
     }
@@ -45,8 +44,8 @@ export default function useResizeHandler() {
   // 在组件挂在之后调用
   onMounted(() => {
     const mobile = isMobile()
+    appStore.toggleDevice(mobile ? 'mobile' : 'desktop')
     if (mobile) {
-      appStore.toggleDevice('mobile')
       appStore.closeSideBar(true)
     }
   })

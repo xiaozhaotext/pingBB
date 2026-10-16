@@ -23,6 +23,9 @@ public class MembershipPurchaseOrderService {
     private final MembershipPaymentGateway gateway;
     private final MembershipReferralRewardService referralRewards;
     private final boolean mockPaymentEnabled;
+    @Value("${mall.membership-v2.enabled:false}")
+    private boolean membershipV2Enabled;
+    @org.springframework.beans.factory.annotation.Autowired private TriMembershipPurchaseService triPurchases;
 
     public MembershipPurchaseOrderService(JdbcTemplate jdbc, MemberIdentityService identityService,
                                           MembershipPaymentGateway gateway,
@@ -42,12 +45,16 @@ public class MembershipPurchaseOrderService {
         }
         // 本地演示支付桩：跳过真实渠道凭证校验，改由本机 /mockPayment/membership/confirm 完成入账。
         if (!mockPaymentEnabled) gateway.requireReady(request.payChannel());
+        Map<String,Object> order;
+        if (membershipV2Enabled) {
+            order = triPurchases.prepare(authenticatedMemberId, request);
+        } else {
         Integer identity = identityService.getIdentity(authenticatedMemberId) == null ? 0
                 : identityService.getIdentity(authenticatedMemberId).getIdentityType();
         if (identity != null && (identity >= 2 || (identity >= 1 && "PARTNER".equals(request.level())))) {
             throw new MembershipPaymentException(MembershipPaymentError.ALREADY_MEMBER);
         }
-        Map<String, Object> order = find(authenticatedMemberId, request.requestId());
+        order = find(authenticatedMemberId, request.requestId());
         if (order == null) {
             String prefix = "PARTNER".equals(request.level()) ? "membership.partner." : "membership.cofounder.";
             BigDecimal price = decimal(config(prefix + "price"));
@@ -82,6 +89,7 @@ public class MembershipPurchaseOrderService {
                 || !"PENDING".equals(order.get("status"))) {
             throw new MembershipPaymentException(MembershipPaymentError.ORDER_CONFLICT);
         }
+        }
         String no = (String) order.get("merchant_order_no");
         BigDecimal price = (BigDecimal) order.get("amount");
         Map<String, String> payment;
@@ -107,7 +115,7 @@ public class MembershipPurchaseOrderService {
 
     private void validate(Long current, MembershipPurchaseRequest request) {
         if (request == null || current == null || !current.equals(request.memberId())
-                || !("PARTNER".equals(request.level()) || "COFOUNDER".equals(request.level()))
+                || !(membershipV2Enabled ? "MEMBER".equals(request.level()) : ("PARTNER".equals(request.level()) || "COFOUNDER".equals(request.level())))
                 || !("WECHAT".equals(request.payChannel()) || "ALIPAY".equals(request.payChannel()))
                 || !(("WECHAT".equals(request.payChannel())
                         && ("WECHAT_H5".equals(request.payMode()) || "WECHAT_JSAPI".equals(request.payMode())))

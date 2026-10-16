@@ -2,7 +2,27 @@
   <view class="app">
     <view v-if="loadError" class="card error">{{ loadError }}</view>
 
-    <view class="card" v-if="info">
+    <template v-if="tri?.enabled">
+      <view class="card">
+        <text class="title">我的身份：{{ tierNames[tri.tier || 'VISITOR'] }}</text>
+        <view class="row"><text>有效直邀会员</text><text>{{ tri.directPaidCount || 0 }} 人</text></view>
+        <text class="tip" v-if="tri.tier === 'VISITOR'">注册为游客；在“我的”单独购买3999元会员后开通会员权益。</text>
+        <text class="tip" v-else>每笔会员支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
+        <button v-if="tri.customTravelEligible" class="btn" @click="openTravel">定制旅游路线</button>
+      </view>
+      <view class="card" v-for="pool in tri.pools" :key="pool.code">
+        <text class="title">{{ poolNames[pool.code] }}</text>
+        <template v-if="pool.eligible">
+          <view class="row"><text>当前份数</text><text>{{ pool.shares }} 份</text></view>
+          <view class="row"><text>累计领取上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
+          <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
+          <view class="row"><text>剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
+        </template>
+        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红，独立累计上限1200元。' : '成为会员后享有本池分红。' }}</text>
+      </view>
+      <view class="card"><text class="title">分红记录</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ r.created_at }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
+    </template>
+    <view class="card" v-if="!tri?.enabled && info">
       <text class="title">我的分红</text>
       <view class="row"><text>我的身份</text><text class="v">{{ info.identityName }}</text></view>
       <view class="row"><text>分红份数</text><text class="v">{{ info.shares }} 份</text></view>
@@ -14,7 +34,7 @@
       <view class="tip" v-if="!info.distributionEnabled">每日分红发放当前未启用，数据为历史记录。</view>
     </view>
 
-    <view class="card">
+    <view class="card" v-if="!tri?.enabled">
       <text class="title">分红记录</text>
       <view class="list" v-if="records.length">
         <view class="item" v-for="(r, i) in records" :key="i">
@@ -31,6 +51,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getDividendInfoAPI, getDividendRecordsAPI } from '@/apis/member'
+import { getTriPoolsAPI, getTriPoolRecordsAPI, tierNames, poolNames, type TriSummary, type TriRecord } from '@/apis/triPools'
+const tri = ref<TriSummary | null>(null)
+const triRecords = ref<TriRecord[]>([])
+const openTravel = () => uni.navigateTo({ url: '/pages/member/travel' })
 
 const info = ref<any>(null)
 const records = ref<any[]>([])
@@ -67,10 +91,23 @@ const loadRecords = async (reset = false) => {
 
 const loadMore = () => {
   page.value += 1
-  loadRecords(false)
+  if (tri.value?.enabled) loadTriRecords()
+  else loadRecords(false)
+}
+
+const loadTriRecords = async () => {
+  try {
+    const list = (await getTriPoolRecordsAPI(page.value)).data || []
+    triRecords.value = page.value === 1 ? list : triRecords.value.concat(list)
+    hasMore.value = list.length >= PAGE_SIZE
+  } catch { page.value = Math.max(1, page.value - 1); loadError.value = '分红记录加载失败，请重试' }
 }
 
 onMounted(async () => {
+  try {
+    tri.value = (await getTriPoolsAPI()).data
+    if (tri.value.enabled) { await loadTriRecords(); return }
+  } catch { loadError.value = '分红信息加载失败，请重试'; return }
   await loadInfo()
   await loadRecords(true)
 })

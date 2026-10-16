@@ -13,11 +13,13 @@ import java.util.*;
 @RestController @RequestMapping("/p0/benefits")
 public class ManualBenefitController {
  private final JdbcTemplate jdbc; private final P0AdminAccess access;
+ @org.springframework.beans.factory.annotation.Value("${mall.membership-v2.enabled:false}") private boolean membershipV2Enabled;
  public ManualBenefitController(JdbcTemplate jdbc,P0AdminAccess access){this.jdbc=jdbc;this.access=access;}
  @GetMapping public CommonResult<List<Map<String,Object>>> list(Principal principal){access.requireAuthorized(principal);return CommonResult.success(jdbc.queryForList("SELECT * FROM member_manual_benefit ORDER BY id DESC LIMIT 200"));}
  @PostMapping @Transactional(rollbackFor=Exception.class)
  public CommonResult<?> request(Principal principal,@RequestBody Map<String,Object> body){
   long operator=access.requireAuthorized(principal);
+  if(membershipV2Enabled)return CommonResult.failed("新规则已启用，旧版每月奖励和一次性旅游核销不再接受新申请");
   long member; try {member=Long.parseLong(String.valueOf(body.get("memberId")));}catch(Exception e){return CommonResult.failed("会员编号无效");}
   String type=String.valueOf(body.get("type"));String reason=String.valueOf(body.getOrDefault("reason","" )).trim();
   if(reason.length()<5 || reason.length()>500)return CommonResult.failed("申请依据需为5至500字");

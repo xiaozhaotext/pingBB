@@ -23,6 +23,7 @@ const sectionKey = computed(() => {
 })
 const section = computed(() => sections[sectionKey.value])
 const loading = ref(false)
+const membershipV2 = ref<boolean | null>(null)
 const data = ref<Record<string, unknown>>({})
 const poolStats = computed(() => data.value.poolStats as Record<string, unknown> | undefined)
 const poolTodayIn = computed(() => data.value.poolTodayIn as Record<string, unknown> | undefined)
@@ -30,6 +31,8 @@ const memberKeyword = ref('')
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
+const triMembership = computed(() => memberDetail.value?.triMembership as { enabled?: boolean; tier?: string; directPaidCount?: number } | undefined)
+const triTierNames: Record<string,string> = { VISITOR: '游客', MEMBER: '会员', PARTNER: '合伙人', COFOUNDER: '联创' }
 const memberDetailTab = ref('identity')
 const memberStats = ref<Record<string, unknown> | null>(null)
 const memberZone = ref('')
@@ -87,7 +90,7 @@ const settingOptions = [
 ]
 const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings'
   ? settingOptions.filter(option => option.key.startsWith('sms.'))
-  : settingOptions)
+  : settingOptions.filter(option => membershipV2.value === false || !/^(membership\.|dividend\.)/.test(option.key)))
 const labels: Record<string, string> = {
   wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
@@ -105,6 +108,13 @@ async function load() {
   loading.value = true
   memberDetail.value = null
   try {
+    membershipV2.value = null
+    try {
+      const tri = await getP0<{ enabled: boolean }>('tri-pools')
+      membershipV2.value = !!tri.data.enabled
+    } catch {
+      membershipV2.value = null
+    }
     const params = sectionKey.value === 'p0Members' ? { keyword: memberKeyword.value } : undefined
     const response = await getP0(section.value.path, params)
     const value = response.data
@@ -112,6 +122,7 @@ async function load() {
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
     if (sectionKey.value === 'p0Settings' || sectionKey.value === 'p0SmsSettings') {
       if (sectionKey.value === 'p0SmsSettings' && !settingForm.value.key.startsWith('sms.')) settingForm.value.key = 'sms.provider'
+      if (sectionKey.value === 'p0Settings' && membershipV2.value && /^(membership\.|dividend\.)/.test(settingForm.value.key)) settingForm.value.key = 'site.title'
       selectSetting(settingForm.value.key)
     }
     if (sectionKey.value === 'p0Members') {
@@ -137,6 +148,12 @@ watch(sectionKey, load, { immediate: true })
 
 function rows(value: unknown): P0Row[] {
   return Array.isArray(value) ? value as P0Row[] : []
+}
+function visibleDataRows(key: string, value: unknown): P0Row[] {
+  const all = rows(value)
+  return key === 'configs' && membershipV2.value
+    ? all.filter(row => !/^(membership\.|dividend\.)/.test(String(row.config_key || '')))
+    : all
 }
 function columns(value: unknown): string[] {
   const first = rows(value)[0]
@@ -290,7 +307,8 @@ const groupTitles: Record<string, string> = {
       <el-text v-if="isMaskedSettingValue" type="warning" size="small">敏感信息已脱敏显示；如需修改请直接输入新值后保存，不修改请勿提交。</el-text>
     </el-card>
 
-    <el-card v-if="poolStats" class="stat-card" shadow="never">
+    <el-alert v-if="membershipV2 && ['p0Partner','p0Cofounder','p0Dividend','p0Settings'].includes(sectionKey)" title="此页保留旧版历史记录；新版身份、额度和每日账目请进入左侧‘会员身份’与‘分红池’。" type="info" :closable="false" style="margin-top:20px" />
+    <el-card v-if="membershipV2 === false && poolStats" class="stat-card" shadow="never">
       <template #header><strong>分红池</strong></template>
       <div class="stat-grid">
         <div class="stat"><span>当前余额（元）</span><strong>{{ money(poolStats.pool_balance) }}</strong></div>
@@ -317,8 +335,8 @@ const groupTitles: Record<string, string> = {
 
     <section v-for="(value, key) in data" :key="key" class="data-section">
       <el-card v-if="Array.isArray(value)" shadow="never">
-        <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ rows(value).length }})</small></strong></template>
-        <el-table v-if="rows(value).length" :data="rows(value)" stripe max-height="480">
+        <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ visibleDataRows(String(key), value).length }})</small></strong></template>
+        <el-table v-if="visibleDataRows(String(key), value).length" :data="visibleDataRows(String(key), value)" stripe max-height="480">
           <el-table-column v-for="column in columns(value)" :key="column" :prop="column" :label="labels[column] || column" min-width="110" show-overflow-tooltip>
             <template #default="scope">{{ display(scope.row[column]) }}</template>
           </el-table-column>
@@ -334,11 +352,17 @@ const groupTitles: Record<string, string> = {
       <template v-if="memberDetail">
         <el-tabs v-model="memberDetailTab" class="member-detail-tabs">
           <el-tab-pane label="会员身份" name="identity">
+            <template v-if="triMembership?.enabled">
+              <p>当前身份：{{ triTierNames[triMembership.tier || 'VISITOR'] }}</p>
+              <p>有效直邀会员：{{ triMembership.directPaidCount || 0 }} 人；身份通过身份牌支付和有效直邀自动晋升。</p>
+            </template>
+            <template v-else>
             <p>当前身份：{{ ['普通会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
             <h3>调整身份</h3>
             <el-select v-model="identityType" style="width:100%;margin-bottom:12px"><el-option label="普通会员" :value="0" /><el-option label="合伙人" :value="1" /><el-option label="联创" :value="2" /></el-select>
             <el-input v-model="identityReason" type="textarea" placeholder="必填：变更原因" />
             <el-button type="primary" style="margin-top:12px" @click="changeIdentity">保存并审计</el-button>
+            </template>
             <h3>身份变更记录</h3><el-table :data="rows(memberDetail.identityHistory)" max-height="260"><el-table-column prop="from_type" label="原身份" /><el-table-column prop="to_type" label="新身份" /><el-table-column prop="reason" label="原因" /></el-table>
           </el-tab-pane>
           <el-tab-pane label="会员操作" name="operations">
@@ -372,3 +396,4 @@ const groupTitles: Record<string, string> = {
 <style scoped>
 .p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.stat-card{margin-top:20px}.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.stat{background:#f3f7f4;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}.stat span{font-size:12px;color:#61746b}.stat strong{font-size:20px;color:#203a32}.stat-trend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#61746b}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}
 </style>
+

@@ -24,11 +24,15 @@ public class OrderReturnRefundService {
     private JdbcTemplate jdbc;
     @Autowired
     private PaymentRefundService paymentRefundService;
+    @org.springframework.beans.factory.annotation.Value("${mall.membership-v2.enabled:false}")
+    private boolean membershipV2Enabled;
 
     public String refundForReturn(Long returnApplyId, Long orderId, BigDecimal returnAmount, String reason) {
         if (returnApplyId == null || orderId == null || returnAmount == null) {
             return "退货完成，库存已归还；退款参数不完整，请人工核对退款";
         }
+        if (membershipV2Enabled && !jdbc.queryForList("SELECT order_id FROM tri_order_snapshot WHERE order_id=?",Long.class,orderId).isEmpty())
+            throw new com.macro.mall.common.exception.ApiException("身份牌退款涉及双积分、直邀奖励及已分配分红，当前需人工专项核对，尚未开放自动退款");
         // 退款请求号以退货单为准，重复执行不会在渠道侧产生二次退款。
         String outRequestNo = "RA" + returnApplyId;
         Map<String, Object> payment;

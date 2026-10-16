@@ -1,0 +1,126 @@
+<template>
+  <view class="benefits">
+    <text class="title">会员与晋升权益</text>
+    <text v-if="error" class="error">{{ error }}</text>
+    <view v-if="info" class="card"><text>当前身份：{{ tierNames[info.tier || 'VISITOR'] }}</text><text>有效直邀会员：{{ info.directPaidCount || 0 }} 人</text></view>
+    <view class="card"><text class="subtitle">游客 → 会员</text><text>注册默认为游客，不享有奖励。在“我的”单独购买3999元会员身份后成为会员，获得3999复购积分、3999消费积分及旅游路线定制权益。</text><text>会员在合伙人池有本人基础1份，累计分红上限1200元。每直接邀请1位付费会员增加1份，并获1200复购积分及399.90元直邀奖励。</text></view>
+    <view class="card"><text class="subtitle">会员 → 合伙人 → 联创</text><text>直邀3名付费会员后晋升合伙人；直邀9名后晋升联创。所有奖励只计直接邀请的付费会员。</text><text>合伙人池上限：0或1人1200元，2人2400元，3人8000元，4人9200元，5人10400元，6人16000元，7人17200元，8人18400元，9人及以上24000元。</text><text>联创另享联创池1份、独立累计上限1200元，并继续享有合伙人池权益。升级不重置已领取金额。</text></view>
+    <view v-if="info?.tier === 'VISITOR'" class="card"><text class="subtitle">购买会员 · ¥3999</text><text>独立购买会员身份，无需购买自选区商品。</text><button :disabled="submitting" @click="payChannel = 'WECHAT'; handleBuy()">微信支付3999元</button><button :disabled="submitting" @click="payChannel = 'ALIPAY'; handleBuy()">支付宝支付3999元</button><text v-if="orderInfo">订单号：{{ orderInfo.merchantOrderNo }}，{{ payHint }}</text><text v-if="actionError" class="error">{{ actionError }}</text></view>
+    <button v-if="info?.tier && info.tier !== 'VISITOR'" @click="openDividend">查看我的分红与旅游权益</button>
+  </view>
+</template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { getTriPoolsAPI, tierNames, type TriSummary } from '@/apis/triPools'
+const info = ref<TriSummary | null>(null), error = ref('')
+onMounted(async () => { try { info.value = (await getTriPoolsAPI()).data } catch { error.value = '权益加载失败，请返回重试' } })
+
+const openDividend = () => uni.navigateTo({ url: '/pages/member/dividend' })
+import { useMemberStore } from '@/stores/member'
+import { createMembershipOrderAPI, confirmMockMembershipPaymentAPI, getMemberInfoAPI } from '@/apis/member'
+const payChannel = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
+const submitting = ref(false)
+const orderInfo = ref<any>(null)
+const payHint = ref('')
+const actionError = ref('')
+const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
+
+/** 生成幂等键：8-64 位字母数字 */
+const genRequestId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let s = 'MP'
+  for (let i = 0; i < 24; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
+}
+
+const resolveMemberId = async (): Promise<number | undefined> => {
+  const cached = useMemberStore().memberInfo?.id
+  if (cached) return cached
+  try {
+    const r = await getMemberInfoAPI()
+    return r.data?.id
+  } catch {
+    return undefined
+  }
+}
+
+const purchaseRequestId = (member: number, channel: string) => {
+  const key = `membership-pending-${member}-${channel}`
+  let id = uni.getStorageSync(key)
+  if (!id) { id = genRequestId(); uni.setStorageSync(key, id) }
+  return String(id)
+}
+const handleBuy = async () => {
+  actionError.value = ''
+  orderInfo.value = null
+  payHint.value = ''
+  const memberId = await resolveMemberId()
+  if (!memberId) {
+    actionError.value = '请先登录后再购买。'
+    return
+  }
+  submitting.value = true
+  try {
+    const r = await createMembershipOrderAPI({
+      memberId,
+      level: 'MEMBER',
+      payChannel: payChannel.value,
+      payMode: payChannel.value === 'WECHAT' ? 'WECHAT_H5' : 'ALIPAY_WAP',
+      requestId: purchaseRequestId(memberId, payChannel.value),
+    })
+    const o = r.data
+    orderInfo.value = o
+    const payment = o.payment || {}
+    if (String(payment.mock) === 'true') {
+      payHint.value = '正在确认本地演示支付…'
+      await confirmMockMembershipPaymentAPI(o.orderId)
+      payHint.value = '演示支付已确认，权益仅在测试库生效。'
+      uni.showToast({ icon: 'success', title: '模拟购买完成' })
+      setTimeout(() => {
+        uni.switchTab({ url: '/pages/user/user' })
+      }, 800)
+      return
+    }
+    if (payment.type === 'WECHAT_H5_URL' && payment.h5Url) {
+      payHint.value = '正在跳转微信支付…'
+      // #ifdef H5
+      window.location.href = payment.h5Url
+      // #endif
+      // #ifndef H5
+      uni.setClipboardData({ data: payment.h5Url })
+      payHint.value = '支付链接已复制，请粘贴到浏览器完成支付。'
+      // #endif
+    } else if (payment.type === 'ALIPAY_FORM' && payment.formHtml) {
+      payHint.value = '正在跳转支付宝…'
+      // #ifdef H5
+      const div = document.createElement('div')
+      div.innerHTML = payment.formHtml
+      document.body.appendChild(div)
+      const form = div.querySelector('form')
+      if (form) form.submit()
+      // #endif
+      // #ifndef H5
+      payHint.value = '订单已创建，请在支付宝内完成支付。'
+      // #endif
+    } else {
+      payHint.value = '订单已创建，请按提示完成支付。'
+    }
+  } catch (e: any) {
+    const code = e?.data?.code
+    const msg = e?.data?.message
+    if (code === 56003) {
+      actionError.value = '会员购买暂未开放，敬请期待。'
+    } else if (code === 56004) {
+      actionError.value = '您已是会员，无需重复购买。'
+    } else if (code === 56002) {
+      actionError.value = '支付渠道尚未开通，请稍后再试。'
+    } else {
+      actionError.value = '下单失败：' + (msg || '请稍后重试')
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+</script>
+<style scoped>.benefits{max-width:800px;margin:auto;padding:24px;display:flex;flex-direction:column;gap:18px}.title{font-size:24px;font-weight:600}.card{padding:22px;background:white;border:1px solid #e8eeec;border-radius:12px;display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.8}.subtitle{font-weight:600;color:#167a80}.error{color:#ae2929}button{background:#167a80;color:white;font-size:15px}</style>

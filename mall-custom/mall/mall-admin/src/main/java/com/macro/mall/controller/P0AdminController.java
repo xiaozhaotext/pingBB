@@ -23,6 +23,8 @@ public class P0AdminController {
     private final JdbcTemplate jdbc;
     private final P0AdminAccess access;
     private final P0ReferralAdminService referrals;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.macro.mall.common.membership.TriPoolService triPools;
 
     public P0AdminController(JdbcTemplate jdbc, P0AdminAccess access,
                              P0ReferralAdminService referrals) {
@@ -40,7 +42,7 @@ public class P0AdminController {
         int limit = Math.min(Math.max(size, 1), 100);
         long offset = (Math.max(page, 1) - 1L) * limit;
         String like = "%" + keyword.trim() + "%";
-        return CommonResult.success(jdbc.queryForList(
+        List<Map<String,Object>> result = jdbc.queryForList(
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
                 "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
@@ -50,7 +52,15 @@ public class P0AdminController {
                 "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
                 "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
-                "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset));
+                "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset);
+        if (triPools != null && triPools.enabled()) for (var row : result) {
+            var summary = triPools.memberSummary(((Number)row.get("id")).longValue());
+            String tier = String.valueOf(summary.get("tier"));
+            row.put("membership_tier", tier);
+            row.remove("identity_type");
+            row.put("membership_name", switch(tier) { case "MEMBER" -> "会员"; case "PARTNER" -> "合伙人"; case "COFOUNDER" -> "联创"; default -> "游客"; });
+        }
+        return CommonResult.success(result);
     }
     @GetMapping("/members/stats")
     public CommonResult<Map<String, Object>> memberStats(Principal principal) {
@@ -120,6 +130,7 @@ public class P0AdminController {
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会员不存在");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("profile", rows.get(0));
+        if (triPools != null && triPools.enabled()) data.put("triMembership", triPools.memberSummary(memberId));
         data.put("addresses", jdbc.queryForList("SELECT id,name,phone_number,default_status,province,city,region,detail_address FROM ums_member_receive_address WHERE member_id=? ORDER BY id DESC", memberId));
         data.put("orders", jdbc.queryForList("SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,GROUP_CONCAT(DISTINCT z.zone_code) AS product_zones FROM oms_order o LEFT JOIN oms_order_item i ON i.order_id=o.id LEFT JOIN pms_product_zone z ON z.product_id=i.product_id WHERE o.member_id=? AND o.delete_status=0 GROUP BY o.id ORDER BY o.id DESC LIMIT 100",memberId));
         data.put("consumption", jdbc.queryForList("SELECT COUNT(*) AS order_count,COALESCE(SUM(CASE WHEN status IN(1,2,3) THEN pay_amount ELSE 0 END),0) AS paid_amount FROM oms_order WHERE member_id=? AND delete_status=0",memberId));
@@ -167,6 +178,7 @@ public class P0AdminController {
     public CommonResult<Void> changeIdentity(Principal principal, @PathVariable long memberId,
             @RequestBody Map<String, Object> body) {
         long operatorId = access.requireAuthorized(principal);
+        if (triPools != null && triPools.enabled()) return CommonResult.failed("新身份由身份牌支付和有效直邀自动晋升，不支持旧身份手动设置");
         int newType = integer(body, "identityType");
         String reason = requiredText(body, "reason", 5, 200);
         if (newType < 0 || newType > 2) return CommonResult.failed("身份类型无效");
@@ -194,6 +206,9 @@ public class P0AdminController {
     @GetMapping("/partner")
     public CommonResult<Map<String, Object>> partner(Principal principal) {
         access.requireAuthorized(principal);
+        if (triPools != null && triPools.enabled()) return CommonResult.success(Map.of(
+                "config", List.of(Map.of("晋升条件","直邀3名付费会员","份数","本人1份＋有效直邀会员数","累计上限","按已确认阶梯，最高24000元")),
+                "orders", List.of(), "identities",jdbc.queryForList("SELECT t.member_id,m.username,t.tier,t.direct_paid_count,t.updated_at AS become_time FROM tri_member t JOIN ums_member m ON m.id=t.member_id WHERE t.tier IN ('PARTNER','COFOUNDER') ORDER BY t.updated_at DESC LIMIT 100")));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("config", jdbc.queryForList("SELECT id,price,product_points,repurchase_points,simulate_flag,enabled,remark " +
                 "FROM biz_partner_config ORDER BY id DESC LIMIT 10"));
@@ -209,6 +224,9 @@ public class P0AdminController {
     @GetMapping("/cofounder")
     public CommonResult<Map<String, Object>> cofounder(Principal principal) {
         access.requireAuthorized(principal);
+        if (triPools != null && triPools.enabled()) return CommonResult.success(Map.of(
+                "config", List.of(Map.of("晋升条件","直邀9名付费会员","联创池份数",1,"联创池独立累计上限",1200,"合伙人池累计上限",24000)),
+                "orders", List.of(), "identities",jdbc.queryForList("SELECT t.member_id,m.username,t.tier,t.direct_paid_count,t.updated_at AS become_time FROM tri_member t JOIN ums_member m ON m.id=t.member_id WHERE t.tier='COFOUNDER' ORDER BY t.updated_at DESC LIMIT 100")));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("config", jdbc.queryForList("SELECT id,price,cofounder_points,share_reward_cap,dividend_count," +
                 "simulate_flag,enabled,remark FROM biz_cofounder_config ORDER BY id DESC LIMIT 10"));

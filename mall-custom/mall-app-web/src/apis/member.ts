@@ -75,7 +75,7 @@ export const getPointsLedgerAPI = (pointsType?: number) =>
 // 业务错误码：56001 参数不合法 / 56002 支付渠道未配置 / 56003 购买规则未启用 /
 //             56004 已拥有该身份 / 56005 请求号冲突 / 56008 支付渠道异常
 
-export type MembershipLevel = 'PARTNER' | 'COFOUNDER'
+export type MembershipLevel = 'MEMBER' | 'PARTNER' | 'COFOUNDER'
 export type MembershipPayMode = 'WECHAT_H5' | 'WECHAT_JSAPI' | 'ALIPAY_WAP'
 
 export interface MembershipPurchaseParams {

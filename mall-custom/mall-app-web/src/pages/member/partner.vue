@@ -1,5 +1,7 @@
 <template>
-  <view class="app">
+  <view v-if="membershipV2 === null" class="app">{{ rulesError || '权益加载中…' }}</view>
+  <MembershipV2Benefits v-else-if="membershipV2" />
+  <view v-else class="app">
     <view v-if="sandboxMode" class="card">测试沙箱：演示支付不扣款，积分、身份和奖励仅写入独立测试库。</view>
     <view class="card">
       <text class="title">合伙人权益</text>
@@ -32,7 +34,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import MembershipV2Benefits from '@/components/MembershipV2Benefits.vue'
+import { getTriPoolsAPI } from '@/apis/triPools'
+const membershipV2 = ref<boolean | null>(null), rulesError = ref('')
+onMounted(async () => { try { membershipV2.value = (await getTriPoolsAPI()).data.enabled } catch { rulesError.value = '权益加载失败，请返回重试' } })
 import { useMemberStore } from '@/stores/member'
 import { createMembershipOrderAPI,
   confirmMockMembershipPaymentAPI, getMemberInfoAPI } from '@/apis/member'
