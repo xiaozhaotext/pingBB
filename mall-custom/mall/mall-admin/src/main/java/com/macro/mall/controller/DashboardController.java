@@ -47,6 +47,14 @@ public class DashboardController {
         result.put("todayOrderCount", count("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND create_time >= CURDATE() AND create_time < CURDATE() + INTERVAL 1 DAY"));
         result.put("todayPaidAmount", amount("SELECT COALESCE(SUM(pay_amount), 0) FROM oms_order WHERE delete_status = 0 AND status IN (1, 2, 3) AND payment_time >= CURDATE() AND payment_time < CURDATE() + INTERVAL 1 DAY"));
         result.put("totalPaidAmount", amount("SELECT COALESCE(SUM(pay_amount), 0) FROM oms_order WHERE delete_status = 0 AND status IN (1, 2, 3) AND payment_time IS NOT NULL"));
+        result.put("todayCashPaidAmount", result.get("todayPaidAmount"));
+        result.put("totalCashPaidAmount", result.get("totalPaidAmount"));
+        BigDecimal todayBalance = amount("SELECT COALESCE(SUM(balance_amount),0) FROM oms_order WHERE delete_status=0 AND status IN (1,2,3) AND payment_time>=CURDATE() AND payment_time<CURDATE()+INTERVAL 1 DAY");
+        BigDecimal totalBalance = amount("SELECT COALESCE(SUM(balance_amount),0) FROM oms_order WHERE delete_status=0 AND status IN (1,2,3) AND payment_time IS NOT NULL");
+        result.put("todayBalancePaidAmount", todayBalance);
+        result.put("totalBalancePaidAmount", totalBalance);
+        result.put("todayTradeAmount", ((BigDecimal)result.get("todayPaidAmount")).add(todayBalance));
+        result.put("totalTradeAmount", ((BigDecimal)result.get("totalPaidAmount")).add(totalBalance));
         // 已成功退款的渠道退款金额；oms_refund_record 未创建时按 0 处理，不阻断概览。
         BigDecimal totalRefunded = sumRefund("SELECT COALESCE(SUM(refund_amount), 0) FROM oms_refund_record WHERE state = 'SUCCESS'");
         BigDecimal todayRefunded = sumRefund("SELECT COALESCE(SUM(refund_amount), 0) FROM oms_refund_record WHERE state = 'SUCCESS' AND create_time >= CURDATE() AND create_time < CURDATE() + INTERVAL 1 DAY");
@@ -75,7 +83,7 @@ public class DashboardController {
         result.put("memberGenderStats", jdbcTemplate.queryForList(
                 "SELECT CASE gender WHEN 1 THEN '男' WHEN 2 THEN '女' ELSE '未知' END AS name, COUNT(*) AS cnt FROM ums_member GROUP BY name ORDER BY cnt DESC"));
         result.put("userMetricNote", "活跃用户=近30日有登录或有下单的去重会员；新增用户=近30日注册；区域/性别按 ums_member 字段聚合");
-        result.put("amountNote", "已支付订单金额已扣除成功退款（oms_refund_record）；当前为本地测试数据库");
+        result.put("amountNote", "订单现金金额取 pay_amount，余额支付取 balance_amount；两者之和为交易金额。管理员手动加款不计入交易金额。退款单独汇总。");
         return CommonResult.success(result);
     }
 
@@ -83,10 +91,10 @@ public class DashboardController {
     public CommonResult<Map<String,Object>> fundTrend() {
         // Full months and days, including the preceding year; never derive monthly totals from a seven-day chart.
         List<Map<String,Object>> days = jdbcTemplate.queryForList(
-            "SELECT DATE_FORMAT(payment_time,'%Y-%m-%d') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount FROM oms_order "
+            "SELECT DATE_FORMAT(payment_time,'%Y-%m-%d') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount, COALESCE(SUM(pay_amount),0) AS cashAmount, COALESCE(SUM(balance_amount),0) AS balanceAmount, COALESCE(SUM(pay_amount+balance_amount),0) AS tradeAmount FROM oms_order "
             + "WHERE delete_status=0 AND status IN(1,2,3) AND payment_time>=DATE_SUB(CURDATE(),INTERVAL 400 DAY) AND payment_time<CURDATE()+INTERVAL 1 DAY GROUP BY period ORDER BY period");
         List<Map<String,Object>> months = jdbcTemplate.queryForList(
-            "SELECT DATE_FORMAT(payment_time,'%Y-%m') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount FROM oms_order "
+            "SELECT DATE_FORMAT(payment_time,'%Y-%m') AS period, COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS paidAmount, COALESCE(SUM(pay_amount),0) AS cashAmount, COALESCE(SUM(balance_amount),0) AS balanceAmount, COALESCE(SUM(pay_amount+balance_amount),0) AS tradeAmount FROM oms_order "
             + "WHERE delete_status=0 AND status IN(1,2,3) AND payment_time>=DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL 25 MONTH),'%Y-%m-01') AND payment_time<CURDATE()+INTERVAL 1 DAY GROUP BY period ORDER BY period");
         return CommonResult.success(Map.of("days",days,"months",months));
     }

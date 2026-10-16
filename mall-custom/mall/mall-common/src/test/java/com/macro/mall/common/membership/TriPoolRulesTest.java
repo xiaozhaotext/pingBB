@@ -8,7 +8,7 @@ import static com.macro.mall.common.membership.TriPoolRules.*;
 
 class TriPoolRulesTest {
     @Test void confirmedCapsAndShares() {
-        long[] caps = {1200,1200,2400,8000,9200,10400,16000,17200,18400,24000,24000};
+        long[] caps = {1200,2400,3600,8000,9200,10400,16000,17200,18400,24000,24000};
         for (int n=0;n<caps.length;n++) {
             assertEquals(new BigDecimal(caps[n]+".00"),partnerCap(n));
             assertEquals(n+1,partnerShares(n));

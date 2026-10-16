@@ -29,6 +29,12 @@ export interface DashboardOverview {
   todayOrderCount: number
   todayPaidAmount: number
   totalPaidAmount: number
+  todayCashPaidAmount: number
+  totalCashPaidAmount: number
+  todayBalancePaidAmount: number
+  totalBalancePaidAmount: number
+  todayTradeAmount: number
+  totalTradeAmount: number
   todayRefundedAmount: number
   totalRefundedAmount: number
   todayNetPaidAmount: number
@@ -49,5 +55,5 @@ export function getDashboardOverviewAPI() {
   return http<DashboardOverview>({ url: '/dashboard/overview', method: 'get' })
 }
 
-export interface FundPeriod { period: string; orderCount: number; paidAmount: number }
+export interface FundPeriod { period: string; orderCount: number; paidAmount: number; cashAmount: number; balanceAmount: number; tradeAmount: number }
 export const getFundTrendAPI = () => http<{ days: FundPeriod[]; months: FundPeriod[] }>({ url: '/dashboard/fund-trend', method: 'get' })
