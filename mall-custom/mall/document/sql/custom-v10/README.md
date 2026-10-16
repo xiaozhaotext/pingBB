@@ -67,6 +67,8 @@ mysql --default-character-set=utf8mb4 -u<user> -p<pass> mall < 45_admin_menu_rou
 
 前端路由调整后重新生成（不要手工改 SQL）：`node tools/gen_admin_menu_mirror.mjs`。脚本默认读取 `../../../../../mall-admin-web/src/router/index.ts`，输出 `../45_admin_menu_route_mirror.sql`；线上排序/隐藏基准内嵌在脚本的 `CLOUD_LOCK`（来自 `GET /admin-api/admin/info`）。
 
+已执行过 53 号钱包菜单脚本的环境，在发布独立一级“消费余额与充值”入口时执行 `54_spendable_wallet_top_level.sql`。该脚本只增加一级菜单并调整原菜单的父级，保留菜单 ID 和角色授权；可重复执行。
+
 ## 回滚
 
 ```bash

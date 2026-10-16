@@ -8,7 +8,7 @@
 -- 本脚本把 ums_menu 与前端路由树（mall-admin-web/src/router/index.ts 的 asyncRouterMap）按 name 对齐：
 --   * 结构 / 标题 / 图标 / hidden 以当前前端路由为准；
 --   * 已上线菜单的排序与隐藏以线上 /admin-api/admin/info 为准，保证与线上顺序一致；
---   * 9 个一级分组的顺序：自选商品管理 > 复购商品管理 > 消费区商品管理 > 订单管理 > 会员 > 财务中心 > 服务中心 > 后台桌面 > 系统设置。
+--   * 10 个一级分组的顺序：自选商品管理 > 复购商品管理 > 消费区商品管理 > 订单管理 > 会员 > 财务中心 > 消费余额与充值 > 服务中心 > 后台桌面 > 系统设置。
 --
 -- 幂等：按 name 只补缺失行、只归一已有行元数据、只补缺失授权，不删除菜单、角色授权或业务数据。
 -- 本文件由 tools/gen_admin_menu_mirror.mjs 生成，路由调整后请重新生成，不要手工改。
@@ -34,11 +34,13 @@ INSERT INTO tmp_admin_menu_mirror(name, parent, title, icon, level, sort, hidden
   ('orderMgr', NULL, '订单管理', 'order', 0, 970, 0),
   ('memberMgr', NULL, '会员', 'ums-admin', 0, 960, 0),
   ('financeMgr', NULL, '财务中心', 'total-today', 0, 950, 0),
+  ('spendableWalletMgr', NULL, '消费余额与充值', 'total-week', 0, 945, 0),
   ('serviceMgr', NULL, '服务中心', 'ums', 0, 940, 0),
   ('serviceDesktop', NULL, '后台桌面', 'dashboard', 0, 930, 0),
   ('systemSettings', NULL, '系统设置', 'ums', 0, 920, 0),
   ('consumeCategory', 'consume', '分类管理', 'product-cate', 1, 100, 0),
   ('financeAnalysis', 'financeMgr', '资金分析', 'total-today', 1, 100, 0),
+  ('financeSpendableWallet', 'spendableWalletMgr', '消费余额与充值', 'total-week', 1, 100, 0),
   ('memberManagement', 'memberMgr', '会员管理', 'ums-role', 1, 100, 0),
   ('orderMgrFilter', 'orderMgr', '筛选', 'product-list', 1, 100, 0),
   ('pickCategory', 'pick', '分类管理', 'product-cate', 1, 100, 0),
