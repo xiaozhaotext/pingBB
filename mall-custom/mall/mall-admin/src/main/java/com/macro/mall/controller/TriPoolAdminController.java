@@ -58,11 +58,15 @@ public class TriPoolAdminController {
         access.requireAuthorized(p);TriPoolRules.Pool.valueOf(pool);
         if(!pools.enabled())return CommonResult.success(List.of());
         if(page<1 || page>1000000)throw new IllegalArgumentException("页码无效");
-        String query="SELECT * FROM tri_pool_ledger WHERE pool_code=?";
+        String query="SELECT l.*,o.member_id,m.username,"
+                + "CASE WHEN l.entry_type='FUND' AND o.id IS NOT NULL THEN 'MEMBER' END AS identity_snapshot"
+                + " FROM tri_pool_ledger l LEFT JOIN membership_purchase_order o"
+                + " ON l.entry_type='FUND' AND l.source_key=CONCAT('MEMBERSHIP:',o.id)"
+                + " LEFT JOIN ums_member m ON m.id=o.member_id WHERE l.pool_code=?";
         var args=new ArrayList<Object>();args.add(pool);
-        if(date!=null) { query+=" AND created_at>=? AND created_at<?";args.add(dailyReports.start(date));args.add(dailyReports.start(date.plusDays(1))); }
+        if(date!=null) { query+=" AND l.created_at>=? AND l.created_at<?";args.add(dailyReports.start(date));args.add(dailyReports.start(date.plusDays(1))); }
         args.add((page-1)*50);
-        return CommonResult.success(jdbc.queryForList(query+" ORDER BY id DESC LIMIT 50 OFFSET ?",args.toArray()));
+        return CommonResult.success(jdbc.queryForList(query+" ORDER BY l.id DESC LIMIT 50 OFFSET ?",args.toArray()));
     }
     @GetMapping("/members")
     public CommonResult<List<Map<String,Object>>> members(Principal p,@RequestParam(defaultValue="1")int page) {

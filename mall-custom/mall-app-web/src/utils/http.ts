@@ -79,6 +79,8 @@ const buildQueryString = (params: Record<string, any>): string => {
 export interface HttpRequestOptions extends UniApp.RequestOptions {
   /** 查询参数（会自动拼接到 URL 后面） */
   params?: Record<string, any>
+  /** 可选能力探测失败时不弹全局提示，由页面自行处理 */
+  silent?: boolean
 }
 
 /**
@@ -107,8 +109,9 @@ export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> =
   }
 
   return new Promise<CommonResult<T>>((resolve, reject) => {
+    const { silent = false, ...requestOptions } = options
     uni.request({
-      ...options,
+      ...requestOptions,
       // 响应成功
       success(res) {
         const body = res.data as CommonResult<T>
@@ -126,14 +129,11 @@ export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> =
             resolve(data)
           } else {
             // 其他错误 -> 根据后端错误信息轻提示
-            uni.showToast({
-              icon: 'none',
-              title: data.message || '请求错误',
-            })
+            if (!silent) uni.showToast({ icon: 'none', title: data.message || '请求错误' })
             reject(res)
           }
         } else {
-          uni.showToast({
+          if (!silent) uni.showToast({
             icon: 'none',
             title: (res.data as CommonResult<T>).message || '请求错误',
           })
@@ -142,10 +142,7 @@ export const http = <T>(options: HttpRequestOptions): Promise<CommonResult<T>> =
       },
       // 响应失败
       fail(err) {
-        uni.showToast({
-          icon: 'none',
-          title: '网络错误，换个网络试试',
-        })
+        if (!silent) uni.showToast({ icon: 'none', title: '网络错误，换个网络试试' })
         reject(err)
       },
     })

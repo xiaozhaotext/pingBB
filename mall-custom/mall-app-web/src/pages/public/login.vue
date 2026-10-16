@@ -7,6 +7,7 @@
     <view class="wrapper">
       <view class="left-top-sign">LOGIN</view>
       <view class="welcome">欢迎回来！</view>
+      <view v-if="loginError" class="login-error" role="alert">{{ loginError }}</view>
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
@@ -25,7 +26,7 @@
           />
         </view>
       </view>
-      <button class="confirm-btn" @click="toLogin" :disabled="logining"> 登录 </button>
+      <button class="confirm-btn" @click="toLogin" :disabled="logining">{{ logining ? '登录中…' : '登录' }}</button>
     </view>
     <view class="register-section">
       还没有账号?
@@ -48,12 +49,22 @@ const username = ref(uni.getStorageSync(usernameStorageKey) || '')
 const password = ref('')
 // 登录加载状态
 const logining = ref(false)
+const loginError = ref('')
+
+function errorMessage(error: unknown): string {
+  const value = error as { data?: { message?: string }; errMsg?: string; message?: string }
+  return value?.data?.message || value?.message || (value?.errMsg ? '网络连接失败，请检查网络或接口地址' : '登录失败，请重试')
+}
 
 // 登录处理
 const toLogin = async () => {
-  if (!username.value || !password.value) {
+  if (logining.value) return
+  loginError.value = ''
+  const account = username.value.trim()
+  if (!account || !password.value) {
+    loginError.value = '请输入用户名和密码'
     uni.showToast({
-      title: '请输入用户名和密码',
+      title: loginError.value,
       icon: 'none',
     })
     return
@@ -62,7 +73,7 @@ const toLogin = async () => {
   logining.value = true
 
   try {
-    await memberStore.memberLogin(username.value, password.value)
+    await memberStore.memberLogin(account, password.value)
 
     uni.showToast({
       title: '登录成功',
@@ -78,8 +89,7 @@ const toLogin = async () => {
       }
     }, 1000)
   } catch (error) {
-    // http 工具已按后端 message 弹过提示（例如账号被禁止登录），这里不再重复
-    console.error('登录失败，请查看接口提示')
+    loginError.value = errorMessage(error)
   } finally {
     logining.value = false
   }
@@ -105,8 +115,9 @@ page {
   padding-top: 115px;
   position: relative;
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #fff;
 }
 
@@ -138,6 +149,7 @@ page {
   top: calc(var(--status-bar-height) + 80rpx);
   right: -30rpx;
   z-index: 95;
+  pointer-events: none;
 
   &:before,
   &:after {
@@ -170,6 +182,7 @@ page {
   border: 100rpx solid #d0d1fd;
   border-radius: 50%;
   padding: 180rpx;
+  pointer-events: none;
 }
 
 .welcome {
@@ -253,10 +266,10 @@ page {
 }
 
 .register-section {
-  position: absolute;
-  left: 0;
-  bottom: 50rpx;
+  position: relative;
+  z-index: 91;
   width: 100%;
+  padding: 34rpx 0 50rpx;
   font-size: $font-sm + 2rpx;
   color: $font-color-base;
   text-align: center;
@@ -265,5 +278,13 @@ page {
     color: $font-color-spec;
     margin-left: 10rpx;
   }
+}
+.login-error {
+  margin: 0 60rpx 24rpx;
+  padding: 18rpx 24rpx;
+  border-radius: 12rpx;
+  background: #fff0f0;
+  color: #b84242;
+  font-size: 25rpx;
 }
 </style>
