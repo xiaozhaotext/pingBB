@@ -30,4 +30,4 @@
 
 证据：`auth-code-mobile.png`、`auth-membership-mobile.png`、`auth-logout-mobile.png`、`auth-browser-evidence.json`。测试启动器为 `AuthFlowBrowserHarness`（仅测试源码，默认绑定本机并使用独立内存库）。
 
-本次未连接或更改远程演示数据库，未操作已有购买记录，也未部署到远程服务器。
+以上为初次本地验收记录。后续已部署腾讯云122.51.105.107，并通过公网注册、登录与会员购买实点验证，详见 `release-wallet-auth-20261016.md`；已有购买记录保留。

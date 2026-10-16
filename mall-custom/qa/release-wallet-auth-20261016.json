@@ -1,0 +1,29 @@
+{
+  "checks": 15,
+  "passed": [
+    "sandbox_demo_code_returned",
+    "wrong_password_rejected",
+    "new_member_registered_and_logged_in",
+    "only_mock_recharge_enabled_in_sandbox",
+    "concurrent_recharge_credited_once",
+    "wallet_purchase_paid_and_debited_exactly",
+    "order_and_stock_settled_once",
+    "insufficient_balance_has_no_debit_order_or_stock_change",
+    "membership_confirmed_once_and_both_points_credited",
+    "earnings_withdrawal_transferred_once",
+    "admin_wallet_matches_portal_and_all_movements",
+    "admin_recharge_order_paid",
+    "wallet_menu_granted_to_platform_admin",
+    "temporary_admin_removed",
+    "private_profile_requires_authentication"
+  ],
+  "memberId": 56,
+  "username": "release_qa_b047887a24f1",
+  "recharged": "100.10",
+  "goodsPrice": "88.00",
+  "balanceAfterPurchase": "12.10",
+  "withdrawalGross": "23.81",
+  "withdrawalNet": "23.67",
+  "finalBalance": "35.77",
+  "orderId": 130
+}
