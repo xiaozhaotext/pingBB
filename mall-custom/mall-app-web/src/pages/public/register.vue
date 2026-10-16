@@ -61,6 +61,15 @@
             </button>
           </view>
         </view>
+        <view class="input-item">
+          <text class="tit">邀请码（选填）</text>
+          <input
+            type="text"
+            v-model="formData.inviteCode"
+            placeholder="请输入邀请人的邀请码"
+            :maxlength="32"
+          />
+        </view>
       </view>
       <button class="confirm-btn" role="button" @click="handleRegister" :loading="registering" :disabled="registering || sendingCode">{{ registering ? '注册中…' : '注册' }}</button>
     </view>
@@ -70,7 +79,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { registerAPI, getAuthCodeAPI } from '@/apis/member'
-import { onUnload } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { sandboxMode } from '@/utils/sandbox'
 import type { RegisterParam } from '@/types/member'
 
@@ -81,6 +90,11 @@ const formData = ref<RegisterParam>({
   password: '',
   telephone: '',
   authCode: '',
+  inviteCode: '',
+})
+onLoad((options) => {
+  const savedCode = uni.getStorageSync('pendingInviteCode')
+  formData.value.inviteCode = String(options?.inviteCode || savedCode || '').trim().toUpperCase()
 })
 // 注册加载状态
 const registering = ref(false)
@@ -147,6 +161,7 @@ const handleRegister = async () => {
   formData.value.username = formData.value.username.trim()
   formData.value.telephone = String(formData.value.telephone).trim()
   formData.value.authCode = formData.value.authCode.trim()
+  formData.value.inviteCode = formData.value.inviteCode?.trim().toUpperCase() || ''
   const { username, telephone, password, authCode } = formData.value
   if (!username) {
     registrationError.value = '请输入用户名'
@@ -178,6 +193,7 @@ const handleRegister = async () => {
   try {
     await registerAPI({ ...formData.value })
     succeeded = true
+    if (formData.value.inviteCode) uni.removeStorageSync('pendingInviteCode')
     uni.showToast({
       title: '注册成功',
       icon: 'success',
