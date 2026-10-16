@@ -36,6 +36,8 @@ mall:
         notify-url: ${MEMBERSHIP_ALIPAY_NOTIFY_URL:}
         return-url: ${MEMBERSHIP_ALIPAY_RETURN_URL:}
   payment:
+    mock:
+      enabled: false # 仅独立沙箱通过部署参数显式开启
     alipay:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
     wechat:

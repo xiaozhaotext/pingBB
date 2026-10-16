@@ -8,9 +8,11 @@
     <view class="wrapper">
       <view class="left-top-sign">REGISTER</view>
       <view class="welcome">注册账号！</view>
-      <view class="registration-note">当前是功能测试环境；验证码为演示验证码，不会发送真实短信。</view>
+      <view v-if="testRegistrationEnabled" class="registration-note">沙箱测试环境：注册和购买只写入独立测试库，不会发送真实短信。</view>
+      <button v-if="testRegistrationEnabled" class="test-account-btn" :disabled="generatingTestAccount || sendingCode" @click="generateTestAccount">生成测试账号资料并获取验证码</button>
       <view v-if="demoCode" class="registration-note">本次演示验证码：{{ demoCode }}</view>
-      <view v-if="registrationError" class="registration-error">{{ registrationError }}</view>
+      <view v-if="registrationStatus" class="registration-note" role="status">{{ registrationStatus }}</view>
+      <view v-if="registrationError" class="registration-error" role="alert">{{ registrationError }}</view>
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
@@ -24,7 +26,8 @@
         <view class="input-item">
           <text class="tit">手机号</text>
           <input
-            type="number"
+            type="text"
+            inputmode="numeric"
             v-model="formData.telephone" @blur="formData.telephone = $event.detail.value"
             placeholder="请输入手机号"
             :maxlength="11"
@@ -51,23 +54,24 @@
             />
             <button
               class="get-code-btn"
-              :class="{ disabled: countdown > 0 }"
-              :disabled="countdown > 0"
+              :class="{ disabled: countdown > 0 || sendingCode }"
+              :disabled="countdown > 0 || sendingCode"
               @click="handleGetAuthCode"
             >
-              {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+              {{ sendingCode ? '获取中…' : countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
             </button>
           </view>
         </view>
       </view>
-      <button class="confirm-btn" @click="handleRegister" :disabled="registering"> 注册 </button>
+      <button class="confirm-btn" @click="handleRegister" :disabled="registering">{{ registering ? '注册中…' : '注册' }}</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { registerAPI, getAuthCodeAPI } from '@/apis/member'
+import { onLoad } from '@dcloudio/uni-app'
+import { registerAPI, getAuthCodeAPI, getTestRegistrationEnabledAPI } from '@/apis/member'
 import type { RegisterParam } from '@/types/member'
 
 // ===== 页面数据 =====
@@ -80,8 +84,37 @@ const formData = ref<RegisterParam>({
 })
 // 注册加载状态
 const registering = ref(false)
+const sendingCode = ref(false)
+const generatingTestAccount = ref(false)
+const sandboxMode = import.meta.env.VITE_SANDBOX_MODE === 'true'
+const testRegistrationEnabled = ref(false)
 const demoCode = ref('')
 const registrationError = ref('')
+const registrationStatus = ref('')
+onLoad(async () => {
+  if (!sandboxMode) return
+  try {
+    testRegistrationEnabled.value = (await getTestRegistrationEnabledAPI()).data === true
+  } catch {
+    testRegistrationEnabled.value = false
+  }
+})
+const generateTestAccount = async () => {
+  if (!testRegistrationEnabled.value || generatingTestAccount.value || sendingCode.value) return
+  generatingTestAccount.value = true
+  const digits = Math.floor(Math.random() * 100_000_000).toString().padStart(8, '0')
+  formData.value.username = `test_${Date.now().toString(36)}_${digits.slice(-4)}`
+  formData.value.telephone = `199${digits}`
+  formData.value.authCode = ''
+  demoCode.value = ''
+  registrationError.value = ''
+  try {
+    await handleGetAuthCode()
+    if (demoCode.value) formData.value.authCode = demoCode.value
+  } finally {
+    generatingTestAccount.value = false
+  }
+}
 function errorMessage(error: unknown): string {
   const value=error as {data?:{message?:string};errMsg?:string;message?:string}
   return value?.data?.message || value?.message || (value?.errMsg ? '网络连接失败，请重试' : '请求失败，请重试')
@@ -93,57 +126,65 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 获取验证码
 const handleGetAuthCode = async () => {
+  if (sendingCode.value || countdown.value > 0) return
+  registrationError.value = ''
+  registrationStatus.value = ''
   if (!formData.value.telephone) {
+    registrationError.value = '请输入手机号'
     uni.showToast({
-      title: '请输入手机号',
+      title: registrationError.value,
       icon: 'none',
     })
     return
   }
   if (!/^1[3-9]\d{9}$/.test(formData.value.telephone)) {
+    registrationError.value = '手机号格式不正确'
     uni.showToast({
-      title: '手机号格式不正确',
+      title: registrationError.value,
       icon: 'none',
     })
     return
   }
 
+  sendingCode.value = true
+  registrationStatus.value = '正在获取验证码…'
   try {
     const res = await getAuthCodeAPI(formData.value.telephone)
-    // 模拟验证码展示：弹出5秒toast让用户获取验证码
-    const code = res.data || '验证码已发送'
     demoCode.value = /^\d{6}$/.test(String(res.data)) ? String(res.data) : ''
-    registrationError.value = ''
+    registrationStatus.value = demoCode.value ? '验证码已显示在上方，请设置密码后注册。' : '验证码已发送，请查看短信。'
     uni.showToast({
-      title: `验证码：${code}`,
+      title: demoCode.value ? `验证码：${demoCode.value}` : '验证码已发送',
       icon: 'none',
       duration: 5000,
     })
     // 开始60秒倒计时
     startCountdown()
   } catch (error) {
-    // Keep the server's message visible; http already displays the transient toast.
     registrationError.value = errorMessage(error)
+    registrationStatus.value = ''
+  } finally {
+    sendingCode.value = false
   }
 }
 
 // 注册
 const handleRegister = async () => {
+  if (registering.value) return
   const { username, telephone, password, authCode } = formData.value
   if (!username) {
-    uni.showToast({ title: '请输入用户名', icon: 'none' })
+    registrationError.value = '请输入用户名'
     return
   }
   if (!telephone) {
-    uni.showToast({ title: '请输入手机号', icon: 'none' })
+    registrationError.value = '请输入手机号'
     return
   }
   if (!password) {
-    uni.showToast({ title: '请输入密码', icon: 'none' })
+    registrationError.value = '请输入密码'
     return
   }
   if (!authCode) {
-    uni.showToast({ title: '请输入验证码', icon: 'none' })
+    registrationError.value = '请输入验证码'
     return
   }
 
@@ -151,9 +192,11 @@ const handleRegister = async () => {
   if (password.length<8) { registrationError.value='密码至少8位'; return }
   if (!/^\d{6}$/.test(authCode)) { registrationError.value='请输入6位验证码'; return }
   registrationError.value=''
+  registrationStatus.value='正在注册…'
   registering.value = true
   try {
     await registerAPI(formData.value)
+    registrationStatus.value='注册成功，即将进入登录页。请记下您设置的用户名和密码。'
     uni.showToast({
       title: '注册成功',
       icon: 'success',
@@ -163,6 +206,7 @@ const handleRegister = async () => {
     }, 1500)
   } catch (error) {
     registrationError.value = errorMessage(error)
+    registrationStatus.value = ''
   } finally {
     registering.value = false
   }
@@ -204,8 +248,9 @@ page {
   padding-top: 115px;
   position: relative;
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #fff;
 }
 
@@ -237,6 +282,7 @@ page {
   top: calc(var(--status-bar-height) + 80rpx);
   right: -30rpx;
   z-index: 95;
+  pointer-events: none;
 
   &:before,
   &:after {
@@ -268,6 +314,7 @@ page {
   border: 100rpx solid #d0d1fd;
   border-radius: 50%;
   padding: 180rpx;
+  pointer-events: none;
 }
 
 .welcome {
@@ -394,4 +441,4 @@ page {
 }
 </style>
 
-<style scoped>.registration-note{font-size:12px;color:#557f87;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}</style>
+<style scoped>.registration-note{font-size:12px;color:#557f87;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}.test-account-btn{margin:12px 24px;padding:0 16px;min-height:40px;background:#eef7f5;color:#167a80;font-size:13px;border:1px solid #c6e5dd;border-radius:9px}</style>

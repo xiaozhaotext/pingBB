@@ -51,6 +51,11 @@ public class MembershipPaymentController {
             return CommonResult.success(orders.create(memberId, request, clientIp(servletRequest)));
         } catch (MembershipPaymentException ex) {
             return CommonResult.failed(ex.getError());
+        } catch (RuntimeException ex) {
+            log.error("Membership order creation failed: memberId={}, requestId={}",
+                    request == null ? null : request.memberId(),
+                    request == null ? null : request.requestId(), ex);
+            throw ex;
         }
     }
 

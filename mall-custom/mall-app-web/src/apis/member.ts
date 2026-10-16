@@ -33,6 +33,10 @@ export const registerAPI = (data: RegisterParam) => {
   })
 }
 
+/** 仅沙箱支付开启且短信关闭时允许生成虚拟测试账号 */
+export const getTestRegistrationEnabledAPI = () =>
+  http<boolean>({ method: 'GET', url: '/sso/testRegistrationEnabled', silent: true })
+
 /** 获取验证码 */
 export const getAuthCodeAPI = (telephone: string) => {
   return http({
