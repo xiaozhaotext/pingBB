@@ -1,7 +1,7 @@
 """Run as root with a verified release directory under /opt/mall-demo/releases.
 
 Expected artifacts: admin.jar, portal.jar, four frontend tar.gz archives,
-service/nginx templates, SQL migrations 50..52, and manifest.json.
+service/nginx templates, SQL migrations 50..53, and manifest.json.
 Keeps financial data; creates recoverable backups before changing services.
 """
 import hashlib
@@ -44,7 +44,7 @@ for database in ['mall_demo', 'mall_demo_sandbox']:
 (backup / 'snapshot.json').write_text(json.dumps([{'path':str(p),'saved':str(s),'existed':e,'symlink':l,'link':v} for p,s,e,l,v in snapshot], indent=2))
 print('BACKUP', backup, flush=True)
 for database in ['mall_demo', 'mall_demo_sandbox']:
-    for name in ['50_three_dividend_pools.sql', '51_standalone_member_purchase.sql', '52_dividend_pool_menu_daily.sql']:
+    for name in ['50_three_dividend_pools.sql', '51_standalone_member_purchase.sql', '52_dividend_pool_menu_daily.sql', '53_spendable_wallet_menu.sql']:
         with (release / name).open('rb') as source:
             subprocess.run(['mysql', database], stdin=source, check=True, stdout=subprocess.DEVNULL)
 for name in ['admin', 'storefront', 'sandbox', 'sandbox-admin']:
@@ -61,7 +61,7 @@ def probe(port, path):
         return False
 
 try:
-    subprocess.run(['systemctl', 'stop', *services[:3]], check=True)
+    subprocess.run(['systemctl', 'stop', *services], check=True)
     for name, artifact in [('mall-admin.jar','admin.jar'),('mall-admin-sandbox.jar','admin.jar'),('mall-portal.jar','portal.jar'),('mall-portal-sandbox.jar','portal.jar')]:
         shutil.copy2(release / artifact, root / name)
     for name in ['admin', 'storefront', 'sandbox', 'sandbox-admin']:
@@ -110,7 +110,7 @@ except Exception:
             else: shutil.copy2(saved, target)
         elif target.exists() and target.is_file(): target.unlink()
     subprocess.run(['systemctl', 'daemon-reload'])
-    subprocess.run(['systemctl', 'start', *services[:3]])
+    subprocess.run(['systemctl', 'start', *services])
     subprocess.run(['nginx','-t'], check=True)
     subprocess.run(['systemctl', 'reload', 'nginx'])
     raise

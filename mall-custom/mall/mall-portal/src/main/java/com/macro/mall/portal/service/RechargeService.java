@@ -9,6 +9,8 @@ import java.util.*;
 
 @Service
 public class RechargeService {
+    @org.springframework.beans.factory.annotation.Value("${mall.payment.mock.enabled:false}")
+    private boolean sandboxEnabled;
     private final JdbcTemplate jdbc;
     private final MembershipPaymentGateway gateway;
     public RechargeService(JdbcTemplate jdbc, RechargeProperties properties) {
@@ -16,6 +18,24 @@ public class RechargeService {
         this.gateway = new MembershipPaymentGateway(properties.getPayment());
     }
     public MembershipPaymentGateway gateway() { return gateway; }
+    public boolean sandboxEnabled() { return sandboxEnabled; }
+    public Map<String,Object> paymentOptions() {
+        List<String> channels = new ArrayList<>();
+        if (sandboxEnabled) channels.add("MOCK");
+        else for (String channel : List.of("WECHAT", "ALIPAY")) {
+            try { gateway.requireReady(channel); channels.add(channel); }
+            catch (com.macro.mall.portal.domain.MembershipPaymentException ignored) { }
+        }
+        return Map.of("sandbox", sandboxEnabled, "channels", channels);
+    }
+    private void requireChannel(String channel) {
+        if ("MOCK".equals(channel)) {
+            if (!sandboxEnabled) throw new IllegalArgumentException("沙盒充值未启用");
+        } else {
+            if (sandboxEnabled) throw new IllegalArgumentException("沙盒环境请使用模拟充值");
+            gateway.requireReady(channel);
+        }
+    }
     public static long cents(String amount) {
         if (amount == null || !amount.matches("(?:0|[1-9][0-9]{0,4})(?:\\.[0-9]{1,2})?"))
             throw new IllegalArgumentException("金额须为最多两位小数的人民币金额");
@@ -29,7 +49,7 @@ public class RechargeService {
         long value = cents(amount);
         if (requestId == null || !requestId.matches("[A-Za-z0-9-]{16,64}"))
             throw new IllegalArgumentException("充值请求编号无效");
-        gateway.requireReady(channel);
+        requireChannel(channel);
         String no = "RC" + UUID.randomUUID().toString().replace("-", "");
         jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE order_no=order_no",
                 no, member, requestId, value, channel);
@@ -52,7 +72,11 @@ public class RechargeService {
         return Map.of("balance", money(values.isEmpty()?0:values.get(0)), "currency", "CNY");
     }
 
-    /** 充值本金余额（分）。未开户返回 0。 */
+    public List<Map<String,Object>> ledger(long member) {
+        return jdbc.queryForList("SELECT change_type,amount_cents,balance_after_cents,remark,create_time FROM ums_recharge_ledger WHERE member_id=? ORDER BY id DESC LIMIT 50",member);
+    }
+
+    /** 消费余额（分）。未开户返回 0。 */
     public long balanceCents(long member) {
         List<Long> values = jdbc.query("SELECT balance_cents FROM ums_recharge_account WHERE member_id=?",
                 (rs,n)->rs.getLong(1), member);
@@ -130,8 +154,37 @@ public class RechargeService {
         Map<String,Object> row = order(member,no);
         if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");
         String channel = (String)row.get("channel");
+        requireChannel(channel);
+        if ("MOCK".equals(channel)) return Map.of("type", "SANDBOX_RECHARGE", "orderNo", no);
         return gateway.start(no,"RECHARGE",new BigDecimal((String)row.get("amount")),channel,
                 "WECHAT".equals(channel)?"WECHAT_H5":"ALIPAY_WAP",null,ip);
+    }
+    /** Only the explicit sandbox channel may use a server-generated mock receipt. */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String,Object> confirmSandbox(long member, String no) {
+        if (!sandboxEnabled) throw new IllegalArgumentException("沙盒充值未启用");
+        var rows = jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? AND order_no=? FOR UPDATE", member, no);
+        if (rows.isEmpty()) throw new IllegalArgumentException("充值订单不存在或无权访问");
+        var row = rows.get(0);
+        if (!"MOCK".equals(row.get("channel"))) throw new IllegalArgumentException("真实支付订单不能模拟到账");
+        if (!"PAID".equals(row.get("status"))) {
+            long value = ((Number)row.get("amount_cents")).longValue();
+            accept(new MembershipPaymentGateway.VerifiedPayment(no, "SANDBOX-"+no, "MOCK", BigDecimal.valueOf(value,2)));
+            recordLedger(member, "sandbox_recharge", value, balanceCents(member), no, "sandbox:"+no, "沙盒模拟充值，不发生真实收款");
+        }
+        return order(member,no);
+    }
+    /** Credited only by the transactional sandbox withdrawal service, never directly by a client. */
+    @Transactional(rollbackFor = Exception.class)
+    public void creditSandboxWithdrawal(long member, long cents, long withdrawalId) {
+        if (!sandboxEnabled) throw new IllegalArgumentException("沙盒提现未启用");
+        String biz = "WITHDRAW:"+withdrawalId, key = "sandbox:"+biz;
+        if (cents < 0) throw new IllegalArgumentException("到账金额无效");
+        long balance = lockBalance(member);
+        if (balanceReplay(member,cents,biz,key,"sandbox_withdrawal") != null) return;
+        long next = Math.addExact(balance,cents);
+        jdbc.update("UPDATE ums_recharge_account SET balance_cents=? WHERE member_id=?",next,member);
+        recordLedger(member,"sandbox_withdrawal",cents,next,biz,key,"沙盒收益提现转入消费余额");
     }
     /** Only verified provider notifications may call this method. Row lock serializes retries. */
     @Transactional(rollbackFor = Exception.class)

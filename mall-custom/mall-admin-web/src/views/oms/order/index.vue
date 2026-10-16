@@ -128,6 +128,8 @@ const formatPayType = (value: number) => {
     return '支付宝'
   } else if (value === 2) {
     return '微信'
+  } else if (value === 4) {
+    return '余额 / 积分支付'
   } else {
     return '未支付'
   }
@@ -366,6 +368,9 @@ const deleteOrderFn = async (ids: number[]) => {
         </el-table-column>
         <el-table-column label="订单金额" width="120" align="center">
           <template #default="scope">￥{{ scope.row.totalAmount }}</template>
+        </el-table-column>
+        <el-table-column label="余额支付" width="120" align="center">
+          <template #default="scope">￥{{ Number(scope.row.balanceAmount || 0).toFixed(2) }}</template>
         </el-table-column>
         <el-table-column label="支付方式" width="120" align="center">
           <template #default="scope">{{ formatPayType(scope.row.payType) }}</template>

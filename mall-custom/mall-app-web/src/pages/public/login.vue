@@ -1,8 +1,8 @@
 <template>
   <view class="container">
-    <view class="left-bottom-sign"></view>
+    <view class="left-bottom-sign" aria-hidden="true"></view>
     <view class="back-btn yticon icon-zuojiantou-up" @click="navBack"></view>
-    <view class="right-top-sign"></view>
+    <view class="right-top-sign" aria-hidden="true"></view>
     <!-- 设置白色背景防止软键盘把下部绝对定位元素顶上来盖住输入框等 -->
     <view class="wrapper">
       <view class="left-top-sign">LOGIN</view>
@@ -25,7 +25,8 @@
           />
         </view>
       </view>
-      <button class="confirm-btn" @click="toLogin" :disabled="logining"> 登录 </button>
+      <view v-if="loginError" class="auth-error" role="alert">{{ loginError }}</view>
+      <button class="confirm-btn" role="button" @click="toLogin" :loading="logining" :disabled="logining || navigating">{{ logining ? '登录中…' : navigating ? '登录成功，正在进入…' : '登录' }}</button>
     </view>
     <view class="register-section">
       还没有账号?
@@ -43,15 +44,21 @@ import { usernameStorageKey } from '@/utils/sessionKeys'
 const memberStore = useMemberStore()
 
 // 登录用户名
-const username = ref(uni.getStorageSync(usernameStorageKey) || '')
+const username = ref(String(uni.getStorageSync(usernameStorageKey) || ''))
 // 登录密码
 const password = ref('')
 // 登录加载状态
 const logining = ref(false)
+const navigating = ref(false)
+const loginError = ref('')
 
 // 登录处理
 const toLogin = async () => {
+  if (logining.value || navigating.value) return
+  loginError.value = ''
+  username.value = username.value.trim()
   if (!username.value || !password.value) {
+    loginError.value = '请输入用户名和密码'
     uni.showToast({
       title: '请输入用户名和密码',
       icon: 'none',
@@ -63,6 +70,7 @@ const toLogin = async () => {
 
   try {
     await memberStore.memberLogin(username.value, password.value)
+    navigating.value = true
 
     uni.showToast({
       title: '登录成功',
@@ -71,15 +79,17 @@ const toLogin = async () => {
 
     setTimeout(() => {
       const pages = getCurrentPages()
-      if (pages.length > 1) {
-        uni.navigateBack()
+      const previousRoute = pages[pages.length - 2]?.route
+      const home = () => uni.switchTab({ url: '/pages/index/index', complete: () => { navigating.value = false } })
+      // Registration can replace itself with a second login page. Do not return to the older login.
+      if (previousRoute && !/^\/?pages\/public\/(login|register)$/.test(previousRoute)) {
+        uni.navigateBack({ fail: home, complete: () => { navigating.value = false } })
       } else {
-        uni.switchTab({ url: '/pages/index/index' })
+        home()
       }
     }, 1000)
-  } catch (error) {
-    // http 工具已按后端 message 弹过提示（例如账号被禁止登录），这里不再重复
-    console.error('登录失败，请查看接口提示')
+  } catch (error: any) {
+    loginError.value = error?.data?.message || error?.message || '登录未完成，请检查网络后重试'
   } finally {
     logining.value = false
   }
@@ -87,7 +97,7 @@ const toLogin = async () => {
 
 // 返回上一页
 const navBack = () => {
-  uni.navigateBack()
+  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index' }) })
 }
 
 // 跳转到注册页
@@ -96,7 +106,7 @@ const toRegist = () => {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 page {
   background: #fff;
 }
@@ -105,8 +115,8 @@ page {
   padding-top: 115px;
   position: relative;
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: clip;
   background: #fff;
 }
 
@@ -134,6 +144,7 @@ page {
 }
 
 .right-top-sign {
+  pointer-events: none;
   position: absolute;
   top: calc(var(--status-bar-height) + 80rpx);
   right: -30rpx;
@@ -164,6 +175,7 @@ page {
 }
 
 .left-bottom-sign {
+  pointer-events: none;
   position: absolute;
   left: -270rpx;
   bottom: -320rpx;
@@ -253,9 +265,9 @@ page {
 }
 
 .register-section {
-  position: absolute;
-  left: 0;
-  bottom: 50rpx;
+  position: relative;
+  margin-top: 24rpx;
+  padding-bottom: calc(50rpx + env(safe-area-inset-bottom));
   width: 100%;
   font-size: $font-sm + 2rpx;
   color: $font-color-base;
@@ -266,4 +278,5 @@ page {
     margin-left: 10rpx;
   }
 }
+.auth-error{margin:24rpx 60rpx 0;padding:20rpx;border-radius:8rpx;background:#fff0f0;color:#b42318;font-size:26rpx;overflow-wrap:anywhere}
 </style>

@@ -1,0 +1,33 @@
+{
+  "profile": {
+    "username": "auth_ui_2110",
+    "id": 1
+  },
+  "membership": {
+    "membershipPrice": 3999.0,
+    "customTravelEligible": true,
+    "tier": "MEMBER",
+    "pools": [
+      {
+        "remaining": 700.0,
+        "eligible": true,
+        "cap": 1200.0,
+        "shares": 1,
+        "received": 500.0,
+        "code": "PARTNER"
+      },
+      {
+        "remaining": 0,
+        "eligible": false,
+        "cap": 0,
+        "shares": 0,
+        "received": 0,
+        "code": "COFOUNDER"
+      }
+    ],
+    "enabled": true,
+    "ruleVersion": "2026-10-16-v1",
+    "directPaidCount": 0
+  },
+  "environment": "isolated local H2 with real BCrypt JWT and membership fulfillment; OTP cache and SMS are test adapters"
+}

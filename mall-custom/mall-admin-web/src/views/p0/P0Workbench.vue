@@ -96,7 +96,7 @@ const labels: Record<string, string> = {
   wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
   real_name: '真实姓名（本人填写）', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
-  membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '会员余额', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
+  membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '消费余额（元）', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
   contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期',

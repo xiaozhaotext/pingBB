@@ -1,16 +1,16 @@
 <template>
   <view class="container">
-    <view class="left-bottom-sign"></view>
+    <view class="left-bottom-sign" aria-hidden="true"></view>
     <view class="back-btn yticon icon-zuojiantou-up" @click="navBack"></view>
-    <view class="right-top-sign"></view>
+    <view class="right-top-sign" aria-hidden="true"></view>
 
     <!-- 注册表单 -->
     <view class="wrapper">
       <view class="left-top-sign">REGISTER</view>
       <view class="welcome">注册账号！</view>
-      <view class="registration-note">当前是功能测试环境；验证码为演示验证码，不会发送真实短信。</view>
+      <view class="registration-note">{{ sandboxMode ? '当前是沙盒演示环境；验证码以页面返回为准。' : '请输入手机号获取验证码。' }}</view>
       <view v-if="demoCode" class="registration-note">本次演示验证码：{{ demoCode }}</view>
-      <view v-if="registrationError" class="registration-error">{{ registrationError }}</view>
+      <view v-if="registrationError" class="registration-error" role="alert">{{ registrationError }}</view>
       <view class="input-content">
         <view class="input-item">
           <text class="tit">用户名</text>
@@ -51,16 +51,18 @@
             />
             <button
               class="get-code-btn"
-              :class="{ disabled: countdown > 0 }"
-              :disabled="countdown > 0"
+              role="button"
+              :loading="sendingCode"
+              :class="{ disabled: countdown > 0 || sendingCode }"
+              :disabled="countdown > 0 || sendingCode || registering"
               @click="handleGetAuthCode"
             >
-              {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+              {{ sendingCode ? '获取中…' : countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
             </button>
           </view>
         </view>
       </view>
-      <button class="confirm-btn" @click="handleRegister" :disabled="registering"> 注册 </button>
+      <button class="confirm-btn" role="button" @click="handleRegister" :loading="registering" :disabled="registering || sendingCode">{{ registering ? '注册中…' : '注册' }}</button>
     </view>
   </view>
 </template>
@@ -68,6 +70,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { registerAPI, getAuthCodeAPI } from '@/apis/member'
+import { onUnload } from '@dcloudio/uni-app'
+import { sandboxMode } from '@/utils/sandbox'
 import type { RegisterParam } from '@/types/member'
 
 // ===== 页面数据 =====
@@ -80,6 +84,7 @@ const formData = ref<RegisterParam>({
 })
 // 注册加载状态
 const registering = ref(false)
+const sendingCode = ref(false)
 const demoCode = ref('')
 const registrationError = ref('')
 function errorMessage(error: unknown): string {
@@ -93,7 +98,11 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 获取验证码
 const handleGetAuthCode = async () => {
+  if (sendingCode.value || countdown.value > 0 || registering.value) return
+  registrationError.value = ''
+  formData.value.telephone = String(formData.value.telephone).trim()
   if (!formData.value.telephone) {
+    registrationError.value = '请输入手机号'
     uni.showToast({
       title: '请输入手机号',
       icon: 'none',
@@ -101,6 +110,7 @@ const handleGetAuthCode = async () => {
     return
   }
   if (!/^1[3-9]\d{9}$/.test(formData.value.telephone)) {
+    registrationError.value = '手机号格式不正确'
     uni.showToast({
       title: '手机号格式不正确',
       icon: 'none',
@@ -108,14 +118,15 @@ const handleGetAuthCode = async () => {
     return
   }
 
+  sendingCode.value = true
+  demoCode.value = ''
   try {
     const res = await getAuthCodeAPI(formData.value.telephone)
     // 模拟验证码展示：弹出5秒toast让用户获取验证码
-    const code = res.data || '验证码已发送'
     demoCode.value = /^\d{6}$/.test(String(res.data)) ? String(res.data) : ''
     registrationError.value = ''
     uni.showToast({
-      title: `验证码：${code}`,
+      title: demoCode.value ? `验证码：${demoCode.value}` : res.message || '验证码已发送',
       icon: 'none',
       duration: 5000,
     })
@@ -124,25 +135,36 @@ const handleGetAuthCode = async () => {
   } catch (error) {
     // Keep the server's message visible; http already displays the transient toast.
     registrationError.value = errorMessage(error)
+  } finally {
+    sendingCode.value = false
   }
 }
 
 // 注册
 const handleRegister = async () => {
+  if (registering.value || sendingCode.value) return
+  registrationError.value = ''
+  formData.value.username = formData.value.username.trim()
+  formData.value.telephone = String(formData.value.telephone).trim()
+  formData.value.authCode = formData.value.authCode.trim()
   const { username, telephone, password, authCode } = formData.value
   if (!username) {
+    registrationError.value = '请输入用户名'
     uni.showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
   if (!telephone) {
+    registrationError.value = '请输入手机号'
     uni.showToast({ title: '请输入手机号', icon: 'none' })
     return
   }
   if (!password) {
+    registrationError.value = '请输入密码'
     uni.showToast({ title: '请输入密码', icon: 'none' })
     return
   }
   if (!authCode) {
+    registrationError.value = '请输入验证码'
     uni.showToast({ title: '请输入验证码', icon: 'none' })
     return
   }
@@ -152,19 +174,21 @@ const handleRegister = async () => {
   if (!/^\d{6}$/.test(authCode)) { registrationError.value='请输入6位验证码'; return }
   registrationError.value=''
   registering.value = true
+  let succeeded = false
   try {
-    await registerAPI(formData.value)
+    await registerAPI({ ...formData.value })
+    succeeded = true
     uni.showToast({
       title: '注册成功',
       icon: 'success',
     })
     setTimeout(() => {
-      uni.redirectTo({ url: '/pages/public/login' })
+      uni.redirectTo({ url: '/pages/public/login', complete: () => { registering.value = false } })
     }, 1500)
   } catch (error) {
     registrationError.value = errorMessage(error)
   } finally {
-    registering.value = false
+    if (!succeeded) registering.value = false
   }
 }
 
@@ -189,8 +213,9 @@ const startCountdown = () => {
 
 // 返回上一页
 const navBack = () => {
-  uni.navigateBack()
+  uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/public/login' }) })
 }
+onUnload(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style lang="scss">
@@ -204,8 +229,8 @@ page {
   padding-top: 115px;
   position: relative;
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: clip;
   background: #fff;
 }
 
@@ -233,6 +258,7 @@ page {
 }
 
 .right-top-sign {
+  pointer-events: none;
   position: absolute;
   top: calc(var(--status-bar-height) + 80rpx);
   right: -30rpx;
@@ -262,6 +288,7 @@ page {
 }
 
 .left-bottom-sign {
+  pointer-events: none;
   position: absolute;
   left: -270rpx;
   bottom: -320rpx;

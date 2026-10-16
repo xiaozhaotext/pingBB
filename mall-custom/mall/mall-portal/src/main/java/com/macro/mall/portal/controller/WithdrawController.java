@@ -26,6 +26,14 @@ public class WithdrawController {
     private EarningsService earningsService;
     @Autowired
     private UmsMemberService memberService;
+    @Autowired
+    private com.macro.mall.portal.service.SandboxWalletService sandboxWallet;
+
+    @GetMapping("/options")
+    public CommonResult<?> options() {
+        memberService.getCurrentMember();
+        return CommonResult.success(Map.of("sandbox",sandboxWallet.enabled()));
+    }
 
     @Operation(summary = "申请提现(模拟)：扣减可提现并冻结，生成待审核单")
     @PostMapping("/apply")
@@ -35,6 +43,10 @@ public class WithdrawController {
         try { amount = new BigDecimal(String.valueOf(body.get("amount"))); }
         catch (NumberFormatException ex) { return CommonResult.validateFailed("请输入有效的提现金额"); }
         String idempotencyKey = String.valueOf(body.get("idempotencyKey"));
+        if (sandboxWallet.enabled()) {
+            try { return sandboxWallet.withdraw(memberId,amount,idempotencyKey); }
+            catch (IllegalArgumentException ex) { return CommonResult.validateFailed(ex.getMessage()); }
+        }
         return earningsService.applyWithdraw(memberId, amount, idempotencyKey);
     }
 

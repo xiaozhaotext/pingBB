@@ -81,6 +81,8 @@ const formatPayType = (value: number) => {
     return '支付宝'
   } else if (value === 2) {
     return '微信'
+  } else if (value === 4) {
+    return '余额 / 积分支付'
   } else {
     return '未支付'
   }
@@ -513,6 +515,10 @@ const showLogisticsDialog = () => {
         <span class="font-small">费用信息</span>
       </div>
       <div class="table-layout">
+        <el-row>
+          <el-col :span="6" class="table-cell-title">余额支付金额</el-col>
+          <el-col :span="6" class="table-cell">￥{{ Number(order.balanceAmount || 0).toFixed(2) }}</el-col>
+        </el-row>
         <el-row>
           <el-col :span="6" class="table-cell-title">商品合计</el-col>
           <el-col :span="6" class="table-cell-title">运费</el-col>

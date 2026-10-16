@@ -46,7 +46,8 @@ public class P0AdminController {
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
                 "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
-                "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS member_balance," +
+                "COALESCE((SELECT w.balance_cents / 100.00 FROM ums_recharge_account w WHERE w.member_id=m.id),0) AS member_balance," +
+                "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS available_earnings," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=1),0) AS product_points," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=2),0) AS rebuy_points " +
                 "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
@@ -345,9 +346,9 @@ public class P0AdminController {
         data.put("withdrawStats", jdbc.queryForMap("SELECT COUNT(*) total," +
                 "COALESCE(SUM(status=0),0) pending," +
                 "COALESCE(SUM(status=1),0) approved," +
-                "COALESCE(SUM(status=2),0) completed," +
+                "COALESCE(SUM(status IN (2,3)),0) completed," +
                 "COALESCE(SUM(status=4),0) rejected," +
-                "COALESCE(SUM(CASE WHEN status=2 THEN amount ELSE 0 END),0) paid_out FROM ums_withdraw_apply"));
+                "COALESCE(SUM(CASE WHEN status IN (2,3) THEN actual_amount ELSE 0 END),0) paid_out FROM ums_withdraw_apply"));
         // 佣金来源构成（直推奖励/每日分红/分享奖励/模拟发放等）
         data.put("commissionByType", jdbc.queryForList("SELECT change_type,COUNT(*) entries," +
                 "COALESCE(SUM(amount),0) amount FROM ums_earnings_ledger GROUP BY change_type ORDER BY amount DESC"));

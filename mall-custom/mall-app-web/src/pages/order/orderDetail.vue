@@ -270,6 +270,7 @@ const formatPayType = (payType: number): string => {
     0: '未支付',
     1: '支付宝支付',
     2: '微信支付',
+    4: '余额 / 积分支付',
   }
   return payTypeMap[payType] || ''
 }
