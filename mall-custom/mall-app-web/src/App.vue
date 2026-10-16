@@ -1,10 +1,24 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { getTheme, applyTheme } from '@/utils/theme'
+import { useMemberStore } from '@/stores/member'
+import { contactSaveKey, isContactHistoryEntry } from '@/utils/contactNavigation'
 
 onLaunch(() => {
   // 应用已保存的换肤主题（刷新后保持）
   applyTheme(getTheme())
+  // #ifdef H5
+  let returning = false
+  window.addEventListener('popstate', () => {
+    const id = useMemberStore().memberInfo?.id
+    if (!id || !uni.getStorageSync(contactSaveKey(id)) || !isContactHistoryEntry(window.location.href)) return
+    setTimeout(() => {
+      if (returning || !isContactHistoryEntry(window.location.href)) return
+      returning = true
+      uni.reLaunch({ url: '/pages/user/user', complete: () => { returning = false } })
+    }, 0)
+  })
+  // #endif
   console.log('App Launch')
 })
 onShow(() => {

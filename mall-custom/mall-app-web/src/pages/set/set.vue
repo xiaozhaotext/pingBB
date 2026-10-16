@@ -20,11 +20,11 @@
     </view>
     <view
       class="list-cell"
-      @click="navTo('实名认证')"
+      @click="navTo('/pages/member/contact')"
       hover-class="cell-hover"
       :hover-stay-time="50"
     >
-      <text class="cell-tit">实名认证</text>
+      <text class="cell-tit">联系资料</text>
       <text class="cell-more yticon icon-you"></text>
     </view>
 

@@ -112,12 +112,18 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'sources', name: 'financeCommissionSources', component: () => import('@/views/p0/Finance.vue'), meta: { title: '佣金来源', icon: 'document', section: 'byType' } },
       ] },
       { path: 'dividend', name: 'financeDividend', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '每日贡献奖励池', icon: 'total-yesterday', section: 'p0Dividend' } },
-      { path: 'partner-pool', name: 'financePartnerPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '合伙人分红池', pool: 'PARTNER', icon: 'total-yesterday' } },
-      { path: 'cofounder-pool', name: 'financeCofounderPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '联创分红池', pool: 'COFOUNDER', icon: 'total-yesterday' } },
-      { path: 'operations-pool', name: 'financeOperationsPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '运营分红池', pool: 'OPERATIONS', icon: 'total-yesterday' } },
     ],
   },
-  // 7 服务中心
+    {
+      path: '/dividendPools', component: Layout, redirect: '/dividendPools/partner', name: 'dividendPoolMgr', alwaysShow: true,
+      meta: { title: '分红池', icon: 'total-yesterday' },
+      children: [
+        { path: 'partner', alias: '/financeMgr/partner-pool', name: 'financePartnerPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '合伙人池', pool: 'PARTNER', icon: 'total-yesterday' } },
+        { path: 'cofounder', alias: '/financeMgr/cofounder-pool', name: 'financeCofounderPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '联创池', pool: 'COFOUNDER', icon: 'total-yesterday' } },
+        { path: 'operations', alias: '/financeMgr/operations-pool', name: 'financeOperationsPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '运营池', pool: 'OPERATIONS', icon: 'total-yesterday' } },
+      ],
+    },
+    // 7 服务中心
   {
     path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,
     meta: { title: '服务中心', icon: 'ums' },

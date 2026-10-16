@@ -41,6 +41,7 @@ onUnmounted(() => {
 <template>
   <div class="app-wrapper" :class="classObj">
     <Sidebar class="sidebar-container"></Sidebar>
+    <div v-if="device === 'mobile' && sidebar.opened" class="drawer-bg" @click="appStore.closeSideBar(false)" aria-label="关闭菜单"></div>
     <div class="main-container">
       <Navbar></Navbar>
       <AppMain></AppMain>
@@ -58,4 +59,5 @@ onUnmounted(() => {
   height: 100%;
   width: 100%;
 }
+.drawer-bg{position:fixed;inset:50px 0 0;background:rgba(0,0,0,.2);z-index:1000;touch-action:none}
 </style>

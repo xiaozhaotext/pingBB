@@ -38,8 +38,9 @@ class TriPoolAdminAccessTest {
         var controller=new TriPoolAdminController(jdbc,pools,access);Principal p=()->"unprivileged";
         when(access.requireAuthorized(p)).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
         assertThrows(ResponseStatusException.class,()->controller.overview(p));
-        assertThrows(ResponseStatusException.class,()->controller.records(p,"PARTNER",1));
-        assertThrows(ResponseStatusException.class,()->controller.ledger(p,"PARTNER",1));
+        assertThrows(ResponseStatusException.class,()->controller.records(p,"PARTNER",1,null));
+        assertThrows(ResponseStatusException.class,()->controller.ledger(p,"PARTNER",1,null));
+        assertThrows(ResponseStatusException.class,()->controller.daily(p,java.time.LocalDate.of(2026,10,16)));
         assertThrows(ResponseStatusException.class,()->controller.members(p,1));
         assertThrows(ResponseStatusException.class,()->controller.preview(p));
         assertThrows(ResponseStatusException.class,()->controller.operationsMember(p,new TriPoolAdminController.OperationsMember(1,1,true,"test reason")));
