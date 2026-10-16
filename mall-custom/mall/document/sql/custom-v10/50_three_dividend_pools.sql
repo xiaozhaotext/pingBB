@@ -107,6 +107,12 @@ CREATE TABLE IF NOT EXISTS tri_pool_position (
 INSERT IGNORE INTO tri_pool_position(member_id,pool_code,received)
  SELECT member_id,pool_code,SUM(amount) FROM tri_pool_distribution GROUP BY member_id,pool_code;
 
+CREATE TABLE IF NOT EXISTS tri_membership_order (
+ order_id BIGINT PRIMARY KEY,
+ rule_version VARCHAR(32) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 -- Menu/resource additions only; retain existing role authorizations and old ledgers.
 INSERT INTO ums_menu(parent_id,create_time,title,level,sort,name,icon,hidden)
  SELECT p.id,NOW(),n.title,1,n.sort,n.name,'total-yesterday',0

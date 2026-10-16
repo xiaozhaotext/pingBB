@@ -25,7 +25,7 @@ public class TriPoolAdminController {
         return CommonResult.success(Map.of("enabled",true,"ruleVersion",TriPoolRules.VERSION,
                 "pools",jdbc.queryForList("SELECT * FROM tri_pool ORDER BY code"),
                 "operationsMembers",jdbc.queryForList("SELECT o.*,m.username FROM tri_operations_member o JOIN ums_member m ON m.id=o.member_id ORDER BY o.member_id"),
-                "products",jdbc.queryForList("SELECT t.*,p.name FROM tri_membership_product t JOIN pms_product p ON p.id=t.product_id ORDER BY t.product_id")));
+                "membershipPrice",TriPoolRules.PRICE));
     }
     @GetMapping("/records")
     public CommonResult<List<Map<String,Object>>> records(Principal p,@RequestParam String pool,
@@ -74,20 +74,4 @@ public class TriPoolAdminController {
     }
     public record Distribution(String requestId,BigDecimal balance,long totalShares,String previewToken) { }
 
-    @PostMapping("/products")
-    @Transactional(rollbackFor=Exception.class)
-    public CommonResult<?> membershipProduct(Principal p,@RequestBody Product body) {
-        long operator=access.requireAuthorized(p);
-        if(!pools.enabled())throw new IllegalStateException("新规则尚未启用");
-        if(body.productId<=0)throw new IllegalArgumentException("商品编号无效");
-        var rows=jdbc.queryForList("SELECT price FROM pms_product WHERE id=? AND delete_status=0 FOR UPDATE",body.productId);
-        if(body.enabled && (rows.size()!=1 || TriPoolRules.PRICE.compareTo(new BigDecimal(String.valueOf(rows.get(0).get("price"))))!=0))
-            throw new IllegalArgumentException("身份牌必须是售价3999元的有效商品");
-        if(body.enabled && jdbc.queryForList("SELECT product_id FROM pms_product_zone WHERE product_id=? AND zone_code='PICK'",Long.class,body.productId).isEmpty())
-            throw new IllegalArgumentException("请先将身份牌商品分配到自选区");
-        jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),updated_by=VALUES(updated_by)",body.productId,body.enabled?1:0,operator);
-        jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,target_id,detail) VALUES(?,?,'tri_pool','MEMBERSHIP_PRODUCT',?,?)",operator,p.getName(),body.productId,"enabled="+body.enabled);
-        return CommonResult.success(null);
-    }
-    public record Product(long productId,boolean enabled) { }
 }

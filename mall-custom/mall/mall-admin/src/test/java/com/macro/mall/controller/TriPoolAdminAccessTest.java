@@ -30,14 +30,8 @@ class TriPoolAdminAccessTest {
         assertNotEquals(200,controller.request(()->"admin",Map.of()).getCode());
         verifyNoInteractions(jdbc);
     }
-    @Test void membershipProductMustBelongToPickZone() {
-        var jdbc=mock(JdbcTemplate.class);var pools=mock(TriPoolService.class);var access=mock(P0AdminAccess.class);
-        when(pools.enabled()).thenReturn(true);
-        when(jdbc.queryForList("SELECT price FROM pms_product WHERE id=? AND delete_status=0 FOR UPDATE",1L))
-                .thenReturn(List.of(Map.of("price",new BigDecimal("3999"))));
-        var controller=new TriPoolAdminController(jdbc,pools,access);
-        assertThrows(IllegalArgumentException.class,()->controller.membershipProduct(()->"admin",new TriPoolAdminController.Product(1,true)));
-        verify(jdbc,never()).update(anyString(),any(Object[].class));
+    @Test void membershipDoesNotExposeProductDesignation() {
+        assertTrue(Arrays.stream(TriPoolAdminController.class.getDeclaredMethods()).noneMatch(m->m.getName().equals("membershipProduct")));
     }
     @Test void everyPoolReadAndMoneyWriteRequiresServerSideAdminAuthorization() {
         var jdbc=mock(JdbcTemplate.class);var pools=mock(TriPoolService.class);var access=mock(P0AdminAccess.class);
@@ -50,7 +44,6 @@ class TriPoolAdminAccessTest {
         assertThrows(ResponseStatusException.class,()->controller.preview(p));
         assertThrows(ResponseStatusException.class,()->controller.operationsMember(p,new TriPoolAdminController.OperationsMember(1,1,true,"test reason")));
         assertThrows(ResponseStatusException.class,()->controller.distribute(p,new TriPoolAdminController.Distribution("operations_request_0001",BigDecimal.TEN,1,"fake")));
-        assertThrows(ResponseStatusException.class,()->controller.membershipProduct(p,new TriPoolAdminController.Product(1,true)));
         verifyNoInteractions(jdbc,pools);
     }
 }

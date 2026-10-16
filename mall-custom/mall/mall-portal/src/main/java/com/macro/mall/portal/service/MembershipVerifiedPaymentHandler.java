@@ -21,6 +21,8 @@ public class MembershipVerifiedPaymentHandler {
     private final PointsWalletService pointsWallet;
     private final MemberIdentityService identities;
     private final MembershipReferralRewardService referralRewards;
+    @org.springframework.beans.factory.annotation.Autowired private TriMembershipPurchaseService triPurchases;
+    @org.springframework.beans.factory.annotation.Value("${mall.membership-v2.enabled:false}") private boolean membershipV2Enabled;
 
     public MembershipVerifiedPaymentHandler(JdbcTemplate jdbc, PointsWalletService pointsWallet,
                                             MemberIdentityService identities,
@@ -58,6 +60,13 @@ public class MembershipVerifiedPaymentHandler {
         long memberId = ((Number) order.get("member_id")).longValue();
         // Serialize purchases for the same member, including full-price upgrades.
         jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE", Long.class, memberId);
+        if ("MEMBER".equals(order.get("level"))) {
+            if (!membershipV2Enabled) throw new IllegalStateException("新会员规则尚未启用");
+            triPurchases.fulfill(order);
+            if (jdbc.update("UPDATE membership_purchase_order SET status='PAID',transaction_id=?,paid_at=CURRENT_TIMESTAMP WHERE id=? AND status='PENDING'",payment.transactionId(),orderId)!=1) throw new IllegalStateException("会员支付状态冲突");
+            return;
+        }
+        if (membershipV2Enabled) throw new IllegalStateException("旧会员订单需先核对后处理");
         UmsMemberIdentity identity = identities.getIdentity(memberId);
         int fromType = identity == null || identity.getIdentityType() == null ? 0 : identity.getIdentityType();
         String level = (String) order.get("level");

@@ -132,7 +132,7 @@ public class TriPoolService {
         }
         return Map.of("enabled",true,"tier",tier.name(),"directPaidCount",refs,"pools",pools,
                 "ruleVersion",VERSION,"customTravelEligible",tier!=Tier.VISITOR,
-                "membershipProducts",jdbc.queryForList("SELECT p.id,p.name FROM tri_membership_product t JOIN pms_product p ON p.id=t.product_id WHERE t.enabled=1 AND p.publish_status=1 AND p.delete_status=0 AND p.price=3999 ORDER BY p.id LIMIT 100"));
+                "membershipPrice",TriPoolRules.PRICE);
     }
 
     private Map<String,Object> distribute(Pool pool,String key,Long operator) {

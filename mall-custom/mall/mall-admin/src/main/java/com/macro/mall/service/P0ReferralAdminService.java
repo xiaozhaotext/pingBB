@@ -27,8 +27,8 @@ public class P0ReferralAdminService {
     @Transactional(rollbackFor = Exception.class)
     public void reassign(long memberId, long newInviterId, long operatorId,
                          String operatorName, String reason) {
-        if (membershipV2Enabled && !jdbc.queryForList("SELECT s.order_id FROM tri_order_snapshot s JOIN oms_order o ON o.id=s.order_id WHERE s.member_id=? AND o.status IN (0,1,2,3) FOR UPDATE",Long.class,memberId).isEmpty())
-            throw new ResponseStatusException(HttpStatus.CONFLICT,"该用户已有会员身份牌支付快照，调整邀请关系需专门核对历史奖励");
+        if (membershipV2Enabled && !jdbc.queryForList("SELECT id FROM membership_purchase_order WHERE member_id=? AND level='MEMBER' AND status IN ('PENDING','PAID') FOR UPDATE",Long.class,memberId).isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"该用户已有会员购买支付快照，调整邀请关系需专门核对历史奖励");
         if (memberId <= 0 || newInviterId <= 0 || memberId == newInviterId
                 || reason == null || reason.trim().length() < 5 || reason.length() > 200) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "会员、推荐人或原因无效");
