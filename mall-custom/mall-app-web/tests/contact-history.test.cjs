@@ -8,6 +8,10 @@ const root = path.join(__dirname, '../src')
 const helperContext = { exports: {}, URL }
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'utils/contactNavigation.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, helperContext)
 const helper = helperContext.exports
+test('the application opens on Home rather than a contact or identity form', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root, 'pages.json'), 'utf8'))
+  assert.equal(config.pages[0].path, 'pages/index/index')
+})
 function app({ saved = true, memberId = 27, url = 'https://example.com/#/pages/member/contact' } = {}) {
   const listeners = {}, pending = [], redirects = []
   const source = fs.readFileSync(path.join(root, 'App.vue'), 'utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
