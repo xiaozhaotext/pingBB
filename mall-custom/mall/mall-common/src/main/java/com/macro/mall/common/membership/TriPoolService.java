@@ -30,7 +30,7 @@ public class TriPoolService {
     public boolean acceptPayment(String sourceKey, long memberId, Long referrerId,
                                  BigDecimal amount, PointsCredit points) {
         requireEnabled();
-        if(sourceKey==null || !sourceKey.matches("ORDER:[1-9][0-9]*") || memberId<=0
+        if(sourceKey==null || !sourceKey.matches("(?:ORDER|MEMBERSHIP):[1-9][0-9]*") || memberId<=0
                 || amount==null || amount.compareTo(PRICE)!=0 || points==null)
             throw new IllegalArgumentException("会员支付凭据无效");
         lockPools();
@@ -117,6 +117,7 @@ public class TriPoolService {
                 "paidTotal",awards.stream().map(Award::amount).reduce(BigDecimal.ZERO,BigDecimal::add));
     }
 
+    @Transactional(readOnly=true)
     public Map<String,Object> memberSummary(long memberId) {
         if(!enabled)return Map.of("enabled",false);
         var rows=jdbc.queryForList("SELECT tier,direct_paid_count FROM tri_member WHERE member_id=?",memberId);

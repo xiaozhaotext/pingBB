@@ -36,6 +36,13 @@ class TriPoolServiceTest {
     BigDecimal amount(String sql,Object...args){return jdbc.queryForObject(sql,BigDecimal.class,args);}
     void eq(String expected,BigDecimal actual){assertEquals(0,new BigDecimal(expected).compareTo(actual));}
 
+    @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
+        var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);
+        assertEquals(Boolean.TRUE,tx.execute(s->service.acceptPayment("MEMBERSHIP:99",1,null,TriPoolRules.PRICE,post)));
+        assertEquals(Boolean.FALSE,tx.execute(s->service.acceptPayment("MEMBERSHIP:99",1,null,TriPoolRules.PRICE,post)));
+        eq("500",amount("SELECT total_in FROM tri_pool WHERE code='PARTNER'"));
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM test_points",Integer.class));
+    }
     @Test void registrationIsVisitorAndDoesNotFundOrRewardAnything() {
         var info=service.memberSummary(1);
         assertEquals("VISITOR",info.get("tier"));assertEquals(false,info.get("customTravelEligible"));
