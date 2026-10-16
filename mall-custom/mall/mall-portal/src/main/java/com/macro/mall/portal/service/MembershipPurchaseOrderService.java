@@ -38,6 +38,23 @@ public class MembershipPurchaseOrderService {
         this.mockPaymentEnabled = mockPaymentEnabled;
     }
 
+    /** Reports deployment capabilities without creating orders or contacting payment providers. */
+    public Map<String, Object> paymentOptions() {
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put("purchaseEnabled", "1".equals(config("membership.purchase.enabled")));
+        options.put("sandbox", mockPaymentEnabled);
+        options.put("membershipV2", membershipV2Enabled);
+        for (String channel : List.of("WECHAT", "ALIPAY")) {
+            boolean ready = false;
+            if (!mockPaymentEnabled) {
+                try { gateway.requireReady(channel); ready = true; }
+                catch (MembershipPaymentException ignored) { }
+            }
+            options.put(channel.toLowerCase() + "Ready", ready);
+        }
+        return options;
+    }
+
     public Map<String, Object> create(Long authenticatedMemberId, MembershipPurchaseRequest request, String clientIp) {
         validate(authenticatedMemberId, request);
         if (!"1".equals(config("membership.purchase.enabled"))) {

@@ -3,6 +3,8 @@ package com.macro.mall.portal.service;
 import com.macro.mall.common.membership.TriPoolRules;
 import com.macro.mall.common.membership.TriPoolService;
 import com.macro.mall.portal.domain.MembershipPurchaseRequest;
+import com.macro.mall.portal.domain.MembershipPaymentError;
+import com.macro.mall.portal.domain.MembershipPaymentException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,19 +22,29 @@ public class TriMembershipPurchaseService {
     }
     @Transactional(rollbackFor=Exception.class)
     public Map<String,Object> prepare(long member,MembershipPurchaseRequest request) {
-        if(!pools.enabled() || !"MEMBER".equals(request.level()))throw new IllegalArgumentException("仅可购买3999元会员，合伙人和联创通过直邀晋升");
+        if(!pools.enabled())throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
+        if(!"MEMBER".equals(request.level()))throw new MembershipPaymentException(MembershipPaymentError.INVALID_REQUEST);
         jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE",Long.class,member);
-        if(pools.isMember(member))throw new IllegalArgumentException("您已是会员，无需重复购买");
+        if(pools.isMember(member))throw new MembershipPaymentException(MembershipPaymentError.ALREADY_MEMBER);
         var existing=jdbc.queryForList("SELECT * FROM membership_purchase_order WHERE member_id=? AND request_id=?",member,request.requestId());
         if(!existing.isEmpty()) {
             var row=existing.get(0);
             if(!"MEMBER".equals(row.get("level")) || !"PENDING".equals(row.get("status"))
                     || !request.payChannel().equals(row.get("pay_channel")) || !request.payMode().equals(row.get("pay_mode")))
-                throw new IllegalArgumentException("会员订单请求冲突");
+                throw new MembershipPaymentException(MembershipPaymentError.ORDER_CONFLICT);
             return row;
         }
-        if(!jdbc.queryForList("SELECT id FROM membership_purchase_order WHERE member_id=? AND status='PENDING' FOR UPDATE",Long.class,member).isEmpty())
-            throw new IllegalArgumentException("已有待付会员订单，请先完成原订单");
+        // Recover an unpaid order after browser storage was cleared or another device was used.
+        // Never create a second pending order or change the frozen payment channel/amount.
+        var pending=jdbc.queryForList("SELECT * FROM membership_purchase_order WHERE member_id=? AND status='PENDING' FOR UPDATE",member);
+        if(!pending.isEmpty()) {
+            var row=pending.get(0);
+            var versions=jdbc.queryForList("SELECT rule_version FROM tri_membership_order WHERE order_id=?",String.class,row.get("id"));
+            if(pending.size()!=1 || !"MEMBER".equals(row.get("level")) || versions.size()!=1 || !TriPoolRules.VERSION.equals(versions.get(0))
+                    || !request.payChannel().equals(row.get("pay_channel")) || !request.payMode().equals(row.get("pay_mode")))
+                throw new MembershipPaymentException(MembershipPaymentError.ORDER_CONFLICT);
+            return row;
+        }
         var parents=jdbc.queryForList("SELECT inviter_id FROM ums_member_recommend WHERE member_id=?",Long.class,member);
         if(parents.size()>1 || (!parents.isEmpty() && parents.get(0)==member))throw new IllegalStateException("直邀关系异常");
         String no="MP"+UUID.randomUUID().toString().replace("-","");

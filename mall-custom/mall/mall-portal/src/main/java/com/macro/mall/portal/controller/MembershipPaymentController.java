@@ -37,6 +37,12 @@ public class MembershipPaymentController {
         this.verifiedPaymentHandler = verifiedPaymentHandler;
     }
 
+    @GetMapping("/payment-options")
+    public CommonResult<Map<String, Object>> paymentOptions() {
+        memberService.getCurrentMember();
+        return CommonResult.success(orders.paymentOptions());
+    }
+
     @PostMapping("/orders")
     public CommonResult<Map<String, Object>> create(@RequestBody MembershipPurchaseRequest request,
                                                      HttpServletRequest servletRequest) {

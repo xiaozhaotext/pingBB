@@ -95,7 +95,7 @@ const toLogout = () => {
           icon: 'success',
         })
         setTimeout(() => {
-          uni.navigateBack()
+          uni.reLaunch({ url: '/pages/public/login' })
         }, 200)
       }
     },

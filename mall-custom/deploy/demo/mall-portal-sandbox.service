@@ -9,7 +9,7 @@ User=mall-demo
 Group=mall-demo
 WorkingDirectory=/opt/mall-demo
 EnvironmentFile=/etc/mall-demo/portal.env
-ExecStart=/usr/bin/java -Xms96m -Xmx384m -jar /opt/mall-demo/mall-portal-sandbox.jar --spring.profiles.active=dev --server.address=127.0.0.1 --server.port=8086 --spring.datasource.url=jdbc:mysql://127.0.0.1:3306/mall_demo_sandbox --spring.data.redis.database=1 --spring.data.mongodb.database=mall-port-sandbox --spring.rabbitmq.virtual-host=/mall_sandbox --mall.p0.consumer-simulation-enabled=false --mall.membership.payment.enabled=false --mall.payment.mock.enabled=true --mall.dividend.schedule.enabled=false --mall.public-base-url=https://122.51.105.107/sandbox
+ExecStart=/usr/bin/java -Xms96m -Xmx384m -jar /opt/mall-demo/mall-portal-sandbox.jar --spring.profiles.active=dev --server.address=127.0.0.1 --server.port=8086 --spring.datasource.url=jdbc:mysql://127.0.0.1:3306/mall_demo_sandbox --spring.data.redis.database=1 --spring.data.mongodb.database=mall-port-sandbox --spring.rabbitmq.virtual-host=/mall_sandbox --mall.p0.consumer-simulation-enabled=false --mall.membership.payment.enabled=false --mall.payment.mock.enabled=true --mall.membership-v2.enabled=true --mall.dividend.schedule.enabled=false --mall.public-base-url=https://122.51.105.107/sandbox
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=true
