@@ -17,7 +17,7 @@
         <view class="item" v-for="(l, i) in ledger" :key="i">
           <text>{{ typeText(l.changeType) }}　{{ Number(l.amount) >= 0 ? '+' : '' }}{{ l.amount }}（{{ pointsTypeText(l.pointsType) }}）</text>
           <text class="sub">余额：{{ l.balanceAfter }}{{ l.remark ? '　' + l.remark : '' }}</text>
-          <text class="sub">{{ l.createTime }}</text>
+          <text class="sub">{{ chinaDateTime(l.createTime) }}</text>
         </view>
       </view>
       <text class="tip" v-else>暂无积分明细</text>
@@ -32,6 +32,7 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getPointsAccountAPI, getPointsLedgerAPI } from '@/apis/member'
+import { chinaDateTime } from '@/utils/chinaTime'
 
 const productBalance = ref<string | number>('—')
 const rebuyBalance = ref<string | number>('—')

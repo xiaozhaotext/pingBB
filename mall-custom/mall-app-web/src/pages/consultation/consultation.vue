@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '@/utils/http'
+import { chinaDateTime } from '@/utils/chinaTime'
 import { onLoad } from '@dcloudio/uni-app'
 
 const subject = ref('')
@@ -39,7 +40,7 @@ const submitting = ref(false)
 const list = ref<any[]>([])
 
 const statusText = (s: number) => s === 0 ? '待回复' : s === 1 ? '已回复' : '已关闭'
-const formatTime = (t: string) => t ? t.substring(0, 16).replace('T', ' ') : ''
+const formatTime = chinaDateTime
 
 const loadList = async () => {
   try {

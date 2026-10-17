@@ -17,6 +17,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { http } from '@/utils/http'
+import { chinaDateTime } from '@/utils/chinaTime'
 
 interface Notice {
   id: number
@@ -48,10 +49,7 @@ const markRead = async (notice: Notice) => {
   }
 }
 
-const formatTime = (t: string) => {
-  if (!t) return ''
-  return t.substring(0, 16).replace('T', ' ')
-}
+const formatTime = chinaDateTime
 
 onMounted(() => {
   loadNotices()
