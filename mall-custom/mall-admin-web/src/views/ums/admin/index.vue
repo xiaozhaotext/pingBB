@@ -28,8 +28,13 @@ const getList = async () => {
   try {
     const res = await getAdminListAPI(listQuery.value)
     listLoading.value = false
-    list.value = res.data.list
-    total.value = res.data.total
+    // 防御性处理：兼容不同的返回结构
+    const data = res.data || res
+    list.value = data.list || []
+    total.value = data.total || 0
+    if (!data.list) {
+      console.warn('管理员列表接口返回结构异常:', res)
+    }
   } catch (error) {
     listLoading.value = false
     console.error('获取管理员列表失败:', error)
