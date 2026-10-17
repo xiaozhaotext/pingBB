@@ -274,6 +274,8 @@ export type OmsOrderItem = {
 
 /** 订单详情（对应API文档 OmsOrderDetail） */
 export type OmsOrderDetail = {
+  /** 已从账户消费余额支付的金额，与现金payAmount分开返回 */
+  balanceAmount?: number
   /** 订单ID */
   id: number
   /** 订单编号 */

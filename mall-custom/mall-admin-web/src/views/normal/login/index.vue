@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { reactive, ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user';
 import { isvalidUsername } from '@/utils/validate';
 import { type FormInstance, type FormRules } from 'element-plus';
 
 // 使用Vue Router和Pinia
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 表单引用
@@ -61,7 +62,9 @@ const handleLogin = () => {
           password: loginForm.password
         })
         loading.value = false
-        router.push({ path: '/' })
+        const redirect = route.query.redirect
+        router.replace(typeof redirect === 'string' && /^\/(?!\/)/.test(redirect)
+          && !/^\/(?:login|connection-error)(?:[/?#]|$)/.test(redirect) ? redirect : '/')
       }
       catch (err) {
         loading.value = false

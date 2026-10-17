@@ -7,6 +7,7 @@ export const constantRouterMap: RouteRecordExt[] = [
   { path: '/404', component: () => import('@/views/normal/404/index.vue'), hidden: true },
   { path: '/login', component: () => import('@/views/normal/login/index.vue'), hidden: true },
   { path: '/connection-error', component: () => import('@/views/normal/ConnectionError.vue'), hidden: true },
+  { path: '/:pathMatch(.*)*', name: 'notFound', component: () => import('@/views/normal/404/index.vue'), hidden: true },
   {
     path: '/home',
     component: Layout,

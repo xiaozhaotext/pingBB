@@ -57,15 +57,15 @@
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">活动优惠</text>
-        <text class="cell-tip red">-￥{{ order.promotionAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.promotionAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip red">-￥{{ order.couponAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.couponAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">积分抵扣</text>
-        <text class="cell-tip red">-￥{{ order.integrationAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.integrationAmount) }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
         <text class="cell-tit clamp">备注</text>
@@ -92,7 +92,11 @@
         v-if="order.status === 1 || order.status === 2 || order.status === 3"
       >
         <text class="cell-tit clamp">实付金额</text>
-        <text class="cell-tip">￥{{ formatOrderMoney(order.payAmount) }}</text>
+        <text class="cell-tip">￥{{ formatOrderPaidAmount(order) }}</text>
+      </view>
+      <view v-if="Number(order.balanceAmount || 0) > 0" class="yt-list-cell b-b">
+        <text class="cell-tit clamp">其中余额支付</text>
+        <text class="cell-tip">￥{{ formatOrderMoney(order.balanceAmount) }}</text>
       </view>
       <view
         class="yt-list-cell b-b"
@@ -120,7 +124,7 @@
       <view class="price-content" v-if="order.status === 0">
         <text>应付金额</text>
         <text class="price-tip">￥</text>
-        <text class="price">{{ formatOrderMoney(order.payAmount) }}</text>
+        <text class="price">{{ formatOrderPaidAmount(order) }}</text>
       </view>
     </view>
   </view>
@@ -129,7 +133,7 @@
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
-import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
+import { formatOrderMoney, formatOrderPaidAmount, formatOrderDeduction, showOrderLogistics } from '@/utils/order-display'
 import { onLoad } from '@dcloudio/uni-app'
 import { chinaDateTime } from '@/utils/chinaTime'
 import { getOrderDetailAPI, cancelUserOrderAPI, confirmReceiveOrderAPI } from '@/apis/order'

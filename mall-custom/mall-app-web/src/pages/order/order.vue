@@ -58,9 +58,11 @@
             <view class="price-box">
               共
               <text class="num">{{ calcTotalQuantity(item) }}</text>
-              件商品 {{ item.paymentTime ? '实付款' : (item.status === 0 ? '应付款' : '订单金额') }}
-              <text class="price">{{ formatOrderMoney(item.payAmount) }}</text>
+              件商品 {{ item.paymentTime ? '现金/余额实付' : (item.status === 0 ? '现金/余额应付' : '订单金额') }}
+              <text class="price">{{ formatOrderPaidAmount(item) }}</text>
             </view>
+            <view v-if="Number(item.balanceAmount || 0) > 0" class="price-box">其中余额支付 ￥{{ formatOrderMoney(item.balanceAmount) }}</view>
+            <view v-if="Number(item.integrationAmount || 0) > 0" class="price-box">积分抵扣 ￥{{ formatOrderMoney(item.integrationAmount) }}</view>
             <view v-if="item.status === 0" class="action-box b-t">
               <button class="action-btn" @click="handleCancelOrder(item.id)">取消订单</button>
               <button class="action-btn recom" @click="handlePayOrder(item.id)">立即付款</button>
@@ -109,7 +111,7 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
-import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
+import { formatOrderMoney, formatOrderPaidAmount, showOrderLogistics } from '@/utils/order-display'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
@@ -143,6 +145,7 @@ const tabCurrentIndex = ref(0)
 const orderList = ref<OmsOrderDetail[]>([])
 // 加载状态：more-加载更多 / loading-加载中 / nomore-没有更多
 const loadingType = ref<'more' | 'loading' | 'noMore'>('more')
+let loadRevision = 0
 // 分页请求参数
 const searchParam = ref<PageParam & { status: number }>({
   status: -1,
@@ -171,13 +174,12 @@ const formatAfterSaleStatus = (status: number): string => {
   return map[status] ?? '处理中'
 }
 // 加载退款/售后申请
-const loadAfterSale = async (type: 'refresh' | 'add' = 'refresh') => {
-  if (loadingType.value === 'loading') {
-    return
-  }
+const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
   loadingType.value = 'loading'
   if (type === 'refresh') {
     searchParam.value.pageNum = 1
+  } else {
+    searchParam.value.pageNum++
   }
   try {
     const res = await http<{ list: AfterSaleRow[] }>({
@@ -185,6 +187,7 @@ const loadAfterSale = async (type: 'refresh' | 'add' = 'refresh') => {
       method: 'GET',
       data: { pageNum: searchParam.value.pageNum, pageSize: 10 },
     })
+    if (revision !== loadRevision) return
     const list = res.data?.list ?? []
     afterSaleList.value = type === 'refresh' ? list : afterSaleList.value.concat(list)
     if (list.length === 0 && type === 'add') {
@@ -194,7 +197,10 @@ const loadAfterSale = async (type: 'refresh' | 'add' = 'refresh') => {
       loadingType.value = 'more'
     }
   } catch (e) {
+    if (revision !== loadRevision) return
     console.error('加载退款/售后失败', e)
+    uni.showToast({ title: '售后列表加载失败，请重试', icon: 'none' })
+    if (type === 'add') searchParam.value.pageNum--
     loadingType.value = 'more'
   }
   if (type === 'refresh') {
@@ -205,8 +211,11 @@ const loadAfterSale = async (type: 'refresh' | 'add' = 'refresh') => {
 // ===== loadData =====
 // 加载订单列表数据
 const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
+  if (type === 'add' && loadingType.value !== 'more') return
+  const revision = ++loadRevision
+  if (type === 'refresh') { orderList.value = []; afterSaleList.value = [] }
   if (navList[tabCurrentIndex.value]?.afterSale) {
-    await loadAfterSale(type)
+    await loadAfterSale(type, revision)
     return
   }
   if (type === 'refresh') {
@@ -218,16 +227,12 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
   const index = tabCurrentIndex.value
   const navItem = navList[index]
 
-  if (loadingType.value === 'loading') {
-    // 防止重复加载
-    return
-  }
-
   searchParam.value.status = navItem.state
   loadingType.value = 'loading'
 
   try {
-    const res = await getOrderListAPI(searchParam.value)
+    const res = await getOrderListAPI({ ...searchParam.value })
+    if (revision !== loadRevision) return
     const list = res.data.list
     if (type === 'refresh') {
       orderList.value = list
@@ -242,7 +247,10 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
       }
     }
   } catch (e) {
+    if (revision !== loadRevision) return
     console.error('加载订单列表失败', e)
+    uni.showToast({ title: '订单列表加载失败，请重试', icon: 'none' })
+    if (type === 'add') searchParam.value.pageNum--
     loadingType.value = 'more'
   }
 
@@ -256,7 +264,8 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
 // 页面加载时执行
 onLoad((options) => {
   if (options?.state != null) {
-    tabCurrentIndex.value = +options.state
+    const index = Number(options.state)
+    tabCurrentIndex.value = Number.isInteger(index) && index >= 0 && index < navList.length ? index : 0
   }
   loadData()
 })
@@ -271,13 +280,16 @@ onPullDownRefresh(() => {
 
 // Swiper切换
 const handleSwiperChange = (e: { detail: { current: number } }) => {
+  if (tabCurrentIndex.value === e.detail.current) return
   tabCurrentIndex.value = e.detail.current
   loadData()
 }
 
 // 顶部Tab点击
 const handleTabClick = (index: number) => {
+  if (tabCurrentIndex.value === index) return
   tabCurrentIndex.value = index
+  loadData()
 }
 
 // 删除订单

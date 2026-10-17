@@ -21,5 +21,5 @@ test('pending or failed preview cannot submit a stale order',async()=>{
  p.pending[0].reject(new Error('network unavailable'));await req;await p.handleSubmit();assert.equal(p.submitted.length,0);assert.equal(p.settlementReady.value,false)
 })
 test('zero-cash completion navigates to paid orders instead of pending orders',async()=>{
- const p=page();const req=p.refreshSettlement();p.pending[0].resolve(confirm(0));await req;await p.handleSubmit();assert.equal(p.submitted.length,1);assert.equal(p.redirects[0],'/pages/order/order?state=1')
+ const p=page();const req=p.refreshSettlement();p.pending[0].resolve(confirm(0));await req;await p.handleSubmit();assert.equal(p.submitted.length,1);assert.equal(p.redirects[0],'/pages/order/order?state=2')
 })
