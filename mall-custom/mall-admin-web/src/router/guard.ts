@@ -42,7 +42,9 @@ router.beforeEach(async (to, from, next) => {
         permissionStore.addRouters.forEach(route => {
           router.addRoute(route)
         })
-        next({ ...to, replace: true })
+        // Resolve the original path again after adding authorized routes. Keeping
+        // the temporary catch-all name would strand valid deep links on 404.
+        next({ path: to.path, query: to.query, hash: to.hash, replace: true })
       } else {
         next()
       }

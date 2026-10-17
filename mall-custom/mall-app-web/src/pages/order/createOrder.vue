@@ -62,11 +62,11 @@
         </view>
         <view class="yt-list-cell b-b" v-if="num(plan.promotionAmount) > 0">
           <text class="cell-tit clamp">活动优惠</text>
-          <text class="cell-tip red">-{{ money(plan.promotionAmount) }}</text>
+          <text class="cell-tip red">{{ formatOrderDeduction(plan.promotionAmount) }}</text>
         </view>
         <view class="yt-list-cell b-b" v-if="num(plan.couponAmount) > 0">
           <text class="cell-tit clamp">优惠券抵扣</text>
-          <text class="cell-tip red">-{{ money(plan.couponAmount) }}</text>
+          <text class="cell-tip red">{{ formatOrderDeduction(plan.couponAmount) }}</text>
         </view>
         <!-- 自选区：现金或余额（充值本金）二选一 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'PICK'">
@@ -97,7 +97,7 @@
       <view class="yt-list-cell b-b" @click="handleToggleMask('show')">
         <view class="cell-icon">券</view>
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip active" v-if="currCoupon != null">-￥{{ currCoupon.amount }}</text>
+        <text class="cell-tip active" v-if="currCoupon != null">{{ formatOrderDeduction(currCoupon.amount) }}</text>
         <text class="cell-tip active" v-else>选择优惠券</text>
         <text class="cell-more wanjia wanjia-gengduo-d"></text>
       </view>
@@ -115,23 +115,23 @@
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">活动优惠</text>
-        <text class="cell-tip red">-￥{{ calcAmount.promotionAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(calcAmount.promotionAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip red">-￥{{ num(zoneSettlement.couponAmount) }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.couponAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.balanceAmount) > 0">
         <text class="cell-tit clamp">余额抵扣（自选区）</text>
-        <text class="cell-tip red">-￥{{ zoneSettlement.balanceAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.balanceAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.repurchasePointAmount) > 0">
         <text class="cell-tit clamp">复购积分抵扣（复购区）</text>
-        <text class="cell-tip red">-￥{{ zoneSettlement.repurchasePointAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.repurchasePointAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.productPointAmount) > 0">
         <text class="cell-tit clamp">商品积分抵扣（消费区）</text>
-        <text class="cell-tip red">-￥{{ zoneSettlement.productPointAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.productPointAmount) }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
         <text class="cell-tit clamp">备注</text>
@@ -195,6 +195,7 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
+import { formatOrderDeduction } from '@/utils/order-display'
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI } from '@/apis/order'
@@ -402,7 +403,7 @@ const handleSubmit = async () => {
       // 已由余额或商品积分全额抵扣，订单直接完成支付，无需再进入支付页
       uni.showToast({ icon: 'success', title: '下单成功' })
       setTimeout(() => {
-        uni.redirectTo({ url: '/pages/order/order?state=1' })
+        uni.redirectTo({ url: '/pages/order/order?state=2' })
       }, 800)
       return
     }
@@ -418,7 +419,7 @@ const handleSubmit = async () => {
           })
         } else if (res.cancel) {
           uni.redirectTo({
-            url: '/pages/order/order?state=0',
+            url: '/pages/order/order?state=1',
           })
         }
       },

@@ -57,15 +57,15 @@
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">活动优惠</text>
-        <text class="cell-tip red">-￥{{ order.promotionAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.promotionAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">优惠券</text>
-        <text class="cell-tip red">-￥{{ order.couponAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.couponAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b">
         <text class="cell-tit clamp">积分抵扣</text>
-        <text class="cell-tip red">-￥{{ order.integrationAmount }}</text>
+        <text class="cell-tip red">{{ formatOrderDeduction(order.integrationAmount) }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
         <text class="cell-tit clamp">备注</text>
@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
-import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
+import { formatOrderMoney, formatOrderDeduction, showOrderLogistics } from '@/utils/order-display'
 import { onLoad } from '@dcloudio/uni-app'
 import { chinaDateTime } from '@/utils/chinaTime'
 import { getOrderDetailAPI, cancelUserOrderAPI, confirmReceiveOrderAPI } from '@/apis/order'

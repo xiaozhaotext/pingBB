@@ -44,7 +44,7 @@ public class P0AdminController {
         String like = "%" + keyword.trim() + "%";
         List<Map<String,Object>> result = jdbc.queryForList(
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
-                "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
+                "(SELECT COUNT(*) FROM ums_member_login_log l WHERE l.member_id=m.id) AS login_count," +
                 "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id,inviter.username AS inviter_name," +
                 "COALESCE((SELECT w.balance_cents / 100.00 FROM ums_recharge_account w WHERE w.member_id=m.id),0) AS member_balance," +
                 "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS available_earnings," +
