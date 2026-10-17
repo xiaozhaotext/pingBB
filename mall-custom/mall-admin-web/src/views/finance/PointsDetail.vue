@@ -4,6 +4,9 @@ import { useRoute } from 'vue-router'
 import { getP0, type P0Row } from '@/apis/p0'
 import { formatDateTime } from '@/utils/datetime'
 import { ElMessage } from 'element-plus'
+import { businessText } from '@/utils/adminDisplay'
+import { useLedgerDisplay } from '@/composables/useLedgerDisplay'
+const { source } = useLedgerDisplay()
 
 const route = useRoute()
 const pointsType = computed(() => (route.name === 'financeRepurchasePoints' ? 2 : 1))
@@ -84,8 +87,8 @@ onMounted(load)
         <el-table-column label="类型" width="120"><template #default="{ row }">{{ changeTypeText(String(row.change_type || '')) }}</template></el-table-column>
         <el-table-column prop="amount" label="变动" width="110" />
         <el-table-column prop="balance_after" label="变动后余额" width="120" />
-        <el-table-column prop="biz_id" label="业务来源" width="120" />
-        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
+        <el-table-column label="业务来源" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ source(row) }}</template></el-table-column>
+        <el-table-column label="备注" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ businessText(row.remark) }}</template></el-table-column>
         <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
     </el-card>

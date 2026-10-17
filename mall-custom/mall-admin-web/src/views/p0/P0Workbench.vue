@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { businessText, businessSource, contributionTypes } from '@/utils/adminDisplay'
+import { useLedgerDisplay } from '@/composables/useLedgerDisplay'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
@@ -27,6 +29,7 @@ const loading = ref(false)
 const loadError = ref('')
 const membershipV2 = ref<boolean | null>(null)
 const data = ref<Record<string, unknown>>({})
+const { hydrate, memberName } = useLedgerDisplay()
 const poolStats = computed(() => data.value.poolStats as Record<string, unknown> | undefined)
 const poolTodayIn = computed(() => data.value.poolTodayIn as Record<string, unknown> | undefined)
 const memberKeyword = ref('')
@@ -97,6 +100,8 @@ const visibleSettingOptions = computed(() => sectionKey.value === 'p0SmsSettings
   ? settingOptions.filter(option => option.key.startsWith('sms.'))
   : settingOptions.filter(option => membershipV2.value === false || !/^(membership\.|dividend\.)/.test(option.key)))
 const labels: Record<string, string> = {
+  verify_status: '审核状态', pool_total: '池总额', config_key: '参数键', config_value: '参数值', config_group: '分组',
+  operator_id: '操作人ID', operator_name: '操作人', module: '模块', action: '动作', target_id: '目标ID', detail: '详情',
   wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
   real_name: '真实姓名（本人填写）', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
@@ -129,6 +134,7 @@ async function load() {
     const value = response.data
     if (['p0Partner', 'p0Cofounder', 'p0Finance'].includes(sectionKey.value)) await loadBenefits()
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
+    if (sectionKey.value === 'p0Dividend') void hydrate(Object.values(data.value).flatMap(value => rows(value)))
     if (sectionKey.value === 'p0Settings' || sectionKey.value === 'p0SmsSettings') {
       if (sectionKey.value === 'p0SmsSettings' && !settingForm.value.key.startsWith('sms.')) settingForm.value.key = 'sms.provider'
       if (sectionKey.value === 'p0Settings' && membershipV2.value && /^(membership\.|dividend\.)/.test(settingForm.value.key)) settingForm.value.key = 'site.title'
@@ -172,14 +178,17 @@ function columns(value: unknown): string[] {
 function display(value: unknown, column?: string): string {
   if (column === 'membership_tier') return triTierNames[String(value || 'VISITOR')] || '未知身份'
   if (column === 'status' && sectionKey.value === 'p0Members') return Number(value) === 1 ? '允许登录' : '禁止登录'
-  if (column === 'event_type') return ({ earn: '获得贡献', consume: '消耗贡献' } as Record<string, string>)[String(value)] || String(value)
+  if (column === 'event_type') return contributionTypes[String(value)] || businessText(value)
+  if (column === 'verify_status') return ({ 0: '待确认', 1: '已确认' } as Record<string, string>)[String(value)] || businessText(value)
+  if (column === 'biz_id') return businessSource(value)
   if (column === 'ratio') return Number.isFinite(Number(value)) ? (Number(value) * 100).toFixed(2) + '%' : '—'
   if (column === 'inviter_id') return value == null ? '无' : String(value)
   if (column && /(?:_time|_at|Time)$/.test(column)) return formatDateTime(String(value))
   if (value === null || value === undefined || value === '') return '—'
-  return String(value)
+  return businessText(value)
 }
 function memberCell(row: P0Row, column: string): string {
+  if (column === 'member_id' && sectionKey.value === 'p0Dividend') return memberName(row)
   if (column === 'inviter_id' && row.inviter_id != null) return row.inviter_name ? `${row.inviter_name}（ID ${row.inviter_id}）` : `ID ${row.inviter_id}`
   return display(row[column], column)
 }

@@ -33,7 +33,11 @@ const zone = computed(() => currentZone.value.code)
 const zoneLabel = computed(() => currentZone.value.label)
 const zoneRule = computed(() => currentZone.value.rule)
 const keyword = ref('')
-const assignedOnly = ref(false)
+const assignmentFilter = ref('all')
+const page = ref(1)
+const filteredRows = computed(() => rows.value.filter(row => assignmentFilter.value === 'all' || (assignmentFilter.value === 'assigned' ? isAssigned(row) : !isAssigned(row))))
+const pagedRows = computed(() => filteredRows.value.slice((page.value - 1) * 10, page.value * 10))
+watch(assignmentFilter, () => { page.value = 1 })
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
@@ -49,9 +53,9 @@ async function load() {
   try {
     const res = await http<ZoneProduct[]>({
       url: '/p0/zones/' + zone.value + '/products',
-      params: { keyword: keyword.value, assignedOnly: assignedOnly.value },
+      params: { keyword: keyword.value, assignedOnly: false },
     })
-    if (revision === loadRevision) rows.value = res.data || []
+    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1 }
   } catch {
     if (revision === loadRevision) ElMessage.error('商品列表加载失败，请重试')
   } finally {
@@ -61,7 +65,7 @@ async function load() {
 
 watch(zone, () => {
   keyword.value = ''
-  assignedOnly.value = false
+  assignmentFilter.value = 'all'
   load()
 })
 onMounted(load)
@@ -152,16 +156,20 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
     <el-card shadow="never">
       <div class="filters">
         <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="load" />
-        <el-checkbox v-model="assignedOnly" @change="load">仅看已加入{{ zoneLabel }}</el-checkbox>
+        <el-select v-model="assignmentFilter" style="width:200px" aria-label="专区归属筛选">
+          <el-option label="全部未删除商品" value="all" />
+          <el-option :label="'已加入' + zoneLabel" value="assigned" />
+          <el-option :label="'未加入' + zoneLabel" value="unassigned" />
+        </el-select>
         <el-button type="primary" @click="load">查询</el-button>
       </div>
       <el-alert type="info" :closable="false">
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>商品可以分别归属自选区、复购区、消费区，各专区结算规则互不串用；下架商品仍可管理，但不会在商城显示。</span>
+        <span>商品可以分别归属三个专区；下架商品仍可管理，已删除商品不在此列。当前查询返回 {{ rows.length }} 个未删除商品，其中 {{ rows.filter(isAssigned).length }} 个已加入本专区。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
-      <el-table :data="rows" v-loading="loading" empty-text="暂无符合条件的商品">
+      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">
@@ -197,6 +205,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
           </template>
         </el-table-column>
       </el-table>
+      <el-pagination v-model:current-page="page" :page-size="10" :total="filteredRows.length" layout="total, prev, pager, next" />
     </el-card>
   </main>
 </template>
