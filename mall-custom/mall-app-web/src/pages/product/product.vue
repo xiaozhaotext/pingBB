@@ -1149,10 +1149,13 @@ const handleAddToCart = async () => {
       zoneCode: zoneCode.value,
     })
     uni.showToast({
-      title: res.message,
+      title: res.message || '已加入购物车',
+      icon: 'success',
       duration: 1500,
     })
-  } catch (error) {
+  } catch (error: any) {
+    const msg = error?.data?.message || error?.message || '加入购物车失败，请重试'
+    uni.showToast({ title: msg, icon: 'none', duration: 2000 })
     console.error('加入购物车失败:', error)
   }
 }

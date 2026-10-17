@@ -22,6 +22,11 @@
       <text class="yticon icon-iconfontshanchu1" @click.stop="handleDeleteAddress(item.id)"></text>
     </view>
 
+    <view v-if="!addressList.length" class="empty-state">
+      <text class="empty-text">暂无收货地址</text>
+      <text class="empty-tip">点击下方按钮添加收货地址</text>
+    </view>
+
     <button class="add-btn" @click="handleAddAddress('add')">新增地址</button>
   </view>
 </template>
@@ -215,5 +220,14 @@ page {
   background-color: $base-color;
   border-radius: 10rpx;
   box-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+  .empty-text { font-size: 30rpx; color: $font-color-dark; margin-bottom: 12rpx; }
+  .empty-tip { font-size: 26rpx; color: $font-color-light; }
 }
 </style>

@@ -23,7 +23,7 @@
       <text class="tip" v-else>暂无积分明细</text>
     </view>
 
-    <view class="card">积分来源：购买权益、复购区消费返还、直推奖励、每日分红；规则与开关均可在后台「平台设置 - 分销与分红」中调整。</view>
+    <view class="card">积分来源：购买权益、复购区消费返还、直推奖励、每日分红。</view>
     <view v-if="loadError" class="card error">{{ loadError }}</view>
   </view>
 </template>

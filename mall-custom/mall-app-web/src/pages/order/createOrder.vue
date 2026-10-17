@@ -423,7 +423,9 @@ const handleSubmit = async () => {
         }
       },
     })
-  } catch (e) {
+  } catch (e: any) {
+    const msg = e?.data?.message || e?.message || '提交订单失败，请重试'
+    uni.showToast({ title: msg, icon: 'none', duration: 2500 })
     console.error('提交订单失败', e)
   } finally {
     submitting.value = false

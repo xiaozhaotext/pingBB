@@ -25,7 +25,7 @@
       <text class="error" v-else @click="loadData">{{ ledgerError }}，点击重试</text>
     </view>
 
-    <view class="card">收益来源：直属会员购买权益的直推奖励、每日分红、分享下单奖励；规则与开关均可在后台「平台设置 - 分销与分红」中调整。</view>
+    <view class="card">收益来源：直属会员购买权益的直推奖励、每日分红、分享下单奖励。</view>
     <view v-if="loadError" class="card error">{{ loadError }}</view>
 
     <view class="card">
