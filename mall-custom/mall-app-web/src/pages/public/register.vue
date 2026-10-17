@@ -24,8 +24,11 @@
         <view class="input-item">
           <text class="tit">手机号</text>
           <input
-            type="number"
-            v-model="formData.telephone" @blur="formData.telephone = $event.detail.value"
+            type="text"
+            inputmode="numeric"
+            autocomplete="tel"
+            aria-label="手机号，11位数字"
+            :value="formData.telephone" @input="handlePhoneInput"
             placeholder="请输入手机号"
             :maxlength="11"
           />
@@ -92,6 +95,11 @@ const formData = ref<RegisterParam>({
   authCode: '',
   inviteCode: '',
 })
+const handlePhoneInput = (event: { detail: { value: string } }) => {
+  const digits = String(event.detail.value || '').replace(/\D/g, '').slice(0, 11)
+  formData.value.telephone = digits
+  return digits
+}
 onLoad((options) => {
   const savedCode = uni.getStorageSync('pendingInviteCode')
   formData.value.inviteCode = String(options?.inviteCode || savedCode || '').trim().toUpperCase()

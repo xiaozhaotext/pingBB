@@ -15,11 +15,12 @@
       <text class="hint">支付跳转或返回页面不代表到账，请以订单“已到账”为准。付款后请勿另建订单重复支付。</text>
     </view>
     <view class="card"><text class="title">最近50笔充值</text><button :disabled="busy" @click="refresh">刷新余额和记录</button><view v-for="o in orders" :key="o.orderNo" class="record" @click="select(o)"><text>¥ {{ o.amount }} · {{ o.channel === 'MOCK' ? '沙盒模拟' : o.channel === 'WECHAT' ? '微信' : '支付宝' }}</text><text>{{ o.status === 'PAID' ? '已到账' : '待支付 / 待确认，点击查看' }}</text><text class="hint">{{ o.orderNo }}</text></view><text v-if="loaded && !orders.length" class="hint">暂无充值记录</text></view>
-    <view class="card"><text class="title">最近50笔余额变动</text><view v-for="(item,i) in movements" :key="i" class="record"><text>{{item.remark}}　{{(Number(item.amount_cents)/100).toFixed(2)}} 元</text><text class="hint">变动后 ¥ {{(Number(item.balance_after_cents)/100).toFixed(2)}} · {{item.create_time}}</text></view><text v-if="loaded && !movements.length" class="hint">暂无余额变动</text></view>
+    <view class="card"><text class="title">最近50笔余额变动</text><view v-for="(item,i) in movements" :key="i" class="record"><text>{{item.remark}}　{{(Number(item.amount_cents)/100).toFixed(2)}} 元</text><text class="hint">变动后 ¥ {{(Number(item.balance_after_cents)/100).toFixed(2)}} · {{chinaDateTime(item.create_time)}}</text></view><text v-if="loaded && !movements.length" class="hint">暂无余额变动</text></view>
   </view>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
+import { chinaDateTime } from '@/utils/chinaTime'
 import { onShow } from '@dcloudio/uni-app'
 import { http } from '@/utils/http'
 import { getMemberInfoAPI } from '@/apis/member'

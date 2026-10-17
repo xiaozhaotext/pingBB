@@ -21,10 +21,7 @@
           :key="item.id"
         >
           <image
-            :src="
-              item.icon ||
-              '/oss/mall/images/20190519/default.png'
-            "
+            :src="productImageUrl(item.icon || '/oss/mall/images/20190519/default.png')"
           ></image>
           <text>{{ item.name }}</text>
         </view>
@@ -35,6 +32,7 @@
 
 <script setup lang="ts">
 import DesktopHeader from '@/components/DesktopHeader.vue'
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getProductCateListAPI } from '@/apis/home'

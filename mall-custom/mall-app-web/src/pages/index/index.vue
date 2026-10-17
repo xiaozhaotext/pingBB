@@ -5,7 +5,7 @@
       <view class="home-banner" v-if="advertiseList.length">
         <swiper class="banner-swiper" :current="swiperCurrent" circular autoplay :interval="4000" :duration="500" @change="handleSwiperChange">
           <swiper-item v-for="(item, index) in advertiseList" :key="item.id || index">
-            <image class="banner-image" :src="item.pic" mode="aspectFill" @click="handleNavToAdvertisePage(item)" />
+            <image class="banner-image" :src="productImageUrl(item.pic)" mode="aspectFill" @click="handleNavToAdvertisePage(item)" />
           </swiper-item>
         </swiper>
         <view class="banner-dots" v-if="advertiseList.length > 1">
@@ -24,17 +24,17 @@
       <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
       <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item, 'PICK')">加入购物车</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item, 'PICK')">加入购物车</text></view></view></view></view>
       <view class="home-product-heading"><view><text>复购区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/rebuy')">更多 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item, 'REBUY')">加入购物车</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item, 'REBUY')">加入购物车</text></view></view></view></view>
       <view class="home-product-heading"><view><text>消费区推荐商品</text><small>积分兑换好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
       <view class="home-zone-status" v-if="consumeLoading">正在加载消费区商品…</view>
       <view class="home-zone-status" v-else-if="consumeError">商品加载失败<text @click="loadConsume">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!consumeProducts.length">消费区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in consumeProducts" :key="item.id" @click="openConsumeProduct(item)"><image :src="item.pic" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">{{item.price}} 积分</text><text class="rebuy-label">消费区</text><text class="home-add-cart" @click.stop="addCart(item, 'CONSUME')">加入购物车</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in consumeProducts" :key="item.id" @click="openConsumeProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">{{item.price}} 积分</text><text class="rebuy-label">消费区</text><text class="home-add-cart" @click.stop="addCart(item, 'CONSUME')">加入购物车</text></view></view></view></view>
     </view>
   </view>
   <MainNavigation active="home" />
@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import MainNavigation from '@/components/MainNavigation.vue'
+import { productImageUrl } from '@/utils/productImage'
 const goTab = (url: string) => url.startsWith('/pages/zone/') ? uni.navigateTo({ url }) : uni.switchTab({ url })
 const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
 

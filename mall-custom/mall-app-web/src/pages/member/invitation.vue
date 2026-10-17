@@ -19,6 +19,7 @@
       <template v-else-if="bindState === 'unbound'">
         <input class="input" v-model="bindCode" placeholder="输入邀请码" />
         <button class="btn-primary" :disabled="binding" :loading="binding" @click="handleBind">{{ binding ? '绑定中…' : '确认绑定' }}</button>
+        <text v-if="bindError" class="bind-error" role="alert">{{ bindError }}</text>
         <text class="tip">绑定成功后不能修改推荐人。</text>
       </template>
       <text v-else-if="bindState === 'loading'" class="tip">正在查询推荐关系…</text>
@@ -61,6 +62,7 @@ onLoad((options) => { if (options?.inviteCode) { bindCode.value = String(options
 const inviter = ref<any>(null)
 const bindState = ref<'loading' | 'unbound' | 'bound' | 'error'>('loading')
 const binding = ref(false)
+const bindError = ref('')
 const invitees = ref<any[]>([])
 
 const loadInviter = async () => {
@@ -92,7 +94,8 @@ const copyCode = () => {
 
 const handleBind = async () => {
   if (bindState.value !== 'unbound' || binding.value) return
-  if (!bindCode.value) { uni.showToast({ title: '请输入邀请码', icon: 'none' }); return }
+  bindError.value = ''
+  if (!bindCode.value.trim()) { bindError.value = '请输入邀请码'; return }
   binding.value = true
   try {
     const result = await bindInviterAPI({ code: bindCode.value.trim().toUpperCase() })
@@ -102,8 +105,8 @@ const handleBind = async () => {
     uni.removeStorageSync('pendingInviteCode')
     uni.showToast({ title: '绑定成功', icon: 'success' })
   } catch (e: any) {
+    bindError.value = e?.data?.message || e?.message || '邀请码无效或已绑定推荐人'
     await loadInviter()
-    uni.showToast({ title: e?.data?.message || e?.message || '邀请码无效或已绑定推荐人', icon: 'none' })
   } finally {
     binding.value = false
   }
@@ -124,6 +127,7 @@ onShow(loadData)
 .btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
 .tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; }
 .bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #285b40; font-size: 26rpx; line-height: 1.6; }
+.bind-error { display: block; margin-top: 12rpx; color: #b42318; font-size: 26rpx; }
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #303133; }
 .list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
 </style>

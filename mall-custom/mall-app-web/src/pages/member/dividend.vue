@@ -53,6 +53,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getDividendInfoAPI, getDividendRecordsAPI } from '@/apis/member'
 import { getTriPoolsAPI, getTriPoolRecordsAPI, tierNames, poolNames, type TriSummary, type TriRecord } from '@/apis/triPools'
+import { chinaDateTime } from '@/utils/chinaTime'
 const tri = ref<TriSummary | null>(null)
 const triRecords = ref<TriRecord[]>([])
 const openTravel = () => uni.navigateTo({ url: '/pages/member/travel' })
@@ -68,13 +69,7 @@ const fmt = (v: any) => {
   const n = Number(v || 0)
   return n.toFixed(2)
 }
-const formatTime = (value: string) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  }).format(date)
-}
+const formatTime = chinaDateTime
 
 const loadInfo = async () => {
   try {
