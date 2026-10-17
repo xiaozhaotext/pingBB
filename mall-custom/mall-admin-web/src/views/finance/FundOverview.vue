@@ -56,10 +56,11 @@ function money(value: unknown) {
     <p class="amount-note">现金支付取订单实际现金金额，余额支付取订单余额抵扣额；平台手动加款不计入交易金额。退款单独列示。</p>
     <el-card shadow="never" class="section">
       <template #header><strong>佣金与提现概览</strong></template>
-      <el-descriptions :column="4" border>
+        <el-descriptions :column="5" border>
         <el-descriptions-item label="提现申请总数">{{ withdrawStats.total ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="待审核">{{ withdrawStats.pending ?? '—' }}</el-descriptions-item>
-        <el-descriptions-item label="已通过">{{ withdrawStats.approved ?? '—' }}</el-descriptions-item>
+          <el-descriptions-item label="已通过（待完成）">{{ withdrawStats.approved ?? '—' }}</el-descriptions-item>
+          <el-descriptions-item label="已完成">{{ withdrawStats.completed ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="已拒绝">{{ withdrawStats.rejected ?? '—' }}</el-descriptions-item>
       </el-descriptions>
       <el-descriptions :column="4" border class="summary-note">

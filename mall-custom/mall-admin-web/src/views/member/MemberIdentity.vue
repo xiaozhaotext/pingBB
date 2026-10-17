@@ -144,7 +144,7 @@ async function submitReferrer() {
           <template #default="{ row }">{{ membershipV2 ? v2Labels[String(row.membership_tier)] : identityLabels[Number(row.identity_type ?? 0)] || '普通会员' }}</template>
         </el-table-column>
         <el-table-column prop="inviter_id" label="推荐人 ID" width="110" />
-        <el-table-column label="注册时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
+        <el-table-column label="注册时间" min-width="170" show-overflow-tooltip><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
       <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total" :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" style="justify-content:flex-end;margin-top:16px" @current-change="load" @size-change="() => { page = 1; load() }" />
     </el-card>
