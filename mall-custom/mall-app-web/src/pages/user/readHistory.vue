@@ -10,7 +10,7 @@
         @click="handleNavToDetail(item)"
       >
         <view class="image-wrapper">
-          <image :src="item.productPic" mode="aspectFill"></image>
+          <image :src="productImageUrl(item.productPic)" mode="aspectFill"></image>
         </view>
         <view class="txt">
           <text class="title clamp">{{ item.productName }}</text>
@@ -30,6 +30,8 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
+import { chinaDateTime } from '@/utils/chinaTime'
 import { ref } from 'vue'
 import {
   onLoad,
@@ -56,17 +58,7 @@ const searchParam = ref<PageParam>({
 // ===== 日期格式化 =====
 // 格式化日期时间
 const formatDateTime = (time?: string) => {
-  if (!time) {
-    return 'N/A'
-  }
-  const date = new Date(time)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  const second = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`
+  return time ? chinaDateTime(time) : 'N/A'
 }
 
 // ===== loadData =====

@@ -13,7 +13,7 @@
         @click="handleNavToDetail(item)"
       >
         <view class="image-wrapper">
-          <image :src="item.logo" mode="aspectFit"></image>
+          <image :src="productImageUrl(item.logo)" mode="aspectFit"></image>
         </view>
         <text class="title clamp">{{ item.name }}</text>
         <text class="title2">商品数量：{{ item.productCount }}</text>
@@ -27,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { getBrandRecommendListAPI } from '@/apis/brand'

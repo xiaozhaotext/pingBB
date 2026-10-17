@@ -26,7 +26,7 @@
       <swiper circular :duration="400">
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
-            <image :src="item" class="loaded" mode="aspectFill"></image>
+            <image :src="productImageUrl(item)" class="loaded" mode="aspectFill"></image>
             <WatermarkOverlay v-bind="watermark" />
           </view>
         </swiper-item>
@@ -129,7 +129,7 @@
       </view>
       <view class="brand-box" @click="handleNavToBrandDetail">
         <view class="image-wrapper">
-          <image :src="brand.logo" class="loaded" mode="aspectFit"></image>
+          <image :src="productImageUrl(brand.logo)" class="loaded" mode="aspectFit"></image>
         </view>
         <view class="title">
           <text>{{ brand.name }}</text>
@@ -149,7 +149,7 @@
     <view class="recommend-section"><view class="section-heading"><text>发现更多好物</text><text>{{ recommendationLabel }}</text></view>
       <view class="recommend-empty" v-if="recommendLoading">正在加载商品…</view>
       <view class="recommend-empty" v-else-if="recommendError" @click="loadRecommendations">加载失败，点击重试</view>
-      <view class="recommend-grid" v-else-if="recommendProducts.length"><view class="recommend-card" v-for="item in recommendProducts" :key="item.id" @click="openRecommended(item.id)"><image :src="item.pic" mode="aspectFill"/><text class="recommend-name">{{ item.name }}</text><text class="recommend-price">¥{{ item.price }}</text></view></view>
+      <view class="recommend-grid" v-else-if="recommendProducts.length"><view class="recommend-card" v-for="item in recommendProducts" :key="item.id" @click="openRecommended(item.id)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><text class="recommend-name">{{ item.name }}</text><text class="recommend-price">¥{{ item.price }}</text></view></view>
       <view class="recommend-empty" v-else>暂无其他同类商品</view>
     </view>
     <view class="to-top" v-if="scrollY > 600" @click="scrollSection('.introduce-section')">↑<text>顶部</text></view>
@@ -179,7 +179,7 @@
       <view class="mask"></view>
       <view class="layer attr-content" @click.stop>
         <view class="a-t">
-          <image :src="product.pic"></image>
+          <image :src="productImageUrl(product.pic)"></image>
           <view class="right">
             <text class="price">¥{{ product.price }}</text>
             <text class="stock">库存：{{ product.stock }}件</text>
@@ -270,7 +270,7 @@
               :key="p.orderId + '-' + p.productId"
               @click="selectPending(p)"
             >
-              <image class="pending-pic" :src="p.productPic" mode="aspectFill"></image>
+              <image class="pending-pic" :src="productImageUrl(p.productPic)" mode="aspectFill"></image>
               <view class="pending-info">
                 <text class="pending-name">{{ p.productName }}</text>
                 <text class="pending-attr">{{ p.productAttr }}</text>
@@ -295,6 +295,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 const fallbackPage=ref('/pages/index/index')
 // 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集
 const zoneCode = ref<ZoneCode | undefined>()
@@ -418,7 +419,7 @@ import type {
 } from '@/types/product'
 import type { PmsBrand } from '@/types/brand'
 import type { SmsCoupon } from '@/types/coupon'
-import { formatDate } from '@/utils/date'
+import { chinaDateTime } from '@/utils/chinaTime'
 
 // ===== 导航栏相关 =====
 const statusBarHeight = ref(0)
@@ -520,9 +521,7 @@ const commentForm = ref<{ orderId: number | null; productId: number | null; star
 // 格式化时间（保留到秒）
 const formatDateTime = (time: string | null | undefined): string => {
   if (!time) return 'N/A'
-  const date = new Date(time)
-  if (isNaN(date.getTime())) return 'N/A'
-  return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
+  return chinaDateTime(time)
 }
 
 // 格式化优惠券使用类型
@@ -768,6 +767,7 @@ const initProductDesc = () => {
   tempNode.innerHTML = rawhtml
   const imgs = tempNode.getElementsByTagName('img')
   for (let i = 0; i < imgs.length; i++) {
+    imgs[i]?.setAttribute('src', productImageUrl(imgs[i]?.getAttribute('src')))
     ;(imgs[i] as HTMLElement).style.width = '100%'
     ;(imgs[i] as HTMLElement).style.height = 'auto'
     ;(imgs[i] as HTMLElement).style.display = 'block'

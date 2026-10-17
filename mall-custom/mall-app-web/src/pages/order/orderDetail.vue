@@ -32,7 +32,7 @@
       </view>
       <!-- 商品列表 -->
       <view class="g-item" v-for="item in order.orderItemList" :key="item.id">
-        <image :src="item.productPic"></image>
+        <image :src="productImageUrl(item.productPic)"></image>
         <view class="right">
           <text class="title clamp">{{ item.productName }}</text>
           <text class="spec">{{ formatProductAttr(item.productAttr) }}</text>
@@ -127,10 +127,11 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
 import { onLoad } from '@dcloudio/uni-app'
-import { formatDate } from '@/utils/date'
+import { chinaDateTime } from '@/utils/chinaTime'
 import { getOrderDetailAPI, cancelUserOrderAPI, confirmReceiveOrderAPI } from '@/apis/order'
 import type { OmsOrderDetail } from '@/types/order'
 
@@ -260,8 +261,7 @@ const formatDateTime = (time: string | null | undefined): string => {
   if (time == null || time === '') {
     return 'N/A'
   }
-  const date = new Date(time)
-  return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
+  return chinaDateTime(time)
 }
 
 // 格式化支付方式

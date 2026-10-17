@@ -27,7 +27,7 @@
           <view class="cart-item" :class="{ 'b-b': row.index !== cartList.length - 1 }">
             <view class="image-wrapper" @click="handleNavToProductDetail(row.item.productId)">
               <image
-                :src="row.item.productPic"
+                :src="productImageUrl(row.item.productPic)"
                 :class="[row.item.loaded]"
                 mode="aspectFill"
                 lazy-load
@@ -96,6 +96,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import MainNavigation from '@/components/MainNavigation.vue'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref, computed, watch } from 'vue'

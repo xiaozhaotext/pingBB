@@ -14,7 +14,7 @@
           :key="p.orderId + '-' + p.productId"
           @click="select(p)"
         >
-          <image class="pic" :src="p.productPic" mode="aspectFill"></image>
+          <image class="pic" :src="productImageUrl(p.productPic)" mode="aspectFill"></image>
           <view class="info">
             <text class="name">{{ p.productName }}</text>
             <text class="sub">{{ p.productAttr }}</text>
@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getProductCommentPendingAPI, createProductCommentAPI } from '@/apis/product'
