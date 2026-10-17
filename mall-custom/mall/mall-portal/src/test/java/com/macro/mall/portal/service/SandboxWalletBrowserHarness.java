@@ -13,7 +13,7 @@ import java.security.Principal;
 
 /** Isolated local UI harness. Real wallet/order/earnings SQL; member login, catalog and admin menus are test adapters. */
 public class SandboxWalletBrowserHarness {
-    @Configuration
+    @Configuration @Profile("sandbox-wallet-test")
     @Import(Endpoints.class)
     static class BrowserConfig {
         @Bean Filter adminPrincipal() {
@@ -27,7 +27,7 @@ public class SandboxWalletBrowserHarness {
             };
         }
     }
-    @RestController
+    @RestController @Profile("sandbox-wallet-test")
     static class Endpoints {
         private final JdbcTemplate jdbc;
         Endpoints(JdbcTemplate jdbc) { this.jdbc=jdbc; }

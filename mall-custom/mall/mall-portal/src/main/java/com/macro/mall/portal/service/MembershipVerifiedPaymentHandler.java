@@ -81,8 +81,8 @@ public class MembershipVerifiedPaymentHandler {
 
         long productPoints = ((Number) order.get("product_points")).longValue();
         long repurchasePoints = ((Number) order.get("repurchase_points")).longValue();
-        creditPoints(memberId, orderId, 1, "PRODUCT", productPoints);
-        creditPoints(memberId, orderId, 2, "REPURCHASE", repurchasePoints);
+        creditPoints(memberId, orderId, 1, productPoints);
+        creditPoints(memberId, orderId, 2, repurchasePoints);
         CommonResult<Void> changed = identities.changeIdentity(memberId, toType, null,
                 "已验签会员权益支付，订单 " + orderId, orderId);
         if (changed.getCode() != 200) throw new IllegalStateException("会员身份更新失败: " + changed.getMessage());
@@ -138,8 +138,7 @@ public class MembershipVerifiedPaymentHandler {
         return fallback;
     }
 
-    private void creditPoints(long memberId, long orderId, int walletType,
-                              String ledgerType, long amount) {
+    private void creditPoints(long memberId, long orderId, int walletType, long amount) {
         if (amount < 0) throw new MembershipPaymentException(MembershipPaymentError.RULE_UNAVAILABLE);
         if (amount == 0) return;
         String idempotency = "membership:" + orderId + ":" + walletType;
@@ -150,13 +149,10 @@ public class MembershipVerifiedPaymentHandler {
         if (account == null || account.getBalance() == null) {
             throw new IllegalStateException("积分余额读取失败");
         }
-        jdbc.update("INSERT INTO member_point_ledger"
-                        + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
-                        + " VALUES(?,?,?,?,'PURCHASE_GRANT',?)",
-                memberId, ledgerType, amount, account.getBalance(), orderId);
+        // changePoints already writes the authoritative ums_points_ledger within this transaction.
         // 产品积分同步到 ums_member.integration，复用下单时的 useIntegration 抵扣链路（等额抵扣）
         if (walletType == 1) {
-            jdbc.update("UPDATE ums_member SET integration=integration+? WHERE id=?", amount, memberId);
+            jdbc.update("UPDATE ums_member SET integration=? WHERE id=?", account.getBalance(), memberId);
         }
     }
 

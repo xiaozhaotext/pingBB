@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "spring.rabbitmq.listener.simple.auto-startup=false")
-class PortalOrderStockConcurrencyTests {
+class PortalOrderStockConcurrencyTests extends com.macro.mall.portal.IsolatedPortalMysqlTestSupport {
     @Autowired private PortalOrderDao orderDao;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private OmsPortalOrderService orderService;
