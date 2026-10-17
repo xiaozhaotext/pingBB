@@ -325,6 +325,12 @@
       }
     },
     {
+      "path": "pages/member/membership",
+      "style": {
+        "navigationBarTitleText": "购买会员"
+      }
+    },
+    {
       "path": "pages/member/partner",
       "style": {
         "navigationBarTitleText": "合伙人"

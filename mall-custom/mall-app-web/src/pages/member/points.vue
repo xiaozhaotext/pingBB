@@ -55,6 +55,7 @@ const loadData = async () => {
     ledger.value = r.data || []
   } catch (e) {
     ledger.value = []
+    loadError.value = '积分明细加载失败，请重试。'
   }
 }
 

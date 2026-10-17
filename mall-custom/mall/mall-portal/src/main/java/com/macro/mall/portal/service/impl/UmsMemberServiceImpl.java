@@ -64,6 +64,13 @@ public class UmsMemberServiceImpl implements UmsMemberService {
         UmsMemberExample example = new UmsMemberExample();
         example.createCriteria().andUsernameEqualTo(username);
         List<UmsMember> memberList = memberMapper.selectByExample(example);
+        // Preserve existing username semantics if a legacy username resembles a phone.
+        if (CollectionUtils.isEmpty(memberList) && username != null
+                && username.matches("1[3-9][0-9]{9}")) {
+            UmsMemberExample phoneExample = new UmsMemberExample();
+            phoneExample.createCriteria().andPhoneEqualTo(username);
+            memberList = memberMapper.selectByExample(phoneExample);
+        }
         if (!CollectionUtils.isEmpty(memberList)) {
             member = memberList.get(0);
             memberCacheService.setMember(member);
