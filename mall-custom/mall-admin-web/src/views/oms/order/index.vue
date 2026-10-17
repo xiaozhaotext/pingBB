@@ -29,27 +29,33 @@ const listLoading = ref(true)
 const total = ref(0)
 const activeStatus = ref('pending-delivery')
 const returnApplies = ref<import('@/types/returnApply').OmsOrderReturnApply[]>([])
+let listRequestVersion = 0
 // 获取订单列表数据
 const getList = async () => {
+  const version = ++listRequestVersion
+  const status = activeStatus.value
+  const query = { ...listQuery.value }
   listLoading.value = true
+  list.value = []
+  returnApplies.value = []
+  total.value = 0
   try {
-    if (activeStatus.value === 'after-sales') {
-      const response = await getReturnApplyListAPI({ pageNum: listQuery.value.pageNum, pageSize: listQuery.value.pageSize })
+    if (status === 'after-sales') {
+      const response = await getReturnApplyListAPI({ pageNum: query.pageNum, pageSize: query.pageSize })
+      if (version !== listRequestVersion) return
       returnApplies.value = response.data.list
       total.value = response.data.total
-      list.value = []
       return
     }
     const statusByTab: Record<string, number> = { 'pending-delivery': 1, 'pending-receipt': 2, completed: 3 }
-    listQuery.value.status = statusByTab[activeStatus.value]
-    const response = await getOrderListAPI(listQuery.value)
+    const response = await getOrderListAPI({ ...query, status: statusByTab[status] })
+    if (version !== listRequestVersion) return
     list.value = response.data.list
-    returnApplies.value = []
     total.value = response.data.total
   } catch (error) {
-    console.error('获取订单列表失败:', error)
+    if (version === listRequestVersion) console.error('获取订单列表失败:', error)
   } finally {
-    listLoading.value = false
+    if (version === listRequestVersion) listLoading.value = false
   }
 }
 

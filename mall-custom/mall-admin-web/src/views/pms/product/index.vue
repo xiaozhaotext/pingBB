@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { productImageUrl } from '@/utils/productImage'
 import {
   getProductListAPI,
   productUpdateDeleteStatusAPI,
@@ -435,7 +436,7 @@ const verifyStatusFilter = (value: number) => {
           <template #default="scope">{{ scope.row.id }}</template>
         </el-table-column>
         <el-table-column label="商品图片" width="120" align="center">
-          <template #default="scope"><img style="height: 80px" :src="scope.row.pic"></template>
+          <template #default="scope"><span v-if="!scope.row.pic">暂无图片</span><el-image v-else :src="productImageUrl(scope.row.pic)" fit="contain" style="width: 80px; height: 80px"><template #error>加载失败</template></el-image></template>
         </el-table-column>
         <el-table-column label="商品名称" align="center">
           <template #default="scope">

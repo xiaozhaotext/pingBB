@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/utils/http'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { productImageUrl } from '@/utils/productImage'
 import {
   productUpdatePublishStatusAPI,
   productUpdateNewStatusAPI,
@@ -157,7 +158,8 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">
-            <el-image :src="row.pic" fit="contain" style="width: 52px; height: 52px" />
+            <span v-if="!row.pic">暂无图片</span>
+            <el-image v-else :src="productImageUrl(row.pic)" fit="contain" style="width: 52px; height: 52px"><template #error>加载失败</template></el-image>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
