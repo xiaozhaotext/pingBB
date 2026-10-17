@@ -21,7 +21,8 @@
           <text class="sub">{{ l.createTime }}</text>
         </view>
       </view>
-      <text class="tip" v-else>暂无收益明细</text>
+      <text class="tip" v-else-if="!ledgerError">暂无收益明细</text>
+      <text class="error" v-else @click="loadData">{{ ledgerError }}，点击重试</text>
     </view>
 
     <view class="card">收益来源：直属会员购买权益的直推奖励、每日分红、分享下单奖励；规则与开关均可在后台「平台设置 - 分销与分红」中调整。</view>
@@ -57,12 +58,14 @@ const withdraws = ref<any[]>([])
 const ledger = ref<any[]>([])
 const withdrawAmount = ref('')
 const loadError = ref('')
+const ledgerError = ref('')
 const withdrawing = ref(false)
 const sandbox=ref(false),spendableBalance=ref('—'),modeReady=ref(false)
 let withdrawalStorageKey = ''
 
 const loadData = async () => {
   loadError.value = ''
+  ledgerError.value = ''
   modeReady.value=false
   try {
     const options=(await getWithdrawalOptionsAPI()).data
@@ -82,7 +85,7 @@ const loadData = async () => {
   try { const r = await getWithdrawListAPI(); withdraws.value = r.data || [] }
   catch (e) { withdraws.value = []; loadError.value = '提现记录加载失败，请重试。' }
   try { const r = await getEarningsLedgerAPI(); ledger.value = r.data || [] }
-  catch (e) { ledger.value = [] }
+  catch (e) { ledgerError.value = '收益明细加载失败'; ledger.value = [] }
 }
 
 const handleWithdraw = async () => {

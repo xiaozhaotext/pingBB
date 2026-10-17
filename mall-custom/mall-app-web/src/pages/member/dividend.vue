@@ -20,7 +20,7 @@
         </template>
         <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红，独立累计上限1200元。' : '成为会员后享有本池分红。' }}</text>
       </view>
-      <view class="card"><text class="title">分红记录</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ r.created_at }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
+      <view class="card"><text class="title">分红记录</text><text class="tip">份数表示本次分红时，您持有的份数 / 全池有效总份数。</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ formatTime(r.created_at) }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
     </template>
     <view class="card" v-if="!tri?.enabled && info">
       <text class="title">我的分红</text>
@@ -49,7 +49,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getDividendInfoAPI, getDividendRecordsAPI } from '@/apis/member'
 import { getTriPoolsAPI, getTriPoolRecordsAPI, tierNames, poolNames, type TriSummary, type TriRecord } from '@/apis/triPools'
 const tri = ref<TriSummary | null>(null)
@@ -66,6 +67,13 @@ const PAGE_SIZE = 20
 const fmt = (v: any) => {
   const n = Number(v || 0)
   return n.toFixed(2)
+}
+const formatTime = (value: string) => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(date)
 }
 
 const loadInfo = async () => {
@@ -103,7 +111,9 @@ const loadTriRecords = async () => {
   } catch { page.value = Math.max(1, page.value - 1); loadError.value = '分红记录加载失败，请重试' }
 }
 
-onMounted(async () => {
+onShow(async () => {
+  loadError.value = ''
+  page.value = 1
   try {
     tri.value = (await getTriPoolsAPI()).data
     if (tri.value.enabled) { await loadTriRecords(); return }

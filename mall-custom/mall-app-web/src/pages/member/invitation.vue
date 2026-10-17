@@ -1,6 +1,6 @@
 <template>
   <view class="app">
-    <view class="mock-banner">邀请与推荐：邀请码自动生成，绑定关系防循环、防重复。仅记录推荐关系，不产生任何自动收益。</view>
+    <view class="mock-banner">邀请关系仅能绑定一次。直邀奖励在被邀请人完成会员购买后按当前规则入账。</view>
 
     <view class="card">
       <text class="title">我的邀请码</text>
@@ -30,7 +30,6 @@
       <view class="list" v-if="invitees.length">
         <view class="item" v-for="(it, i) in invitees" :key="i">
           <text>会员ID：{{ it.memberId }}</text>
-          <text class="sub">绑定路径：{{ it.bindPath }}</text>
         </view>
       </view>
       <text class="tip" v-else>暂无下级</text>
@@ -82,8 +81,8 @@ const loadInviter = async () => {
 const loadData = async () => {
   await loadInviter()
   try { const r = await getMyInviteCodeAPI(); myCode.value = r.data || '' } catch (e) {}
-  try { const r = await getInvitationDetailAPI(); detail.value = r.data; inviteeCount.value = r.data?.inviteeCount ?? 0; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
-  try { const r = await getMyInviteesAPI(); invitees.value = r.data || [] } catch (e) {}
+  try { const r = await getInvitationDetailAPI(); detail.value = r.data; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
+  try { const r = await getMyInviteesAPI(); invitees.value = r.data || []; inviteeCount.value = invitees.value.length } catch (e) { invitees.value = []; inviteeCount.value = 0 }
 }
 
 const copyCode = () => {
@@ -102,8 +101,9 @@ const handleBind = async () => {
     bindCode.value = ''
     uni.removeStorageSync('pendingInviteCode')
     uni.showToast({ title: '绑定成功', icon: 'success' })
-  } catch (e) {
+  } catch (e: any) {
     await loadInviter()
+    uni.showToast({ title: e?.data?.message || e?.message || '邀请码无效或已绑定推荐人', icon: 'none' })
   } finally {
     binding.value = false
   }

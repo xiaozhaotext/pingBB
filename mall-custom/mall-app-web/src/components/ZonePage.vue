@@ -21,7 +21,7 @@
       <view v-else-if="products.length === 0" class="zone-empty">{{ keyword || categoryIndex ? '没有符合筛选条件的商品' : '当前专区暂无已上架商品' }}</view>
       <view v-else class="zone-grid">
         <view v-for="item in products" :key="item.id" class="zone-card" @click="goPage('/pages/product/product?id=' + item.id + '&zone=' + props.zone)">
-          <image :src="item.pic" mode="aspectFill" />
+          <image :src="productImage(item.pic)" mode="aspectFill" />
           <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>{{ priceText(item) }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view>
         </view>
       </view>
@@ -77,6 +77,13 @@ const zoneTip = computed(() => {
   return '自选区商品按现金或余额（充值本金）结算，不能使用商品积分或复购积分。'
 })
 const priceText = (item: ZoneProduct) => (isConsume.value ? `${item.price} 积分` : `¥${item.price}`)
+const productImage = (pic: string) => {
+  if (!pic) return '/static/temp/cate1.jpg'
+  // #ifdef H5
+  if (pic.startsWith('/')) return window.location.origin + pic
+  // #endif
+  return pic
+}
 onShow(() => { loadCategories(); load() })
 </script>
 

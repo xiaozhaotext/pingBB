@@ -9,8 +9,8 @@
       <view class="welcome">欢迎回来！</view>
       <view class="input-content">
         <view class="input-item">
-          <text class="tit">用户名</text>
-          <input type="text" v-model="username" @blur="username = $event.detail.value" placeholder="请输入用户名" :maxlength="64" />
+          <text class="tit">用户名或手机号</text>
+          <input type="text" v-model="username" @blur="username = $event.detail.value" placeholder="请输入用户名或手机号" :maxlength="64" />
         </view>
         <view class="input-item">
           <text class="tit">密码</text>
@@ -30,7 +30,7 @@
     </view>
     <view class="register-section">
       还没有账号?
-      <text @click="toRegist">马上注册</text>
+      <button class="register-link" @click="toRegist">马上注册</button>
     </view>
   </view>
 </template>
@@ -58,9 +58,9 @@ const toLogin = async () => {
   loginError.value = ''
   username.value = username.value.trim()
   if (!username.value || !password.value) {
-    loginError.value = '请输入用户名和密码'
+    loginError.value = '请输入用户名或手机号和密码'
     uni.showToast({
-      title: '请输入用户名和密码',
+      title: '请输入用户名或手机号和密码',
       icon: 'none',
     })
     return
@@ -266,6 +266,7 @@ page {
 
 .register-section {
   position: relative;
+  z-index: 100;
   margin-top: 24rpx;
   padding-bottom: calc(50rpx + env(safe-area-inset-bottom));
   width: 100%;
@@ -273,10 +274,8 @@ page {
   color: $font-color-base;
   text-align: center;
 
-  text {
-    color: $font-color-spec;
-    margin-left: 10rpx;
-  }
+  .register-link { display: inline-block; width: auto; min-height: 44px; line-height: 44px; padding: 0 16rpx; margin-left: 10rpx; color: $font-color-spec; background: transparent; font-size: inherit; vertical-align: middle; }
+  .register-link::after { border: 0; }
 }
 .auth-error{margin:24rpx 60rpx 0;padding:20rpx;border-radius:8rpx;background:#fff0f0;color:#b42318;font-size:26rpx;overflow-wrap:anywhere}
 </style>

@@ -29,8 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getPointsAccountAPI, getPointsLedgerAPI } from '@/apis/member'
 
 const productBalance = ref<string | number>('—')
@@ -85,7 +85,7 @@ onLoad((options: any) => {
   }
 })
 
-onMounted(loadData)
+onShow(loadData)
 </script>
 
 <style lang="scss" scoped>
