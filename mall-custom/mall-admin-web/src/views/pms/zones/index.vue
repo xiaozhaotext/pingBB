@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import http from '@/utils/http'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { productImageUrl } from '@/utils/productImage'
 type Zone = 'PICK' | 'REBUY' | 'CONSUME'
 interface Product { id:number; name:string; pic:string; price:number; publishStatus:number; assigned:boolean|number; sortOrder:number }
 const zone=ref<Zone>('PICK'),keyword=ref(''),assignedOnly=ref(false),loading=ref(false),saving=ref<number|null>(null)
@@ -35,7 +36,7 @@ onMounted(load)
         <div class="filters"><el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable @keyup.enter="load"/><el-checkbox v-model="assignedOnly" @change="load">仅看已分配商品</el-checkbox><el-button type="primary" @click="load">查询</el-button></div>
         <el-alert title="商品可以分别归属自选区、复购区、消费区；排序数字越大越靠前。下架商品可管理，但不会在商城显示。" type="info" :closable="false"/>
         <el-table :data="rows" v-loading="loading" empty-text="暂无符合条件的商品">
-          <el-table-column prop="id" label="ID" width="75"/><el-table-column label="图片" width="90"><template #default="{row}"><el-image :src="row.pic" fit="contain" style="width:56px;height:56px"/></template></el-table-column>
+          <el-table-column prop="id" label="ID" width="75"/><el-table-column label="图片" width="90"><template #default="{row}"><span v-if="!row.pic">暂无图片</span><el-image v-else :src="productImageUrl(row.pic)" fit="contain" style="width:56px;height:56px"><template #error>加载失败</template></el-image></template></el-table-column>
           <el-table-column prop="name" label="商品名称" min-width="240"/><el-table-column prop="price" label="价格" width="100"/>
           <el-table-column label="归属" width="110"><template #default="{row}"><el-tag :type="row.assigned?'success':'info'">{{row.assigned?'已分配':'未分配'}}</el-tag></template></el-table-column>
           <el-table-column label="排序" width="170"><template #default="{row}"><el-input-number v-model="row.sortOrder" :min="-10000" :max="10000" size="small"/></template></el-table-column>
