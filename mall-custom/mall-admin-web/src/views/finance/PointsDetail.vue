@@ -8,6 +8,14 @@ import { ElMessage } from 'element-plus'
 const route = useRoute()
 const pointsType = computed(() => (route.name === 'financeRepurchasePoints' ? 2 : 1))
 const title = computed(() => (pointsType.value === 2 ? '复购积分明细' : '产品积分明细'))
+// 变动类型中英映射
+const changeTypeText = (t: string) => {
+  const map: Record<string, string> = {
+    earn: '获得', consume: '消费', freeze: '冻结',
+    unfreeze: '解冻', adjust: '调整', dividend: '分红',
+  }
+  return map[t] || t
+}
 const typeLabel = computed(() => (pointsType.value === 2 ? '复购积分' : '产品积分'))
 
 const loading = ref(false)
@@ -73,11 +81,11 @@ onMounted(load)
       <el-table :data="typeLedger" stripe empty-text="暂无流水">
         <el-table-column prop="id" label="流水号" width="90" />
         <el-table-column prop="member_id" label="会员 ID" width="100" />
-        <el-table-column prop="change_type" label="类型" width="120" />
+        <el-table-column label="类型" width="120"><template #default="{ row }">{{ changeTypeText(String(row.change_type || '')) }}</template></el-table-column>
         <el-table-column prop="amount" label="变动" width="110" />
         <el-table-column prop="balance_after" label="变动后余额" width="120" />
         <el-table-column prop="biz_id" label="业务来源" width="120" />
-        <el-table-column prop="remark" label="备注" min-width="200" />
+        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
         <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
     </el-card>
