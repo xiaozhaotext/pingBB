@@ -58,9 +58,11 @@
             <view class="price-box">
               共
               <text class="num">{{ calcTotalQuantity(item) }}</text>
-              件商品 {{ item.paymentTime ? '实付款' : (item.status === 0 ? '应付款' : '订单金额') }}
-              <text class="price">{{ formatOrderMoney(item.payAmount) }}</text>
+              件商品 {{ item.paymentTime ? '现金/余额实付' : (item.status === 0 ? '现金/余额应付' : '订单金额') }}
+              <text class="price">{{ formatOrderPaidAmount(item) }}</text>
             </view>
+            <view v-if="Number(item.balanceAmount || 0) > 0" class="price-box">其中余额支付 ￥{{ formatOrderMoney(item.balanceAmount) }}</view>
+            <view v-if="Number(item.integrationAmount || 0) > 0" class="price-box">积分抵扣 ￥{{ formatOrderMoney(item.integrationAmount) }}</view>
             <view v-if="item.status === 0" class="action-box b-t">
               <button class="action-btn" @click="handleCancelOrder(item.id)">取消订单</button>
               <button class="action-btn recom" @click="handlePayOrder(item.id)">立即付款</button>
@@ -109,7 +111,7 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
-import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
+import { formatOrderMoney, formatOrderPaidAmount, showOrderLogistics } from '@/utils/order-display'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'

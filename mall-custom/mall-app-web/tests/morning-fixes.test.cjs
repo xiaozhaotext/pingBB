@@ -31,6 +31,12 @@ test('zero discounts never render negative zero while real deductions keep their
   assert.equal(fmt(88),'-￥88.00');assert.equal(fmt('12.10'),'-￥12.10')
   assert.equal(fmt(null),'—');assert.equal(fmt('bad'),'—')
 })
+test('paid amounts include both cash and balance without changing the underlying order',()=>{
+  const {formatOrderPaidAmount:fmt}=load('utils/order-display.ts')
+  const order={payAmount:0,balanceAmount:88};assert.equal(fmt(order),'88.00');assert.equal(order.payAmount,0)
+  assert.equal(fmt({payAmount:'61.60',balanceAmount:'26.40'}),'88.00')
+  assert.equal(fmt({payAmount:88}),'88.00');assert.equal(fmt({}),'—')
+})
 function invitation(api) {return load('pages/member/invitation.vue','bindCode,bindError,bindState,binding,inviter,handleBind,loadInviter',{'@/apis/member':api})}
 test('invalid invitation preserves the input, exposes the server message and permits retry',async()=>{
   const p=invitation({bindInviterAPI:async()=>{throw {data:{message:'邀请码不存在'}}},getMyInviterAPI:async()=>({data:null})})
