@@ -287,8 +287,20 @@ const handleSelectionChange = (val: PmsProduct[]) => {
   multipleSelection.value = val
 }
 
-const handlePublishStatusChange = async (index: number, row: PmsProduct) => {
-  await updatePublishStatus(row.publishStatus!, [row.id!])
+const handlePublishStatusChange = async (_index: number, row: PmsProduct) => {
+  const nextStatus = row.publishStatus!
+  const previousStatus = nextStatus === 1 ? 0 : 1
+  const action = nextStatus === 1 ? '上架' : '下架'
+  try {
+    await ElMessageBox.confirm(`确认${action}商品「${row.name}」吗？`, `${action}确认`, {
+      confirmButtonText: `确认${action}`,
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await updatePublishStatus(nextStatus, [row.id!])
+  } catch {
+    row.publishStatus = previousStatus
+  }
 }
 
 const handleNewStatusChange = async (index: number, row: PmsProduct) => {
@@ -570,3 +582,4 @@ const verifyStatusFilter = (value: number) => {
 </template>
 
 <style></style>
+
