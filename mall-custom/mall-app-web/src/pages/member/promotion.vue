@@ -11,7 +11,7 @@ const identity=ref('—'),inviteCount=ref<string|number>('—'),available=ref<st
 const membershipV2=ref<boolean|null>(null)
 async function load(){
  identity.value='—';inviteCount.value='—';available.value='—';total.value='—';error.value='';membershipV2.value=null
- if(!loggedIn.value)return
+ if(!loggedIn.value){ membershipV2.value=true; return }
  const results=await Promise.allSettled([getMyIdentityAPI(),getMyInviteesAPI(),getEarningsAccountAPI()])
  if(!loggedIn.value)return
  results.forEach((r,i)=>{if(r.status==='rejected'){error.value='部分推广数据暂时无法加载，请重试';return}const d=r.value.data;if(i===0)identity.value=({0:'普通会员',1:'合伙人',2:'联创'} as Record<number,string>)[d?.identityType??0]||'未知身份';if(i===1)inviteCount.value=Array.isArray(d)?d.length:'—';if(i===2){available.value=d?.availableEarnings??'未开户';total.value=d?.totalEarnings??'未开户'}})

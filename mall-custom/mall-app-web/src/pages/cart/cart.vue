@@ -276,13 +276,22 @@ const handleCreateOrder = () => {
   if (cartIds.length === 0) {
     uni.showToast({
       title: '您还未选择要下单的商品！',
-      duration: 1000,
+      icon: 'none',
+      duration: 1500,
     })
     return
   }
-  uni.navigateTo({
-    url: `/pages/order/createOrder?cartIds=${JSON.stringify(cartIds)}`,
-  })
+  try {
+    const idsParam = encodeURIComponent(JSON.stringify(cartIds))
+    uni.navigateTo({
+      url: `/pages/order/createOrder?cartIds=${idsParam}`,
+      fail: () => {
+        uni.showToast({ title: '跳转失败，请重试', icon: 'none' })
+      }
+    })
+  } catch (e) {
+    uni.showToast({ title: '跳转失败，请重试', icon: 'none' })
+  }
 }
 
 // ===== 其他方法 =====
