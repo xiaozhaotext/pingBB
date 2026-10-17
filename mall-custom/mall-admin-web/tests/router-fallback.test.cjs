@@ -1,10 +1,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript')
 const vueRouter=require('vue-router')
-function execute(file,dependencies) {
+function execute(file,dependencies,expose='') {
   const module={exports:{}}
   const context={module,exports:module.exports,console,require:name=>dependencies[name] || {default:{}}}
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src',file),'utf8'),{
+  const raw=fs.readFileSync(path.join(__dirname,'../src',file),'utf8')
+  const source=file.endsWith('.vue')?require('@vue/compiler-sfc').parse(raw).descriptor.scriptSetup.content:raw
+  vm.runInNewContext(ts.transpileModule(source+expose,{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}
   }).outputText,context)
   return module.exports
@@ -34,4 +36,21 @@ test('unknown console URL renders a real not-found route instead of an empty vie
 test('fallback does not bypass login for anonymous visitors',async()=>{
   const router=setup(false);await router.push('/financeMgr/dividend')
   assert.equal(router.currentRoute.value.path,'/login')
+})
+test('connection recovery clears the local session without waiting for an unavailable API',()=>{
+  let cleared=false,target
+  const page=execute('views/normal/ConnectionError.vue',{
+    'vue-router':{useRoute:()=>({query:{redirect:'/memberMgr/management/list'}}),useRouter:()=>({replace:value=>target=value})},
+    '@/stores/user':{useUserStore:()=>({fedLogout:()=>cleared=true})}
+  },'\nmodule.exports={relogin}')
+  page.relogin();assert.equal(cleared,true);assert.equal(target.path,'/login');assert.equal(target.query.redirect,'/memberMgr/management/list')
+})
+test('connection recovery rejects external redirects and authentication loops',()=>{
+  for(const value of ['//other.example/path','https://other.example','/login?redirect=/home','/connection-error']){
+    let target;const page=execute('views/normal/ConnectionError.vue',{
+      'vue-router':{useRoute:()=>({query:{redirect:value}}),useRouter:()=>({replace:value=>target=value})},
+      '@/stores/user':{useUserStore:()=>({fedLogout(){}})}
+    },'\nmodule.exports={relogin}')
+    page.relogin();assert.equal(target.query.redirect,'/home')
+  }
 })
