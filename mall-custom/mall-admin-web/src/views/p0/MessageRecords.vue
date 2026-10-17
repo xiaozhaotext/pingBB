@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 const loading = ref(false)
 const error = ref('')
@@ -82,7 +83,7 @@ onMounted(load)
         <el-table-column prop="biz_type" label="业务类型" width="120" />
         <el-table-column label="状态" width="110"><template #default="scope"><el-tag :type="scope.row.status === 'SENT' ? 'success' : scope.row.status === 'FAILED' ? 'danger' : 'info'" size="small">{{ statusText[String(scope.row.status)] || String(scope.row.status) }}</el-tag></template></el-table-column>
         <el-table-column prop="error_msg" label="失败原因" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="create_time" label="时间" min-width="170" />
+        <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
       <el-pagination
         class="pager"
@@ -101,3 +102,4 @@ onMounted(load)
 <style scoped>
 .message-records{padding:28px;background:#f2f7f7;min-height:100vh}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}h1{color:#285a62;margin:0 0 8px}p{color:#698789;margin:0}.summary{margin-bottom:20px}.pager{margin-top:16px;justify-content:flex-end}
 </style>
+

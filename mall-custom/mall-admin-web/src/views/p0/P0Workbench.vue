@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 type SectionKey = 'p0Members' | 'p0Partner' | 'p0Cofounder' | 'p0Points' | 'p0Finance' | 'p0Dividend' | 'p0Settings' | 'p0SmsSettings'
 const sections: Record<SectionKey, { title: string; path: string; note: string }> = {
@@ -29,6 +30,9 @@ const data = ref<Record<string, unknown>>({})
 const poolStats = computed(() => data.value.poolStats as Record<string, unknown> | undefined)
 const poolTodayIn = computed(() => data.value.poolTodayIn as Record<string, unknown> | undefined)
 const memberKeyword = ref('')
+const memberPage = ref(1)
+const memberSize = ref(20)
+const memberTotal = ref(0)
 const memberId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const memberDetail = ref<Record<string, unknown> | null>(null)
@@ -99,7 +103,7 @@ const labels: Record<string, string> = {
   membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '消费余额（元）', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
-  contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期',
+  contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期', event_type: '贡献事件类型', member_level_id: '会员等级编号', inviter_name: '推荐人名称',
   create_time: '创建时间', apply_time: '申请时间', update_time: '更新时间',
   pool_balance: '分红池余额', total_in: '累计注入', total_out: '累计发放', today_in: '今日注入',
   total_shares: '总份数', recipients: '发放人数', total_amount: '发放总额', per_share_amount: '每份金额', calc_batch: '发放批次',
@@ -117,8 +121,11 @@ async function load() {
     } catch {
       membershipV2.value = null
     }
-    const params = sectionKey.value === 'p0Members' ? { keyword: memberKeyword.value } : undefined
-    const response = await getP0(section.value.path, params)
+    const params = sectionKey.value === 'p0Members' ? { keyword: memberKeyword.value, page: memberPage.value, size: memberSize.value } : undefined
+    const [response, countResponse] = sectionKey.value === 'p0Members'
+      ? await Promise.all([getP0(section.value.path, params), getP0<{ total: number }>('members/count', { keyword: memberKeyword.value })])
+      : [await getP0(section.value.path, params), null]
+    if (countResponse) memberTotal.value = Number(countResponse.data.total || 0)
     const value = response.data
     if (['p0Partner', 'p0Cofounder', 'p0Finance'].includes(sectionKey.value)) await loadBenefits()
     data.value = Array.isArray(value) ? { members: value } : (value as Record<string, unknown>)
@@ -160,13 +167,23 @@ function visibleDataRows(key: string, value: unknown): P0Row[] {
 }
 function columns(value: unknown): string[] {
   const first = rows(value)[0]
-  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password', 'membership_name'].includes(key)) : []
+  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password', 'membership_name', 'inviter_name'].includes(key)) : []
 }
 function display(value: unknown, column?: string): string {
   if (column === 'membership_tier') return triTierNames[String(value || 'VISITOR')] || '未知身份'
+  if (column === 'status' && sectionKey.value === 'p0Members') return Number(value) === 1 ? '允许登录' : '禁止登录'
+  if (column === 'event_type') return ({ earn: '获得贡献', consume: '消耗贡献' } as Record<string, string>)[String(value)] || String(value)
+  if (column === 'ratio') return Number.isFinite(Number(value)) ? (Number(value) * 100).toFixed(2) + '%' : '—'
+  if (column === 'inviter_id') return value == null ? '无' : String(value)
+  if (column && /(?:_time|_at|Time)$/.test(column)) return formatDateTime(String(value))
   if (value === null || value === undefined || value === '') return '—'
   return String(value)
 }
+function memberCell(row: P0Row, column: string): string {
+  if (column === 'inviter_id' && row.inviter_id != null) return row.inviter_name ? `${row.inviter_name}（ID ${row.inviter_id}）` : `ID ${row.inviter_id}`
+  return display(row[column], column)
+}
+function searchMembers() { memberPage.value = 1; load() }
 
 async function openMember(id: number) {
   loading.value = true
@@ -276,21 +293,21 @@ const groupTitles: Record<string, string> = {
 
     <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
     <el-card v-if="sectionKey === 'p0Members'" class="action-card" shadow="never">
-      <el-input v-model="memberKeyword" placeholder="按账号、昵称或手机号查找会员" clearable @keyup.enter="load" />
-      <el-button type="primary" @click="load">查询</el-button>
+      <el-input v-model="memberKeyword" placeholder="按账号、昵称或手机号查找会员" clearable @keyup.enter="searchMembers" />
+      <el-button type="primary" @click="searchMembers">查询</el-button>
     </el-card>
     <el-card v-if="sectionKey === 'p0Members' && memberStats" class="stat-card" shadow="never">
       <div class="stat-grid">
         <div class="stat"><span>会员总数</span><strong>{{ display(memberStats.totalMembers) }}</strong></div>
         <div class="stat"><span>今日新增</span><strong>{{ display(memberStats.todayNewMembers) }}</strong></div>
         <div class="stat"><span>近30天新增</span><strong>{{ display(memberStats.newMembers30d) }}</strong></div>
-        <div class="stat"><span>近30天活跃</span><strong>{{ display(memberStats.activeMembers30d) }}</strong></div>
+        <div class="stat"><span>近30天活跃（登录或下单，去重）</span><strong>{{ display(memberStats.activeMembers30d) }}</strong></div>
         <div class="stat"><span>今日活跃</span><strong>{{ display(memberStats.todayActiveMembers) }}</strong></div>
         <div class="stat"><span>今日下单会员</span><strong>{{ display(memberStats.todayConsumingMembers) }}</strong></div>
         <div class="stat"><span>今日消费额</span><strong>{{ display(memberStats.todayConsumingAmount) }}</strong></div>
         <div class="stat"><span>累计消费会员</span><strong>{{ display(memberStats.totalConsumingMembers) }}</strong></div>
         <div class="stat"><span>累计消费额</span><strong>{{ display(memberStats.totalConsumingAmount) }}</strong></div>
-        <div class="stat"><span>客单价</span><strong>{{ display(memberStats.avgOrderAmount) }}</strong></div>
+        <div class="stat"><span>客单价</span><strong>{{ money(memberStats.avgOrderAmount) }}</strong></div>
       </div>
       <div class="stat-trend">
         <span v-for="t in rows(memberStats.trend)" :key="String(t.day)">{{ t.day }} 新增 {{ display(t.newMembers) }} / 活跃 {{ display(t.activeMembers) }} / 金额 {{ display(t.amount) }}</span>
@@ -343,12 +360,13 @@ const groupTitles: Record<string, string> = {
         <template #header><strong>{{ groupTitles[String(key)] || key }} <small>({{ visibleDataRows(String(key), value).length }})</small></strong></template>
         <el-table v-if="visibleDataRows(String(key), value).length" :data="visibleDataRows(String(key), value)" stripe max-height="480">
           <el-table-column v-for="column in columns(value)" :key="column" :prop="column" :label="labels[column] || column" min-width="110" show-overflow-tooltip>
-            <template #default="scope">{{ display(scope.row[column], column) }}</template>
+            <template #default="scope">{{ memberCell(scope.row, column) }}</template>
           </el-table-column>
           <el-table-column v-if="key === 'members'" label="操作" fixed="right" width="100"><template #default="scope"><el-button link type="primary" @click="openMember(Number(scope.row.id))">详情</el-button></template></el-table-column>
           <el-table-column v-if="key === 'adjustments'" label="审核" fixed="right" width="150"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewAdjustment(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewAdjustment(Number(scope.row.id), false)">拒绝</el-button></template><span v-else>已处理</span></template></el-table-column>
           <el-table-column v-if="key === 'withdraws'" label="模拟审核" fixed="right" width="180"><template #default="scope"><template v-if="Number(scope.row.status) === 0"><el-button link type="primary" @click="reviewWithdraw(Number(scope.row.id), true)">通过</el-button><el-button link type="danger" @click="reviewWithdraw(Number(scope.row.id), false)">拒绝</el-button></template><el-button v-else-if="Number(scope.row.status) === 1" link type="primary" @click="completeSimulatedWithdraw(Number(scope.row.id))">完成模拟记账</el-button><span v-else>已处理</span></template></el-table-column>
         </el-table>
+        <el-pagination v-if="key === 'members'" v-model:current-page="memberPage" v-model:page-size="memberSize" :total="memberTotal" :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" style="justify-content:flex-end;margin-top:16px" @current-change="load" @size-change="() => { memberPage = 1; load() }" />
         <el-empty v-else description="数据库中暂无记录" />
       </el-card>
     </section>
@@ -390,7 +408,7 @@ const groupTitles: Record<string, string> = {
             <el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
           </el-tab-pane>
           <el-tab-pane label="列表信息" name="profile">
-            <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value) }}</el-descriptions-item></el-descriptions>
+            <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value, String(key)) }}</el-descriptions-item></el-descriptions>
           </el-tab-pane>
         </el-tabs>
       </template>
@@ -401,4 +419,5 @@ const groupTitles: Record<string, string> = {
 <style scoped>
 .p0-page{min-height:100vh;padding:28px;background:#f5f7f5}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.heading h1{margin:4px 0;font-size:28px;color:#203a32}.heading p{margin:0;color:#61746b}.eyebrow{font-size:11px;letter-spacing:.2em;color:#478264}.action-card{margin-top:20px}.action-card :deep(.el-card__body){display:flex;align-items:center;gap:10px;flex-wrap:wrap}.action-card :deep(.el-input){max-width:300px}.stat-card{margin-top:20px}.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.stat{background:#f3f7f4;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}.stat span{font-size:12px;color:#61746b}.stat strong{font-size:20px;color:#203a32}.stat-trend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#61746b}.data-section{margin-top:20px}.data-section strong{color:#203a32}.data-section small{font-weight:400;color:#84948c}
 </style>
+
 

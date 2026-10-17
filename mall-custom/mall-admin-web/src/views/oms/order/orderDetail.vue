@@ -7,6 +7,7 @@ import { getOrderDetailByIdAPI, orderUpdateReceiverInfoAPI, orderUpdateMoneyInfo
 import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import type { OmsOrder, OmsOrderDetail, OmsReceiverInfoParam } from '@/types/order'
 import { formatDateTime } from '@/utils/datetime'
+import { productImageUrl } from '@/utils/productImage'
 import { pcaTextArr } from 'element-china-area-data'
 
 // 获取路由对象
@@ -17,12 +18,21 @@ const route = useRoute()
 const id = ref<number>()
 // 订单详情数据
 const order = ref<OmsOrderDetail>({} as OmsOrderDetail)
+const loading = ref(true)
+const loadError = ref('')
+const amount = (value: unknown): string => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
+const totalAmount = (...values: unknown[]): string => values.every(value => value !== null && value !== undefined && Number.isFinite(Number(value)))
+  ? values.reduce<number>((total, value) => total + Number(value), 0).toFixed(2) : '—'
 
 // 组件挂载后获取订单详情
 onMounted(async () => {
-  id.value = Number(route.query.id)
-  const res = await getOrderDetailByIdAPI(id.value!)
-  order.value = res.data
+  try {
+    id.value = Number(route.query.id)
+    const res = await getOrderDetailByIdAPI(id.value!)
+    order.value = res.data
+  } catch {
+    loadError.value = '订单详情加载失败，请返回列表后重试'
+  } finally { loading.value = false }
 })
 
 // 修改收货人信息对话框可见性
@@ -366,7 +376,9 @@ const showLogisticsDialog = () => {
 </script>
 
 <template>
-  <div class="detail-container">
+  <div v-if="loading" class="detail-container">正在加载订单详情…</div>
+  <div v-else-if="loadError" class="detail-container">{{ loadError }}</div>
+  <div v-else-if="order.id" class="detail-container">
     <div>
       <el-steps :active="formatStepStatus(order.status)" finish-status="success" align-center>
         <el-step title="提交订单" :description="order.createTime ? formatDateTime(order.createTime) : ''"></el-step>
@@ -476,7 +488,7 @@ const showLogisticsDialog = () => {
       <el-table ref="orderItemTable" :data="order.orderItemList" style="width: 100%;margin-top: 20px" border>
         <el-table-column label="商品图片" width="120" align="center">
           <template v-slot="scope">
-            <img :src="scope.row.productPic" style="height: 80px">
+            <img v-if="scope.row.productPic" :src="productImageUrl(scope.row.productPic)" style="height: 80px" alt="商品图片">
           </template>
         </el-table-column>
         <el-table-column label="商品名称" align="center">
@@ -487,7 +499,7 @@ const showLogisticsDialog = () => {
         </el-table-column>
         <el-table-column label="价格/货号" width="160" align="center">
           <template v-slot="scope">
-            <p>价格：￥{{ scope.row.productPrice }}</p>
+            <p>价格：￥{{ amount(scope.row.productPrice) }}</p>
             <p>货号：{{ scope.row.productSn }}</p>
           </template>
         </el-table-column>
@@ -503,12 +515,12 @@ const showLogisticsDialog = () => {
         </el-table-column>
         <el-table-column label="小计" width="120" align="center">
           <template v-slot="scope">
-            ￥{{ scope.row.productPrice * scope.row.productQuantity }}
+            ￥{{ totalAmount(Number(scope.row.productPrice) * Number(scope.row.productQuantity)) }}
           </template>
         </el-table-column>
       </el-table>
       <div style="float: right;margin: 20px">
-        合计：<span class="color-danger">￥{{ order.totalAmount }}</span>
+        合计：<span class="color-danger">￥{{ amount(order.totalAmount) }}</span>
       </div>
       <div style="margin-top: 60px">
         <svg-icon icon-class="marker" style="color: #606266"></svg-icon>
@@ -526,10 +538,10 @@ const showLogisticsDialog = () => {
           <el-col :span="6" class="table-cell-title">积分抵扣</el-col>
         </el-row>
         <el-row>
-          <el-col :span="6" class="table-cell">￥{{ order.totalAmount }}</el-col>
-          <el-col :span="6" class="table-cell">￥{{ order.freightAmount }}</el-col>
-          <el-col :span="6" class="table-cell">-￥{{ order.couponAmount }}</el-col>
-          <el-col :span="6" class="table-cell">-￥{{ order.integrationAmount }}</el-col>
+          <el-col :span="6" class="table-cell">￥{{ amount(order.totalAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">￥{{ amount(order.freightAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">-￥{{ amount(order.couponAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">-￥{{ amount(order.integrationAmount) }}</el-col>
         </el-row>
         <el-row>
           <el-col :span="6" class="table-cell-title">活动优惠</el-col>
@@ -538,13 +550,13 @@ const showLogisticsDialog = () => {
           <el-col :span="6" class="table-cell-title">应付款金额</el-col>
         </el-row>
         <el-row>
-          <el-col :span="6" class="table-cell">-￥{{ order.promotionAmount }}</el-col>
-          <el-col :span="6" class="table-cell">-￥{{ order.discountAmount }}</el-col>
+          <el-col :span="6" class="table-cell">-￥{{ amount(order.promotionAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">-￥{{ amount(order.discountAmount) }}</el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ order.totalAmount + order.freightAmount }}</span>
+            <span class="color-danger">￥{{ totalAmount(order.totalAmount, order.freightAmount) }}</span>
           </el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ order.payAmount + order.freightAmount - order.discountAmount }}</span>
+            <span class="color-danger">￥{{ totalAmount(order.payAmount, order.freightAmount, -Number(order.discountAmount)) }}</span>
           </el-col>
         </el-row>
       </div>
@@ -644,11 +656,10 @@ const showLogisticsDialog = () => {
                 v-slot:prepend>-￥</template></el-input>
           </el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ order.totalAmount + moneyInfo.freightAmount }}</span>
+            <span class="color-danger">￥{{ totalAmount(order.totalAmount, moneyInfo.freightAmount) }}</span>
           </el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ order.payAmount + moneyInfo.freightAmount - moneyInfo.discountAmount
-            }}</span>
+            <span class="color-danger">￥{{ totalAmount(order.payAmount, moneyInfo.freightAmount, -Number(moneyInfo.discountAmount)) }}</span>
           </el-col>
         </el-row>
       </div>
@@ -755,3 +766,4 @@ const showLogisticsDialog = () => {
   color: #303133;
 }
 </style>
+

@@ -1,12 +1,12 @@
 import { useUserStore } from '@/stores/user'
 import type { CommonResult } from '@/types/common'
 import axios from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const http = axios.create({
   baseURL: import.meta.env.VITE_BASE_SERVER_URL || '/admin-api',
-  timeout: 5000,
+  timeout: 15000,
 })
 
 // axios请求拦截器
@@ -38,20 +38,7 @@ http.interceptors.response.use(
           duration: 3 * 1000,
         })
       }
-      // 401:未登录;
-      if (res.code === 401 && !silent) {
-        ElMessageBox.confirm('你已被登出，可以取消继续留在该页面，或者重新登录', '确定登出', {
-          confirmButtonText: '重新登录',
-          cancelButtonText: '取消',
-          type: 'warning',
-        }).then(() => {
-          const userStore = useUserStore()
-          userStore.fedLogout()
-          // 为了重新实例化vue-router对象 避免bug
-          location.reload()
-        })
-      }
-      return Promise.reject('error')
+      return Promise.reject({ code: res.code, message: res.message, authExpired: res.code === 401 })
     } else {
       // 返回响应JSON中的data属性，不包括message和code
       return response.data
@@ -59,11 +46,10 @@ http.interceptors.response.use(
   },
   error => {
     // 全局处理异常请求
-    console.log('error' + error)
     const silent = (error?.config as unknown as { silent?: boolean } | undefined)?.silent === true
     if (!silent) {
       ElMessage({
-        message: error.message,
+        message: error.code === 'ECONNABORTED' ? '请求超时，请重试；登录状态已保留' : error.message,
         type: 'error',
         duration: 3 * 1000,
       })
@@ -73,3 +59,4 @@ http.interceptors.response.use(
 )
 
 export default http
+

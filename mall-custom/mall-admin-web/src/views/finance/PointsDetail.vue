@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -77,7 +78,7 @@ onMounted(load)
         <el-table-column prop="balance_after" label="变动后余额" width="120" />
         <el-table-column prop="biz_id" label="业务来源" width="120" />
         <el-table-column prop="remark" label="备注" min-width="200" />
-        <el-table-column prop="create_time" label="时间" min-width="170" />
+        <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
     </el-card>
   </main>
@@ -96,3 +97,4 @@ onMounted(load)
 .table-head { display: flex; justify-content: space-between; align-items: center; }
 @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, 1fr); } }
 </style>
+

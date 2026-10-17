@@ -27,7 +27,7 @@ const selectedDaily = computed<Row>(() => dailyRows.value.find(p => p.code === p
 const routeNames: Record<string, string> = { PARTNER: 'financePartnerPool', COFOUNDER: 'financeCofounderPool', OPERATIONS: 'financeOperationsPool' }
 function openPool(row: Row) { router.push({ name: routeNames[row.code], query: { date: selectedDate.value } }) }
 const money = (n: unknown) => Number(n || 0).toFixed(2)
-const beijingTime = (value: string) => value ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) : '—'
+const beijingTime = (value: string) => value ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)) : '—'
 async function load() {
   const version = ++loadVersion, day = selectedDate.value, selectedPool = pool.value
   busy.value = true; error.value = ''
@@ -103,3 +103,4 @@ watch([pool, selectedDate], () => { recordPage.value = 1; ledgerPage.value = 1; 
 .tri-pools{padding:24px}header,.paging{display:flex;align-items:center;gap:16px;justify-content:space-between}section{margin:24px 0;padding:20px;border:1px solid #e5e7eb;border-radius:8px}.stats{display:flex;gap:64px;margin:24px 0}.paging{justify-content:flex-end;margin-top:16px}h3{margin:0 0 18px}
 .day-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}.day-note{color:#72818b;font-size:12px;line-height:1.8}.daily-table{cursor:pointer}@media(max-width:1000px){header{align-items:flex-start;flex-direction:column}.stats{gap:24px;flex-wrap:wrap}.tri-pools{padding:16px}}
 </style>
+
