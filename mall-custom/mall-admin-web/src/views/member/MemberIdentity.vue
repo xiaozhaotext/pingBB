@@ -138,8 +138,8 @@ async function submitReferrer() {
       </template>
       <el-table :data="filtered" stripe empty-text="暂无会员">
         <el-table-column prop="id" label="会员 ID" width="90" />
-        <el-table-column prop="username" label="会员名称" min-width="140" />
-        <el-table-column prop="phone" label="手机号码" min-width="140" />
+        <el-table-column prop="username" label="会员名称" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="phone" label="手机号码" min-width="140" show-overflow-tooltip />
         <el-table-column label="身份" width="110">
           <template #default="{ row }">{{ membershipV2 ? v2Labels[String(row.membership_tier)] : identityLabels[Number(row.identity_type ?? 0)] || '普通会员' }}</template>
         </el-table-column>

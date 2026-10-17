@@ -22,23 +22,28 @@ const allRoleList = ref<UmsRole[]>([])
 const listLoading = ref(true)
 // 分页总数
 const total = ref(0)
+const loadError = ref('')
+let loadRevision = 0
 // 获取管理员列表
 const getList = async () => {
+  const revision = ++loadRevision
   listLoading.value = true
+  loadError.value = ''
   try {
-    const res = await getAdminListAPI(listQuery.value)
-    listLoading.value = false
-    // 防御性处理：兼容不同的返回结构
-    const data = res.data || res
-    list.value = data.list || []
-    total.value = data.total || 0
-    if (!data.list) {
-      console.warn('管理员列表接口返回结构异常:', res)
+    const res = await getAdminListAPI({ ...listQuery.value, keyword: listQuery.value.keyword?.trim() || '' })
+    if (revision !== loadRevision) return
+    const data = res.data
+    if (!Array.isArray(data?.list) || !Number.isFinite(Number(data.total))) {
+      console.warn('管理员列表接口返回结构异常')
+      throw new Error('管理员列表返回异常')
     }
+    list.value = data.list
+    total.value = Number(data.total)
   } catch (error) {
-    listLoading.value = false
-    console.error('获取管理员列表失败:', error)
-  }
+    if (revision !== loadRevision) return
+    list.value = []; total.value = 0
+    loadError.value = '管理员列表加载失败，请检查连接或权限后重试'
+  } finally { if (revision === loadRevision) listLoading.value = false }
 }
 // 获取所有角色列表
 const getAllRoleList = async () => {
@@ -90,6 +95,7 @@ const getRoleListByAdmin = async (adminId: number) => {
 const handleResetSearch = () => {
   listQuery.value.pageNum = 1
   listQuery.value.keyword = ''
+  getList()
 }
 
 // 处理搜索
@@ -219,6 +225,9 @@ const formatDateTime = (time: string) => {
 
 <template>
   <div class="app-container">
+    <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon>
+      <el-button @click="getList">重新加载</el-button>
+    </el-alert>
     <el-card class="filter-container" shadow="never">
       <div>
         <el-icon class="el-icon-middle">
@@ -250,7 +259,7 @@ const formatDateTime = (time: string) => {
       </el-button>
     </el-card>
     <div class="table-container">
-      <el-table ref="adminTable" :data="list" style="width: 100%;" v-loading="listLoading" border>
+      <el-table ref="adminTable" :data="list" :empty-text="loadError ? '加载失败，请点击重新加载' : '暂无符合条件的管理员'" style="width: 100%;" v-loading="listLoading" border>
         <el-table-column label="编号" width="100" align="center">
           <template #default="scope">{{ scope.row.id }}</template>
         </el-table-column>

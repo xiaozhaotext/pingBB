@@ -3,6 +3,9 @@ import { onMounted, ref } from 'vue'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
 import { formatDateTime } from '@/utils/datetime'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { businessText } from '@/utils/adminDisplay'
+import { useLedgerDisplay } from '@/composables/useLedgerDisplay'
+const { hydrate, source } = useLedgerDisplay()
 
 const tab = ref('accounts'), memberId = ref(''), page = ref(1)
 const loading = ref(false), error = ref(''), total = ref(0)
@@ -47,6 +50,7 @@ async function load(reset = false) {
     })
     if (current !== revision) return
     rows.value = res.data.rows; summary.value = res.data.summary; total.value = res.data.total
+    if (tab.value === 'ledger') void hydrate(rows.value, true)
   } catch {
     if (current !== revision) return
     rows.value = []; summary.value = {}; total.value = 0; error.value = '消费钱包加载失败，请检查权限或连接后重试'
@@ -92,8 +96,8 @@ onMounted(() => load())
         <el-table-column label="类型" width="160"><template #default="{row}">{{types[String(row.change_type)] || row.change_type}}</template></el-table-column>
         <el-table-column prop="amount" label="变动金额（元）" width="150" />
         <el-table-column prop="balance_after" label="变动后余额（元）" width="170" />
-        <el-table-column prop="biz_id" label="业务单号 / 订单ID" min-width="220" />
-        <el-table-column prop="remark" label="说明" min-width="220" />
+        <el-table-column label="业务来源 / 订单号" min-width="240" show-overflow-tooltip><template #default="{ row }">{{ source(row) }}</template></el-table-column>
+        <el-table-column label="说明" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ businessText(row.remark) }}</template></el-table-column>
         <el-table-column label="时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </template>
     </el-table>

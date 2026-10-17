@@ -13,7 +13,7 @@ use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipCompon
 const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
 const cards = computed(() => [
-  { title: '商品总数', value: overview.value?.productCount ?? '—' },
+  { title: '商品总数（未删除）', value: overview.value ? overview.value.productOnSaleCount + overview.value.productOffSaleCount : '—' },
   { title: '在售商品', value: overview.value?.productOnSaleCount ?? '—' },
   { title: '已下架商品', value: overview.value?.productOffSaleCount ?? '—' },
   { title: '库存预警SKU', value: overview.value?.lowStockSkuCount ?? '—' },
