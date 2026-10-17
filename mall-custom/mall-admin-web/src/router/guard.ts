@@ -12,6 +12,7 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
   if (userStore.userInfo.token) {
+    if (to.path === '/connection-error') { next(); return }
     if (to.path === '/login') {
       // 登录状态下访问login直接跳转到首页
       next({ path: '/' })
@@ -22,9 +23,15 @@ router.beforeEach(async (to, from, next) => {
         // 防止菜单调整后仍显示“商品”等过期入口。
         try {
           await userStore.getUserInfo()
-        } catch {
-          userStore.fedLogout()
-          next({ path: '/login', query: { redirect: to.fullPath } })
+        } catch (error) {
+          const authExpired = (error as { authExpired?: boolean; response?: { status?: number } })?.authExpired === true
+            || (error as { response?: { status?: number } })?.response?.status === 401
+          if (authExpired) {
+            userStore.fedLogout()
+            next({ path: '/login', query: { redirect: to.fullPath } })
+          } else {
+            next({ path: '/connection-error', query: { redirect: to.fullPath } })
+          }
           NProgress.done()
           return
         }
@@ -56,3 +63,4 @@ router.beforeEach(async (to, from, next) => {
 router.afterEach(() => {
   NProgress.done()
 })
+

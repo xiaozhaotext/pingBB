@@ -37,23 +37,25 @@ const assignedOnly = ref(false)
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
+let loadRevision = 0
 
 function isAssigned(row: ZoneProduct) {
   return row.assigned === true || row.assigned === 1
 }
 
 async function load() {
+  const revision = ++loadRevision
   loading.value = true
   try {
     const res = await http<ZoneProduct[]>({
       url: '/p0/zones/' + zone.value + '/products',
       params: { keyword: keyword.value, assignedOnly: assignedOnly.value },
     })
-    rows.value = res.data || []
+    if (revision === loadRevision) rows.value = res.data || []
   } catch {
-    rows.value = []
+    if (revision === loadRevision) ElMessage.error('商品列表加载失败，请重试')
   } finally {
-    loading.value = false
+    if (revision === loadRevision) loading.value = false
   }
 }
 
@@ -100,9 +102,14 @@ async function remove(row: ZoneProduct) {
   }
 }
 async function togglePublish(row: ZoneProduct) {
+  const nextStatus = row.publishStatus === 1 ? 0 : 1
+  const action = nextStatus === 1 ? '上架' : '下架'
+  try {
+    await ElMessageBox.confirm(`确认${action}商品「${row.name}」（ID ${row.id}）？${nextStatus === 0 ? '下架后商城将不再展示该商品。' : '上架后商城将展示该商品。'}`, `确认${action}`, { type: 'warning', confirmButtonText: `确认${action}`, cancelButtonText: '取消' })
+  } catch { return }
   busy.value = row.id
   try {
-    await productUpdatePublishStatusAPI({ ids: String(row.id), publishStatus: row.publishStatus === 1 ? 0 : 1 })
+    await productUpdatePublishStatusAPI({ ids: String(row.id), publishStatus: nextStatus })
     ElMessage.success('操作成功')
     await load()
   } catch {
@@ -202,3 +209,4 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .head p { margin: 0; color: #6d8074; }
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 </style>
+

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 const loading = ref(false)
 const route = useRoute()
@@ -25,10 +26,14 @@ const changeTypeText: Record<string, string> = {
   withdraw_done: '提现完成扣减',
 }
 
-const withdrawRows = computed(() => withdraws.value.map(row => ({
+const withdrawRows = computed<(P0Row & { statusLabel: string })[]>(() => withdraws.value.map(row => ({
   ...row,
   statusLabel: statusText[Number(row.status)] ?? '未知',
 })))
+const withdrawFilter = ref('all')
+const filteredWithdrawRows = computed(() => withdrawFilter.value === 'all' ? withdrawRows.value
+  : withdrawRows.value.filter(row => withdrawFilter.value === '2'
+    ? [2, 3].includes(Number(row.status)) : Number(row.status) === Number(withdrawFilter.value)))
 
 function money(value: unknown): string {
   const n = Number(value)
@@ -92,7 +97,7 @@ watch(() => route.meta.section, section => {
     <header>
       <div>
         <h1>佣金与提现</h1>
-        <p>会员佣金余额 / 已提现佣金 / 提现审核与记录 · 数据源 ums_earnings、ums_earnings_ledger、ums_withdraw_apply</p>
+        <p>会员佣金余额、提现审核与记录</p>
       </div>
       <el-button @click="load">刷新</el-button>
     </header>
@@ -111,7 +116,8 @@ watch(() => route.meta.section, section => {
     <el-card shadow="never">
       <el-tabs v-model="tab">
         <el-tab-pane label="提现审核" name="withdraws">
-          <el-table :data="withdrawRows" stripe>
+          <el-select v-model="withdrawFilter" style="width:160px;margin-bottom:12px"><el-option label="全部状态" value="all" /><el-option label="待审核" value="0" /><el-option label="已通过" value="1" /><el-option label="已完成" value="2" /><el-option label="已拒绝" value="4" /></el-select>
+          <el-table :data="filteredWithdrawRows" stripe>
             <el-table-column prop="id" label="ID" width="80" />
             <el-table-column prop="username" label="会员" width="140" />
             <el-table-column label="申请金额" width="120"><template #default="{ row }">{{ money(row.amount) }}</template></el-table-column>
@@ -119,7 +125,7 @@ watch(() => route.meta.section, section => {
             <el-table-column label="实到金额" width="120"><template #default="{ row }">{{ money(row.actual_amount) }}</template></el-table-column>
             <el-table-column prop="statusLabel" label="状态" width="100" />
             <el-table-column prop="audit_remark" label="审核备注" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="apply_time" label="申请时间" min-width="170" />
+            <el-table-column label="申请时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.apply_time || '')) }}</template></el-table-column>
             <el-table-column label="操作" width="230" fixed="right">
               <template #default="{ row }">
                 <el-button v-if="Number(row.status) === 0" size="small" type="primary" @click="review(row, true)">通过</el-button>
@@ -129,7 +135,7 @@ watch(() => route.meta.section, section => {
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="!withdrawRows.length && !loading" description="暂无提现申请" />
+          <el-empty v-if="!filteredWithdrawRows.length && !loading" description="当前状态暂无提现申请" />
         </el-tab-pane>
 
         <el-tab-pane label="会员佣金账户" name="accounts">
@@ -155,7 +161,7 @@ watch(() => route.meta.section, section => {
             <el-table-column label="余额" width="130"><template #default="{ row }">{{ money(row.balance_after) }}</template></el-table-column>
             <el-table-column prop="biz_id" label="业务单号" min-width="140" />
             <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="create_time" label="时间" min-width="170" />
+            <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
           </el-table>
           <el-empty v-if="!ledger.length && !loading" description="暂无佣金流水" />
         </el-tab-pane>
@@ -185,3 +191,4 @@ p{color:#698789;margin:0}
 .kpi strong{color:#285a62;font-size:22px}
 .done{color:#909399;font-size:13px}
 </style>
+

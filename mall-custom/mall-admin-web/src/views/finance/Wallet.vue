@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const tab = ref('accounts'), memberId = ref(''), page = ref(1)
@@ -84,8 +85,8 @@ onMounted(() => load())
         <el-table-column label="渠道" width="120"><template #default="{row}">{{ row.channel==='MOCK'?'沙盒模拟':row.channel==='WECHAT'?'微信':row.channel==='ALIPAY'?'支付宝':row.channel }}</template></el-table-column>
         <el-table-column label="状态" width="110"><template #default="{row}">{{row.status==='PAID'?'已到账':row.status==='PENDING'?'待支付':row.status}}</template></el-table-column>
         <el-table-column prop="balance_after" label="充值后余额（元）" width="170" />
-        <el-table-column prop="created_at" label="创建时间" min-width="180" />
-        <el-table-column prop="paid_at" label="到账时间" min-width="180" />
+        <el-table-column label="创建时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.created_at || '')) }}</template></el-table-column>
+        <el-table-column label="到账时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.paid_at || '')) }}</template></el-table-column>
       </template>
       <template v-if="tab==='ledger'">
         <el-table-column label="类型" width="160"><template #default="{row}">{{types[String(row.change_type)] || row.change_type}}</template></el-table-column>
@@ -93,7 +94,7 @@ onMounted(() => load())
         <el-table-column prop="balance_after" label="变动后余额（元）" width="170" />
         <el-table-column prop="biz_id" label="业务单号 / 订单ID" min-width="220" />
         <el-table-column prop="remark" label="说明" min-width="220" />
-        <el-table-column prop="create_time" label="时间" min-width="180" />
+        <el-table-column label="时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </template>
     </el-table>
     <el-pagination v-model:current-page="page" :page-size="20" :total="total" layout="total, prev, pager, next" @current-change="load()" />
@@ -112,3 +113,4 @@ onMounted(() => load())
 <style scoped>
 .wallet{padding:24px}.wallet p{color:#667085}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin:20px 0}.cards strong{display:block;font-size:24px;margin-top:12px}.el-pagination{margin-top:20px}
 </style>
+

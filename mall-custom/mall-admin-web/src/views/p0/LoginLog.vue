@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 const loading = ref(false)
 const error = ref('')
@@ -46,7 +47,7 @@ onMounted(load)
     <header>
       <div>
         <h1>登录日志</h1>
-        <p>后台管理员登录记录（ums_admin_login_log）· 每次登录写入一条，支持按管理员或 IP 检索</p>
+        <p>后台管理员登录记录 · 每次登录写入一条，支持按管理员或 IP 检索</p>
       </div>
       <div class="tools">
         <el-input v-model="keyword" placeholder="按管理员或 IP 搜索" style="width: 220px" clearable @keyup.enter="search" />
@@ -63,7 +64,7 @@ onMounted(load)
         <el-table-column prop="ip" label="登录IP" min-width="150" />
         <el-table-column prop="address" label="归属地" min-width="140" />
         <el-table-column prop="user_agent" label="User-Agent" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="create_time" label="登录时间" min-width="180" />
+        <el-table-column label="登录时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
       <el-empty v-if="!rows.length && !loading" description="暂无登录记录" />
       <el-pagination
@@ -85,3 +86,4 @@ p{color:#698789;margin:0}
 .tools{display:flex;gap:10px;align-items:center}
 .pager{margin-top:16px;justify-content:flex-end}
 </style>
+

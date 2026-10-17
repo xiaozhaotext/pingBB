@@ -45,13 +45,13 @@ public class P0AdminController {
         List<Map<String,Object>> result = jdbc.queryForList(
                 "SELECT m.id,m.username,m.nickname,m.phone,m.gender,m.status,m.create_time,contact.real_name,contact.email,contact.wechat_account," +
                 "(SELECT MAX(s.login_count) FROM ums_member_statistics_info s WHERE s.member_id=m.id) AS login_count," +
-                "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id," +
+                "COALESCE(i.identity_type,0) AS identity_type,r.inviter_id,inviter.username AS inviter_name," +
                 "COALESCE((SELECT w.balance_cents / 100.00 FROM ums_recharge_account w WHERE w.member_id=m.id),0) AS member_balance," +
                 "COALESCE((SELECT e.available_earnings FROM ums_earnings e WHERE e.member_id=m.id),0) AS available_earnings," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=1),0) AS product_points," +
                 "COALESCE((SELECT p.available FROM ums_points_account p WHERE p.member_id=m.id AND p.points_type=2),0) AS rebuy_points " +
                 "FROM ums_member m LEFT JOIN ums_member_contact contact ON contact.member_id=m.id LEFT JOIN ums_member_identity i ON i.member_id=m.id " +
-                "LEFT JOIN ums_member_recommend r ON r.member_id=m.id " +
+                "LEFT JOIN ums_member_recommend r ON r.member_id=m.id LEFT JOIN ums_member inviter ON inviter.id=r.inviter_id " +
                 "WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ? " +
                 "ORDER BY m.id DESC LIMIT ? OFFSET ?", like, like, like, limit, offset);
         if (triPools != null && triPools.enabled()) for (var row : result) {
@@ -63,6 +63,16 @@ public class P0AdminController {
         }
         return CommonResult.success(result);
     }
+    @GetMapping("/members/count")
+    public CommonResult<Map<String, Object>> memberCount(Principal principal,
+            @RequestParam(defaultValue = "") String keyword) {
+        access.requireAuthorized(principal);
+        String like = "%" + keyword.trim() + "%";
+        Long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ums_member m WHERE m.username LIKE ? OR m.nickname LIKE ? OR m.phone LIKE ?",
+                Long.class, like, like, like);
+        return CommonResult.success(Map.of("total", total == null ? 0L : total));
+    }
     @GetMapping("/members/stats")
     public CommonResult<Map<String, Object>> memberStats(Principal principal) {
         access.requireAuthorized(principal);
@@ -70,7 +80,9 @@ public class P0AdminController {
         data.put("totalMembers", scalarLong("SELECT COUNT(*) FROM ums_member"));
         data.put("todayNewMembers", scalarLong("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE()"));
         data.put("newMembers30d", scalarLong("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE() - INTERVAL 29 DAY"));
-        data.put("activeMembers30d", scalarLong("SELECT COUNT(DISTINCT member_id) FROM ums_member_login_log WHERE create_time >= CURDATE() - INTERVAL 29 DAY"));
+        data.put("activeMembers30d", scalarLong("SELECT COUNT(*) FROM ("
+                + "SELECT member_id FROM ums_member_login_log WHERE create_time >= CURDATE() - INTERVAL 29 DAY "
+                + "UNION SELECT member_id FROM oms_order WHERE delete_status=0 AND create_time >= CURDATE() - INTERVAL 29 DAY) t"));
         data.put("todayActiveMembers", scalarLong("SELECT COUNT(DISTINCT member_id) FROM ums_member_login_log WHERE create_time >= CURDATE()"));
         data.put("todayConsumingMembers", scalarLong("SELECT COUNT(DISTINCT member_id) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3) AND create_time >= CURDATE()"));
         data.put("todayConsumingAmount", scalarDecimal("SELECT COALESCE(SUM(pay_amount),0) FROM oms_order WHERE delete_status=0 AND status IN(1,2,3) AND create_time >= CURDATE()"));
@@ -806,3 +818,4 @@ public class P0AdminController {
         return value == null ? BigDecimal.ZERO : value;
     }
 }
+

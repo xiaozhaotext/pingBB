@@ -3,9 +3,10 @@ import { dayjs } from 'element-plus'
 // 日期时间格式化函数
 export const formatDateTime = (time: string) => {
   if (!time) {
-    return 'N/A'
+    return '—'
   }
-  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+  const parsed = dayjs(time)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '—'
 }
 
 // 日期格式化函数
@@ -43,3 +44,4 @@ export function str2Date(dateStr: string, separator?: string) {
   const date = new Date(year, month - 1, day)
   return date
 }
+

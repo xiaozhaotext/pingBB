@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 const identityLabels: Record<number, string> = { 0: '普通会员', 1: '合伙人', 2: '联创' }
 const identityOptions = [
@@ -17,14 +18,13 @@ const displayedLabels = computed(() => membershipV2.value ? ['游客', '会员',
 const saving = ref(false)
 const members = ref<P0Row[]>([])
 const keyword = ref('')
+const page = ref(1)
+const size = ref(20)
+const total = ref(0)
 const identityForm = ref({ memberId: null as number | null, identityType: 0, reason: '' })
 const referrerForm = ref({ memberId: null as number | null, referrerId: null as number | null, reason: '' })
 
-const filtered = computed(() => {
-  const key = keyword.value.trim()
-  if (!key) return members.value
-  return members.value.filter(row => String(row.username || '').includes(key) || String(row.phone || '').includes(key) || String(row.id) === key)
-})
+const filtered = computed(() => members.value)
 const counts = computed(() => {
   const result: Record<number, number> = { 0: 0, 1: 0, 2: 0 }
   members.value.forEach(row => {
@@ -38,7 +38,12 @@ async function load() {
   loading.value = true
   try {
     membershipV2.value = !!(await getP0<{ enabled: boolean }>('tri-pools')).data.enabled
-    members.value = (await getP0<P0Row[]>('members')).data || []
+    const [list, count] = await Promise.all([
+      getP0<P0Row[]>('members', { keyword: keyword.value.trim(), page: page.value, size: size.value }),
+      getP0<{ total: number }>('members/count', { keyword: keyword.value.trim() }),
+    ])
+    members.value = list.data || []
+    total.value = Number(count.data.total || 0)
   } catch {
     members.value = []
     ElMessage.error('会员列表加载失败')
@@ -47,6 +52,7 @@ async function load() {
   }
 }
 onMounted(load)
+function search() { page.value = 1; load() }
 
 async function submitIdentity() {
   if (!identityForm.value.memberId) return ElMessage.warning('请输入会员 ID')
@@ -128,7 +134,7 @@ async function submitReferrer() {
     </section>
     <el-card shadow="never" class="table-card">
       <template #header>
-        <div class="table-head"><strong>会员身份一览</strong><el-input v-model="keyword" placeholder="搜索账号 / 手机号 / ID" clearable style="max-width: 260px" /></div>
+        <div class="table-head"><strong>会员身份一览</strong><div><el-input v-model="keyword" placeholder="搜索账号 / 手机号" clearable style="max-width: 260px" @keyup.enter="search" /><el-button @click="search">查询</el-button></div></div>
       </template>
       <el-table :data="filtered" stripe empty-text="暂无会员">
         <el-table-column prop="id" label="会员 ID" width="90" />
@@ -138,8 +144,9 @@ async function submitReferrer() {
           <template #default="{ row }">{{ membershipV2 ? v2Labels[String(row.membership_tier)] : identityLabels[Number(row.identity_type ?? 0)] || '普通会员' }}</template>
         </el-table-column>
         <el-table-column prop="inviter_id" label="推荐人 ID" width="110" />
-        <el-table-column prop="create_time" label="注册时间" min-width="170" />
+        <el-table-column label="注册时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
+      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total" :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" style="justify-content:flex-end;margin-top:16px" @current-change="load" @size-change="() => { page = 1; load() }" />
     </el-card>
   </main>
 </template>
@@ -157,3 +164,4 @@ async function submitReferrer() {
 .table-head { display: flex; justify-content: space-between; align-items: center; }
 @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, 1fr); } .forms { grid-template-columns: 1fr; } }
 </style>
+

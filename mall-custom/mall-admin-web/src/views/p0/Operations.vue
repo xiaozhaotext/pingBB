@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 const route = useRoute()
 const consultations = computed(() => route.meta.section === 'p0Consultations' || route.name === 'p0Consultations')
 const title = computed(() => consultations.value ? '在线咨询' : '公告管理')
@@ -47,7 +48,7 @@ watch(() => route.name, load, { immediate: true })
         <el-table-column v-if="consultations" prop="contact" label="联系方式" />
         <el-table-column v-if="consultations" prop="reply" label="客服回复" min-width="200" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" width="100"><template #default="scope">{{ consultations ? (Number(scope.row.status) === 1 ? '已回复' : '待回复') : (Number(scope.row.status) === 1 ? '已发布' : '未发布') }}</template></el-table-column>
-        <el-table-column prop="create_time" label="创建时间" min-width="180" />
+        <el-table-column label="创建时间" min-width="180"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
         <el-table-column v-if="consultations" label="操作" width="100"><template #default="scope"><el-button link type="primary" @click="reply(scope.row)">回复</el-button></template></el-table-column>
       </el-table>
       <el-empty v-if="!loading && !error && !records.length" description="数据库暂无记录" />
@@ -57,3 +58,4 @@ watch(() => route.name, load, { immediate: true })
 <style scoped>
 .operations{padding:28px;background:#f2f6f6;min-height:100vh}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}h1{color:#285a62;margin:0 0 8px}p{color:#698789;margin:0}.publish{margin-bottom:24px}
 </style>
+

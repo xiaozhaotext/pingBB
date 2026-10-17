@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getP0, type P0Row } from '@/apis/p0'
+import { formatDateTime } from '@/utils/datetime'
 
 const loading = ref(false)
 const error = ref('')
@@ -73,7 +74,7 @@ onMounted(load)
     <el-card shadow="never">
       <template #header>最近访问明细</template>
       <el-table :data="recent" stripe max-height="480">
-        <el-table-column prop="create_time" label="时间" min-width="170" />
+        <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
         <el-table-column prop="client" label="端" width="80" />
         <el-table-column prop="method" label="方法" width="90" />
         <el-table-column prop="path" label="路径" min-width="240" show-overflow-tooltip />
@@ -87,3 +88,4 @@ onMounted(load)
 <style scoped>
 .visit-statistics{padding:28px;background:#f2f7f7;min-height:100vh}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}h1{color:#285a62;margin:0 0 8px}p{color:#698789;margin:0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px}.block{margin-bottom:20px}.num{font-size:28px;font-weight:600;color:#285a62}.label{color:#698789;font-size:13px;margin-top:6px}
 </style>
+
