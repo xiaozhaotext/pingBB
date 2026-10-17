@@ -10,7 +10,7 @@
         @click="handleNavToDetail(item)"
       >
         <view class="image-wrapper">
-          <image :src="item.brandLogo" mode="aspectFit"></image>
+          <image :src="productImageUrl(item.brandLogo)" mode="aspectFit"></image>
         </view>
         <view class="txt">
           <text class="title clamp">{{ item.brandName }}</text>
@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import {
   onLoad,

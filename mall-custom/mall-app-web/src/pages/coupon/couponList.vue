@@ -36,7 +36,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getMemberCouponListAPI } from '@/apis/coupon'
 import type { SmsCoupon } from '@/types/coupon'
-import { formatDate } from '@/utils/date'
+import { chinaDateTime } from '@/utils/chinaTime'
 
 // ===== 导航数据 =====
 // Tab 导航列表
@@ -85,8 +85,7 @@ const formatDateTime = (time: string | null) => {
   if (time == null || time === '') {
     return 'N/A'
   }
-  const date = new Date(time)
-  return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
+  return chinaDateTime(time)
 }
 
 // 格式化优惠券使用类型

@@ -69,7 +69,7 @@ const switchType = (t: number) => {
 const typeText = (t: string) => {
   const map: Record<string, string> = {
     earn: '获得积分',
-    consume: '消费积分',
+    consume: '商品积分',
     adjust: '后台调整',
     freeze: '冻结积分',
     unfreeze: '解冻积分',

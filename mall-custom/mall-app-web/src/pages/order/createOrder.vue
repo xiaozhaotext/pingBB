@@ -29,7 +29,7 @@
       </view>
       <!-- 商品列表 -->
       <view class="g-item" v-for="item in cartPromotionItemList" :key="item.id">
-        <image :src="item.productPic"></image>
+        <image :src="productImageUrl(item.productPic)"></image>
         <view class="right">
           <text class="zone-tag">{{ item.zoneLabel || '普通商品' }}</text>
           <text class="title clamp">{{ item.productName }}</text>
@@ -194,10 +194,11 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI } from '@/apis/order'
-import { formatDate } from '@/utils/date'
+import { chinaDateTime } from '@/utils/chinaTime'
 import type { CartPromotionItem, CalcAmount, ConfirmOrderResult, ZoneSettlement } from '@/types/order'
 import type { SmsCoupon } from '@/types/coupon'
 import type { MemberReceiveAddress } from '@/types/address'
@@ -473,8 +474,7 @@ const formatDateTime = (time: string) => {
   if (time == null || time === '') {
     return 'N/A'
   }
-  const date = new Date(time)
-  return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
+  return chinaDateTime(time)
 }
 
 // 格式化优惠券使用类型

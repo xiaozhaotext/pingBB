@@ -3,13 +3,13 @@
     <!-- 顶部大图 -->
     <view class="top-image">
       <view class="image-wrapper">
-        <image :src="brand.bigPic" mode="aspectFill"></image>
+        <image :src="productImageUrl(brand.bigPic)" mode="aspectFill"></image>
       </view>
     </view>
     <!-- 品牌信息 -->
     <view class="info">
       <view class="image-wrapper">
-        <image :src="brand.logo" mode="aspectFit"></image>
+        <image :src="productImageUrl(brand.logo)" mode="aspectFit"></image>
       </view>
       <view class="title">
         <text>{{ brand.name }}</text>
@@ -38,7 +38,7 @@
         @click="handleNavToDetail(item)"
       >
         <view class="image-wrapper">
-          <image :src="item.pic" mode="aspectFill"></image>
+          <image :src="productImageUrl(item.pic)" mode="aspectFill"></image>
         </view>
         <text class="title clamp">{{ item.name }}</text>
         <text class="title2">{{ item.subTitle }}</text>
@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import { getBrandDetailAPI, getBrandProductListAPI } from '@/apis/brand'

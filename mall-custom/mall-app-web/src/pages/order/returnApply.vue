@@ -14,7 +14,7 @@
           :key="it.productId"
           @click="select(it)"
         >
-          <image class="pic" :src="it.productPic" mode="aspectFill"></image>
+          <image class="pic" :src="productImageUrl(it.productPic)" mode="aspectFill"></image>
           <view class="info">
             <text class="name">{{ it.productName }}</text>
             <text class="sub">{{ it.productAttr }}</text>
@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getOrderDetailAPI, createReturnApplyAPI } from '@/apis/order'

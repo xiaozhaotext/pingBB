@@ -44,7 +44,7 @@
               class="goods-box-single"
               @click="handleShowOrderDetail(item.id)"
             >
-              <image class="goods-img" :src="orderItem.productPic" mode="aspectFill"></image>
+              <image class="goods-img" :src="productImageUrl(orderItem.productPic)" mode="aspectFill"></image>
               <view class="right">
                 <text class="title clamp">{{ orderItem.productName }}</text>
                 <text class="attr-box"
@@ -87,7 +87,7 @@
                 <text class="state" :style="{ color: '#fa436a' }">{{ formatAfterSaleStatus(item.status) }}</text>
               </view>
               <view class="goods-box-single" @click="handleShowOrderDetail(item.order_id)">
-                <image class="goods-img" :src="item.product_pic" mode="aspectFill"></image>
+                <image class="goods-img" :src="productImageUrl(item.product_pic)" mode="aspectFill"></image>
                 <view class="right">
                   <text class="title clamp">{{ item.product_name }}</text>
                   <text class="attr-box">{{ item.reason || '退货/售后' }} x {{ item.product_count }}</text>
@@ -108,11 +108,12 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { formatOrderMoney, showOrderLogistics } from '@/utils/order-display'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref } from 'vue'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
-import { formatDate } from '@/utils/date'
+import { chinaDateTime } from '@/utils/chinaTime'
 import {
   getOrderListAPI,
   cancelUserOrderAPI,
@@ -402,8 +403,7 @@ const formatDateTime = (time: string | null | undefined): string => {
   if (time == null || time === '') {
     return 'N/A'
   }
-  const date = new Date(time)
-  return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
+  return chinaDateTime(time)
 }
 
 // 计算商品总数量

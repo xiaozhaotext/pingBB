@@ -10,7 +10,7 @@
         @click="handleNavToDetail(item)"
       >
         <view class="image-wrapper">
-          <image :src="item.productPic" mode="aspectFill"></image>
+          <image :src="productImageUrl(item.productPic)" mode="aspectFill"></image>
         </view>
         <view class="txt">
           <text class="title clamp">{{ item.productName }}</text>
@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { productImageUrl } from '@/utils/productImage'
 import { ref } from 'vue'
 import {
   onLoad,

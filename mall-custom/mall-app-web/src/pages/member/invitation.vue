@@ -95,17 +95,23 @@ const copyCode = () => {
 const handleBind = async () => {
   if (bindState.value !== 'unbound' || binding.value) return
   bindError.value = ''
-  if (!bindCode.value.trim()) { bindError.value = '请输入邀请码'; return }
+  if (!bindCode.value.trim()) {
+    bindError.value = '请输入邀请码'
+    uni.showToast({ title: bindError.value, icon: 'none' })
+    return
+  }
   binding.value = true
   try {
     const result = await bindInviterAPI({ code: bindCode.value.trim().toUpperCase() })
+    if (!result.data?.inviterId) throw new Error('绑定结果未确认，请刷新后查看推荐人')
     inviter.value = result.data
     bindState.value = 'bound'
     bindCode.value = ''
     uni.removeStorageSync('pendingInviteCode')
     uni.showToast({ title: '绑定成功', icon: 'success' })
   } catch (e: any) {
-    bindError.value = e?.data?.message || e?.message || '邀请码无效或已绑定推荐人'
+    bindError.value = e?.data?.message || e?.message || (e?.errMsg ? '网络异常，请检查网络后重试' : '绑定失败，请稍后重试')
+    uni.showModal({ title: '绑定失败', content: bindError.value, showCancel: false })
     await loadInviter()
   } finally {
     binding.value = false
