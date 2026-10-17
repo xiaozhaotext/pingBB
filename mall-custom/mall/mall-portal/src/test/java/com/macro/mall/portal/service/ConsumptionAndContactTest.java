@@ -13,6 +13,28 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class ConsumptionAndContactTest {
+ @Test void missingGiftPointsAreZeroAndOnlyPickCanGrantThem(){
+  var cart=new com.macro.mall.portal.domain.CartPromotionItem();cart.setZoneCode("PICK");
+  OmsOrderItem item=ReflectionTestUtils.invokeMethod(new OmsPortalOrderServiceImpl(),"toOrderItem",cart);
+  assertEquals(0,item.getGiftIntegration());assertEquals(0,item.getGiftGrowth());
+  cart.setIntegration(25);item=ReflectionTestUtils.invokeMethod(new OmsPortalOrderServiceImpl(),"toOrderItem",cart);assertEquals(25,item.getGiftIntegration());
+  cart.setZoneCode("REBUY");item=ReflectionTestUtils.invokeMethod(new OmsPortalOrderServiceImpl(),"toOrderItem",cart);assertEquals(0,item.getGiftIntegration());
+ }
+ @Test void orderPointsUseTheCurrentWalletAndDoNotRequireTheRetiredLedger(){
+  j.execute("CREATE TABLE ums_member(id BIGINT PRIMARY KEY,integration BIGINT)");j.update("INSERT INTO ums_member VALUES(1,100)");
+  j.execute("CREATE TABLE oms_order_point_usage(order_id BIGINT,member_id BIGINT,point_type VARCHAR(20),used_points BIGINT,deducted_amount DECIMAL(18,2))");
+  var wallet=mock(PointsWalletService.class);var account=new UmsPointsAccount();account.setBalance(80L);
+  when(wallet.changePoints(anyLong(),anyInt(),anyString(),anyLong(),anyString(),anyString(),isNull(),anyString())).thenReturn(com.macro.mall.common.api.CommonResult.success(null));
+  when(wallet.getAccount(1L,1)).thenReturn(account);ReflectionTestUtils.setField(orders,"pointsWalletService",wallet);
+  ReflectionTestUtils.invokeMethod(orders,"consumeOrderPoints",9L,1L,1,"PRODUCT",20L,new BigDecimal("20.00"));
+  assertEquals(80L,j.queryForObject("SELECT integration FROM ums_member WHERE id=1",Long.class));
+  assertEquals(20L,j.queryForObject("SELECT used_points FROM oms_order_point_usage WHERE order_id=9",Long.class));
+  account.setBalance(100L);var order=new OmsOrder();order.setId(9L);order.setMemberId(1L);
+  ReflectionTestUtils.invokeMethod(orders,"refundOrderPoints",order);
+  assertEquals(100L,j.queryForObject("SELECT integration FROM ums_member WHERE id=1",Long.class));
+  verify(wallet).changePoints(1L,1,"consume",-20L,"9","order:points:9:PRODUCT",null,"商品订单积分抵扣");
+  verify(wallet).changePoints(1L,1,"earn",20L,"9","order:points-refund:9:PRODUCT",null,"未支付订单取消返还积分");
+ }
  JdbcTemplate j; OmsPortalOrderServiceImpl orders;
  @BeforeEach void setup(){j=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:policy;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa",""));j.execute("DROP ALL OBJECTS");j.execute("CREATE TABLE pms_product_zone(product_id BIGINT,zone_code VARCHAR(20))");j.execute("CREATE TABLE sys_config(config_key VARCHAR(100),config_value VARCHAR(100))");j.update("INSERT INTO pms_product_zone VALUES(1,'CONSUME'),(2,'PICK')");orders=new OmsPortalOrderServiceImpl();ReflectionTestUtils.setField(orders,"jdbcTemplate",j);}
  @Test void mixedZonesRemainIndependent(){

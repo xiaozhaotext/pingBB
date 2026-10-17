@@ -199,8 +199,9 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         orderItem.setPromotionAmount(zeroIfNull(cartPromotionItem.getReduceAmount()));
         orderItem.setPromotionName(cartPromotionItem.getPromotionMessage());
         orderItem.setGiftIntegration(ZoneRules.PICK.equals(ZoneRules.normalize(cartPromotionItem.getZoneCode()))
+                && cartPromotionItem.getIntegration() != null
                 ? cartPromotionItem.getIntegration() : 0);
-        orderItem.setGiftGrowth(cartPromotionItem.getGrowth());
+        orderItem.setGiftGrowth(cartPromotionItem.getGrowth() == null ? 0 : cartPromotionItem.getGrowth());
         orderItem.setCouponAmount(BigDecimal.ZERO);
         orderItem.setIntegrationAmount(BigDecimal.ZERO);
         orderItem.setZoneCode(ZoneRules.normalize(cartPromotionItem.getZoneCode()));
@@ -872,10 +873,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         if (account == null || account.getBalance() == null) Asserts.fail("积分扣减后余额读取失败");
         jdbcTemplate.update("INSERT INTO oms_order_point_usage(order_id,member_id,point_type,used_points,deducted_amount)"
                         + " VALUES(?,?,?,?,?)", orderId, memberId, pointType, points, amount);
-        jdbcTemplate.update("INSERT INTO member_point_ledger"
-                        + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
-                        + " VALUES(?,?,?,?,'PURCHASE_DEDUCTION',?)",
-                memberId, pointType, -points, account.getBalance(), orderId);
         if (walletType == PointsWalletService.TYPE_PRODUCT) {
             jdbcTemplate.update("UPDATE ums_member SET integration=? WHERE id=?", account.getBalance(), memberId);
         }
@@ -896,10 +893,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             com.macro.mall.portal.domain.UmsPointsAccount account =
                     pointsWalletService.getAccount(order.getMemberId(), walletType);
             if (account == null || account.getBalance() == null) Asserts.fail("积分返还后余额读取失败");
-            jdbcTemplate.update("INSERT INTO member_point_ledger"
-                            + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
-                            + " VALUES(?,?,?,?,'REFUND',?)",
-                    order.getMemberId(), pointType, points, account.getBalance(), order.getId());
             if (walletType == PointsWalletService.TYPE_PRODUCT) {
                 jdbcTemplate.update("UPDATE ums_member SET integration=? WHERE id=?",
                         account.getBalance(), order.getMemberId());

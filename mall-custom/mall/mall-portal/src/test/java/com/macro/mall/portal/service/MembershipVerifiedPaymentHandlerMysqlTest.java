@@ -43,6 +43,14 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
                 System.getenv().getOrDefault("MALL_MEMBERSHIP_TEST_DB_USER", "root"),
                 System.getenv().getOrDefault("MALL_MEMBERSHIP_TEST_DB_PASSWORD", ""));
         jdbc = new JdbcTemplate(dataSource);
+        assertTrue(url.contains("/mall_github_audit_"), "test schema must be isolated");
+        for (var entry : java.util.Map.of(
+                "membership.referral.reward_basis", "PAID_AMOUNT",
+                "membership.referral.cash_rate", "0.20",
+                "membership.referral.cofounder.cash_cap", "200.00",
+                "membership.referral.cofounder.repurchase_points", "1000").entrySet()) {
+            jdbc.update("INSERT INTO sys_config(config_key,config_value) VALUES(?,?) ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)", entry.getKey(), entry.getValue());
+        }
         transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         SqlSessionTemplate sqlSession = sqlSession(dataSource);
         PointsWalletServiceImpl points = new PointsWalletServiceImpl();
@@ -115,6 +123,8 @@ class MembershipVerifiedPaymentHandlerMysqlTest {
                 "SELECT available_earnings FROM ums_earnings WHERE member_id=?", BigDecimal.class, referrerId));
         assertEquals(1, count("SELECT COUNT(*) FROM ums_earnings_ledger WHERE member_id=? AND change_type='referral_reward'", referrerId));
         assertEquals(1000, count("SELECT balance FROM ums_points_account WHERE member_id=? AND points_type=2", referrerId));
+        assertEquals(1, count("SELECT COUNT(*) FROM ums_points_ledger WHERE member_id=?", referrerId));
+        assertEquals(0, count("SELECT COUNT(*) FROM member_point_ledger WHERE member_id=?", referrerId));
         assertEquals(0, count("SELECT COUNT(*) FROM member_cash_account WHERE member_id=?", referrerId)); // 第二套账本已弃用
         assertEquals(1, count("SELECT COUNT(*) FROM member_referral_reward WHERE order_id=? AND reward_amount=200.00 AND reward_points=1000", orderId));
         assertEquals(1, count("SELECT COUNT(*) FROM sys_audit_log WHERE target_type='member_referral_reward' AND target_id=?", orderId));

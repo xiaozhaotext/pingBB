@@ -80,10 +80,6 @@ public class MembershipReferralRewardService {
             if (account == null || account.getBalance() == null) throw new IllegalStateException("直推复购积分余额读取失败");
             pointsBefore = Long.toString(account.getBalance() - repurchasePoints);
             pointsAfter = Long.toString(account.getBalance());
-            jdbc.update("INSERT INTO member_point_ledger"
-                            + "(member_id,point_type,change_amount,balance_after,source_type,source_id)"
-                            + " VALUES(?,'REPURCHASE',?,?,'REFERRAL_REWARD',?)",
-                    referrerId, repurchasePoints, account.getBalance(), orderId);
         }
         jdbc.update("INSERT INTO sys_audit_log(operator_name,module,action,target_id,detail,create_time,"
                         + "`operator`,target_type,old_value,new_value,created_at)"
