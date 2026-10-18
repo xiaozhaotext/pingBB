@@ -1,6 +1,6 @@
 """Sandbox-only acceptance: PICK catalog and a visitor's paid travel-route order.
 
-Run on the demo host after applying 55_sandbox_real_tour_routes.sql and deploying
+Run on the demo host after applying migrations 55-57 and deploying
 the matching portal/H5 build. Creates one disposable sandbox account and order.
 """
 import json
@@ -55,6 +55,17 @@ assert mysql("SELECT COUNT(*) FROM pms_product_zone z JOIN pms_product p ON p.id
 assert mysql("SELECT COUNT(*) FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
              "WHERE z.zone_code='PICK' AND (p.name LIKE '%3999旅游权益演示%' "
              "OR p.name LIKE '%自选区赠分演示%')") == "0"
+for route_id in ids:
+    detail = call(f"/product/detail/{route_id}")
+    assert detail and int(detail["product"]["id"]) == route_id, detail
+    assert "第1天" in detail["product"]["detailMobileHtml"], detail
+    assert any(Decimal(str(sku["price"])) == Decimal("3999")
+               and int(sku["stock"] or 0) - max(int(sku["lockStock"] or 0), 0) > 0
+               for sku in detail["skuStockList"]), detail
+    cart_product = call(f"/cart/getProduct/{route_id}")
+    assert cart_product and int(cart_product["id"]) == route_id, cart_product
+    assert any(int(sku["stock"] or 0) - max(int(sku["lockStock"] or 0), 0) > 0
+               for sku in cart_product["skuStockList"]), cart_product
 
 product = ids[0]
 sku = int(mysql(f"SELECT id FROM pms_sku_stock WHERE product_id={product} AND price=3999 "
