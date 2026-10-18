@@ -108,10 +108,14 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         }
         result.setBrand(brand);
         //获取商品属性信息
-        PmsProductAttributeExample attributeExample = new PmsProductAttributeExample();
-        attributeExample.createCriteria().andProductAttributeCategoryIdEqualTo(product.getProductAttributeCategoryId());
-        List<PmsProductAttribute> productAttributeList = productAttributeMapper.selectByExample(attributeExample);
+        List<PmsProductAttribute> productAttributeList = java.util.Collections.emptyList();
+        if (product.getProductAttributeCategoryId() != null) {
+            PmsProductAttributeExample attributeExample = new PmsProductAttributeExample();
+            attributeExample.createCriteria().andProductAttributeCategoryIdEqualTo(product.getProductAttributeCategoryId());
+            productAttributeList = productAttributeMapper.selectByExample(attributeExample);
+        }
         result.setProductAttributeList(productAttributeList);
+        result.setProductAttributeValueList(java.util.Collections.emptyList());
         //获取商品属性值信息
         if(CollUtil.isNotEmpty(productAttributeList)){
             List<Long> attributeIds = productAttributeList.stream().map(PmsProductAttribute::getId).collect(Collectors.toList());
