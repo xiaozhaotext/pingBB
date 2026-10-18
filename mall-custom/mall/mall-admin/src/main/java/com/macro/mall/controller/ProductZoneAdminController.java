@@ -43,14 +43,19 @@ public class ProductZoneAdminController {
         String like = "%" + keyword.trim() + "%";
         return CommonResult.success(jdbc.queryForList(
                 "SELECT p.id,p.name,p.pic,p.price,p.publish_status AS publishStatus," +
+                "(t.product_id IS NOT NULL AND t.enabled=1) AS tourRoute," +
                 "(z.product_id IS NOT NULL) AS assigned,COALESCE(z.sort_order,0) AS sortOrder " +
                 "FROM pms_product p LEFT JOIN pms_product_zone z ON z.product_id=p.id AND z.zone_code=? " +
+                "LEFT JOIN tri_membership_product t ON t.product_id=p.id " +
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
                 (assignedOnly ? "AND z.product_id IS NOT NULL " : "") +
                 "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 100", zone,like,like));
     }
 
-    public record Assignment(@NotNull @Min(1) Long productId, @Min(-10000) @Max(10000) int sortOrder) {}
+    public record Assignment(@NotNull @Min(1) Long productId, @Min(-10000) @Max(10000) int sortOrder,
+                             Boolean tourRoute) {
+        public Assignment(Long productId, int sortOrder) { this(productId,sortOrder,false); }
+    }
 
     @PostMapping("/{zone}/products")
     @Transactional(rollbackFor=Exception.class)
@@ -62,11 +67,16 @@ public class ProductZoneAdminController {
         List<Long> products = jdbc.queryForList("SELECT id FROM pms_product WHERE id=? AND delete_status=0 FOR UPDATE",Long.class,body.productId());
         if (products.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"商品不存在");
         if ("PICK".equals(zone)) {
+            if (!Boolean.TRUE.equals(body.tourRoute()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请确认该商品类型为旅游路线");
             BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?",BigDecimal.class,body.productId());
-            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND price<>3999.00",Integer.class,body.productId());
+            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)",Integer.class,body.productId());
+            Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?",Integer.class,body.productId());
             if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0
-                    || invalidSkus == null || invalidSkus > 0)
+                    || invalidSkus == null || invalidSkus > 0 || skuCount == null || skuCount == 0)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区路线及所有规格必须统一定价3999元");
+            jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?)"
+                    + " ON DUPLICATE KEY UPDATE enabled=1,updated_by=VALUES(updated_by)",body.productId(),operator);
         }
         List<Integer> old = jdbc.queryForList("SELECT sort_order FROM pms_product_zone WHERE product_id=? AND zone_code=?",Integer.class,body.productId(),zone);
         if (!old.isEmpty() && old.get(0)==body.sortOrder()) return CommonResult.success(null);

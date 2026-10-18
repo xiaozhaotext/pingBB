@@ -17,6 +17,7 @@ interface ZoneProduct {
   price: number
   publishStatus: number
   assigned: boolean | number
+  tourRoute: boolean | number
   sortOrder: number
 }
 
@@ -24,7 +25,7 @@ const route = useRoute()
 const router = useRouter()
 // 自选/复购/消费三个专区共用同一套商品管理页面，专区由当前路由名决定
 const ZONES = {
-  pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区商品用现金或余额（充值本金）购买，不能使用产品积分或复购积分。' },
+  pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区只销售3999元旅游路线；游客购买一条并支付成功后升级会员。' },
   rebuyProduct: { code: 'REBUY', label: '复购区', prefix: 'rebuy', rule: '复购区商品按 30% 复购积分 + 70% 现金结算，不能使用产品积分或余额。' },
   consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区商品只能用商品积分购买，不能使用复购积分、余额或现金。' },
 } as const
@@ -77,12 +78,17 @@ function goEdit(row: ZoneProduct) {
   router.push({ name: `${currentZone.value.prefix}UpdateProduct`, query: { id: row.id } })
 }
 async function assign(row: ZoneProduct) {
+  if (zone.value === 'PICK') {
+    try {
+      await ElMessageBox.confirm(`请确认「${row.name}」及所有规格均为3999元旅游路线。加入后将作为会员权益购买入口。`, '确认旅游路线类型', { type: 'warning' })
+    } catch { return }
+  }
   busy.value = row.id
   try {
     await http({
       url: '/p0/zones/' + zone.value + '/products',
       method: 'post',
-      data: { productId: row.id, sortOrder: row.sortOrder || 0 },
+      data: { productId: row.id, sortOrder: row.sortOrder || 0, tourRoute: zone.value === 'PICK' },
     })
     ElMessage.success('已加入' + zoneLabel.value)
     await load()
@@ -179,6 +185,9 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
         <el-table-column prop="price" label="价格" width="96" />
+        <el-table-column v-if="zone === 'PICK'" label="旅游路线" width="100">
+          <template #default="{ row }"><el-tag :type="row.tourRoute ? 'success' : 'info'">{{ row.tourRoute ? '已标记' : '未标记' }}</el-tag></template>
+        </el-table-column>
         <el-table-column label="上架状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.publishStatus === 1 ? 'success' : 'info'">

@@ -42,6 +42,15 @@ public class ProductZoneController {
                         + "(SELECT 1 FROM pms_brand b WHERE b.id=p.brand_id AND b.show_status<>1))");
         List<Object> params = new ArrayList<>();
         params.add(zone);
+        if ("PICK".equals(zone)) {
+            sql.append(" AND p.price=3999.00"
+                    + " AND EXISTS (SELECT 1 FROM tri_membership_product t"
+                    + " WHERE t.product_id=p.id AND t.enabled=1)"
+                    + " AND EXISTS (SELECT 1 FROM pms_sku_stock s"
+                    + " WHERE s.product_id=p.id AND s.price=3999.00)"
+                    + " AND NOT EXISTS (SELECT 1 FROM pms_sku_stock s"
+                    + " WHERE s.product_id=p.id AND (s.price IS NULL OR s.price<>3999.00))");
+        }
         if (keyword != null && !keyword.isBlank()) {
             sql.append(" AND (p.name LIKE ? OR p.keywords LIKE ?)");
             String pattern = "%" + keyword.trim() + "%";

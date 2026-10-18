@@ -25,11 +25,23 @@ public class TriMembershipOrderService {
 
     /** Called in the order creation transaction, after the final payable amount is known. */
     public void snapshot(OmsOrder order,List<OmsOrderItem> items) {
-        if (!enabled() || items.stream().noneMatch(i -> ZoneRules.PICK.equals(i.getZoneCode()))) return;
+        if (items.stream().noneMatch(i -> ZoneRules.PICK.equals(i.getZoneCode()))) return;
+        if (!enabled()) throw new ApiException("旅游路线会员权益暂不可用，请稍后再购买");
         for (OmsOrderItem item : items) {
             if (ZoneRules.PICK.equals(item.getZoneCode())
                     && (item.getProductPrice() == null || item.getProductPrice().compareTo(PRICE) != 0))
                 throw new ApiException("自选区路线统一售价3999元，请联系平台核对商品价格");
+            if (ZoneRules.PICK.equals(item.getZoneCode())) {
+                Integer approved = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p"
+                        + " JOIN pms_product_zone z ON z.product_id=p.id AND z.zone_code='PICK'"
+                        + " JOIN tri_membership_product t ON t.product_id=p.id AND t.enabled=1"
+                        + " JOIN pms_sku_stock s ON s.id=? AND s.product_id=p.id"
+                        + " WHERE p.id=? AND p.publish_status=1 AND p.delete_status=0"
+                        + " AND p.price=3999.00 AND s.price=3999.00", Integer.class,
+                        item.getProductSkuId(), item.getProductId());
+                if (approved == null || approved != 1)
+                    throw new ApiException("自选区仅支持已上架的3999元旅游路线");
+            }
         }
         jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE",Long.class,order.getMemberId());
         if (isMember(order.getMemberId())) return;
@@ -45,10 +57,6 @@ public class TriMembershipOrderService {
                 || order.getPayAmount().add(order.getBalanceAmount() == null ? BigDecimal.ZERO : order.getBalanceAmount())
                         .compareTo(PRICE) != 0)
             throw new ApiException("首次购买会员请单独选择一条3999元自选区路线，不可叠加优惠或其他商品");
-        Integer assigned = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product_zone"
-                + " WHERE product_id=? AND zone_code='PICK'",Integer.class,items.get(0).getProductId());
-        if (assigned == null || assigned != 1)
-            throw new ApiException("首次购买会员请选择已上架的自选区路线");
         List<Long> parents = jdbc.queryForList("SELECT inviter_id FROM ums_member_recommend WHERE member_id=?",
                 Long.class, order.getMemberId());
         if (parents.size() > 1 || (!parents.isEmpty() && parents.get(0).equals(order.getMemberId())))
