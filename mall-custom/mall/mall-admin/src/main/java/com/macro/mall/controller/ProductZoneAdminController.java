@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 
 /** 自选区(PICK)、复购区(REBUY)、消费区(CONSUME)三个专区的商品归属管理，专区之间相互独立。 */
 @RestController
@@ -60,6 +61,13 @@ public class ProductZoneAdminController {
         // Product row lock serializes retries and concurrent zone edits for the same product.
         List<Long> products = jdbc.queryForList("SELECT id FROM pms_product WHERE id=? AND delete_status=0 FOR UPDATE",Long.class,body.productId());
         if (products.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"商品不存在");
+        if ("PICK".equals(zone)) {
+            BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?",BigDecimal.class,body.productId());
+            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND price<>3999.00",Integer.class,body.productId());
+            if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0
+                    || invalidSkus == null || invalidSkus > 0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区路线及所有规格必须统一定价3999元");
+        }
         List<Integer> old = jdbc.queryForList("SELECT sort_order FROM pms_product_zone WHERE product_id=? AND zone_code=?",Integer.class,body.productId(),zone);
         if (!old.isEmpty() && old.get(0)==body.sortOrder()) return CommonResult.success(null);
         if (old.isEmpty()) jdbc.update("INSERT INTO pms_product_zone(product_id,zone_code,sort_order) VALUES(?,?,?)",body.productId(),zone,body.sortOrder());

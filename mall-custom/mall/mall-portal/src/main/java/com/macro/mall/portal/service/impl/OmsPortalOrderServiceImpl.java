@@ -209,16 +209,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     /** 把购物车促销项与优惠券结果合并成按专区结算的输入行。 */
-    private void assertMembershipOffers(List<Long> productIds) {
-        for (Long id : productIds) {
-            Integer offer = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_config WHERE config_key IN ('membership.partner.product_id','membership.cofounder.product_id') AND config_value=?", Integer.class, id.toString());
-            if (offer != null && offer > 0) Asserts.fail("旅游权益商品请通过商品详情的权益购买入口下单，以确保双积分和会员权益正确发放");
-        }
-    }
-
     private List<ZoneSettlementService.Line> settlementLines(List<CartPromotionItem> cartPromotionItemList,
                                                              List<OmsOrderItem> couponItemList) {
-        assertMembershipOffers(cartPromotionItemList.stream().map(CartPromotionItem::getProductId).collect(Collectors.toList()));
         List<ZoneSettlementService.Line> lines = new ArrayList<>();
         for (int index = 0; index < cartPromotionItemList.size(); index++) {
             CartPromotionItem cartPromotionItem = cartPromotionItemList.get(index);

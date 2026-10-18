@@ -995,9 +995,6 @@ const handleToggleFavorite = async () => {
 
 // 立即购买：加购后直接进入确认订单页
 const handleBuy = async () => {
-  if (membershipOffer.value) {
-    uni.navigateTo({ url: '/pages/member/' + (membershipOffer.value === 'COFOUNDER' ? 'cofounder' : 'partner') }); return
-  }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return
@@ -1117,7 +1114,6 @@ const submitComment = async () => {
 
 // 加入购物车
 const handleAddToCart = async () => {
-  if (membershipOffer.value) { uni.showToast({ title: '旅游权益请点立即购买，查看双积分与会员权益', icon: 'none' }); return }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return
