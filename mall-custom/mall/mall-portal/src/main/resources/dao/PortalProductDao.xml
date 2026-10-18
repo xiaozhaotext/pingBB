@@ -32,14 +32,14 @@
             ps.sku_code sku_code,
             ps.price sku_price,
             ps.stock sku_stock,
+            ps.lock_stock sku_lock_stock,
             ps.pic sku_pic
         FROM
             pms_product p
-            LEFT JOIN pms_product_attribute pa ON p.product_attribute_category_id = pa.product_attribute_category_id
+            LEFT JOIN pms_product_attribute pa ON p.product_attribute_category_id = pa.product_attribute_category_id AND pa.type = 0
             LEFT JOIN pms_sku_stock ps ON p.id=ps.product_id
         WHERE
             p.id = #{id}
-            AND pa.type = 0
         ORDER BY pa.sort desc
     </select>
     <select id="getPromotionProductList" resultMap="promotionProductMap">
