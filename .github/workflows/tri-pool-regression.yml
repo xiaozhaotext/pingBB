@@ -1,0 +1,22 @@
+name: Tri-pool regression
+
+on:
+  pull_request:
+    paths:
+      - 'mall-custom/mall/**'
+      - '.github/workflows/tri-pool-regression.yml'
+
+jobs:
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: mall-custom/mall/pom.xml
+      - name: Compile and test dividend and route purchase rules
+        working-directory: mall-custom/mall
+        run: mvn -B -pl mall-common,mall-admin,mall-portal -am -DskipTests=false -Dtest=TriPoolRulesTest,TriMembershipOrderServiceTest,ProductZoneAdminControllerTest -Dsurefire.failIfNoSpecifiedTests=false test
