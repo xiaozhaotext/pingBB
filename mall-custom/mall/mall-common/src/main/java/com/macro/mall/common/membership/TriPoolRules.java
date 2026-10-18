@@ -31,9 +31,12 @@ public final class TriPoolRules {
 
     public static BigDecimal partnerCap(long referrals) {
         validateReferrals(referrals);
-        if (referrals >= 9) return new BigDecimal("24000.00");
+        // Every three direct paid members opens the next 8000 tier. Keep the
+        // specifically confirmed 11-person amount; do not round it to 26400.
+        if (referrals == 11) return new BigDecimal("25400.00");
         if (referrals < 3) return BigDecimal.valueOf((referrals + 1) * 1200).setScale(2);
-        return BigDecimal.valueOf((referrals / 3) * 8000 + (referrals % 3) * 1200).setScale(2);
+        return BigDecimal.valueOf(referrals / 3).multiply(BigDecimal.valueOf(8000))
+                .add(BigDecimal.valueOf(referrals % 3).multiply(BigDecimal.valueOf(1200))).setScale(2);
     }
 
     public static BigDecimal contribution(Pool pool) {

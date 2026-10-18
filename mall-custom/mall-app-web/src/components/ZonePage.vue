@@ -75,7 +75,7 @@ const isConsume = computed(() => props.zone === 'CONSUME')
 const zoneTip = computed(() => {
   if (props.zone === 'REBUY') return '复购区商品按 30% 复购积分 + 70% 现金结算，不能使用商品积分或余额。'
   if (props.zone === 'CONSUME') return '消费区商品仅用商品积分购买，不收取现金，也不使用复购积分或余额。'
-  return '自选区商品按现金或余额（充值本金）结算，不能使用商品积分或复购积分。'
+  return '自选区路线统一售价3999元，可用现金或余额购买。游客首次单独购买一条路线后成为会员，获3999复购积分和3999消费积分。'
 })
 const priceText = (item: ZoneProduct) => (isConsume.value ? `${item.price} 积分` : `¥${item.price}`)
 onShow(() => { loadCategories(); load() })
