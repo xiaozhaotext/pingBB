@@ -7,7 +7,6 @@ import com.macro.mall.model.OmsOrderItem;
 import com.macro.mall.portal.domain.ZoneRules;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.*;
 import static com.macro.mall.common.membership.TriPoolRules.*;
@@ -46,6 +45,10 @@ public class TriMembershipOrderService {
                 || order.getPayAmount().add(order.getBalanceAmount() == null ? BigDecimal.ZERO : order.getBalanceAmount())
                         .compareTo(PRICE) != 0)
             throw new ApiException("首次购买会员请单独选择一条3999元自选区路线，不可叠加优惠或其他商品");
+        Integer assigned = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product_zone"
+                + " WHERE product_id=? AND zone_code='PICK'",Integer.class,items.get(0).getProductId());
+        if (assigned == null || assigned != 1)
+            throw new ApiException("首次购买会员请选择已上架的自选区路线");
         List<Long> parents = jdbc.queryForList("SELECT inviter_id FROM ums_member_recommend WHERE member_id=?",
                 Long.class, order.getMemberId());
         if (parents.size() > 1 || (!parents.isEmpty() && parents.get(0).equals(order.getMemberId())))

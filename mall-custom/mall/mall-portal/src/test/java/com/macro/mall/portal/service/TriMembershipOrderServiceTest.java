@@ -20,6 +20,7 @@ class TriMembershipOrderServiceTest {
   item.setProductPrice(TriPoolRules.PRICE);item.setZoneCode("PICK");
   when(jdbc.queryForList(anyString(),eq(Long.class),eq(1L))).thenReturn(List.of(2L));
   when(jdbc.queryForObject(anyString(),eq(Integer.class),eq(1L))).thenReturn(0);
+  when(jdbc.queryForObject(contains("FROM pms_product_zone"),eq(Integer.class),eq(7L))).thenReturn(1);
   service.snapshot(order,List.of(item));
   verify(jdbc).update(contains("tri_order_snapshot"),eq(10L),eq(1L),eq(7L),eq(2L),eq(TriPoolRules.PRICE),eq(TriPoolRules.VERSION));
   when(jdbc.queryForList(contains("FROM tri_order_snapshot WHERE order_id"),eq(10L)))
