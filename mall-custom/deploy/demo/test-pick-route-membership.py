@@ -1,6 +1,6 @@
 """Sandbox-only acceptance: PICK catalog and a visitor's paid travel-route order.
 
-Run on the demo host after applying 54_sandbox_pick_tours_only.sql and deploying
+Run on the demo host after applying 55_sandbox_real_tour_routes.sql and deploying
 the matching portal/H5 build. Creates one disposable sandbox account and order.
 """
 import json
@@ -38,13 +38,23 @@ def mysql(sql):
 
 
 catalog = call("/product/zone/PICK")
-assert catalog, "PICK catalog is empty"
+assert len(catalog) == 3, catalog
 assert all(Decimal(str(item["price"])) == Decimal("3999") for item in catalog), catalog
+assert all("游" in item["name"] and item["pic"].startswith("/sandbox/static/travel-photo/")
+           for item in catalog), catalog
+assert {item["name"] for item in catalog} == {
+    "云南雪山湖泊6日游", "三亚海岸度假5日游", "山水湖畔慢游5日游"}, catalog
 ids = [int(item["id"]) for item in catalog]
 assert mysql("SELECT COUNT(*) FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
              "LEFT JOIN tri_membership_product t ON t.product_id=p.id AND t.enabled=1 "
              "WHERE z.zone_code='PICK' AND (p.price<>3999 OR t.product_id IS NULL)") == "0"
 assert mysql("SELECT COUNT(*) FROM pms_product_zone WHERE zone_code='PICK'") == str(len(ids))
+assert mysql("SELECT COUNT(*) FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
+             "WHERE z.zone_code='PICK' AND p.product_category_name='旅游路线' "
+             "AND p.detail_mobile_html LIKE '%第1天%' AND p.detail_mobile_html LIKE '%返程%'") == "3"
+assert mysql("SELECT COUNT(*) FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
+             "WHERE z.zone_code='PICK' AND (p.name LIKE '%3999旅游权益演示%' "
+             "OR p.name LIKE '%自选区赠分演示%')") == "0"
 
 product = ids[0]
 sku = int(mysql(f"SELECT id FROM pms_sku_stock WHERE product_id={product} AND price=3999 "
