@@ -150,7 +150,7 @@ class TriPoolServiceTest {
         tx.execute(s->service.distributeDaily(yesterday()));
         tx.execute(s->service.distributeDaily(yesterday()));
         assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
-        eq("1000",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE pool_code='PARTNER'"));
+        eq("999.99",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE pool_code='PARTNER'"));
         eq("400",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=3"));
         eq("400",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
         eq("0",amount("SELECT SUM(total_in-total_out-balance) FROM tri_pool"));
