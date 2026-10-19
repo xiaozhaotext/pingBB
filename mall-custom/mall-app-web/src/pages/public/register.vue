@@ -75,6 +75,7 @@
         </view>
       </view>
       <button class="confirm-btn" role="button" @click="handleRegister" :loading="registering" :disabled="registering || sendingCode">{{ registering ? '注册中…' : '注册' }}</button>
+      <button class="login-link" role="button" @click="goLogin">已有账号？去登录</button>
     </view>
   </view>
 </template>
@@ -102,7 +103,14 @@ const handlePhoneInput = (event: { detail: { value: string } }) => {
 }
 onLoad((options) => {
   const savedCode = uni.getStorageSync('pendingInviteCode')
-  formData.value.inviteCode = String(options?.inviteCode || savedCode || '').trim().toUpperCase()
+  // H5 QR links carry their parameters after #; retain the code even if a
+  // browser/webview opens the hash route without forwarding onLoad options.
+  let hashCode = ''
+  // #ifdef H5
+  hashCode = new URLSearchParams(window.location.hash.split('?')[1] || '').get('inviteCode') || ''
+  // #endif
+  formData.value.inviteCode = String(options?.inviteCode || hashCode || savedCode || '').trim().toUpperCase()
+  if (formData.value.inviteCode) uni.setStorageSync('pendingInviteCode', formData.value.inviteCode)
 })
 // 注册加载状态
 const registering = ref(false)
@@ -236,6 +244,7 @@ const startCountdown = () => {
 }
 
 // 返回上一页
+const goLogin = () => uni.redirectTo({ url: '/pages/public/login' })
 const navBack = () => {
   uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/public/login' }) })
 }
@@ -442,6 +451,18 @@ page {
   &:after {
     border-radius: 100px;
   }
+}
+
+.login-link {
+  display: block;
+  margin: 28rpx auto 0;
+  padding: 12rpx 24rpx;
+  background: transparent;
+  color: $uni-color-primary;
+  font-size: $font-base;
+  line-height: 1.5;
+
+  &::after { border: none; }
 }
 </style>
 

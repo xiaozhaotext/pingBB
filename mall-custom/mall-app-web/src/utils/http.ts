@@ -16,11 +16,15 @@ const handleExpiredSession = (requestToken: string) => {
   const currentToken = uni.getStorageSync(tokenStorageKey)
   // An old in-flight response must not log out a newly authenticated session.
   if (currentToken && currentToken !== requestToken) return
-  if (loginRedirectPending) return
-  loginRedirectPending = true
+  // A guest request may receive 401 while a public page is opening. It must
+  // not replace the registration page with login.
+  if (!requestToken) return
   useMemberStore().memberLogout()
   const pages = getCurrentPages()
-  if (pages[pages.length - 1]?.route !== 'pages/public/login') {
+  const route = pages[pages.length - 1]?.route || ''
+  if (route.startsWith('pages/public/') || loginRedirectPending) return
+  loginRedirectPending = true
+  if (route !== 'pages/public/login') {
     uni.showToast({ icon: 'none', title: '登录已失效，请重新登录' })
     uni.navigateTo({ url: '/pages/public/login' })
   }
