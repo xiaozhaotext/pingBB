@@ -38,7 +38,7 @@ class TriPoolServiceTest {
     BigDecimal amount(String sql,Object...args){return jdbc.queryForObject(sql,BigDecimal.class,args);}
     void eq(String expected,BigDecimal actual){assertEquals(0,new BigDecimal(expected).compareTo(actual));}
     LocalDate yesterday(){return LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1);}
-    void backdateFunds(){jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.valueOf(yesterday().atTime(12,0)));}
+    void backdateFunds(){jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(yesterday().atTime(12,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant()));}
 
     @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
         var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);

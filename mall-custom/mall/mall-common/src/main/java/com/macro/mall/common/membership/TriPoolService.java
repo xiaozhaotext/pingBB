@@ -81,7 +81,7 @@ public class TriPoolService {
             throw new IllegalArgumentException("只能结算已结束的北京时间日期");
         lockPools();
         String key="DAILY:"+statDate;
-        Timestamp cutoff=Timestamp.valueOf(statDate.plusDays(1).atStartOfDay());
+        Timestamp cutoff=Timestamp.from(statDate.plusDays(1).atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant());
         var results=new ArrayList<Map<String,Object>>();
         for (Pool pool:Pool.values()) {
             var previous=jdbc.queryForList("SELECT * FROM tri_pool_batch WHERE pool_code=? AND source_key=? FOR UPDATE",pool.name(),key);
