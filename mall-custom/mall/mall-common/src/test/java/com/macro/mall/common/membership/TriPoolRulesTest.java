@@ -8,8 +8,8 @@ import static com.macro.mall.common.membership.TriPoolRules.*;
 
 class TriPoolRulesTest {
     @Test void confirmedCapsAndShares() {
-        long[] caps = {1200,2400,3600,8000,9200,10400,16000,17200,18400,32000,
-                33200,34400,64000,65200,66400,128000,129200,130400,256000};
+        long[] caps = {1200,2400,3600,8000,9200,10400,16000,17200,18400,24000,
+                25200,26400,32000,33200,34400,40000,41200,42400,48000};
         for (int n=0;n<caps.length;n++) {
             assertEquals(new BigDecimal(caps[n]+".00"),partnerCap(n));
             assertEquals(n+1,partnerShares(n));
@@ -31,20 +31,20 @@ class TriPoolRulesTest {
         assertEquals(new BigDecimal("100.00"),awards.get(2).amount());
         assertTrue(awards.stream().allMatch(a->a.totalShares()==12));
     }
-    @Test void eachCompletedGroupDoublesAndInterveningUsersAddTwelveHundred() {
-        assertEquals(new BigDecimal("4096000.00"),partnerCap(30));
-        assertEquals(new BigDecimal("4194304000.00"),partnerCap(60));
+    @Test void eachCompletedGroupAddsEightThousandAndInterveningUsersAddTwelveHundred() {
+        assertEquals(new BigDecimal("80000.00"),partnerCap(30));
+        assertEquals(new BigDecimal("160000.00"),partnerCap(60));
         for(int n=3;n<=120;n+=3) {
-            if(n>3)assertEquals(partnerCap(n-3).multiply(BigDecimal.valueOf(2)),partnerCap(n));
+            if(n>3)assertEquals(partnerCap(n-3).add(new BigDecimal("8000.00")),partnerCap(n));
             assertEquals(partnerCap(n).add(new BigDecimal("1200.00")),partnerCap(n+1));
             assertEquals(partnerCap(n).add(new BigDecimal("2400.00")),partnerCap(n+2));
         }
     }
-    @Test void raisedCapDoesNotResetPreviousReceipts() {
+    @Test void capDoesNotResetPreviousReceipts() {
         var awards=allocate(new BigDecimal("20000.00"),List.of(
                 new Position(1,Tier.COFOUNDER,10,partnerCap(9),new BigDecimal("23999.00"))));
-        assertEquals(new BigDecimal("8001.00"),awards.get(0).amount());
-        assertEquals(new BigDecimal("32000.00"),awards.get(0).cap());
+        assertEquals(new BigDecimal("1.00"),awards.get(0).amount());
+        assertEquals(new BigDecimal("24000.00"),awards.get(0).cap());
     }
     @Test void upgradesNeverResetCumulativeReceipts() {
         var awards=allocate(new BigDecimal("9000.00"),List.of(

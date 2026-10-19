@@ -187,7 +187,7 @@ class TriPoolServiceTest {
         tx.execute(s->service.distributeDaily(yesterday()));
         eq("500",amount("SELECT SUM(amount) FROM tri_pool_distribution"));
     }
-    @Test void memberSummaryUsesExponentialCapAndKeepsHistoricalReceipts() {
+    @Test void memberSummaryUsesStepCapAndKeepsHistoricalReceipts() {
         buy(1,null);
         jdbc.update("UPDATE tri_member SET direct_paid_count=9,tier='COFOUNDER' WHERE member_id=1");
         jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'PARTNER',23999)");
@@ -195,7 +195,7 @@ class TriPoolServiceTest {
         @SuppressWarnings("unchecked") var pools=(List<Map<String,Object>>)summary.get("pools");
         var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
         var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
-        eq("32000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("8001",(BigDecimal)partner.get("remaining"));
+        eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
         eq("1200",(BigDecimal)cofounder.get("cap"));
     }
 }
