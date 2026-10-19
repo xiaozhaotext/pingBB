@@ -80,7 +80,7 @@ class TriPoolServiceTest {
         eq("800",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
         eq("2000",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
         assertEquals(10800L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND idempotency_key LIKE '%referrer%'",Long.class));
-        assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(new BigDecimal("24000"))<=0);
+        assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(TriPoolRules.partnerCap(9))<=0);
     }
     @Test void pointsFailureRollsBackMembershipFundingAndAwards() {
         assertThrows(IllegalStateException.class,()->tx.execute(s->service.acceptPayment("ORDER:1",1,null,TriPoolRules.PRICE,(m,t,p,k)->{throw new IllegalStateException("wallet unavailable");})));
