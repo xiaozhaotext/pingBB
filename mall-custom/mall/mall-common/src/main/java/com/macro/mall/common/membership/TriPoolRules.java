@@ -32,9 +32,9 @@ public final class TriPoolRules {
     public static BigDecimal partnerCap(long referrals) {
         validateReferrals(referrals);
         if (referrals < 3) return BigDecimal.valueOf((referrals + 1) * 1200).setScale(2);
-        // Every completed group of three doubles the 4000 base; remaining
+        // Each completed group of three adds 4000 * 2 = 8000; remaining
         // direct paid referrals add 1200 each. BigDecimal avoids long overflow.
-        return BigDecimal.valueOf(4000).multiply(BigDecimal.valueOf(2).pow(Math.toIntExact(referrals / 3)))
+        return BigDecimal.valueOf(referrals / 3).multiply(BigDecimal.valueOf(8000))
                 .add(BigDecimal.valueOf(referrals % 3).multiply(BigDecimal.valueOf(1200))).setScale(2);
     }
 
