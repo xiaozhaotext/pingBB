@@ -12,14 +12,18 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * 三区购买规则隔离：自选区现金/余额、复购区复购积分+现金、消费区商品积分。
  * 专区之间不允许串用结算方式，混合下单时按专区分别计算再汇总现金应付金额。
  */
 class ZoneSettlementServiceTest {
-    private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+    private final JdbcTemplate jdbc = new JdbcTemplate() {
+        @Override
+        public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
+            return null; // No sys_config row: use documented settlement defaults.
+        }
+    };
     private final ZoneSettlementService service = new ZoneSettlementService(jdbc);
 
     /** 配置缺失时回退默认值：复购积分比例 30%、1 商品积分 = 1 元、最高抵扣 100%。 */
@@ -95,6 +99,49 @@ class ZoneSettlementServiceTest {
         assertAmount("70.00", rebuy.getCashAmount());
         assertEquals(0, rebuy.getProductPoints());
         assertTrue(rebuy.isPayable());
+    }
+
+    @Test
+    @DisplayName("复购区：30%积分，现金部分先扣余额，不足差额留给外部支付")
+    void rebuyZoneUsesPartialBalanceBeforeExternalPayment() {
+        ZoneSettlement settlement = service.settle(
+                List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)),
+                true, true, wallets(0, 30, "40.00"));
+        ZoneSettlement.Plan rebuy = plan(settlement, ZoneRules.REBUY);
+        assertEquals(30, rebuy.getRepurchasePoints());
+        assertAmount("30.00", rebuy.getRepurchasePointAmount());
+        assertAmount("40.00", rebuy.getBalanceAmount());
+        assertAmount("30.00", rebuy.getCashAmount());
+        assertAmount("40.00", settlement.getBalanceAmount());
+        assertAmount("30.00", settlement.getCashAmount());
+        assertTrue(rebuy.isPayable());
+    }
+
+    @Test
+    @DisplayName("复购区：积分及余额足额时现金为零")
+    void rebuyZoneCanFinishWithoutExternalPayment() {
+        ZoneSettlement settlement = service.settle(
+                List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)),
+                true, true, wallets(0, 30, "100.00"));
+        assertAmount("70.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
+        assertAmount("0.00", settlement.getCashAmount());
+    }
+
+    @Test
+    @DisplayName("混合订单先为自选区预留余额，复购区不能重复抵扣")
+    void mixedCartDoesNotSpendBalanceTwice() {
+        ZoneSettlement settlement = service.settle(
+                List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
+                                BigDecimal.ZERO, BigDecimal.ZERO),
+                        new ZoneSettlementService.Line(ZoneRules.PICK, new BigDecimal("80.00"), 1,
+                                BigDecimal.ZERO, BigDecimal.ZERO)),
+                true, true, wallets(0, 30, "100.00"));
+        assertAmount("80.00", plan(settlement, ZoneRules.PICK).getBalanceAmount());
+        assertAmount("20.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
+        assertAmount("50.00", settlement.getCashAmount());
+        assertAmount("100.00", settlement.getBalanceAmount());
     }
 
     @Test
@@ -229,7 +276,8 @@ class ZoneSettlementServiceTest {
                 true, true, wallets(0, 9999, "10.00"));
         assertFalse(plan(settlement, ZoneRules.PICK).isPayable());
         assertTrue(plan(settlement, ZoneRules.REBUY).isPayable());
-        assertAmount("70.00", settlement.getCashAmount());
+        assertAmount("60.00", settlement.getCashAmount());
+        assertAmount("10.00", settlement.getBalanceAmount());
         assertAmount("30.00", settlement.getRepurchasePointAmount());
     }
 }

@@ -49,7 +49,7 @@
         <text class="name">支付方式</text>
       </view>
       <view class="zone-plan-empty" v-if="zonePlans.length === 0">暂无可结算商品</view>
-      <!-- 按专区隔离结算：各专区只能使用本专区规则，不能串用 -->
+      <!-- 按专区隔离积分；复购区现金部分可由余额和外部支付分担 -->
       <view class="zone-plan" v-for="plan in zonePlans" :key="plan.zoneCode">
         <view class="zone-plan-head">
           <text class="zone-plan-title">{{ plan.zoneLabel }}</text>
@@ -68,15 +68,19 @@
           <text class="cell-tit clamp">优惠券抵扣</text>
           <text class="cell-tip red">{{ formatOrderDeduction(plan.couponAmount) }}</text>
         </view>
-        <!-- 自选区：现金或余额（充值本金）二选一 -->
+        <!-- 混合订单使用同一余额账户：先支付自选区，再支付复购区 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'PICK'">
-          <text class="cell-tit clamp">使用余额支付<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，余额与现金二选一）</text></text>
+          <text class="cell-tit clamp">使用余额支付<text class="cell-sub">（可用 {{ money(rechargeBalance) }}{{ hasRebuyZone ? '，先付自选区，剩余可付复购区' : '，余额与现金二选一' }}）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 复购区：30%复购积分 + 70%现金 -->
+        <!-- 复购区：积分抵扣后余额优先，不足部分走外部支付 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'REBUY'">
-          <text class="cell-tit clamp">复购积分{{ rebuyPercent }}%+现金<text class="cell-sub">（需 {{ plan.repurchasePoints }} 积分，可用 {{ repurchasePointsBalance }}）</text></text>
+          <text class="cell-tit clamp">复购积分{{ rebuyPercent }}%+余额/现金<text class="cell-sub">（需 {{ plan.repurchasePoints }} 积分，可用 {{ repurchasePointsBalance }}）</text></text>
           <switch :checked="useRepurchasePoints" @change="handleRepurchaseToggle" />
+        </view>
+        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'REBUY' && !hasPickZone">
+          <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
+          <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
         <!-- 消费区：仅用商品积分购买 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
@@ -122,7 +126,7 @@
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.couponAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.balanceAmount) > 0">
-        <text class="cell-tit clamp">余额抵扣（自选区）</text>
+        <text class="cell-tit clamp">余额抵扣（自选区/复购区）</text>
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.balanceAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.repurchasePointAmount) > 0">
@@ -222,11 +226,11 @@ const cartPromotionItemList = ref<CartPromotionItem[]>([])
 const calcAmount = ref<CalcAmount>({} as CalcAmount)
 // 当前选中的优惠券
 const currCoupon = ref<SmsCoupon | null>(null)
-// 自选区是否使用余额（充值本金）支付；余额与现金二选一
+// 余额用于自选区全额支付，复购区则支付积分抵扣后的可用部分
 const useBalance = ref(false)
-// 复购区是否使用「30%复购积分 + 70%现金」模式
-const useRepurchasePoints = ref(false)
-// 三个账户可用余额：商品积分（消费区）、复购积分（复购区）、余额（自选区）
+// 复购区默认使用积分抵扣；不足时用户可切换为全现金
+const useRepurchasePoints = ref(true)
+// 三个账户可用余额：商品积分、复购积分、余额
 const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
 const rechargeBalance = ref(0)
@@ -242,10 +246,13 @@ const submitting = ref(false)
 const settlementPending = ref(false)
 const settlementReady = ref(false)
 let settlementRevision = 0
+let initialBalancePreferenceApplied = false
 
 // ===== 计算属性 =====
 // 各专区结算明细：每个专区只能使用本专区规则，不能串用
 const zonePlans = computed(() => zoneSettlement.value?.plans || [])
+const hasPickZone = computed(() => zonePlans.value.some((plan) => plan.zoneCode === 'PICK'))
+const hasRebuyZone = computed(() => zonePlans.value.some((plan) => plan.zoneCode === 'REBUY'))
 // 复购积分抵扣百分比
 const rebuyPercent = computed(() => Math.round((Number(rebuyPointsRatio.value) || 0) * 100))
 // 消费区需要支付的商品积分总数
@@ -276,6 +283,16 @@ const refreshSettlement = async () => {
     })
     if (revision !== settlementRevision) return
     if (!res.data || !Array.isArray(res.data.zoneSettlement?.plans)) throw new Error('无有效结算结果')
+    // 仅含复购区的订单默认优先使用余额；混合自选区订单需用户明确选择。
+    if (!initialBalancePreferenceApplied) {
+      initialBalancePreferenceApplied = true
+      const plans = res.data.zoneSettlement.plans
+      if (plans.some((plan) => plan.zoneCode === 'REBUY') && !plans.some((plan) => plan.zoneCode === 'PICK')) {
+        useBalance.value = true
+        await refreshSettlement()
+        return
+      }
+    }
     applyConfirmOrder(res.data)
     settlementReady.value = true
   } catch (e) {

@@ -103,10 +103,10 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     /**
      * 生成确认单：按专区隔离计算每个专区的结算方式与最终金额。
      *
-     * <p>自选区只能现金或余额（充值本金），复购区只能复购积分加现金，消费区只能用商品积分，
+     * <p>自选区只能现金或余额（充值本金），复购区可用复购积分、余额及现金，消费区只能用商品积分，
      * 专区之间不允许串用；最终现金应付 = 各专区现金部分之和。
      *
-     * @param useBalance          自选区是否用余额（充值本金）支付
+     * @param useBalance          自选区及复购区是否用余额（充值本金）支付
      * @param useRepurchasePoints 复购区是否用「复购积分 + 现金」模式，false 表示复购区全现金
      */
     private ConfirmOrderResult buildConfirmOrder(List<Long> cartIds, Long couponId,
@@ -297,7 +297,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //对下单商品的优惠券进行处理
             handleCouponAmount(orderItemList, couponHistoryDetail);
         }
-        //按专区隔离结算：自选区现金/余额，复购区复购积分+现金，消费区商品积分，专区之间不能串用
+        //按专区隔离结算：自选区现金/余额，复购区复购积分+余额/现金，消费区商品积分
         boolean useBalance = Boolean.TRUE.equals(orderParam.getUseBalance());
         boolean useRepurchasePoints = orderParam.getUseRepurchasePoints() != null
                 && orderParam.getUseRepurchasePoints() > 0;
@@ -385,11 +385,11 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_REPURCHASE,
                     "REPURCHASE", repurchasePointsUsed, settlement.getRepurchasePointAmount());
         }
-        //自选区使用余额（充值本金）支付：与现金二选一，同一事务内扣减并写流水
+        //订单使用余额（充值本金）支付：与积分扣减同一事务执行并写流水
         if (settlement.getBalanceAmount().signum() > 0) {
             rechargeService.spendBalance(currentMember.getId(),
                     settlement.getBalanceAmount().movePointRight(2).longValueExact(),
-                    Long.toString(order.getId()), "order:balance:" + order.getId(), "自选区订单余额支付");
+                    Long.toString(order.getId()), "order:balance:" + order.getId(), "专区订单余额支付");
         }
         for (OmsOrderItem orderItem : orderItemList) {
             orderItem.setOrderId(order.getId());
@@ -411,7 +411,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         boolean cashFree = order.getPayAmount() != null && order.getPayAmount().signum() == 0;
         if (cashFree) {
             // 余额或商品积分已全额抵扣，订单没有现金部分，不需要再走现金渠道
-            settleWithoutCash(order.getId(), productPointsUsed + repurchasePointsUsed, order.getPayAmount());
+            settleWithoutCash(order.getId(), productPointsUsed + repurchasePointsUsed,
+                    settlement.getBalanceAmount(), order.getPayAmount());
         } else {
             //发送延迟消息取消订单
             sendDelayMessageCancelOrder(order.getId());
@@ -837,8 +838,10 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      * 订单最终应付现金为 0（余额或商品积分已全额抵扣）时，直接按非现金渠道确认支付，
      * 避免订单停留在待付款、无法通过现金渠道支付。
      */
-    private void settleWithoutCash(Long orderId, long pointsUsed, BigDecimal cashAmount) {
-        String channel = pointsUsed > 0 ? "POINTS" : "BALANCE";
+    private void settleWithoutCash(Long orderId, long pointsUsed, BigDecimal balanceAmount,
+                                   BigDecimal cashAmount) {
+        String channel = pointsUsed > 0
+                ? (balanceAmount.signum() > 0 ? "POINTS_BALANCE" : "POINTS") : "BALANCE";
         jdbcTemplate.update("INSERT INTO oms_payment_confirmation"
                         + "(order_id,channel_code,channel_trade_no,paid_amount,currency_code) VALUES(?,?,?,?,'CNY')",
                 orderId, channel, channel + "-" + orderId, cashAmount);
