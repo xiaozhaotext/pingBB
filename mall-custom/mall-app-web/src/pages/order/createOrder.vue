@@ -195,6 +195,7 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
+import { parseCartIds } from '@/utils/cartCheckout'
 import { formatOrderDeduction } from '@/utils/order-display'
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
@@ -333,10 +334,13 @@ defineExpose({
 
 // 页面加载时执行
 onLoad((option) => {
-  if (option?.cartIds) {
-    cartIds.value = JSON.parse(option.cartIds)
-    loadData()
+  const ids = parseCartIds(option?.cartIds)
+  if (ids.length === 0) {
+    uni.showToast({ title: '结算商品参数无效，请返回购物车重试', icon: 'none' })
+    return
   }
+  cartIds.value = ids
+  loadData()
 })
 
 // ===== 事件处理方法 =====
@@ -967,3 +971,4 @@ page {
 .footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
 .footer .price-content .pay-warn{color:#e93b3d}
 </style>
+
