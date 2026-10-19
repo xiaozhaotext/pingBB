@@ -41,7 +41,12 @@ class ConsumptionAndContactTest {
   var settlement=new ZoneSettlementService(j).settle(List.of(new ZoneSettlementService.Line("PICK",new BigDecimal("100"),1,BigDecimal.ZERO,BigDecimal.ZERO),new ZoneSettlementService.Line("CONSUME",new BigDecimal("50"),1,BigDecimal.ZERO,BigDecimal.ZERO)),false,false,new ZoneSettlementService.Wallets(50,0,BigDecimal.ZERO));
   assertEquals(0,new BigDecimal("100.00").compareTo(settlement.getCashAmount()));assertEquals(0,new BigDecimal("50.00").compareTo(settlement.getProductPointAmount()));
  }
- @Test void explicitlyMappedTravelMustUseMembershipFulfillment(){j.update("INSERT INTO sys_config VALUES('membership.partner.product_id','2')");assertThrows(ApiException.class,()->ReflectionTestUtils.invokeMethod(orders,"assertMembershipOffers",List.of(2L)));}
+ @Test void travelCannotBypassMembershipPriceValidation(){
+  var pools=mock(com.macro.mall.common.membership.TriPoolService.class);when(pools.enabled()).thenReturn(true);
+  var fulfillment=new TriMembershipOrderService(pools,j,mock(PointsWalletService.class));
+  var item=new OmsOrderItem();item.setZoneCode("PICK");item.setProductPrice(new BigDecimal("100"));
+  assertThrows(ApiException.class,()->fulfillment.snapshot(new OmsOrder(),List.of(item)));
+ }
  @Test void consumptionCanNeverBecomePartialCashPayment(){
   j.update("INSERT INTO sys_config VALUES('product.points.max_ratio','0.5')");
   var result=new ZoneSettlementService(j).settle(List.of(new ZoneSettlementService.Line("CONSUME",new BigDecimal("100.00"),1,BigDecimal.ZERO,BigDecimal.ZERO)),false,false,new ZoneSettlementService.Wallets(1000,0,BigDecimal.ZERO));
