@@ -26,7 +26,7 @@
     <view v-if="info?.tier === 'VISITOR'" class="card"
       ><text class="subtitle">选择路线 · ¥3999</text
       ><text>前往自选区选择任意一条路线，单独下单并支付成功后自动成为会员。</text
-      ><button @click="uni.navigateTo({ url: '/pages/zone/pick' })">前往自选区选路线</button
+      ><button @click="openRoute">前往自选区选路线</button
       ><text>也可直接购买3999元会员身份。</text
       ><template v-if="sandboxMode && paymentOptions?.sandbox"
         ><text>演示沙箱：不扣真实资金，身份、积分和三池流水仅写入独立测试库。</text
@@ -60,6 +60,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+function openRoute() { uni.navigateTo({ url: '/pages/zone/pick' }) }
 import { getTriPoolsAPI, tierNames, type TriSummary } from '@/apis/triPools'
 const info = ref<TriSummary | null>(null),
   error = ref('')
