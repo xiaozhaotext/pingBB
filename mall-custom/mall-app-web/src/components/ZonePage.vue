@@ -6,7 +6,7 @@
         <view><text class="zone-kicker">智美游 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=0')">我的订单</text></view>
       </view>
-      <view class="zone-tip">本地测试环境：专区仅展示已分配商品。{{ zoneTip }}</view>
+      <view class="zone-tip">专区仅展示已分配且上架的商品。{{ zoneTip }}</view>
       <view class="zone-filters">
         <input v-model="keyword" placeholder="搜索专区商品" confirm-type="search" @confirm="load" />
         <text class="zone-search-button" @click="load">搜索</text>
@@ -73,7 +73,7 @@ const load = async () => {
 const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id, props.zone) }
 const isConsume = computed(() => props.zone === 'CONSUME')
 const zoneTip = computed(() => {
-  if (props.zone === 'REBUY') return '复购区商品按 30% 复购积分 + 70% 现金结算，不能使用商品积分或余额。'
+  if (props.zone === 'REBUY') return '复购区先用复购积分抵扣配置比例（默认 30%），余款优先使用账户余额，余额不足再通过外部支付。'
   if (props.zone === 'CONSUME') return '消费区商品仅用商品积分购买，不收取现金，也不使用复购积分或余额。'
   return '自选区路线统一售价3999元，可用现金或余额购买。游客首次单独购买一条路线后成为会员，获3999复购积分和3999消费积分。'
 })

@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import java.security.SecureRandom;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class InvitationServiceImpl implements InvitationService {
@@ -33,7 +34,7 @@ public class InvitationServiceImpl implements InvitationService {
                 || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null) {
             throw new IllegalStateException("商城公开地址配置无效");
         }
-        return publicBaseUrl.replaceAll("/+$", "") + "/#/pages/member/invitation?inviteCode=" + code;
+        return publicBaseUrl.replaceAll("/+$", "") + "/#/pages/public/register?inviteCode=" + code;
     }
 
     @Autowired
@@ -77,25 +78,26 @@ public class InvitationServiceImpl implements InvitationService {
         if (!StringUtils.hasText(code)) {
             return CommonResult.failed("邀请码不能为空");
         }
+        String normalizedCode = code.trim().toUpperCase(Locale.ROOT);
         // 同一被邀请人并发提交时串行检查，避免两次请求都通过已绑定检查。
         jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE", Long.class, inviteeId);
         if (recommendMapper.selectByMember(inviteeId) != null) {
             return CommonResult.failed("您已有推荐人，无法再次绑定");
         }
-        UmsInvitationCode invCode = codeMapper.selectByCode(code.trim());
+        UmsInvitationCode invCode = codeMapper.selectByCode(normalizedCode);
         if (invCode == null) {
-            audit("bind", inviteeId, null, code, "reject", operatorId, "邀请码不存在");
+            audit("bind", inviteeId, null, normalizedCode, "reject", operatorId, "邀请码不存在");
             return CommonResult.failed("邀请码无效");
         }
         Long inviterId = invCode.getMemberId();
         // 防自改/自推荐
         if (inviterId.equals(inviteeId)) {
-            audit("bind", inviteeId, inviterId, code, "self_blocked", operatorId, "不能绑定自己的邀请码");
+            audit("bind", inviteeId, inviterId, normalizedCode, "self_blocked", operatorId, "不能绑定自己的邀请码");
             return CommonResult.failed("不能绑定自己的邀请码");
         }
         // 防循环：invitee 不能处于 inviter 的祖先链中
         if (isAncestor(inviteeId, inviterId)) {
-            audit("bind", inviteeId, inviterId, code, "cycle_blocked", operatorId, "检测到循环推荐关系，已阻断");
+            audit("bind", inviteeId, inviterId, normalizedCode, "cycle_blocked", operatorId, "检测到循环推荐关系，已阻断");
             return CommonResult.failed("推荐关系存在循环，绑定被阻断");
         }
         // 构建绑定链
@@ -106,13 +108,13 @@ public class InvitationServiceImpl implements InvitationService {
         UmsMemberRecommend r = new UmsMemberRecommend();
         r.setMemberId(inviteeId);
         r.setInviterId(inviterId);
-        r.setInviteCode(code.trim());
+        r.setInviteCode(normalizedCode);
         r.setBindPath(bindPath);
         r.setBindTime(new Date());
         r.setCreateTime(new Date());
         recommendMapper.insert(r);
 
-        audit("bind", inviteeId, inviterId, code, "bind", operatorId, "推荐关系绑定成功, path=" + bindPath);
+        audit("bind", inviteeId, inviterId, normalizedCode, "bind", operatorId, "推荐关系绑定成功, path=" + bindPath);
         return CommonResult.success(r);
     }
 

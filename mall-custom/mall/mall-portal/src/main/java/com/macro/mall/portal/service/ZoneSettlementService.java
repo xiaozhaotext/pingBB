@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 按专区隔离计算购物车/订单结算金额。
  *
- * <p>专区之间不能串用结算方式：自选区只能现金或余额，复购区只能复购积分加现金，消费区只能用商品积分。
+ * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区只能用商品积分。
  * 混合下单时先按专区分别计算，再汇总出最终应付金额。
  */
 @Service
@@ -80,7 +80,7 @@ public class ZoneSettlementService {
      * 按专区计算结算明细。调用方按 payable 决定是否允许下单。
      *
      * @param useRepurchasePoints 复购区是否使用「复购积分 + 现金」模式（false 表示全现金）
-     * @param useBalance          自选区是否使用余额（充值本金）支付
+     * @param useBalance          自选区及复购区是否使用余额（充值本金）支付
      */
     public ZoneSettlement settle(List<Line> lines, boolean useRepurchasePoints, boolean useBalance,
                                  Wallets wallets) {
@@ -96,13 +96,23 @@ public class ZoneSettlementService {
             plan.setPromotionAmount(plan.getPromotionAmount().add(line.linePromotion()));
             plan.setCouponAmount(plan.getCouponAmount().add(line.lineCoupon()));
         }
-        ZoneSettlement settlement = new ZoneSettlement();
         for (ZoneSettlement.Plan plan : plans.values()) {
             plan.setNetAmount(nonNegative(plan.getGrossAmount()
                     .subtract(plan.getPromotionAmount()).subtract(plan.getCouponAmount())));
+        }
+        // 共享同一余额账户：自选区要求余额全额支付，先为其预留，再分配给复购区。
+        ZoneSettlement.Plan pick = plans.get(ZoneRules.PICK);
+        if (pick != null) settlePick(pick, useBalance, wallets);
+        BigDecimal availableBalance = wallets.balance() == null ? BigDecimal.ZERO : nonNegative(wallets.balance());
+        if (pick != null && pick.isPayable()) {
+            availableBalance = nonNegative(availableBalance.subtract(pick.getBalanceAmount()));
+        }
+        Wallets rebuyWallets = new Wallets(wallets.productPoints(), wallets.repurchasePoints(), availableBalance);
+        ZoneSettlement settlement = new ZoneSettlement();
+        for (ZoneSettlement.Plan plan : plans.values()) {
             switch (plan.getZoneCode()) {
-                case ZoneRules.PICK -> settlePick(plan, useBalance, wallets);
-                case ZoneRules.REBUY -> settleRebuy(plan, useRepurchasePoints, ratio, wallets);
+                case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
+                case ZoneRules.REBUY -> settleRebuy(plan, useRepurchasePoints, useBalance, ratio, rebuyWallets);
                 case ZoneRules.CONSUME -> settleConsume(plan, yuanPerPoint, maxRatio, wallets);
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
@@ -150,12 +160,12 @@ public class ZoneSettlementService {
         plan.setCashAmount(BigDecimal.ZERO);
     }
 
-    /** 复购区：复购积分抵扣固定比例，其余付现金；不能使用产品积分或余额。 */
-    private void settleRebuy(ZoneSettlement.Plan plan, boolean useRepurchasePoints,
+    /** 复购区：先用复购积分抵扣固定比例，再用可用余额，最后的差额由外部支付。 */
+    private void settleRebuy(ZoneSettlement.Plan plan, boolean useRepurchasePoints, boolean useBalance,
                              BigDecimal ratio, Wallets wallets) {
         BigDecimal net = plan.getNetAmount();
         if (!useRepurchasePoints) {
-            plan.setCashAmount(net);
+            applyRebuyBalance(plan, net, useBalance, wallets.balance());
             return;
         }
         BigDecimal cap = net.multiply(ratio).setScale(2, RoundingMode.DOWN);
@@ -175,7 +185,15 @@ public class ZoneSettlementService {
         BigDecimal deduct = BigDecimal.valueOf(maxPoints);
         plan.setRepurchasePoints(maxPoints);
         plan.setRepurchasePointAmount(deduct);
-        plan.setCashAmount(nonNegative(net.subtract(deduct)));
+        applyRebuyBalance(plan, nonNegative(net.subtract(deduct)), useBalance, wallets.balance());
+    }
+
+    private void applyRebuyBalance(ZoneSettlement.Plan plan, BigDecimal remaining,
+                                   boolean useBalance, BigDecimal availableBalance) {
+        BigDecimal balance = useBalance && availableBalance != null
+                ? nonNegative(availableBalance).min(remaining) : BigDecimal.ZERO;
+        plan.setBalanceAmount(balance);
+        plan.setCashAmount(nonNegative(remaining.subtract(balance)));
     }
 
     /**
