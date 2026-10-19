@@ -86,8 +86,8 @@
           <text class="zone-total-hint">自选区：现金或余额；复购区：全现金或按配置使用复购积分＋现金；消费区：商品积分。</text>
           <text class="zone-total-hint">此处为商品小计，实际抵扣和应付以确认订单页为准。</text>
         </view>
-        <button type="primary" class="no-border confirm-btn" @click="handleCreateOrder"
-          >去结算</button
+        <button type="primary" class="no-border confirm-btn" :disabled="checkoutNavigating" @click.stop="handleCreateOrder"
+          >{{ checkoutNavigating ? '正在跳转…' : '去结算' }}</button
         >
       </view>
     </view>
@@ -97,6 +97,7 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
+import { buildCartCheckoutUrl } from '@/utils/cartCheckout'
 import MainNavigation from '@/components/MainNavigation.vue'
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { ref, computed, watch } from 'vue'
@@ -118,6 +119,7 @@ const totalPrice = ref(0)
 // 购物车中商品是否全部选中
 const allChecked = ref(false)
 const settlementExpanded = ref(false)
+const checkoutNavigating = ref(false)
 const selectedCount = computed(() => cartList.value.filter(item => item.checked).reduce((n, item) => n + Number(item.quantity || 0), 0))
 // 购物车中商品是否为空
 const empty = ref(false)
@@ -178,6 +180,7 @@ watch(
 
 // 页面显示时调用
 onShow(() => {
+  checkoutNavigating.value = false
   loadData()
 })
 
@@ -266,6 +269,7 @@ const handleClearCart = () => {
 
 // 去结算
 const handleCreateOrder = () => {
+  if (checkoutNavigating.value) return
   const list = cartList.value
   const cartIds: string[] = []
   list.forEach((item) => {
@@ -281,15 +285,17 @@ const handleCreateOrder = () => {
     })
     return
   }
+  checkoutNavigating.value = true
   try {
-    const idsParam = encodeURIComponent(JSON.stringify(cartIds))
     uni.navigateTo({
-      url: `/pages/order/createOrder?cartIds=${idsParam}`,
+      url: buildCartCheckoutUrl(cartIds),
       fail: () => {
+        checkoutNavigating.value = false
         uni.showToast({ title: '跳转失败，请重试', icon: 'none' })
       }
     })
   } catch (e) {
+    checkoutNavigating.value = false
     uni.showToast({ title: '跳转失败，请重试', icon: 'none' })
   }
 }
@@ -529,8 +535,11 @@ const calcTotal = () => {
     flex-shrink: 0;
     margin: 0;
     border-radius: 100px;
-    height: 76rpx;
-    line-height: 76rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    min-width: 170rpx;
+    position: relative;
+    z-index: 1;
     font-size: 30rpx;
     background: #fa436a;
     box-shadow: 1px 2px 5px rgba(217, 60, 93, 0.72);
@@ -561,3 +570,4 @@ const calcTotal = () => {
 .zone-total-value.points{color:#b78235;font-weight:600}
 .zone-total-hint{display:block;font-size:22rpx;line-height:32rpx;color:#707782;margin-top:12rpx}
 </style>
+
