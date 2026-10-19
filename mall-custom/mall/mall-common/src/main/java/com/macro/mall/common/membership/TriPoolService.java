@@ -5,6 +5,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.sql.Timestamp;
 import java.util.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -67,9 +70,29 @@ public class TriPoolService {
             jdbc.update("INSERT INTO tri_pool_ledger(pool_code,source_key,entry_type,amount,balance_after) SELECT code,?,'FUND',?,balance FROM tri_pool WHERE code=?",
                     sourceKey,in,pool.name());
         }
-        distribute(Pool.PARTNER,sourceKey,null);
-        distribute(Pool.COFOUNDER,sourceKey,null);
         return true;
+    }
+
+    /** Settle the completed Beijing calendar day; payment only funds the pools. */
+    @Transactional(rollbackFor=Exception.class)
+    public List<Map<String,Object>> distributeDaily(LocalDate statDate) {
+        requireEnabled();
+        if (statDate == null || !statDate.isBefore(LocalDate.now(ZoneId.of("Asia/Shanghai"))))
+            throw new IllegalArgumentException("只能结算已结束的北京时间日期");
+        lockPools();
+        String key="DAILY:"+statDate;
+        Timestamp cutoff=Timestamp.valueOf(statDate.plusDays(1).atStartOfDay());
+        var results=new ArrayList<Map<String,Object>>();
+        for (Pool pool:Pool.values()) {
+            var previous=jdbc.queryForList("SELECT * FROM tri_pool_batch WHERE pool_code=? AND source_key=? FOR UPDATE",pool.name(),key);
+            if (!previous.isEmpty()) { results.add(previous.get(0)); continue; }
+            // Late execution must not distribute contributions from the new business day.
+            BigDecimal newFunds=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM tri_pool_ledger WHERE pool_code=? AND entry_type='FUND' AND created_at>=?",BigDecimal.class,pool.name(),cutoff);
+            BigDecimal budget=balance(pool).subtract(newFunds).max(BigDecimal.ZERO);
+            results.add(distribute(pool,key,null,budget));
+        }
+        audit("SYSTEM:daily",null,"DAILY_DISTRIBUTE",null,key+";pools=PARTNER,COFOUNDER,OPERATIONS");
+        return results;
     }
 
     @Transactional(rollbackFor=Exception.class)
@@ -137,9 +160,12 @@ public class TriPoolService {
     }
 
     private Map<String,Object> distribute(Pool pool,String key,Long operator) {
+        return distribute(pool,key,operator,balance(pool));
+    }
+    private Map<String,Object> distribute(Pool pool,String key,Long operator,BigDecimal budget) {
         BigDecimal before=balance(pool);
         var positions=positions(pool);
-        var awards=allocate(before,positions);
+        var awards=allocate(before.min(budget),positions);
         BigDecimal total=awards.stream().map(Award::amount).reduce(BigDecimal.ZERO,BigDecimal::add);
         long shares=positions.stream().filter(p->p.cap()==null || p.received().compareTo(p.cap())<0)
                 .mapToLong(Position::shares).reduce(0,Math::addExact);

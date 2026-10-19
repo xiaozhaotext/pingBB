@@ -20,7 +20,7 @@
     <!-- 轮播图本身需要顶到最上面，导航栏覆盖其上 -->
     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
 
-    <view class="product-travel-note"><text>智美游 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
+    <view class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
     <view v-if="detailLoading" class="product-load-state">正在加载商品详情…</view>
     <view v-else-if="detailError" class="product-load-state product-load-error" @click="loadData(requestedProductId)">{{ detailError }}，点击重试</view>
     <!-- 轮播图 -->

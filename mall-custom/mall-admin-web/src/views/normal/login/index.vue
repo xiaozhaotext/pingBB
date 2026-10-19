@@ -80,16 +80,16 @@ const handleLogin = () => {
 <template>
   <div class="login-page">
     <div class="login-intro">
-      <span class="login-eyebrow">智美游 · 管理后台</span>
+      <span class="login-eyebrow">智游美 · 管理后台</span>
       <h1>山水相伴<br>经营有序</h1>
       <p>在旅途与生活之间，管理每一份美好。</p>
     </div>
     <el-card class="login-form-layout">
       <el-form autoComplete="on" :model="loginForm" :rules="loginRules" ref="loginFormRef" label-position="left">
         <div style="text-align: center">
-          <img src="/youxuan.svg" width="56" height="56" alt="智美游" />
+          <img src="/youxuan.svg" width="56" height="56" alt="智游美" />
         </div>
-        <h2 class="login-title color-main">智美游管理后台</h2>
+        <h2 class="login-title color-main">智游美管理后台</h2>
         <el-form-item prop="username">
           <el-input name="username" type="text" v-model="loginForm.username" autoComplete="on" placeholder="请输入用户名">
             <template #prefix>

@@ -1,6 +1,6 @@
 <template>
   <view class="container zone-home">
-    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="goTab('/pages/index/index')">智美游</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="goPage('/pages/cart/cart')">购物车 →</text></view></view>
+    <view class="zone-home-header"><view class="zone-home-width"><view class="travel-brand" @click="goTab('/pages/index/index')">智游美</view><view class="travel-search" @click="handleSearch">⌕ 搜索商品名称</view><text class="home-cart" @click="goPage('/pages/cart/cart')">购物车 →</text></view></view>
     <view class="zone-home-width">
       <view class="home-banner" v-if="advertiseList.length">
         <swiper class="banner-swiper" :current="swiperCurrent" circular autoplay :interval="4000" :duration="500" @change="handleSwiperChange">
