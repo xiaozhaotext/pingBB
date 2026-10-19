@@ -7,6 +7,7 @@ export function formatMoney(value: unknown): string {
 export function businessText(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
   return String(value)
+    .replace(/^DAILY:(\d{4}-\d{2}-\d{2})$/, '每日分红结算（$1）')
     .replace(/QA sandbox demonstration only/gi, '沙箱演示记录')
     .replace(/tri:batch:(\d+):(\d+)/gi, '三池分红（批次 $1，会员 $2）')
     .replace(/tri:MEMBERSHIP:(\d+):referral/gi, '会员购买直推奖励（会员单 $1）')

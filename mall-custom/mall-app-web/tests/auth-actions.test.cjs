@@ -7,7 +7,7 @@ function page(file, names, deps = {}, pages = [{route:'pages/public/login'}]) {
   const raw = fs.readFileSync(path.join(__dirname,'../src/',file),'utf8')
   const source = file.endsWith('.vue') ? parse(raw).descriptor.scriptSetup.content : raw
   const storage = new Map(), events = [], timeouts = [], loads = [], unloads = []
-  const context = { module:{exports:{}}, exports:{}, console,
+  const context = { module:{exports:{}}, exports:{}, console, URLSearchParams, window:{location:{search:"",hash:""}},
     require: name => name==='vue' ? require('vue') : name==='@dcloudio/uni-app' ? {onLoad:fn=>loads.push(fn),onUnload:fn=>unloads.push(fn)} : name==='@/utils/sessionKeys' ? {usernameStorageKey:'sandbox-username',tokenStorageKey:'sandbox-token',passwordStorageKey:'sandbox-password',memberStoreId:'sandbox-member'} : name==='@/utils/sandbox' ? {sandboxMode:true} : deps[name] || {},
     getCurrentPages:()=>pages,
     setTimeout:fn=>timeouts.push(fn),setInterval:fn=>({fn}),clearInterval:timer=>{timer.cleared=true},

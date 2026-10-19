@@ -18,6 +18,7 @@ test('money formats thousands and keeps zero distinct from missing values', () =
   assert.equal(display.formatMoney(null), '—')
 })
 test('internal ledger keys have readable Chinese descriptions', () => {
+  assert.equal(display.businessText('DAILY:2026-10-19'), '每日分红结算（2026-10-19）')
   assert.equal(display.businessText('tri:batch:70:82'), '三池分红（批次 70，会员 82）')
   assert.equal(display.businessText('tri:MEMBERSHIP:43:referral'), '会员购买直推奖励（会员单 43）')
   assert.equal(display.businessText('PARTNER分红；批次70'), '合伙人分红；批次70')

@@ -9,7 +9,7 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "智美游",
+        "navigationBarTitleText": "智游美",
         "navigationStyle": "custom",
         "enablePullDownRefresh": true,
         "app-plus": {
@@ -394,7 +394,7 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "智美游",
+    "navigationBarTitleText": "智游美",
     "navigationBarBackgroundColor": "#FFFFFF",
     "backgroundColor": "#f8f8f8"
   },

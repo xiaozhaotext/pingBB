@@ -100,6 +100,13 @@ class SandboxWalletHttpTest {
   j.execute("CREATE TABLE oms_order_request(member_id BIGINT,idempotency_key VARCHAR(100),request_hash VARCHAR(100),state VARCHAR(20),order_id BIGINT,UNIQUE(member_id,idempotency_key))");
   j.execute("CREATE TABLE oms_payment_confirmation(order_id BIGINT UNIQUE,channel_code VARCHAR(32),channel_trade_no VARCHAR(100),paid_amount DECIMAL(18,2),currency_code VARCHAR(3))");
  }
+ void fundAndSettle(){
+  pools.acceptPayment("MEMBERSHIP:1",1L,null,TriPoolRules.PRICE,(m,t,p,k)->{});
+  assertEquals(0,j.queryForObject("SELECT COUNT(*) FROM tri_pool_distribution",Integer.class));
+  var zone=java.time.ZoneId.of("Asia/Shanghai");var date=java.time.LocalDate.now(zone).minusDays(1);
+  j.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(date.atTime(12,0).atZone(zone).toInstant()));
+  pools.distributeDaily(date);pools.distributeDaily(date);
+ }
  Map post(String path,Object body){return http.postForObject(path,body,Map.class);}
  Map data(Map r){assertEquals(200,r.get("code"),String.valueOf(r));return (Map)r.get("data");}
  String create(String amount,String channel,String key){return (String)data(post("/member/recharge/orders",Map.of("amount",amount,"channel",channel,"requestId",key))).get("orderNo");}
@@ -115,7 +122,7 @@ class SandboxWalletHttpTest {
  }
  @Test void rechargeDividendWithdrawAndActualBalanceOrderRemainConsistent(){
   String no=create("100.10","MOCK","sandbox-recharge-0002");data(post("/member/recharge/orders/"+no+"/sandbox-confirm",null));
-  pools.acceptPayment("MEMBERSHIP:1",1L,null,TriPoolRules.PRICE,(m,t,p,k)->{});
+  fundAndSettle();
   assertEquals(new BigDecimal("500.00"),j.queryForObject("SELECT available_earnings FROM ums_earnings WHERE member_id=1",BigDecimal.class));assertEquals("100.10",balance());
   var w=data(withdraw("100.00","sandbox-withdraw-001"));assertEquals(3,w.get("status"));assertEquals("199.50",balance());data(withdraw("100.00","sandbox-withdraw-001"));assertEquals("199.50",balance());
   var created=data(order("sandbox-order-00001"));assertEquals(true,created.get("paidImmediately"));assertEquals(1,j.queryForObject("SELECT status FROM qa_order",Integer.class));assertEquals("119.50",balance());data(order("sandbox-order-00001"));assertEquals("119.50",balance());
@@ -128,12 +135,12 @@ class SandboxWalletHttpTest {
   ReflectionTestUtils.setField(recharge,"sandboxEnabled",true);j.update("UPDATE ums_recharge_order SET channel='WECHAT' WHERE order_no=?",no);assertNotEquals(200,post("/member/recharge/orders/"+no+"/sandbox-confirm",null).get("code"));
  }
  @Test void ledgerFailureRollsBackBothRechargeAndEarningsTransfer(){
-  String no=create("5","MOCK","sandbox-recharge-0005");pools.acceptPayment("MEMBERSHIP:1",1L,null,TriPoolRules.PRICE,(m,t,p,k)->{});j.execute("DROP TABLE ums_recharge_ledger");
+  String no=create("5","MOCK","sandbox-recharge-0005");fundAndSettle();j.execute("DROP TABLE ums_recharge_ledger");
   assertNotEquals(200,post("/member/recharge/orders/"+no+"/sandbox-confirm",null).get("code"));assertEquals("0.00",balance());assertEquals("PENDING",j.queryForObject("SELECT status FROM ums_recharge_order WHERE order_no=?",String.class,no));
   assertNotEquals(200,withdraw("100","sandbox-withdraw-003").get("code"));assertEquals("0.00",balance());assertEquals(0,j.queryForObject("SELECT COUNT(*) FROM ums_withdraw_apply",Integer.class));assertEquals(new BigDecimal("500.00"),j.queryForObject("SELECT available_earnings FROM ums_earnings WHERE member_id=1",BigDecimal.class));
  }
  @Test void concurrentRechargeAndWithdrawalRetriesNeverCreditTwice()throws Exception {
-  String no=create("10","MOCK","sandbox-recharge-0006");pools.acceptPayment("MEMBERSHIP:1",1L,null,TriPoolRules.PRICE,(m,t,p,k)->{});
+  String no=create("10","MOCK","sandbox-recharge-0006");fundAndSettle();
   var executor=Executors.newFixedThreadPool(6);try {
    var jobs=new ArrayList<Future<?>>();for(int i=0;i<6;i++)jobs.add(executor.submit(()->data(post("/member/recharge/orders/"+no+"/sandbox-confirm",null))));for(var job:jobs)job.get(30,TimeUnit.SECONDS);
    jobs.clear();for(int i=0;i<6;i++)jobs.add(executor.submit(()->data(withdraw("10","sandbox-withdraw-004"))));for(var job:jobs)job.get(30,TimeUnit.SECONDS);

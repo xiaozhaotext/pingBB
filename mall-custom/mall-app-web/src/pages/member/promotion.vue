@@ -23,7 +23,7 @@ onShow(load)
 <template>
  <DesktopHeader />
  <view class="promotion-page">
-  <view class="promotion-hero"><text class="eyebrow">智美游 · 邀请与推荐</text><view class="title">推广中心</view><text>级别、推荐关系与收益记录集中在这里</text></view>
+  <view class="promotion-hero"><text class="eyebrow">智游美 · 邀请与推荐</text><view class="title">推广中心</view><text>级别、推荐关系与收益记录集中在这里</text></view>
   <view v-if="!loggedIn" class="promotion-card guest"><text>登录后查看您的推广记录</text><button @click="go('/pages/public/login')">登录</button></view>
   <view class="promotion-grid">
    <view class="promotion-card"><view class="section-title">数据看板<small>账户实际数据</small></view><view class="metrics"><view><text>{{inviteCount}}</text><small>已绑定下级人数</small></view><view><text>{{identity}}</text><small>当前级别</small></view><view><text>{{total}}</text><small>累计收益</small></view><view><text>{{available}}</text><small>可提现余额</small></view></view></view>

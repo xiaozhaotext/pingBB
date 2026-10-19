@@ -3,7 +3,7 @@
     <DesktopHeader />
     <view class="zone-wrap">
       <view class="zone-head">
-        <view><text class="zone-kicker">智美游 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
+        <view><text class="zone-kicker">智游美 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=0')">我的订单</text></view>
       </view>
       <view class="zone-tip">专区仅展示已分配且上架的商品。{{ zoneTip }}</view>
