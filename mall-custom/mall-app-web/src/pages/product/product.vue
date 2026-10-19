@@ -20,11 +20,9 @@
     <!-- 轮播图本身需要顶到最上面，导航栏覆盖其上 -->
     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
 
-    <view class="product-travel-note"><text>智美游 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
-    <view v-if="detailLoading" class="product-load-state">正在加载商品详情…</view>
-    <view v-else-if="detailError" class="product-load-state product-load-error" @click="loadData(requestedProductId)">{{ detailError }}，点击重试</view>
+    <view class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
     <!-- 轮播图 -->
-    <view v-if="product.id" class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
+    <view class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
       <swiper circular :duration="400">
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
@@ -36,7 +34,7 @@
     </view>
 
     <!-- 商品基本信息 -->
-    <view v-if="product.id" class="introduce-section">
+    <view class="introduce-section">
       <text class="title">{{ product.name }}</text
       ><br />
       <text class="title2">{{ product.subTitle }}</text>
@@ -56,11 +54,11 @@
     </view>
 
     <!-- 分享不承诺尚未核实的红包或推广收益 -->
-    <view v-if="product.id" class="share-section" @click="openConsultation">
+    <view class="share-section" @click="openConsultation">
       <text class="tit">在线咨询</text><text class="share-btn">咨询商品或订单 ›</text>
     </view>
     <!-- 商品规格、参数、优惠券等 -->
-    <view v-if="product.id" class="c-list">
+    <view class="c-list">
       <view class="c-row b-b" @click="handleToggleSpec">
         <text class="tit">购买类型</text>
         <view class="con">
@@ -97,7 +95,7 @@
     </view>
 
     <!-- 商品评价 -->
-    <view v-if="product.id" class="eva-section">
+    <view class="eva-section">
       <view class="e-header">
         <text class="tit">商品评价</text>
         <text class="e-count">{{ commentTotal }} 条<template v-if="commentAvgStar">· 好评 {{ commentAvgStar }} 分</template></text>
@@ -125,7 +123,7 @@
     </view>
 
     <!-- 品牌信息 -->
-    <view v-if="product.id && brand.id" class="brand-info">
+    <view class="brand-info">
       <view class="d-header">
         <text>品牌信息</text>
       </view>
@@ -141,14 +139,14 @@
     </view>
 
     <!-- 图文详情 -->
-    <view v-if="product.id" class="detail-desc">
+    <view class="detail-desc">
       <view class="d-header">
         <text>图文详情</text>
       </view>
       <rich-text :nodes="desc"></rich-text>
     </view>
 
-    <view v-if="product.id" class="recommend-section"><view class="section-heading"><text>发现更多好物</text><text>{{ recommendationLabel }}</text></view>
+    <view class="recommend-section"><view class="section-heading"><text>发现更多好物</text><text>{{ recommendationLabel }}</text></view>
       <view class="recommend-empty" v-if="recommendLoading">正在加载商品…</view>
       <view class="recommend-empty" v-else-if="recommendError" @click="loadRecommendations">加载失败，点击重试</view>
       <view class="recommend-grid" v-else-if="recommendProducts.length"><view class="recommend-card" v-for="item in recommendProducts" :key="item.id" @click="openRecommended(item.id)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><text class="recommend-name">{{ item.name }}</text><text class="recommend-price">¥{{ item.price }}</text></view></view>
@@ -156,7 +154,7 @@
     </view>
     <view class="to-top" v-if="scrollY > 600" @click="scrollSection('.introduce-section')">↑<text>顶部</text></view>
     <!-- 底部操作菜单 -->
-    <view v-if="product.id" class="page-bottom">
+    <view class="page-bottom">
       <view class="p-b-btn" @click="handleNavToBrandDetail">
         <svg class="line-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 4.5 4h15l1.5 6.5M4.5 10.5v9h15v-9M3 10.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 19.5v-5h6v5" /></svg>
         <text>店铺</text>
@@ -483,9 +481,6 @@ watch([specClass,attrClass,couponState],([spec,attr,coupon])=>{
 // 商品数据
 const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
-const requestedProductId = ref(0)
-const detailLoading = ref(false)
-const detailError = ref('')
 const brand = ref<PmsBrand>({} as PmsBrand)
 const imgList = ref<string[]>([])
 const desc = ref('')
@@ -550,21 +545,16 @@ const memberStore = useMemberStore()
 
 // 加载商品详情数据
 const loadData = async (id: number) => {
-  if (!id) {
-    detailError.value = '商品链接无效'
-    return
-  }
+  if (!id) return
 
-  detailLoading.value = true
-  detailError.value = ''
   try {
     const res = await getProductDetailAPI(id)
-    if (res.data?.product) {
+    if (res.data) {
       const data = res.data
       membershipOffer.value = data.membershipOffer
       product.value = data.product
       skuStockList.value = data.skuStockList
-      brand.value = data.brand || ({} as PmsBrand)
+      brand.value = data.brand
       shopName.value = data.shopName || '平台自营'
       commentTotal.value = data.commentCount ?? 0
 
@@ -583,16 +573,9 @@ const loadData = async (id: number) => {
       saveReadHistory()
       initProductCollection()
       loadComments(id)
-    } else {
-      product.value = {} as PmsProduct
-      detailError.value = '商品已下架或不存在'
     }
   } catch (error) {
     console.error('加载商品详情失败:', error)
-    product.value = {} as PmsProduct
-    detailError.value = '商品详情加载失败'
-  } finally {
-    detailLoading.value = false
   }
 }
 
@@ -616,7 +599,6 @@ onLoad((options) => {
   statusBarHeight.value = systemInfo.statusBarHeight || 0
 
   const id = options?.id ? Number(options.id) : 0
-  requestedProductId.value = id
   shareList.value = defaultShareList
   loadWatermark()
   loadData(id)
@@ -1013,6 +995,9 @@ const handleToggleFavorite = async () => {
 
 // 立即购买：加购后直接进入确认订单页
 const handleBuy = async () => {
+  if (membershipOffer.value) {
+    uni.navigateTo({ url: '/pages/member/' + (membershipOffer.value === 'COFOUNDER' ? 'cofounder' : 'partner') }); return
+  }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return
@@ -1132,6 +1117,7 @@ const submitComment = async () => {
 
 // 加入购物车
 const handleAddToCart = async () => {
+  if (membershipOffer.value) { uni.showToast({ title: '旅游权益请点立即购买，查看双积分与会员权益', icon: 'none' }); return }
   if (!memberStore.hasLogin) {
     handleCheckLogin()
     return
@@ -1208,8 +1194,6 @@ page {
 </style>
 
 <style lang="scss" scoped>
-.product-load-state{margin:16px 12px;padding:32px 16px;border-radius:16px;background:#fff;text-align:center;color:#687c79;font-size:14px}
-.product-load-error{color:#ad5145;cursor:pointer}
 .demo-product-note { padding: 10px 14px; background: #fff3d8; color: #805b1d; font-size: 12px; line-height: 1.5; }
 /* 换肤主题变量：theme-pink 为默认（与现有粉色一致），theme-green 为清新绿；子元素通过 var(--theme-*) 引用 */
 .theme-pink { --theme-primary: #fa436a; --theme-primary-dark: #e43a55; --theme-primary-soft: #fbebee; --theme-action-gradient: linear-gradient(to right, #ffac30, #fa436a, #f56c6c); --theme-action-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4); }

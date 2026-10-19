@@ -13,7 +13,8 @@ use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipCompon
 const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
 const cards = computed(() => [
-  { title: '商品总数（未删除）', value: overview.value ? overview.value.productOnSaleCount + overview.value.productOffSaleCount : '—' },
+  { title: '可管理商品（未归档）', value: overview.value?.productCount ?? '—' },
+  { title: '已归档商品', value: overview.value?.archivedProductCount ?? '—' },
   { title: '在售商品', value: overview.value?.productOnSaleCount ?? '—' },
   { title: '已下架商品', value: overview.value?.productOffSaleCount ?? '—' },
   { title: '库存预警SKU', value: overview.value?.lowStockSkuCount ?? '—' },
@@ -24,8 +25,8 @@ const cards = computed(() => [
   { title: '新增用户(近30日)', value: overview.value?.newUserCount ?? '—' },
   { title: '今日新增用户', value: overview.value?.todayNewMemberCount ?? '—' },
   { title: '今日订单', value: overview.value?.todayOrderCount ?? '—' },
-  { title: '今日已支付金额', value: overview.value ? `¥${Number(overview.value.todayPaidAmount).toFixed(2)}` : '—' },
-  { title: '累计已支付金额', value: overview.value ? `¥${Number(overview.value.totalPaidAmount).toFixed(2)}` : '—' },
+  { title: '今日现金支付（不含余额）', value: overview.value ? `¥${Number(overview.value.todayPaidAmount).toFixed(2)}` : '—' },
+  { title: '累计现金支付（不含余额）', value: overview.value ? `¥${Number(overview.value.totalPaidAmount).toFixed(2)}` : '—' },
   { title: '累计退款金额', value: overview.value ? `¥${Number(overview.value.totalRefundedAmount).toFixed(2)}` : '—' },
   { title: '累计净收入(已扣退款)', value: overview.value ? `¥${Number(overview.value.totalNetPaidAmount).toFixed(2)}` : '—' },
 ])
@@ -92,7 +93,7 @@ onMounted(refresh)
 
 <template>
   <main class="dashboard" v-loading="loading">
-    <header class="heading"><div><p>{{ sandboxMode ? '智美游 · 演示环境' : '智美游 · 管理后台' }}</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
+    <header class="heading"><div><p>{{ sandboxMode ? '智游美 · 演示环境' : '智游美 · 管理后台' }}</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
     <el-alert title="统计来自当前连接的数据库；历史示例数据可能影响汇总，请核对订单及资金流水后用于经营决策。" type="warning" :closable="false" show-icon />
     <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}</span><strong>{{ card.value }}</strong></el-card></section>
     <el-card shadow="never" class="trend"><template #header><div class="trend-head"><strong>最近 7 日已支付订单趋势</strong><small>{{ overview?.amountNote }}</small></div></template>

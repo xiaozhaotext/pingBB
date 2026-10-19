@@ -11,7 +11,7 @@ const identity=ref('—'),inviteCount=ref<string|number>('—'),available=ref<st
 const membershipV2=ref<boolean|null>(null)
 async function load(){
  identity.value='—';inviteCount.value='—';available.value='—';total.value='—';error.value='';membershipV2.value=null
- if(!loggedIn.value){ membershipV2.value=true; return }
+ if(!loggedIn.value)return
  const results=await Promise.allSettled([getMyIdentityAPI(),getMyInviteesAPI(),getEarningsAccountAPI()])
  if(!loggedIn.value)return
  results.forEach((r,i)=>{if(r.status==='rejected'){error.value='部分推广数据暂时无法加载，请重试';return}const d=r.value.data;if(i===0)identity.value=({0:'普通会员',1:'合伙人',2:'联创'} as Record<number,string>)[d?.identityType??0]||'未知身份';if(i===1)inviteCount.value=Array.isArray(d)?d.length:'—';if(i===2){available.value=d?.availableEarnings??'未开户';total.value=d?.totalEarnings??'未开户'}})
@@ -23,7 +23,7 @@ onShow(load)
 <template>
  <DesktopHeader />
  <view class="promotion-page">
-  <view class="promotion-hero"><text class="eyebrow">智美游 · 邀请与推荐</text><view class="title">推广中心</view><text>级别、推荐关系与收益记录集中在这里</text></view>
+  <view class="promotion-hero"><text class="eyebrow">智游美 · 邀请与推荐</text><view class="title">推广中心</view><text>级别、推荐关系与收益记录集中在这里</text></view>
   <view v-if="!loggedIn" class="promotion-card guest"><text>登录后查看您的推广记录</text><button @click="go('/pages/public/login')">登录</button></view>
   <view class="promotion-grid">
    <view class="promotion-card"><view class="section-title">数据看板<small>账户实际数据</small></view><view class="metrics"><view><text>{{inviteCount}}</text><small>已绑定下级人数</small></view><view><text>{{identity}}</text><small>当前级别</small></view><view><text>{{total}}</text><small>累计收益</small></view><view><text>{{available}}</text><small>可提现余额</small></view></view></view>

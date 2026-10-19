@@ -18,7 +18,7 @@ public class SmsProperties {
     private boolean enabled = false;
     /** 服务商：ALIYUN 或 HTTP */
     private String provider = "ALIYUN";
-    /** 短信签名，例如：智美游 */
+    /** 短信签名，例如：智游美 */
     private String signName;
     /** 阿里云短信模板编号，模板变量名必须是 code */
     private String templateCode;

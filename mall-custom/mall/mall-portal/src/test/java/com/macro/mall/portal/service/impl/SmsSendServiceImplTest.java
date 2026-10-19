@@ -50,7 +50,7 @@ class SmsSendServiceImplTest {
         properties.setProvider("ALIYUN");
         properties.setAccessKeyId("ak");
         properties.setAccessKeySecret("sk");
-        properties.setSignName("智美游");
+        properties.setSignName("智游美");
         properties.setTemplateCode("SMS_123456");
     }
 

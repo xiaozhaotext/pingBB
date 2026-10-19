@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `sys_content` (
 
 -- NULL means "not configured yet"; the admin page and the storefront both tolerate empty values.
 INSERT IGNORE INTO `sys_config` (`config_key`, `config_value`, `config_group`, `remark`) VALUES
-  ('company.name',          '智美游', 'company',     '公司名称'),
+  ('company.name',          '智游美', 'company',     '公司名称'),
   ('company.wechat_qrcode', NULL,    'company',     '公司微信二维码图片地址'),
   ('company.address',       NULL,    'company',     '公司地址'),
   ('company.phone',         NULL,    'company',     '公司电话'),
@@ -23,11 +23,11 @@ INSERT IGNORE INTO `sys_config` (`config_key`, `config_value`, `config_group`, `
   ('company.email',         NULL,    'company',     '公司邮箱'),
   ('company.qq',            NULL,    'company',     '客服 QQ'),
   ('watermark.enabled',     '0',     'watermark',   '是否在商品图片上叠加水印：0 关闭 / 1 开启'),
-  ('watermark.text',        '智美游', 'watermark',   '水印文字'),
+  ('watermark.text',        '智游美', 'watermark',   '水印文字'),
   ('watermark.position',    'bottomRight', 'watermark', '水印位置：topLeft/topRight/bottomLeft/bottomRight/tile'),
   ('watermark.opacity',     '0.35',  'watermark',   '水印不透明度（0-1）'),
   ('watermark.size',        '18',    'watermark',   '水印字号（px，8-200）'),
-  ('miniapp.name',          '智美游', 'miniapp',     '小程序名称'),
+  ('miniapp.name',          '智游美', 'miniapp',     '小程序名称'),
   ('miniapp.appid',         NULL,    'miniapp',     '小程序 AppID'),
   ('miniapp.secret',        NULL,    'miniapp',     '小程序 AppSecret（敏感，列表脱敏显示）'),
   ('ip.access.enabled',     '0',     'ip_access',   '是否限制后台访问 IP：0 关闭 / 1 开启'),

@@ -1,4 +1,4 @@
-# 智美游：换电脑继续开发
+# 智游美：换电脑继续开发
 
 仓库：https://github.com/xiaozhaotext/pingBB ，使用最新 main 分支。
 
