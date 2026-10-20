@@ -11,13 +11,6 @@
         <text class="tip" v-else>每笔会员支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
         <button v-if="tri.customTravelEligible" class="btn" @click="openTravel">定制旅游路线</button>
       </view>
-      <view class="card">
-        <text class="title">两池共用分红额度</text>
-        <view class="row"><text>累计总上限</text><text>¥{{ fmt(tri.totalCap) }}</text></view>
-        <view class="row"><text>两池累计已领</text><text>¥{{ fmt(tri.totalReceived) }}</text></view>
-        <view class="row"><text>剩余额度</text><text>¥{{ fmt(tri.totalRemaining) }}</text></view>
-        <text class="tip">剩余额度＝总上限－合伙人池已领－联创池已领；本人购买1份、有效直邀10份时总上限25200元。</text>
-      </view>
       <view class="card" v-for="pool in tri.pools" :key="pool.code">
         <text class="title">{{ poolNames[pool.code] }}</text>
         <template v-if="pool.eligible">
