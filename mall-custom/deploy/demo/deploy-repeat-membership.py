@@ -42,7 +42,7 @@ source = release / 'source/mall-custom/mall'
 environment = dict(os.environ, MAVEN_OPTS='-Xmx512m')
 with (release / 'backend-build.log').open('w') as log:
     subprocess.run(['mvn', '-B', '-f', str(source / 'pom.xml'), '-pl', 'mall-admin,mall-portal',
-                    '-am', 'package', '-DskipTests=true'], env=environment, stdout=log,
+                    '-am', 'package', '-DskipTests=true', '-Ddocker.skip=true'], env=environment, stdout=log,
                    stderr=subprocess.STDOUT, check=True)
 for module, artifact in [('mall-admin', 'admin'), ('mall-portal', 'portal')]:
     shutil.copy2(source / module / 'target' / (module + '-1.0-SNAPSHOT.jar'), release / (artifact + '.jar'))
