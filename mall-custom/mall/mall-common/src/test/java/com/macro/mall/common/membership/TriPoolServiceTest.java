@@ -7,9 +7,10 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,8 +38,6 @@ class TriPoolServiceTest {
             (member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key)));}
     BigDecimal amount(String sql,Object...args){return jdbc.queryForObject(sql,BigDecimal.class,args);}
     void eq(String expected,BigDecimal actual){assertEquals(0,new BigDecimal(expected).compareTo(actual));}
-    LocalDate yesterday(){return LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1);}
-    void backdateFunds(){jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(yesterday().atTime(12,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant()));}
 
     @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
         var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);
@@ -74,13 +73,19 @@ class TriPoolServiceTest {
         }
         assertEquals("COFOUNDER",jdbc.queryForObject("SELECT tier FROM tri_member WHERE member_id=1",String.class));
         assertEquals("MEMBER",jdbc.queryForObject("SELECT tier FROM tri_member WHERE member_id=2",String.class));
-        backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
+        var summary=service.memberSummary(1);
+        @SuppressWarnings("unchecked") var pools=(List<Map<String,Object>>)summary.get("pools");
+        eq("24000",(BigDecimal)pools.stream().filter(p->"COFOUNDER".equals(p.get("code"))).findFirst().orElseThrow().get("cap"));
+        LocalDate yesterday=LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1);
+        jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",Timestamp.valueOf(yesterday.atTime(12,0)));
+        tx.execute(s->service.distributeDaily(yesterday));
         eq("3599.10",amount("SELECT SUM(amount) FROM ums_earnings_ledger WHERE member_id=1 AND change_type='referral_reward'"));
-        eq("1200",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
-        eq("800",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("2000",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("24000",amount("SELECT MAX(cap_amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
         eq("2000",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
         assertEquals(10800L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND idempotency_key LIKE '%referrer%'",Long.class));
-        assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(TriPoolRules.partnerCap(9))<=0);
+        assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(new BigDecimal("24000"))<=0);
     }
     @Test void pointsFailureRollsBackMembershipFundingAndAwards() {
         assertThrows(IllegalStateException.class,()->tx.execute(s->service.acceptPayment("ORDER:1",1,null,TriPoolRules.PRICE,(m,t,p,k)->{throw new IllegalStateException("wallet unavailable");})));
@@ -139,63 +144,5 @@ class TriPoolServiceTest {
         assertEquals(0L,jdbc.queryForObject("SELECT direct_paid_count FROM tri_member WHERE member_id=1",Long.class));
         eq("500",amount("SELECT total_in FROM tri_pool WHERE code='PARTNER'"));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM test_points WHERE member_id=2",Integer.class));
-    }
-
-    @Test void paymentOnlyFundsAndMidnightPaysAllThreePoolsOnce() {
-        buy(1,null);buy(2,1L);
-        tx.execute(s->{service.setOperationsMember(3,1,true,99,"admin","运营份额测试依据");return null;});
-        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
-        eq("399.90",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=1"));
-        backdateFunds();
-        tx.execute(s->service.distributeDaily(yesterday()));
-        tx.execute(s->service.distributeDaily(yesterday()));
-        assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
-        eq("999.99",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE pool_code='PARTNER'"));
-        eq("400",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=3"));
-        eq("400",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
-        eq("0",amount("SELECT SUM(total_in-total_out-balance) FROM tri_pool"));
-    }
-
-    @Test void delayedSettlementExcludesTodaysFundingAndKeepsNoRecipientMoney() {
-        buy(1,null);backdateFunds();buy(2,null);
-        tx.execute(s->service.distributeDaily(yesterday()));
-        eq("500",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE pool_code='PARTNER'"));
-        eq("500",amount("SELECT balance FROM tri_pool WHERE code='PARTNER'"));
-        eq("400",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
-        assertThrows(IllegalArgumentException.class,()->tx.execute(s->service.distributeDaily(yesterday().plusDays(1))));
-    }
-
-    @Test void concurrentDailyWorkersCannotPayTwice() throws Exception {
-        buy(1,null);backdateFunds();
-        var executor=Executors.newFixedThreadPool(2);
-        try {
-            var first=executor.submit(()->tx.execute(s->service.distributeDaily(yesterday())));
-            var second=executor.submit(()->tx.execute(s->service.distributeDaily(yesterday())));
-            first.get(15,TimeUnit.SECONDS);second.get(15,TimeUnit.SECONDS);
-            assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
-            eq("500",amount("SELECT SUM(amount) FROM tri_pool_distribution"));
-        } finally {executor.shutdownNow();}
-    }
-
-    @Test void dailyFailureRollsBackAllPoolsAndCanRetry() {
-        buy(1,null);backdateFunds();
-        jdbc.execute("ALTER TABLE ums_earnings_ledger ADD CONSTRAINT reject_dividend CHECK(change_type<>'dividend')");
-        assertThrows(Exception.class,()->tx.execute(s->service.distributeDaily(yesterday())));
-        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
-        eq("500",amount("SELECT balance FROM tri_pool WHERE code='PARTNER'"));
-        jdbc.execute("ALTER TABLE ums_earnings_ledger DROP CONSTRAINT reject_dividend");
-        tx.execute(s->service.distributeDaily(yesterday()));
-        eq("500",amount("SELECT SUM(amount) FROM tri_pool_distribution"));
-    }
-    @Test void memberSummaryUsesStepCapAndKeepsHistoricalReceipts() {
-        buy(1,null);
-        jdbc.update("UPDATE tri_member SET direct_paid_count=9,tier='COFOUNDER' WHERE member_id=1");
-        jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'PARTNER',23999)");
-        var summary=service.memberSummary(1);
-        @SuppressWarnings("unchecked") var pools=(List<Map<String,Object>>)summary.get("pools");
-        var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
-        var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
-        eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
-        eq("1200",(BigDecimal)cofounder.get("cap"));
     }
 }

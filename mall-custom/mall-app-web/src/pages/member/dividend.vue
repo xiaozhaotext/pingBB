@@ -18,7 +18,7 @@
           <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
           <view class="row"><text>剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
         </template>
-        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红，独立累计上限1200元。' : '成为会员后享有本池分红。' }}</text>
+        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红；本池累计上限按有效直邀人数阶梯计算，9人时为24000元。' : '成为会员后享有本池分红。' }}</text>
       </view>
       <view class="card"><text class="title">分红记录</text><text class="tip">份数表示本次分红时，您持有的份数 / 全池有效总份数。</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ formatTime(r.created_at) }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
     </template>
