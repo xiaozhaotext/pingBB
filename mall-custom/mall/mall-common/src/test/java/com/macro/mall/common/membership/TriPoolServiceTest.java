@@ -76,8 +76,9 @@ class TriPoolServiceTest {
         assertEquals("MEMBER",jdbc.queryForObject("SELECT tier FROM tri_member WHERE member_id=2",String.class));
         backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
         eq("3599.10",amount("SELECT SUM(amount) FROM ums_earnings_ledger WHERE member_id=1 AND change_type='referral_reward'"));
-        eq("1200",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
-        eq("800",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("2000",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("24000",amount("SELECT MAX(cap_amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
         eq("2000",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
         assertEquals(10800L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND idempotency_key LIKE '%referrer%'",Long.class));
         assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(TriPoolRules.partnerCap(9))<=0);
@@ -196,6 +197,6 @@ class TriPoolServiceTest {
         var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
         var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
         eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
-        eq("1200",(BigDecimal)cofounder.get("cap"));
+        eq("24000",(BigDecimal)cofounder.get("cap"));
     }
 }

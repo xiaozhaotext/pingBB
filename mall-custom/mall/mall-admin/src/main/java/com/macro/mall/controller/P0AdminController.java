@@ -238,7 +238,7 @@ public class P0AdminController {
     public CommonResult<Map<String, Object>> cofounder(Principal principal) {
         access.requireAuthorized(principal);
         if (triPools != null && triPools.enabled()) return CommonResult.success(Map.of(
-                "config", List.of(Map.of("晋升条件","直邀9名付费会员","联创池份数",1,"联创池独立累计上限",1200,"合伙人池累计上限",24000)),
+                "config", List.of(Map.of("晋升条件","直邀9名付费会员","联创池份数",1,"联创池累计上限","与合伙人池相同阶梯，直邀9人时24000元","合伙人池累计上限","与联创池独立计算")),
                 "orders", List.of(), "identities",jdbc.queryForList("SELECT t.member_id,m.username,t.tier,t.direct_paid_count,t.updated_at AS become_time FROM tri_member t JOIN ums_member m ON m.id=t.member_id WHERE t.tier='COFOUNDER' ORDER BY t.updated_at DESC LIMIT 100")));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("config", jdbc.queryForList("SELECT id,price,cofounder_points,share_reward_cap,dividend_count," +
@@ -818,4 +818,3 @@ public class P0AdminController {
         return value == null ? BigDecimal.ZERO : value;
     }
 }
-
