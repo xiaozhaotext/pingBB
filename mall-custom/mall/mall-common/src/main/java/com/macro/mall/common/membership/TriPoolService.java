@@ -34,8 +34,9 @@ public class TriPoolService {
                                  BigDecimal amount, PointsCredit points) {
         requireEnabled();
         if(sourceKey==null || !sourceKey.matches("(?:ORDER|MEMBERSHIP):[1-9][0-9]*") || memberId<=0
-                || amount==null || amount.compareTo(PRICE)!=0 || points==null)
+                || points==null)
             throw new IllegalArgumentException("会员支付凭据无效");
+        long units=purchaseUnits(amount);
         lockPools();
         var existing=jdbc.queryForList("SELECT member_id,paid_amount FROM tri_payment_event WHERE source_key=? FOR UPDATE",sourceKey);
         if(!existing.isEmpty()) {
@@ -43,29 +44,28 @@ public class TriPoolService {
                 throw new IllegalStateException("会员支付幂等凭据冲突");
             return false;
         }
-        if(!jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? FOR UPDATE",Long.class,memberId).isEmpty())
-            throw new IllegalStateException("已是会员，不得重复购买身份牌");
+        boolean memberExists=!jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? FOR UPDATE",Long.class,memberId).isEmpty();
         if(referrerId!=null && referrerId==memberId)throw new IllegalStateException("不可自我邀请");
         // Eligibility is assessed at payment: visitors receive nothing, with no later backfill.
         if(referrerId!=null && jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? FOR UPDATE",Long.class,referrerId).isEmpty())referrerId=null;
         jdbc.update("INSERT INTO tri_payment_event(source_key,member_id,referrer_id,paid_amount,rule_version) VALUES(?,?,?,?,?)",
                 sourceKey,memberId,referrerId,amount,VERSION);
-        jdbc.update("INSERT INTO tri_member(member_id,tier,direct_paid_count) VALUES(?,'MEMBER',0)",memberId);
-        audit("SYSTEM:payment",null,"MEMBER_PAID",memberId,sourceKey+";tier=MEMBER;rule="+VERSION);
-        points.post(memberId,1,BUYER_POINTS,"tri:"+sourceKey+":buyer:product");
-        points.post(memberId,2,BUYER_POINTS,"tri:"+sourceKey+":buyer:repurchase");
+        if (!memberExists) jdbc.update("INSERT INTO tri_member(member_id,tier,direct_paid_count) VALUES(?,'MEMBER',0)",memberId);
+        audit("SYSTEM:payment",null,"MEMBER_PAID",memberId,sourceKey+";units="+units+";repeat="+memberExists+";rule="+VERSION);
+        points.post(memberId,1,Math.multiplyExact(BUYER_POINTS,units),"tri:"+sourceKey+":buyer:product");
+        points.post(memberId,2,Math.multiplyExact(BUYER_POINTS,units),"tri:"+sourceKey+":buyer:repurchase");
         if(referrerId!=null) {
             var parent=jdbc.queryForMap("SELECT tier,direct_paid_count FROM tri_member WHERE member_id=? FOR UPDATE",referrerId);
-            long count=Math.addExact(number(parent,"direct_paid_count"),1);
+            long count=Math.addExact(number(parent,"direct_paid_count"),units);
             Tier next=tier(true,count);
             jdbc.update("UPDATE tri_member SET direct_paid_count=?,tier=? WHERE member_id=?",count,next.name(),referrerId);
-            creditEarnings(referrerId,REFERRAL_CASH,"referral_reward","tri:"+sourceKey+":referral","直邀付费会员10%奖励");
-            points.post(referrerId,2,REFERRER_POINTS,"tri:"+sourceKey+":referrer:repurchase");
+            creditEarnings(referrerId,REFERRAL_CASH.multiply(BigDecimal.valueOf(units)),"referral_reward","tri:"+sourceKey+":referral","直邀付费会员10%奖励");
+            points.post(referrerId,2,Math.multiplyExact(REFERRER_POINTS,units),"tri:"+sourceKey+":referrer:repurchase");
             audit("SYSTEM:payment",null,"DIRECT_MEMBER_PAID",referrerId,
-                    sourceKey+";from="+parent.get("tier")+";to="+next+";directPaid="+count+";cash=399.90;repurchase=1200");
+                    sourceKey+";from="+parent.get("tier")+";to="+next+";directPaid="+count+";units="+units);
         }
         for(Pool pool:Pool.values()) {
-            BigDecimal in=contribution(pool);
+            BigDecimal in=contribution(pool).multiply(BigDecimal.valueOf(units));
             jdbc.update("UPDATE tri_pool SET balance=balance+?,total_in=total_in+? WHERE code=?",in,in,pool.name());
             jdbc.update("INSERT INTO tri_pool_ledger(pool_code,source_key,entry_type,amount,balance_after) SELECT code,?,'FUND',?,balance FROM tri_pool WHERE code=?",
                     sourceKey,in,pool.name());
@@ -146,17 +146,18 @@ public class TriPoolService {
         var rows=jdbc.queryForList("SELECT tier,direct_paid_count FROM tri_member WHERE member_id=?",memberId);
         Tier tier=rows.isEmpty()?Tier.VISITOR:Tier.valueOf(String.valueOf(rows.get(0).get("tier")));
         long refs=rows.isEmpty()?0:number(rows.get(0),"direct_paid_count");
+        long units=tier==Tier.VISITOR?0:membershipUnits(memberId);
         var pools=new ArrayList<Map<String,Object>>();
         for(Pool pool:List.of(Pool.PARTNER,Pool.COFOUNDER)) {
             boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:tier==Tier.COFOUNDER;
-            BigDecimal cap=partnerCap(refs);
+            BigDecimal cap=units==0?BigDecimal.ZERO:membershipCap(refs,units);
             BigDecimal received=received(memberId,pool);
-            pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?partnerShares(refs):1):0,
+            pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?membershipShares(refs,units):units):0,
                     "cap",eligible?cap:BigDecimal.ZERO,"received",received,"remaining",eligible?cap.subtract(received).max(BigDecimal.ZERO):BigDecimal.ZERO));
         }
         return Map.of("enabled",true,"tier",tier.name(),"directPaidCount",refs,"pools",pools,
                 "ruleVersion",VERSION,"customTravelEligible",tier!=Tier.VISITOR,
-                "membershipPrice",TriPoolRules.PRICE);
+                "membershipPrice",TriPoolRules.PRICE,"membershipUnits",units);
     }
 
     private Map<String,Object> distribute(Pool pool,String key,Long operator) {
@@ -198,11 +199,17 @@ public class TriPoolService {
         // REPEATABLE READ snapshot predating another payment that committed before our pool lock.
         for(var row:jdbc.queryForList(sql+" FOR UPDATE",pool.name())) {
             long id=number(row,"member_id"),refs=number(row,"direct_paid_count");
+            long units=pool==Pool.OPERATIONS?0:Math.max(1,jdbc.queryForList("SELECT paid_amount FROM tri_payment_event WHERE member_id=? FOR UPDATE",BigDecimal.class,id).stream().mapToLong(TriPoolRules::purchaseUnits).reduce(0,Math::addExact));
             result.add(new Position(id,Tier.valueOf(String.valueOf(row.get("tier"))),
-                    pool==Pool.OPERATIONS?number(row,"shares"):pool==Pool.PARTNER?partnerShares(refs):1,
-                    pool==Pool.OPERATIONS?null:partnerCap(refs),decimal(row,"received")));
+                    pool==Pool.OPERATIONS?number(row,"shares"):pool==Pool.PARTNER?membershipShares(refs,units):units,
+                    pool==Pool.OPERATIONS?null:membershipCap(refs,units),decimal(row,"received")));
         }
         return result;
+    }
+    /** Successful payment receipts are the authoritative unit ledger; historical members retain one unit. */
+    public long membershipUnits(long memberId) {
+        BigDecimal total=jdbc.queryForObject("SELECT COALESCE(SUM(paid_amount),0) FROM tri_payment_event WHERE member_id=?",BigDecimal.class,memberId);
+        return total==null || total.signum()==0?1:purchaseUnits(total);
     }
     private BigDecimal received(long member,Pool pool) {
         var values=jdbc.queryForList("SELECT received FROM tri_pool_position WHERE member_id=? AND pool_code=?",BigDecimal.class,member,pool.name());

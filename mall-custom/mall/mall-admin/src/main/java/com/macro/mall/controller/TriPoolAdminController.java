@@ -72,8 +72,10 @@ public class TriPoolAdminController {
         var rows=jdbc.queryForList("SELECT u.id,u.username,COALESCE(m.tier,'VISITOR') AS tier,COALESCE(m.direct_paid_count,0) AS direct_paid_count,m.joined_at FROM ums_member u LEFT JOIN tri_member m ON m.member_id=u.id ORDER BY u.id DESC LIMIT 50 OFFSET ?",(page-1)*50);
         for(var row:rows) {
             boolean paid=!"VISITOR".equals(row.get("tier"));long refs=((Number)row.get("direct_paid_count")).longValue();
-            row.put("partnerShares",paid?TriPoolRules.partnerShares(refs):0);
-            row.put("partnerCap",paid?TriPoolRules.partnerCap(refs):BigDecimal.ZERO);
+            long units=paid?pools.membershipUnits(((Number)row.get("id")).longValue()):0;
+            row.put("membershipUnits",units);
+            row.put("partnerShares",paid?TriPoolRules.membershipShares(refs,units):0);
+            row.put("partnerCap",paid?TriPoolRules.membershipCap(refs,units):BigDecimal.ZERO);
         }
         return CommonResult.success(rows);
     }

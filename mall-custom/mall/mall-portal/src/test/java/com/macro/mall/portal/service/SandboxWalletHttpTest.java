@@ -2,7 +2,6 @@ package com.macro.mall.portal.service;
 
 import com.macro.mall.common.membership.*;
 import com.macro.mall.common.exception.GlobalExceptionHandler;
-import com.macro.mall.common.service.RedisService;
 import com.macro.mall.model.*;
 import com.macro.mall.mapper.*;
 import com.macro.mall.portal.dao.*;
@@ -70,10 +69,9 @@ class SandboxWalletHttpTest {
    when(dao.markPaidIfPending(anyLong(),anyInt())).thenAnswer(c->j.update("UPDATE qa_order SET status=1 WHERE id=? AND status=0",(Object)c.getArgument(0)));
    when(dao.getDetail(anyLong())).thenAnswer(c->{var o=orderMapper.selectByPrimaryKey(c.getArgument(0));var detail=new OmsOrderDetail();detail.setId(o.getId());detail.setMemberId(o.getMemberId());detail.setPayAmount(o.getPayAmount());var item=new OmsOrderItem();item.setProductSkuId(1L);item.setProductQuantity(1);detail.setOrderItemList(List.of(item));return detail;});
    var items=mock(PortalOrderItemDao.class);when(items.insertList(anyList())).thenAnswer(c->{List<OmsOrderItem> list=c.getArgument(0);for(var item:list)j.update("INSERT INTO qa_order_item(order_id,sku_id) VALUES(?,?)",item.getOrderId(),item.getProductSkuId());return list.size();});
-   var redis=mock(RedisService.class);when(redis.incr(anyString(),anyLong())).thenAnswer(c->sequence.incrementAndGet());
    var tri=mock(TriMembershipOrderService.class);when(tri.enabled()).thenReturn(true);
    var settings=mock(OmsOrderSettingMapper.class);when(settings.selectByExample(any())).thenReturn(List.of());
-   Map<String,Object> fields=new HashMap<>();fields.put("memberService",members);fields.put("cartItemService",cart);fields.put("memberReceiveAddressService",addresses);fields.put("memberCouponService",mock(UmsMemberCouponService.class));fields.put("integrationConsumeSettingMapper",mock(UmsIntegrationConsumeSettingMapper.class));fields.put("pointsWalletService",wallet);fields.put("orderMapper",orderMapper);fields.put("orderItemMapper",mock(OmsOrderItemMapper.class));fields.put("orderItemDao",items);fields.put("portalOrderDao",dao);fields.put("redisService",redis);fields.put("triMembershipOrders",tri);fields.put("orderSettingMapper",settings);fields.put("jdbcTemplate",j);fields.put("rechargeService",recharge);fields.put("zoneSettlementService",new ZoneSettlementService(j));fields.put("REDIS_DATABASE","test");fields.put("REDIS_KEY_ORDER_ID","order");
+   Map<String,Object> fields=new HashMap<>();fields.put("memberService",members);fields.put("cartItemService",cart);fields.put("memberReceiveAddressService",addresses);fields.put("memberCouponService",mock(UmsMemberCouponService.class));fields.put("integrationConsumeSettingMapper",mock(UmsIntegrationConsumeSettingMapper.class));fields.put("pointsWalletService",wallet);fields.put("orderMapper",orderMapper);fields.put("orderItemMapper",mock(OmsOrderItemMapper.class));fields.put("orderItemDao",items);fields.put("portalOrderDao",dao);fields.put("triMembershipOrders",tri);fields.put("orderSettingMapper",settings);fields.put("jdbcTemplate",j);fields.put("rechargeService",recharge);fields.put("zoneSettlementService",new ZoneSettlementService(j));
    fields.forEach((k,v)->ReflectionTestUtils.setField(service,k,v));
    var tx=new org.springframework.transaction.support.TransactionTemplate(manager);
    return (OmsPortalOrderService)java.lang.reflect.Proxy.newProxyInstance(OmsPortalOrderService.class.getClassLoader(),new Class<?>[]{OmsPortalOrderService.class},(proxy,method,args)->tx.execute(s->{

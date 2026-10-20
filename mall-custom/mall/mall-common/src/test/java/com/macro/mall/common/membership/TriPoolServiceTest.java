@@ -40,6 +40,75 @@ class TriPoolServiceTest {
     LocalDate yesterday(){return LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1);}
     void backdateFunds(){jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(yesterday().atTime(12,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant()));}
 
+    boolean repeat(long receipt,long buyer,Long parent) {
+        return tx.execute(s->service.acceptPayment("ORDER:"+receipt,buyer,parent,TriPoolRules.PRICE,
+            (member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key)));
+    }
+    @Test void threePurchasesByOneInviteeUpgradeParentAndAccumulateAllBenefits() {
+        buy(1,null);buy(2,1L);
+        assertTrue(repeat(21,2,1L));assertTrue(repeat(22,2,1L));
+        assertFalse(repeat(22,2,1L));
+        assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+        assertEquals(3L,service.memberSummary(1).get("directPaidCount"));
+        assertEquals(3L,service.memberSummary(2).get("membershipUnits"));
+        var buyerPools=(List<Map<String,Object>>)service.memberSummary(2).get("pools");
+        assertEquals(3L,buyerPools.get(0).get("shares"));eq("3600",(BigDecimal)buyerPools.get(0).get("cap"));
+        assertEquals(11997L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=2 AND wallet_type=1",Long.class));
+        assertEquals(11997L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=2 AND wallet_type=2",Long.class));
+        eq("1199.70",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=1"));
+        eq("2000",amount("SELECT total_in FROM tri_pool WHERE code='PARTNER'"));
+        backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
+        assertEquals(3L,jdbc.queryForObject("SELECT shares FROM tri_pool_distribution WHERE member_id=2 AND pool_code='PARTNER'",Long.class));
+        eq("857.14",amount("SELECT amount FROM tri_pool_distribution WHERE member_id=2 AND pool_code='PARTNER'"));
+    }
+    @Test void repeatPurchasePreservesTierReceivedAndRollsBackOnPointsFailure() {
+        buy(1,null);for(long id=2;id<=10;id++)buy(id,1L);
+        backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
+        BigDecimal received=amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'");
+        assertThrows(IllegalStateException.class,()->tx.execute(s->service.acceptPayment("ORDER:30",1,null,TriPoolRules.PRICE,(m,t,p,k)->{throw new IllegalStateException("failure");})));
+        assertEquals(1L,service.memberSummary(1).get("membershipUnits"));
+        assertTrue(repeat(31,1,null));
+        assertEquals("COFOUNDER",service.memberSummary(1).get("tier"));
+        var pools=(List<Map<String,Object>>)service.memberSummary(1).get("pools");
+        assertEquals(11L,pools.get(0).get("shares"));assertEquals(2L,pools.get(1).get("shares"));
+        eq("25200",(BigDecimal)pools.get(1).get("cap"));
+        assertEquals(received,pools.get(1).get("received"));
+    }
+    @Test void distinctConcurrentRepeatOrdersEachGrantExactlyOneUnit() throws Exception {
+        buy(1,null);buy(2,1L);
+        var executor=Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch start=new CountDownLatch(1);
+            var first=executor.submit(()->{start.await();return repeat(41,2,1L);});
+            var second=executor.submit(()->{start.await();return repeat(42,2,1L);});
+            start.countDown();assertTrue(first.get(15,TimeUnit.SECONDS));assertTrue(second.get(15,TimeUnit.SECONDS));
+            assertEquals(3L,service.memberSummary(2).get("membershipUnits"));
+            assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+            eq("1199.70",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=1"));
+        } finally {executor.shutdownNow();}
+    }
+    @Test void extraPurchaseReopensCapWithoutResettingReceivedAmount() {
+        buy(1,null);
+        jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'PARTNER',1200)");
+        repeat(51,1,null);backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
+        eq("1000",amount("SELECT amount FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'"));
+        eq("2200",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='PARTNER'"));
+        eq("2400",amount("SELECT cap_amount FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'"));
+    }
+    @Test void oneOrderWithTwoMoreUnitsMatchesTwoSeparateRepeatPurchases() {
+        buy(1,null);buy(2,1L);
+        TriPoolService.PointsCredit points=(m,t,p,k)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",m,t,p,k);
+        assertEquals(Boolean.TRUE,tx.execute(s->service.acceptPayment("ORDER:61",2,1L,new BigDecimal("7998.00"),points)));
+        assertEquals(Boolean.FALSE,tx.execute(s->service.acceptPayment("ORDER:61",2,1L,new BigDecimal("7998.00"),points)));
+        assertEquals(3L,service.memberSummary(2).get("membershipUnits"));
+        assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+        eq("1199.70",amount("SELECT available_earnings FROM ums_earnings WHERE member_id=1"));
+        assertEquals(11997L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=2 AND wallet_type=1",Long.class));
+        assertEquals(11997L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=2 AND wallet_type=2",Long.class));
+        assertEquals(3600L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND wallet_type=2 AND idempotency_key LIKE '%referrer%'",Long.class));
+        eq("2000",amount("SELECT total_in FROM tri_pool WHERE code='PARTNER'"));
+        assertThrows(IllegalStateException.class,()->tx.execute(s->service.acceptPayment("ORDER:61",2,1L,TriPoolRules.PRICE,points)));
+    }
     @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
         var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);
         assertEquals(Boolean.TRUE,tx.execute(s->service.acceptPayment("MEMBERSHIP:99",1,null,TriPoolRules.PRICE,post)));

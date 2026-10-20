@@ -5,7 +5,8 @@
     <template v-if="tri?.enabled">
       <view class="card">
         <text class="title">我的身份：{{ tierNames[tri.tier || 'VISITOR'] }}</text>
-        <view class="row"><text>有效直邀会员</text><text>{{ tri.directPaidCount || 0 }} 人</text></view>
+        <view class="row"><text>本人会员份数</text><text>{{ tri.membershipUnits || 0 }} 份</text></view>
+        <view class="row"><text>有效直邀会员份数</text><text>{{ tri.directPaidCount || 0 }} 份</text></view>
         <text class="tip" v-if="tri.tier === 'VISITOR'">注册为游客；在“我的”单独购买3999元会员后开通会员权益。</text>
         <text class="tip" v-else>每笔会员支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
         <button v-if="tri.customTravelEligible" class="btn" @click="openTravel">定制旅游路线</button>
@@ -18,7 +19,7 @@
           <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
           <view class="row"><text>剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
         </template>
-        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红；本池累计上限按有效直邀人数阶梯计算，9人时为24000元。' : '成为会员后享有本池分红。' }}</text>
+        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀会员累计购买9份后晋升联创，按本人购买份数参与分红；上限按有效直邀份数阶梯计算，本人每增购1份再增加1200元。' : '成为会员后享有本池分红。' }}</text>
       </view>
       <view class="card"><text class="title">分红记录</text><text class="tip">份数表示本次分红时，您持有的份数 / 全池有效总份数。</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ formatTime(r.created_at) }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
     </template>

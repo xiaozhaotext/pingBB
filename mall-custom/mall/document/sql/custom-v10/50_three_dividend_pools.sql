@@ -38,11 +38,12 @@ CREATE TABLE IF NOT EXISTS tri_order_snapshot (
 
 CREATE TABLE IF NOT EXISTS tri_payment_event (
  source_key VARCHAR(100) PRIMARY KEY,
- member_id BIGINT NOT NULL UNIQUE,
+ member_id BIGINT NOT NULL,
  referrer_id BIGINT NULL,
  paid_amount DECIMAL(18,2) NOT NULL,
  rule_version VARCHAR(32) NOT NULL,
- created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ KEY ix_tri_payment_member(member_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS tri_operations_member (

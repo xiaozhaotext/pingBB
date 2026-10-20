@@ -38,6 +38,22 @@ public final class TriPoolRules {
                 .add(BigDecimal.valueOf(referrals % 3).multiply(BigDecimal.valueOf(1200))).setScale(2);
     }
 
+    public static long purchaseUnits(BigDecimal amount) {
+        if(amount==null || amount.signum()<=0 || amount.remainder(PRICE).signum()!=0)
+            throw new IllegalArgumentException("Invalid membership payment amount");
+        return amount.divide(PRICE).longValueExact();
+    }
+
+    public static long membershipShares(long referrals,long units) {
+        if(units<1)throw new IllegalArgumentException("Invalid membership units");
+        return Math.addExact(partnerShares(referrals),units-1);
+    }
+
+    public static BigDecimal membershipCap(long referrals,long units) {
+        if(units<1)throw new IllegalArgumentException("Invalid membership units");
+        return partnerCap(referrals).add(BigDecimal.valueOf(units-1).multiply(new BigDecimal("1200.00")));
+    }
+
     public static BigDecimal contribution(Pool pool) {
         return new BigDecimal(pool == Pool.PARTNER ? "500.00" : "200.00");
     }

@@ -7,6 +7,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static com.macro.mall.common.membership.TriPoolRules.*;
 
 class TriPoolRulesTest {
+    @Test void membershipAmountsMustBePositiveFullPriceMultiples() {
+        assertEquals(1,purchaseUnits(PRICE));assertEquals(2,purchaseUnits(new BigDecimal("7998.00")));
+        for(BigDecimal amount:List.of(BigDecimal.ZERO,new BigDecimal("-3999"),new BigDecimal("7997.99")))
+            assertThrows(IllegalArgumentException.class,()->purchaseUnits(amount));
+        assertThrows(IllegalArgumentException.class,()->purchaseUnits(null));
+        assertEquals(3,membershipShares(0,3));assertEquals(new BigDecimal("3600.00"),membershipCap(0,3));
+        assertEquals(new BigDecimal("10400.00"),membershipCap(3,3));
+    }
     @Test void confirmedCapsAndShares() {
         long[] caps = {1200,2400,3600,8000,9200,10400,16000,17200,18400,24000,
                 25200,26400,32000,33200,34400,40000,41200,42400,48000};

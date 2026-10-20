@@ -4,23 +4,23 @@
     <text v-if="error" class="error">{{ error }}</text>
     <view v-if="info" class="card"
       ><text>当前身份：{{ tierNames[info.tier || 'VISITOR'] }}</text
-      ><text>有效直邀会员：{{ info.directPaidCount || 0 }} 人</text></view
+      ><text>会员购买份数：{{ info.membershipUnits || 0 }} 份</text><text>有效直邀会员：{{ info.directPaidCount || 0 }} 份</text></view
     >
     <view class="card"
       ><text class="subtitle">游客 → 会员</text
       ><text
         >注册默认为游客，不享有奖励。购买任意一条3999元自选区路线后成为会员，获得3999复购积分、3999消费积分及旅游路线定制权益。</text
       ><text
-        >会员在合伙人池有本人基础1份，累计分红上限1200元。每直接邀请1位付费会员增加1份，并获1200复购积分及399.90元直邀奖励。</text
+        >会员可在自选区继续购买3999元路线，每购入1份增加3999消费积分、3999复购积分和1份会员权益，两池累计上限各增加1200元。会员在合伙人池有本人基础1份，累计分红上限1200元。直邀会员每购买1份增加1份，并获1200复购积分及399.90元直邀奖励。</text
       ></view
     >
     <view class="card"
       ><text class="subtitle">会员 → 合伙人 → 联创</text
-      ><text>直邀3名付费会员后晋升合伙人；直邀9名后晋升联创。所有奖励只计直接邀请的付费会员。</text
+      ><text>直邀会员累计购买3份后晋升合伙人，累计9份后晋升联创；同一会员多次购买按份累计。</text
       ><text
-        >合伙人池累计上限：有效直邀0、1、2人分别为1200、2400、3600元；满3、6、9、12、15、18人分别为8000、16000、24000、32000、40000、48000元。每满3人增加8000元，即4000×（已满3人档数×2）；档内每增加1人再加1200元，依此递增。</text
+        >合伙人池累计上限：有效直邀0、1、2份分别为1200、2400、3600元；满3、6、9、12、15、18份分别为8000、16000、24000、32000、40000、48000元。每满3份增加8000元，即4000×（已满3份档数×2）；档内每增加1份再加1200元，依此递增。</text
       ><text
-        >联创另享联创池1份，其累计上限与合伙人池采用同一有效直邀人数阶梯；直邀9人时两池分别为24000元。升级不重置已领取金额，两池分别核算。</text
+        >联创按本人购买份数享有联创池分红，其累计上限与合伙人池采用同一有效直邀份数阶梯，再加本人增购份数×1200元；本人购买1份且直邀9份时，两池上限分别为24000元。升级不重置已领取金额，两池分别核算。</text
       ></view
     >
     <view v-if="info?.tier === 'VISITOR'" class="card"
@@ -53,6 +53,7 @@
       ><text v-if="orderInfo">订单号：{{ orderInfo.merchantOrderNo }}，{{ payHint }}</text
       ><text v-if="actionError" class="error">{{ actionError }}</text></view
     >
+    <button v-if="info?.tier && info.tier !== 'VISITOR'" @click="openRoute">继续购买3999元路线，增加会员权益</button>
     <button v-if="info?.tier && info.tier !== 'VISITOR'" @click="openDividend"
       >查看我的分红与旅游权益</button
     >
