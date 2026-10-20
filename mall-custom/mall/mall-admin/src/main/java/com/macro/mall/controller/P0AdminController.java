@@ -220,7 +220,7 @@ public class P0AdminController {
     public CommonResult<Map<String, Object>> partner(Principal principal) {
         access.requireAuthorized(principal);
         if (triPools != null && triPools.enabled()) return CommonResult.success(Map.of(
-                "config", List.of(Map.of("晋升条件","直邀3名付费会员","份数","本人1份＋有效直邀会员数","累计上限","按已确认阶梯，最高24000元")),
+                "config", List.of(Map.of("晋升条件","直邀3名付费会员","份数","本人1份＋有效直邀会员数","累计上限","按有效直邀阶梯递增，每满3人增加8000元，档内每人增加1200元")),
                 "orders", List.of(), "identities",jdbc.queryForList("SELECT t.member_id,m.username,t.tier,t.direct_paid_count,t.updated_at AS become_time FROM tri_member t JOIN ums_member m ON m.id=t.member_id WHERE t.tier IN ('PARTNER','COFOUNDER') ORDER BY t.updated_at DESC LIMIT 100")));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("config", jdbc.queryForList("SELECT id,price,product_points,repurchase_points,simulate_flag,enabled,remark " +
@@ -238,7 +238,7 @@ public class P0AdminController {
     public CommonResult<Map<String, Object>> cofounder(Principal principal) {
         access.requireAuthorized(principal);
         if (triPools != null && triPools.enabled()) return CommonResult.success(Map.of(
-                "config", List.of(Map.of("晋升条件","直邀9名付费会员","联创池份数",1,"联创池独立累计上限",1200,"合伙人池累计上限",24000)),
+                "config", List.of(Map.of("晋升条件","直邀9名付费会员","联创池份数",1,"联创池累计上限","晋升联创后与个人合伙人池同步增长（9人各24000元）","已领口径","两池分别累计，升级不重置")),
                 "orders", List.of(), "identities",jdbc.queryForList("SELECT t.member_id,m.username,t.tier,t.direct_paid_count,t.updated_at AS become_time FROM tri_member t JOIN ums_member m ON m.id=t.member_id WHERE t.tier='COFOUNDER' ORDER BY t.updated_at DESC LIMIT 100")));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("config", jdbc.queryForList("SELECT id,price,cofounder_points,share_reward_cap,dividend_count," +

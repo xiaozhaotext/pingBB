@@ -74,6 +74,9 @@ public class TriPoolAdminController {
             boolean paid=!"VISITOR".equals(row.get("tier"));long refs=((Number)row.get("direct_paid_count")).longValue();
             row.put("partnerShares",paid?TriPoolRules.partnerShares(refs):0);
             row.put("partnerCap",paid?TriPoolRules.partnerCap(refs):BigDecimal.ZERO);
+            var cofounderCap=TriPoolRules.cofounderCap(TriPoolRules.Tier.valueOf(String.valueOf(row.get("tier"))),refs);
+            row.put("cofounderCap",cofounderCap);
+            row.put("cofounderShares",cofounderCap.signum()>0?1:0);
         }
         return CommonResult.success(rows);
     }

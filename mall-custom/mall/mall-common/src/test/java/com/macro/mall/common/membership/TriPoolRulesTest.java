@@ -19,6 +19,15 @@ class TriPoolRulesTest {
         assertEquals(Tier.PARTNER,tier(true,3));
         assertEquals(Tier.COFOUNDER,tier(true,9));
     }
+    @Test void cofounderCapStartsOnlyAfterQualificationAndTracksPartnerCap() {
+        for (int refs=0;refs<=120;refs++) {
+            for (Tier t:Tier.values()) {
+                assertEquals(t==Tier.COFOUNDER && refs>=9 ? partnerCap(refs) : new BigDecimal("0.00"), cofounderCap(t,refs));
+            }
+        }
+        assertThrows(IllegalArgumentException.class,()->cofounderCap(Tier.COFOUNDER,-1));
+    }
+
     @Test void usersExampleUsesTwelveSharesNotTenPeople() {
         List<Position> people=new ArrayList<>();
         people.add(new Position(1,Tier.MEMBER,2,partnerCap(1),BigDecimal.ZERO));

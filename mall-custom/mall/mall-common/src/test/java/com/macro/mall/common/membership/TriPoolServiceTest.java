@@ -76,8 +76,8 @@ class TriPoolServiceTest {
         assertEquals("MEMBER",jdbc.queryForObject("SELECT tier FROM tri_member WHERE member_id=2",String.class));
         backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
         eq("3599.10",amount("SELECT SUM(amount) FROM ums_earnings_ledger WHERE member_id=1 AND change_type='referral_reward'"));
-        eq("1200",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
-        eq("800",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("2000",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
         eq("2000",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
         assertEquals(10800L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND idempotency_key LIKE '%referrer%'",Long.class));
         assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(TriPoolRules.partnerCap(9))<=0);
@@ -187,6 +187,30 @@ class TriPoolServiceTest {
         tx.execute(s->service.distributeDaily(yesterday()));
         eq("500",amount("SELECT SUM(amount) FROM tri_pool_distribution"));
     }
+    @Test void cofounderQualificationAndCapGrowthPreserveReceiptsAndDailyIdempotency() {
+        buy(1,null);
+        for(long id=2;id<=9;id++)buy(id,1L);
+        jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(yesterday().minusDays(1).atTime(12,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant()));
+        tx.execute(s->service.distributeDaily(yesterday().minusDays(1)));
+        @SuppressWarnings("unchecked") var before=(List<Map<String,Object>>)service.memberSummary(1).get("pools");
+        var ineligible=before.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
+        eq("0",(BigDecimal)ineligible.get("cap"));assertEquals(false,ineligible.get("eligible"));
+        eq("0",amount("SELECT COALESCE(SUM(amount),0) FROM tri_pool_distribution WHERE pool_code='COFOUNDER'"));
+        buy(10,1L);
+        jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'COFOUNDER',1200)");
+        jdbc.update("UPDATE tri_pool SET balance=30000,total_in=30000 WHERE code='COFOUNDER'");
+        backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
+        tx.execute(s->service.distributeDaily(yesterday()));
+        eq("24000",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("22800",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("7200",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        buy(11,1L);
+        @SuppressWarnings("unchecked") var after=(List<Map<String,Object>>)service.memberSummary(1).get("pools");
+        var cofounder=after.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
+        eq("25200",(BigDecimal)cofounder.get("cap"));eq("24000",(BigDecimal)cofounder.get("received"));
+        eq("1200",(BigDecimal)cofounder.get("remaining"));
+    }
+
     @Test void memberSummaryUsesStepCapAndKeepsHistoricalReceipts() {
         buy(1,null);
         jdbc.update("UPDATE tri_member SET direct_paid_count=9,tier='COFOUNDER' WHERE member_id=1");
@@ -196,6 +220,6 @@ class TriPoolServiceTest {
         var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
         var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
         eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
-        eq("1200",(BigDecimal)cofounder.get("cap"));
+        eq("24000",(BigDecimal)cofounder.get("cap"));
     }
 }

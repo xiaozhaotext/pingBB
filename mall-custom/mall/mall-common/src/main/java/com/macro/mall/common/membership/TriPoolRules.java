@@ -38,6 +38,12 @@ public final class TriPoolRules {
                 .add(BigDecimal.valueOf(referrals % 3).multiply(BigDecimal.valueOf(1200))).setScale(2);
     }
 
+    /** No cofounder entitlement before qualification; receipts remain independent per pool. */
+    public static BigDecimal cofounderCap(Tier tier, long referrals) {
+        validateReferrals(referrals);
+        return tier == Tier.COFOUNDER && referrals >= 9 ? partnerCap(referrals) : new BigDecimal("0.00");
+    }
+
     public static BigDecimal contribution(Pool pool) {
         return new BigDecimal(pool == Pool.PARTNER ? "500.00" : "200.00");
     }

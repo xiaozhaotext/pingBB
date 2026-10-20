@@ -148,8 +148,8 @@ public class TriPoolService {
         long refs=rows.isEmpty()?0:number(rows.get(0),"direct_paid_count");
         var pools=new ArrayList<Map<String,Object>>();
         for(Pool pool:List.of(Pool.PARTNER,Pool.COFOUNDER)) {
-            boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:tier==Tier.COFOUNDER;
-            BigDecimal cap=pool==Pool.PARTNER?partnerCap(refs):new BigDecimal("1200.00");
+            boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:cofounderCap(tier,refs).signum()>0;
+            BigDecimal cap=pool==Pool.PARTNER?partnerCap(refs):cofounderCap(tier,refs);
             BigDecimal received=received(memberId,pool);
             pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?partnerShares(refs):1):0,
                     "cap",eligible?cap:BigDecimal.ZERO,"received",received,"remaining",eligible?cap.subtract(received).max(BigDecimal.ZERO):BigDecimal.ZERO));
@@ -200,7 +200,7 @@ public class TriPoolService {
             long id=number(row,"member_id"),refs=number(row,"direct_paid_count");
             result.add(new Position(id,Tier.valueOf(String.valueOf(row.get("tier"))),
                     pool==Pool.OPERATIONS?number(row,"shares"):pool==Pool.PARTNER?partnerShares(refs):1,
-                    pool==Pool.OPERATIONS?null:pool==Pool.PARTNER?partnerCap(refs):new BigDecimal("1200.00"),decimal(row,"received")));
+                    pool==Pool.OPERATIONS?null:pool==Pool.PARTNER?partnerCap(refs):cofounderCap(Tier.valueOf(String.valueOf(row.get("tier"))),refs),decimal(row,"received")));
         }
         return result;
     }
