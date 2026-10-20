@@ -571,3 +571,4 @@ const calcTotal = () => {
 .zone-total-hint{display:block;font-size:22rpx;line-height:32rpx;color:#707782;margin-top:12rpx}
 </style>
 
+

@@ -8,7 +8,6 @@ import {
   productUpdatePublishStatusAPI,
   productUpdateNewStatusAPI,
   productUpdateRecommendStatusAPI,
-  productUpdateDeleteStatusAPI,
 } from '@/apis/product'
 
 interface ZoneProduct {
@@ -17,8 +16,8 @@ interface ZoneProduct {
   pic: string
   price: number
   publishStatus: number
-  deleteStatus: number
   assigned: boolean | number
+  tourRoute: boolean | number
   sortOrder: number
 }
 
@@ -26,7 +25,7 @@ const route = useRoute()
 const router = useRouter()
 // 自选/复购/消费三个专区共用同一套商品管理页面，专区由当前路由名决定
 const ZONES = {
-  pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区商品用现金或余额（充值本金）购买，不能使用产品积分或复购积分。' },
+  pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区只销售3999元旅游路线；游客购买一条并支付成功后升级会员。' },
   rebuyProduct: { code: 'REBUY', label: '复购区', prefix: 'rebuy', rule: '复购区商品按 30% 复购积分抵扣，剩余 70% 优先使用账户余额；余额不足的差额走微信或支付宝支付。不能使用商品积分。' },
   consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区商品只能用商品积分购买，不能使用复购积分、余额或现金。' },
 } as const
@@ -35,11 +34,11 @@ const zone = computed(() => currentZone.value.code)
 const zoneLabel = computed(() => currentZone.value.label)
 const zoneRule = computed(() => currentZone.value.rule)
 const keyword = ref('')
-const assignedOnly = ref(false)
-const archivedOnly = ref(false)
+const assignmentFilter = ref('all')
 const page = ref(1)
-const size = ref(20)
-const total = ref(0)
+const filteredRows = computed(() => rows.value.filter(row => assignmentFilter.value === 'all' || (assignmentFilter.value === 'assigned' ? isAssigned(row) : !isAssigned(row))))
+const pagedRows = computed(() => filteredRows.value.slice((page.value - 1) * 10, page.value * 10))
+watch(assignmentFilter, () => { page.value = 1 })
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
@@ -53,15 +52,11 @@ async function load() {
   const revision = ++loadRevision
   loading.value = true
   try {
-    const params = { keyword: keyword.value, assignedOnly: assignedOnly.value, archivedOnly: archivedOnly.value }
-    const [res, count] = await Promise.all([http<ZoneProduct[]>({
+    const res = await http<ZoneProduct[]>({
       url: '/p0/zones/' + zone.value + '/products',
-      params: { ...params, page: page.value, size: size.value },
-    }), http<{ total: number }>({ url: '/p0/zones/' + zone.value + '/products/count', params })])
-    if (revision === loadRevision) {
-      rows.value = res.data || []
-      total.value = Number(count.data?.total || 0)
-    }
+      params: { keyword: keyword.value, assignedOnly: false },
+    })
+    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1 }
   } catch {
     if (revision === loadRevision) ElMessage.error('商品列表加载失败，请重试')
   } finally {
@@ -71,27 +66,10 @@ async function load() {
 
 watch(zone, () => {
   keyword.value = ''
-  assignedOnly.value = false
-  archivedOnly.value = false
-  page.value = 1
+  assignmentFilter.value = 'all'
   load()
 })
 onMounted(load)
-
-function search() { page.value = 1; load() }
-
-async function restore(row: ZoneProduct) {
-  try {
-    await ElMessageBox.confirm(`确认恢复商品「${row.name}」（ID ${row.id}）？恢复后仍保持原上下架状态。`, '恢复归档商品', { type: 'warning' })
-  } catch { return }
-  busy.value = row.id
-  try {
-    await productUpdateDeleteStatusAPI({ ids: String(row.id), deleteStatus: 0 })
-    ElMessage.success('商品已恢复，请切回可管理商品列表')
-    await load()
-  } catch { ElMessage.error('恢复失败') }
-  finally { busy.value = null }
-}
 
 function goAdd() {
   router.push({ name: `${currentZone.value.prefix}AddProduct` })
@@ -100,12 +78,17 @@ function goEdit(row: ZoneProduct) {
   router.push({ name: `${currentZone.value.prefix}UpdateProduct`, query: { id: row.id } })
 }
 async function assign(row: ZoneProduct) {
+  if (zone.value === 'PICK') {
+    try {
+      await ElMessageBox.confirm(`请确认「${row.name}」及所有规格均为3999元旅游路线。加入后将作为会员权益购买入口。`, '确认旅游路线类型', { type: 'warning' })
+    } catch { return }
+  }
   busy.value = row.id
   try {
     await http({
       url: '/p0/zones/' + zone.value + '/products',
       method: 'post',
-      data: { productId: row.id, sortOrder: row.sortOrder || 0 },
+      data: { productId: row.id, sortOrder: row.sortOrder || 0, tourRoute: zone.value === 'PICK' },
     })
     ElMessage.success('已加入' + zoneLabel.value)
     await load()
@@ -178,18 +161,21 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
     </header>
     <el-card shadow="never">
       <div class="filters">
-        <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="search" />
-        <el-checkbox v-model="assignedOnly" @change="search">仅看已加入{{ zoneLabel }}</el-checkbox>
-        <el-checkbox v-model="archivedOnly" @change="search">查看已归档商品</el-checkbox>
-        <el-button type="primary" @click="search">查询</el-button>
+        <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="load" />
+        <el-select v-model="assignmentFilter" style="width:200px" aria-label="专区归属筛选">
+          <el-option label="全部未删除商品" value="all" />
+          <el-option :label="'已加入' + zoneLabel" value="assigned" />
+          <el-option :label="'未加入' + zoneLabel" value="unassigned" />
+        </el-select>
+        <el-button type="primary" @click="load">查询</el-button>
       </div>
       <el-alert type="info" :closable="false">
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>商品可以分别归属自选区、复购区、消费区，各专区结算规则互不串用；下架商品仍可管理，但不会在商城显示。</span>
+        <span>商品可以分别归属三个专区；下架商品仍可管理，已删除商品不在此列。当前查询返回 {{ rows.length }} 个未删除商品，其中 {{ rows.filter(isAssigned).length }} 个已加入本专区。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
-      <el-table :data="rows" v-loading="loading" empty-text="暂无符合条件的商品">
+      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">
@@ -199,6 +185,9 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
         <el-table-column prop="price" label="价格" width="96" />
+        <el-table-column v-if="zone === 'PICK'" label="旅游路线" width="100">
+          <template #default="{ row }"><el-tag :type="row.tourRoute ? 'success' : 'info'">{{ row.tourRoute ? '已标记' : '未标记' }}</el-tag></template>
+        </el-table-column>
         <el-table-column label="上架状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.publishStatus === 1 ? 'success' : 'info'">
@@ -208,14 +197,12 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column label="专区归属" width="104">
           <template #default="{ row }">
-            <el-tag v-if="isAssigned(row)" type="warning">{{ row.publishStatus === 1 && !row.deleteStatus ? '已加入' : '已加入（商城不展示）' }}</el-tag>
+            <el-tag v-if="isAssigned(row)" type="warning">已加入</el-tag>
             <span v-else>未加入</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="360" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.deleteStatus === 1" link type="primary" :disabled="busy === row.id" @click="restore(row)">恢复商品</el-button>
-            <template v-else>
             <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="togglePublish(row)">
               {{ row.publishStatus === 1 ? '下架' : '上架' }}
@@ -224,11 +211,10 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             <el-button link type="primary" :disabled="busy === row.id" @click="setFlag(row, 'recommend')">设为推荐</el-button>
             <el-button v-if="isAssigned(row)" link type="danger" :disabled="busy === row.id" @click="remove(row)">移出</el-button>
             <el-button v-else link type="success" :disabled="busy === row.id" @click="assign(row)">加入专区</el-button>
-            </template>
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total" :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" style="justify-content:flex-end;margin-top:16px" @current-change="load" @size-change="() => { page = 1; load() }" />
+      <el-pagination v-model:current-page="page" :page-size="10" :total="filteredRows.length" layout="total, prev, pager, next" />
     </el-card>
   </main>
 </template>
@@ -241,4 +227,5 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .head p { margin: 0; color: #6d8074; }
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 </style>
+
 

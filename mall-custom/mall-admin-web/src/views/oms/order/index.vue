@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatMoney } from '@/utils/adminDisplay'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -23,8 +24,6 @@ const listQuery = ref<OrderQueryParam>({
 })
 // 订单列表数据
 const list = ref<OmsOrder[]>([])
-const currency = (value: unknown) => Number.isFinite(Number(value))
-  ? Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
 // 表格数据加载进度条
 const listLoading = ref(true)
 // 分页组件参数
@@ -379,13 +378,13 @@ const deleteOrderFn = async (ids: number[]) => {
           <template #default="scope">{{ scope.row.memberUsername }}</template>
         </el-table-column>
         <el-table-column label="商品原价" width="120" align="center">
-          <template #default="scope">￥{{ currency(scope.row.totalAmount) }}</template>
+          <template #default="scope">￥{{ formatMoney(scope.row.totalAmount) }}</template>
         </el-table-column>
         <el-table-column label="外部应付" width="120" align="center">
-          <template #default="scope">￥{{ currency(scope.row.payAmount) }}</template>
+          <template #default="scope">￥{{ formatMoney(scope.row.payAmount) }}</template>
         </el-table-column>
         <el-table-column label="余额支付" width="120" align="center">
-          <template #default="scope">￥{{ currency(scope.row.balanceAmount) }}</template>
+          <template #default="scope">￥{{ formatMoney(scope.row.balanceAmount ?? 0) }}</template>
         </el-table-column>
         <el-table-column label="支付方式" width="120" align="center">
           <template #default="scope">{{ formatPayType(scope.row.payType) }}</template>
