@@ -8,7 +8,7 @@
       <view v-for="pool in info.pools" :key="pool.code" class="quota-pool">
         <view class="quota-pool-heading"><text>{{ poolNames[pool.code] }}</text><text>{{ pool.eligible ? pool.shares + '份' : '未获得资格' }}</text></view>
         <view class="quota-progress"><view :style="{ width: progress(pool) + '%' }" /></view>
-        <view class="quota-pool-detail"><text>已领 ¥{{ money(pool.received) }} / {{ money(pool.cap) }}</text><text>剩余 ¥{{ money(pool.remaining) }}</text></view>
+        <view class="quota-pool-detail"><text>本池已领 ¥{{ money(pool.received) }} / 共用上限 ¥{{ money(pool.cap) }}</text><text>共用剩余 ¥{{ money(pool.remaining) }}</text></view>
       </view>
     </view>
     <view v-if="info?.tier === 'VISITOR'" class="quota-note" @click="buy">购买会员后获得分红额度，查看会员权益 ›</view>

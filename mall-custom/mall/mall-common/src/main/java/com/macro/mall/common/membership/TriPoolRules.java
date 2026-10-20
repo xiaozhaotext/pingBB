@@ -63,7 +63,7 @@ public final class TriPoolRules {
         if (pool == Pool.OPERATIONS || otherPoolReceived == null || otherPoolReceived.signum() < 0)
             throw new IllegalArgumentException("Invalid shared dividend cap input");
         BigDecimal sharedRemaining = membershipCap(referrals,units).subtract(otherPoolReceived).max(BigDecimal.ZERO);
-        return pool == Pool.COFOUNDER ? sharedRemaining.min(new BigDecimal("1200.00").multiply(BigDecimal.valueOf(units))) : sharedRemaining;
+        return sharedRemaining;
     }
 
     public static BigDecimal contribution(Pool pool) {

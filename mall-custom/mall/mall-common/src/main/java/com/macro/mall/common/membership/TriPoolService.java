@@ -156,9 +156,8 @@ public class TriPoolService {
         for(Pool pool:List.of(Pool.PARTNER,Pool.COFOUNDER)) {
             boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:tier==Tier.COFOUNDER;
             BigDecimal received=pool==Pool.PARTNER?partnerReceived:cofounderReceived;
-            BigDecimal cap=units==0?BigDecimal.ZERO:poolCap(pool,refs,units,pool==Pool.PARTNER?cofounderReceived:partnerReceived);
             pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?membershipShares(refs,units):units):0,
-                    "cap",eligible?cap:BigDecimal.ZERO,"received",received,"remaining",eligible?cap.subtract(received).max(BigDecimal.ZERO):BigDecimal.ZERO));
+                    "cap",eligible?totalCap:BigDecimal.ZERO,"received",received,"remaining",eligible?totalRemaining:BigDecimal.ZERO));
         }
         Map<String,Object> summary=new LinkedHashMap<>();
         summary.put("enabled",true);summary.put("tier",tier.name());summary.put("directPaidCount",refs);

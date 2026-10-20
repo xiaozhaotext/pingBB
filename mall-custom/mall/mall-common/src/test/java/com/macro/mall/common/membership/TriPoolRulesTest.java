@@ -60,7 +60,7 @@ class TriPoolRulesTest {
         assertEquals(new BigDecimal("26400.00"),partnerCap(11));
         assertEquals(new BigDecimal("32000.00"),partnerCap(12));
         assertEquals(new BigDecimal("24000.00"),poolCap(Pool.PARTNER,10,new BigDecimal("1200.00")));
-        assertEquals(new BigDecimal("1200.00"),poolCap(Pool.COFOUNDER,10,new BigDecimal("2439.39")));
+        assertEquals(new BigDecimal("22760.61"),poolCap(Pool.COFOUNDER,10,new BigDecimal("2439.39")));
         assertEquals(0,poolCap(Pool.COFOUNDER,10,new BigDecimal("25200.00")).compareTo(BigDecimal.ZERO));
     }
     @Test void upgradesNeverResetCumulativeReceipts() {

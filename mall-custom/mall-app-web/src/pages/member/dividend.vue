@@ -22,11 +22,11 @@
         <text class="title">{{ poolNames[pool.code] }}</text>
         <template v-if="pool.eligible">
           <view class="row"><text>当前份数</text><text>{{ pool.shares }} 份</text></view>
-          <view class="row"><text>本池当前可领上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
+          <view class="row"><text>两池共用总上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
           <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
-          <view class="row"><text>剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
+          <view class="row"><text>共用剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
         </template>
-        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀会员累计购买9份后晋升联创，本池按本人购买份数分红，累计最多领取1200元×本人份数，与合伙人池共用总上限。' : '成为会员后享有本池分红。' }}</text>
+        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀会员累计购买9份后晋升联创，本池按本人购买份数分红，与合伙人池共用总上限。' : '成为会员后享有本池分红。' }}</text>
       </view>
       <view class="card"><text class="title">分红记录</text><text class="tip">份数表示本次分红时，您持有的份数 / 全池有效总份数。</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ formatTime(r.created_at) }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
     </template>
