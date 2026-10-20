@@ -78,7 +78,7 @@ const loadData = async () => {
       triEnabled = tri.enabled
       if (tri.enabled) {
         identityLabel.value = tierNames[tri.tier || 'VISITOR']
-        dividendCap.value = (tri.pools || []).reduce((sum, pool) => sum + Number(pool.cap), 0)
+        dividendCap.value = tri.totalCap == null ? '—' : tri.totalCap
       } else {
       const identity = await getMyIdentityAPI()
       identityLabel.value = identity.data?.identityType == null

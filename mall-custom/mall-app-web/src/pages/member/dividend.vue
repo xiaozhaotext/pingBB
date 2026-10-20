@@ -10,15 +10,22 @@
         <text class="tip" v-else>每笔会员支付成功后触发分配，按全池有效总份数计算。累计已领取金额在升级后继续保留。</text>
         <button v-if="tri.customTravelEligible" class="btn" @click="openTravel">定制旅游路线</button>
       </view>
+      <view class="card">
+        <text class="title">两池共用分红额度</text>
+        <view class="row"><text>累计总上限</text><text>¥{{ fmt(tri.totalCap) }}</text></view>
+        <view class="row"><text>两池累计已领</text><text>¥{{ fmt(tri.totalReceived) }}</text></view>
+        <view class="row"><text>剩余额度</text><text>¥{{ fmt(tri.totalRemaining) }}</text></view>
+        <text class="tip">剩余额度＝总上限－合伙人池已领－联创池已领；直邀10人总上限25200元。</text>
+      </view>
       <view class="card" v-for="pool in tri.pools" :key="pool.code">
         <text class="title">{{ poolNames[pool.code] }}</text>
         <template v-if="pool.eligible">
           <view class="row"><text>当前份数</text><text>{{ pool.shares }} 份</text></view>
-          <view class="row"><text>累计领取上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
+          <view class="row"><text>本池当前可领上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
           <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
           <view class="row"><text>剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
         </template>
-        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红；本池累计上限按有效直邀人数阶梯计算，9人时为24000元。' : '成为会员后享有本池分红。' }}</text>
+        <text class="tip" v-else>{{ pool.code === 'COFOUNDER' ? '直邀9名付费会员晋升联创后，获得本池1份分红；本池最多领取1200元，与合伙人池共用总上限。' : '成为会员后享有本池分红。' }}</text>
       </view>
       <view class="card"><text class="title">分红记录</text><text class="tip">份数表示本次分红时，您持有的份数 / 全池有效总份数。</text><view v-for="r in triRecords" :key="r.id" class="item"><text>{{ poolNames[r.pool_code] }}　+¥{{ fmt(r.amount) }}</text><text class="sub">{{ formatTime(r.created_at) }} · {{ tierNames[r.identity_snapshot] }} · {{ r.shares }}/{{ r.total_shares }}份</text></view><text v-if="!triRecords.length" class="tip">暂无分红记录</text><button class="btn" v-if="hasMore" @click="loadMore">加载更多</button></view>
     </template>
@@ -66,7 +73,8 @@ const hasMore = ref(false)
 const PAGE_SIZE = 20
 
 const fmt = (v: any) => {
-  const n = Number(v || 0)
+  if (v == null || v === '') return '—'
+  const n = Number(v)
   return n.toFixed(2)
 }
 const formatTime = chinaDateTime
@@ -109,6 +117,8 @@ const loadTriRecords = async () => {
 onShow(async () => {
   loadError.value = ''
   page.value = 1
+  tri.value = null
+  triRecords.value = []
   try {
     tri.value = (await getTriPoolsAPI()).data
     if (tri.value.enabled) { await loadTriRecords(); return }

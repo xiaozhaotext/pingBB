@@ -46,6 +46,15 @@ class TriPoolRulesTest {
         assertEquals(new BigDecimal("1.00"),awards.get(0).amount());
         assertEquals(new BigDecimal("24000.00"),awards.get(0).cap());
     }
+    @Test void twoPoolsShareTheConfirmedTotalCap() {
+        assertEquals(new BigDecimal("24000.00"),partnerCap(9));
+        assertEquals(new BigDecimal("25200.00"),partnerCap(10));
+        assertEquals(new BigDecimal("26400.00"),partnerCap(11));
+        assertEquals(new BigDecimal("32000.00"),partnerCap(12));
+        assertEquals(new BigDecimal("24000.00"),poolCap(Pool.PARTNER,10,new BigDecimal("1200.00")));
+        assertEquals(new BigDecimal("1200.00"),poolCap(Pool.COFOUNDER,10,new BigDecimal("2439.39")));
+        assertEquals(0,poolCap(Pool.COFOUNDER,10,new BigDecimal("25200.00")).compareTo(BigDecimal.ZERO));
+    }
     @Test void upgradesNeverResetCumulativeReceipts() {
         var awards=allocate(new BigDecimal("9000.00"),List.of(
                 new Position(1,Tier.PARTNER,4,partnerCap(3),new BigDecimal("1199.00"))));

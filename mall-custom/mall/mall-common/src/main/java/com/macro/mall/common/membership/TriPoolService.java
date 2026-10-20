@@ -146,17 +146,23 @@ public class TriPoolService {
         var rows=jdbc.queryForList("SELECT tier,direct_paid_count FROM tri_member WHERE member_id=?",memberId);
         Tier tier=rows.isEmpty()?Tier.VISITOR:Tier.valueOf(String.valueOf(rows.get(0).get("tier")));
         long refs=rows.isEmpty()?0:number(rows.get(0),"direct_paid_count");
+        BigDecimal totalCap=tier==Tier.VISITOR?BigDecimal.ZERO:partnerCap(refs);
+        BigDecimal partnerReceived=received(memberId,Pool.PARTNER);
+        BigDecimal cofounderReceived=received(memberId,Pool.COFOUNDER);
+        BigDecimal totalReceived=partnerReceived.add(cofounderReceived);
+        BigDecimal totalRemaining=totalCap.subtract(totalReceived).max(BigDecimal.ZERO);
         var pools=new ArrayList<Map<String,Object>>();
         for(Pool pool:List.of(Pool.PARTNER,Pool.COFOUNDER)) {
             boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:tier==Tier.COFOUNDER;
-            BigDecimal cap=partnerCap(refs);
-            BigDecimal received=received(memberId,pool);
+            BigDecimal received=pool==Pool.PARTNER?partnerReceived:cofounderReceived;
+            BigDecimal cap=poolCap(pool,refs,pool==Pool.PARTNER?cofounderReceived:partnerReceived);
             pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?partnerShares(refs):1):0,
                     "cap",eligible?cap:BigDecimal.ZERO,"received",received,"remaining",eligible?cap.subtract(received).max(BigDecimal.ZERO):BigDecimal.ZERO));
         }
         return Map.of("enabled",true,"tier",tier.name(),"directPaidCount",refs,"pools",pools,
                 "ruleVersion",VERSION,"customTravelEligible",tier!=Tier.VISITOR,
-                "membershipPrice",TriPoolRules.PRICE);
+                "membershipPrice",TriPoolRules.PRICE,"totalCap",totalCap,
+                "totalReceived",totalReceived,"totalRemaining",totalRemaining);
     }
 
     private Map<String,Object> distribute(Pool pool,String key,Long operator) {
@@ -192,7 +198,12 @@ public class TriPoolService {
     private List<Position> positions(Pool pool) {
         String sql=pool==Pool.OPERATIONS
                 ?"SELECT o.member_id,COALESCE(m.tier,'VISITOR') AS tier,o.shares,COALESCE(m.direct_paid_count,0) AS direct_paid_count,COALESCE(p.received,0) AS received FROM tri_operations_member o LEFT JOIN tri_member m ON m.member_id=o.member_id LEFT JOIN tri_pool_position p ON p.member_id=o.member_id AND p.pool_code=? WHERE o.enabled=1 ORDER BY o.member_id"
-                :"SELECT m.member_id,m.tier,m.direct_paid_count,COALESCE(p.received,0) AS received FROM tri_member m LEFT JOIN tri_pool_position p ON p.member_id=m.member_id AND p.pool_code=? "+(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"")+"ORDER BY m.member_id";
+                :"SELECT m.member_id,m.tier,m.direct_paid_count,COALESCE(p.received,0) AS received,"
+                    +"COALESCE(other_pos.received,0) AS other_received FROM tri_member m"
+                    +" LEFT JOIN tri_pool_position p ON p.member_id=m.member_id AND p.pool_code=?"
+                    +" LEFT JOIN tri_pool_position other_pos ON other_pos.member_id=m.member_id AND other_pos.pool_code='"
+                    +(pool==Pool.PARTNER?Pool.COFOUNDER.name():Pool.PARTNER.name())+"' "
+                    +(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"")+"ORDER BY m.member_id";
         List<Position> result=new ArrayList<>();
         // Locking reads are essential: the outer order transaction may already have a MySQL
         // REPEATABLE READ snapshot predating another payment that committed before our pool lock.
@@ -200,7 +211,7 @@ public class TriPoolService {
             long id=number(row,"member_id"),refs=number(row,"direct_paid_count");
             result.add(new Position(id,Tier.valueOf(String.valueOf(row.get("tier"))),
                     pool==Pool.OPERATIONS?number(row,"shares"):pool==Pool.PARTNER?partnerShares(refs):1,
-                    pool==Pool.OPERATIONS?null:partnerCap(refs),decimal(row,"received")));
+                    pool==Pool.OPERATIONS?null:poolCap(pool,refs,decimal(row,"other_received")),decimal(row,"received")));
         }
         return result;
     }
