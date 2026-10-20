@@ -29,7 +29,7 @@ onMounted(load)
 </script>
 <template>
   <main class="zones-admin">
-    <header><small>商品管理 · 首页专区</small><h1>三个专区，清晰管理</h1><p>自选区用现金或余额，复购区用复购积分加现金，消费区用商品积分，各专区结算规则互不串用。</p></header>
+    <header><small>商品管理 · 首页专区</small><h1>三个专区，清晰管理</h1><p>自选区用现金或余额，复购区积分抵扣后优先用余额、不足部分外部支付，消费区用商品积分。</p></header>
     <el-card shadow="never">
       <el-tabs v-model="zone"><el-tab-pane label="品牌区（自选区）" name="PICK"/><el-tab-pane label="复购区" name="REBUY"/><el-tab-pane label="消费区" name="CONSUME"/></el-tabs>
       <template>
@@ -49,3 +49,4 @@ onMounted(load)
 <style scoped>
 .zones-admin{padding:28px;background:#f7f3eb;min-height:100vh}.zones-admin header{margin-bottom:24px;padding:28px;border-radius:20px;background:linear-gradient(110deg,#f5e5b9,#e2ecdf)}h1{font-size:28px;color:#304f45;margin:12px 0}p,small{color:#7b806d}.filters{display:flex;gap:18px;align-items:center;margin:20px 0}.filters .el-input{width:320px}.note{font-size:12px;margin-top:20px}
 </style>
+

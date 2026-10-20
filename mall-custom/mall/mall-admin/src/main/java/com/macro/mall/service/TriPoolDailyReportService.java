@@ -24,6 +24,11 @@ public class TriPoolDailyReportService {
         Timestamp from=start(date),to=start(date.plusDays(1));
         var rows=new ArrayList<Map<String,Object>>();
         for(var pool:TriPoolRules.Pool.values()) {
+            Long invalidDistributions=jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM tri_pool_ledger WHERE pool_code=? AND entry_type='DISTRIBUTE' AND amount>0 AND created_at<?",
+                    Long.class,pool.name(),to);
+            if(invalidDistributions!=null && invalidDistributions>0)
+                throw new IllegalStateException("分红池发放流水金额方向错误，请核对历史记录");
             var amounts=jdbc.queryForMap(
                     "SELECT COALESCE(SUM(CASE WHEN created_at<? THEN amount ELSE 0 END),0) AS opening,"+
                     "COALESCE(SUM(CASE WHEN created_at>=? AND entry_type='FUND' THEN amount ELSE 0 END),0) AS funded,"+
@@ -45,3 +50,4 @@ public class TriPoolDailyReportService {
         return Map.of("date",date.toString(),"timezone",ZONE.getId(),"pools",rows);
     }
 }
+
