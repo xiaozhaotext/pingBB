@@ -87,7 +87,7 @@ def switch(name, target):
 
 def call(path):
     try:
-        with urllib.request.urlopen('https://122.51.105.107' + path, timeout=5) as response:
+        with urllib.request.urlopen('https://zhiyoumei.com.cn' + path, timeout=5) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as error:
         return error.code, error.read()
