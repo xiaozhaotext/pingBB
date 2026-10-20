@@ -71,7 +71,7 @@ class TriPoolServiceTest {
         assertEquals("COFOUNDER",service.memberSummary(1).get("tier"));
         var pools=(List<Map<String,Object>>)service.memberSummary(1).get("pools");
         assertEquals(11L,pools.get(0).get("shares"));assertEquals(2L,pools.get(1).get("shares"));
-        eq("2400",(BigDecimal)pools.get(1).get("cap"));
+        eq("25200",(BigDecimal)pools.get(1).get("cap"));
         eq("25200",(BigDecimal)service.memberSummary(1).get("totalCap"));
         assertEquals(received,pools.get(1).get("received"));
     }
@@ -115,21 +115,38 @@ class TriPoolServiceTest {
         repeat(71,1,null);repeat(72,1,null);
         var summary=service.memberSummary(1);eq("26400",(BigDecimal)summary.get("totalCap"));
         var pools=(List<Map<String,Object>>)summary.get("pools");
-        assertEquals(3L,pools.get(1).get("shares"));eq("3600",(BigDecimal)pools.get(1).get("cap"));
+        assertEquals(3L,pools.get(1).get("shares"));eq("26400",(BigDecimal)pools.get(1).get("cap"));
         jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'PARTNER',26300),(1,'COFOUNDER',50)");
         summary=service.memberSummary(1);eq("50",(BigDecimal)summary.get("totalRemaining"));
         backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
         eq("26400",amount("SELECT SUM(received) FROM tri_pool_position WHERE member_id=1"));
         eq("0",(BigDecimal)service.memberSummary(1).get("totalRemaining"));
     }
-    @Test void soleCofounderWithThreeUnitsReceivesAtMost3600FromCofounderPool() {
+    @Test void soleCofounderWithThreeUnitsCanReceiveBeyondTheOld1200PerUnitLimit() {
         buy(1,null);for(long id=2;id<=10;id++)buy(id,1L);
         repeat(81,1,null);repeat(82,1,null);backdateFunds();
         jdbc.update("UPDATE tri_pool SET balance=0 WHERE code='PARTNER'");
         jdbc.update("UPDATE tri_pool SET balance=10000,total_in=10000 WHERE code='COFOUNDER'");
         tx.execute(s->service.distributeDaily(yesterday()));
-        eq("3600",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
-        eq("6400",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("10000",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+    }
+    @Test void bothPoolsDisplay24000AtNineReferralsAndDeductBothHistoricalReceipts() {
+        buy(1,null);jdbc.update("UPDATE tri_member SET tier='COFOUNDER',direct_paid_count=9 WHERE member_id=1");
+        jdbc.update("INSERT INTO tri_pool_position(member_id,pool_code,received) VALUES(1,'PARTNER',2439.39),(1,'COFOUNDER',1200)");
+        var summary=service.memberSummary(1);
+        var pools=(List<Map<String,Object>>)summary.get("pools");
+        for(var pool:pools) {eq("24000",(BigDecimal)pool.get("cap"));eq("20360.61",(BigDecimal)pool.get("remaining"));}
+        eq("3639.39",(BigDecimal)summary.get("totalReceived"));
+    }
+    @Test void soleCofounderReceivesUpTo24000InsteadOf1200() {
+        buy(1,null);for(long id=2;id<=10;id++)buy(id,1L);backdateFunds();
+        jdbc.update("UPDATE tri_pool SET balance=0 WHERE code='PARTNER'");
+        jdbc.update("UPDATE tri_pool SET balance=30000,total_in=30000 WHERE code='COFOUNDER'");
+        tx.execute(s->service.distributeDaily(yesterday()));
+        eq("24000",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("6000",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        eq("0",(BigDecimal)service.memberSummary(1).get("totalRemaining"));
     }
     @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
         var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);
@@ -167,9 +184,9 @@ class TriPoolServiceTest {
         assertEquals("MEMBER",jdbc.queryForObject("SELECT tier FROM tri_member WHERE member_id=2",String.class));
         backdateFunds();tx.execute(s->service.distributeDaily(yesterday()));
         eq("3599.10",amount("SELECT SUM(amount) FROM ums_earnings_ledger WHERE member_id=1 AND change_type='referral_reward'"));
-        eq("1200",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
-        eq("800",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
-        assertTrue(amount("SELECT MAX(cap_amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'").compareTo(new BigDecimal("1200.00"))<=0);
+        eq("2000",amount("SELECT SUM(amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+        assertTrue(amount("SELECT MAX(cap_amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'").compareTo(new BigDecimal("24000.00"))<=0);
         eq("2000",amount("SELECT balance FROM tri_pool WHERE code='OPERATIONS'"));
         assertEquals(10800L,jdbc.queryForObject("SELECT SUM(points) FROM test_points WHERE member_id=1 AND idempotency_key LIKE '%referrer%'",Long.class));
         assertTrue(jdbc.queryForObject("SELECT MAX(received_before+amount) FROM tri_pool_distribution WHERE member_id=1 AND pool_code='PARTNER'",BigDecimal.class).compareTo(TriPoolRules.partnerCap(9))<=0);
@@ -188,10 +205,10 @@ class TriPoolServiceTest {
         eq("3639.39",(BigDecimal)summary.get("totalReceived"));
         eq("21560.61",(BigDecimal)summary.get("totalRemaining"));
         @SuppressWarnings("unchecked") var pools=(List<Map<String,Object>>)summary.get("pools");
-        eq("24000",(BigDecimal)pools.get(0).get("cap"));
+        eq("25200",(BigDecimal)pools.get(0).get("cap"));
         eq("21560.61",(BigDecimal)pools.get(0).get("remaining"));
-        eq("1200",(BigDecimal)pools.get(1).get("cap"));
-        eq("0",(BigDecimal)pools.get(1).get("remaining"));
+        eq("25200",(BigDecimal)pools.get(1).get("cap"));
+        eq("21560.61",(BigDecimal)pools.get(1).get("remaining"));
     }
     @Test void dailyDistributionNeverPaysBeyondBothPoolsSharedCap() {
         buy(1,null);
@@ -319,7 +336,7 @@ class TriPoolServiceTest {
         var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
         var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
         eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
-        eq("1",(BigDecimal)cofounder.get("cap"));
+        eq("24000",(BigDecimal)cofounder.get("cap"));
         eq("1",(BigDecimal)cofounder.get("remaining"));
         eq("24000",(BigDecimal)summary.get("totalCap"));
         eq("1",(BigDecimal)summary.get("totalRemaining"));
