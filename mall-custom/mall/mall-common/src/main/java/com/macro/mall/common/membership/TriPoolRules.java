@@ -38,6 +38,14 @@ public final class TriPoolRules {
                 .add(BigDecimal.valueOf(referrals % 3).multiply(BigDecimal.valueOf(1200))).setScale(2);
     }
 
+    /** Partner and cofounder distributions draw from one cumulative member cap. */
+    public static BigDecimal poolCap(Pool pool, long referrals, BigDecimal otherPoolReceived) {
+        if (pool == Pool.OPERATIONS || otherPoolReceived == null || otherPoolReceived.signum() < 0)
+            throw new IllegalArgumentException("Invalid shared dividend cap input");
+        BigDecimal sharedRemaining = partnerCap(referrals).subtract(otherPoolReceived).max(BigDecimal.ZERO);
+        return pool == Pool.COFOUNDER ? sharedRemaining.min(new BigDecimal("1200.00")) : sharedRemaining;
+    }
+
     public static BigDecimal contribution(Pool pool) {
         return new BigDecimal(pool == Pool.PARTNER ? "500.00" : "200.00");
     }

@@ -12,7 +12,7 @@
       </view>
     </view>
     <view v-if="info?.tier === 'VISITOR'" class="quota-note" @click="buy">购买会员后获得分红额度，查看会员权益 ›</view>
-    <view v-else class="quota-note">额度表示累计分红上限，实际到账以分红明细为准。</view>
+    <view v-else class="quota-note">合伙人池与联创池共用累计上限；剩余额度＝总上限－两池累计已领。实际到账以分红明细为准。</view>
   </view>
 </template>
 <script setup lang="ts">
@@ -23,7 +23,11 @@ const props = defineProps<{ active: boolean }>()
 const member = useMemberStore(), info = ref<TriSummary | null>(null), loading = ref(false), failed = ref(false), updated = ref('')
 let timer: ReturnType<typeof setInterval> | undefined, generation = 0
 const money = (value: unknown) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const total = (key: 'cap' | 'received' | 'remaining') => info.value?.enabled ? money((info.value.pools || []).reduce((sum, p) => sum + Number(p[key] || 0), 0)) : '—'
+const total = (key: 'cap' | 'received' | 'remaining') => {
+  if (!info.value?.enabled) return '—'
+  const value = info.value[key === 'cap' ? 'totalCap' : key === 'received' ? 'totalReceived' : 'totalRemaining']
+  return value == null ? '—' : money(value)
+}
 const progress = (p: MemberPool) => p.cap > 0 ? Math.min(100, Math.max(0, p.received / p.cap * 100)) : 0
 const status = computed(() => !member.memberInfo ? '登录后查看个人额度' : failed.value ? `更新失败${updated.value ? ' · 上次 ' + updated.value : '，请重试'}` : info.value && !info.value.enabled ? '新分红规则待启用' : updated.value ? `${updated.value} 更新 · 自动刷新` : '正在读取账户额度…')
 async function refresh() {
