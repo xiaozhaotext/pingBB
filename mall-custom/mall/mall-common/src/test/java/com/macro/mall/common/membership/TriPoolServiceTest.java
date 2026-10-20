@@ -228,6 +228,9 @@ class TriPoolServiceTest {
         var partner=pools.stream().filter(p->p.get("code").equals("PARTNER")).findFirst().orElseThrow();
         var cofounder=pools.stream().filter(p->p.get("code").equals("COFOUNDER")).findFirst().orElseThrow();
         eq("24000",(BigDecimal)partner.get("cap"));eq("23999",(BigDecimal)partner.get("received"));eq("1",(BigDecimal)partner.get("remaining"));
-        eq("24000",(BigDecimal)cofounder.get("cap"));
+        eq("1",(BigDecimal)cofounder.get("cap"));
+        eq("1",(BigDecimal)cofounder.get("remaining"));
+        eq("24000",(BigDecimal)summary.get("totalCap"));
+        eq("1",(BigDecimal)summary.get("totalRemaining"));
     }
 }
