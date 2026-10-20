@@ -22,7 +22,7 @@
         <text class="title">{{ poolNames[pool.code] }}</text>
         <template v-if="pool.eligible">
           <view class="row"><text>当前份数</text><text>{{ pool.shares }} 份</text></view>
-          <view class="row"><text>两池共用总上限</text><text>¥{{ fmt(pool.cap) }}</text></view>
+          <view class="row"><text>本池当前可领上限（两池共用）</text><text>¥{{ fmt(pool.cap) }}</text></view>
           <view class="row"><text>已领取</text><text>¥{{ fmt(pool.received) }}</text></view>
           <view class="row"><text>共用剩余额度</text><text>¥{{ fmt(pool.remaining) }}</text></view>
         </template>

@@ -131,6 +131,16 @@ class TriPoolServiceTest {
         eq("10000",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
         eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
     }
+    @Test void twoSingleShareCofoundersSplitThePoolEqually() {
+        buy(1,null);buy(2,null);
+        jdbc.update("UPDATE tri_member SET tier='COFOUNDER',direct_paid_count=10 WHERE member_id IN (1,2)");
+        backdateFunds();
+        tx.execute(s->service.distributeDaily(yesterday()));
+        eq("200",amount("SELECT amount FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("200",amount("SELECT amount FROM tri_pool_distribution WHERE member_id=2 AND pool_code='COFOUNDER'"));
+        assertEquals(2L,jdbc.queryForObject("SELECT total_shares FROM tri_pool_distribution WHERE member_id=1 AND pool_code='COFOUNDER'",Long.class));
+        eq("0",amount("SELECT balance FROM tri_pool WHERE code='COFOUNDER'"));
+    }
     @Test void standaloneMembershipReceiptIsAcceptedAndIdempotent() {
         var post=(TriPoolService.PointsCredit)(member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key);
         assertEquals(Boolean.TRUE,tx.execute(s->service.acceptPayment("MEMBERSHIP:99",1,null,TriPoolRules.PRICE,post)));
