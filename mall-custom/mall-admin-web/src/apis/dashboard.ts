@@ -4,6 +4,7 @@ export interface PaidTrendDay {
   day: string
   orderCount: number
   paidAmount: number
+  tradeAmount: number
 }
 
 export interface UserTrendDay {

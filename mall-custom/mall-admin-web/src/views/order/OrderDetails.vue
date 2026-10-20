@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOrderListAPI } from '@/apis/order'
 import { formatDateTime } from '@/utils/datetime'
+import { orderFundsAmount } from '@/utils/orderDisplay'
 import type { OmsOrder, OrderQueryParam } from '@/types/order'
 
 const router = useRouter()
@@ -41,7 +42,8 @@ onMounted(load)
     <el-table :data="rows" border stripe>
       <el-table-column prop="orderSn" label="订单编号" min-width="190" />
       <el-table-column prop="memberUsername" label="买家账号" min-width="140" />
-      <el-table-column label="商品与金额" min-width="150"><template #default="scope">￥{{ Number(scope.row.payAmount || scope.row.totalAmount).toFixed(2) }}</template></el-table-column>
+      <el-table-column label="商品总额" min-width="130"><template #default="scope">￥{{ Number(scope.row.totalAmount).toFixed(2) }}</template></el-table-column>
+      <el-table-column label="资金应付（含余额）" min-width="165"><template #default="scope">￥{{ orderFundsAmount(scope.row).toFixed(2) }}</template></el-table-column>
       <el-table-column label="下单时间" min-width="180"><template #default="scope">{{ formatDateTime(scope.row.createTime) }}</template></el-table-column>
       <el-table-column label="状态" width="120"><template #default="scope">{{ statusLabel(scope.row.status) }}</template></el-table-column>
       <el-table-column label="详情" width="120" fixed="right"><template #default="scope"><el-button link type="primary" @click="openOrder(scope.row)">商品 / 买家信息</el-button></template></el-table-column>

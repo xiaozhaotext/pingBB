@@ -367,8 +367,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         order.setIntegration(calcGifIntegration(orderItemList));
         //计算赠送成长值
         order.setGrowth(calcGiftGrowth(orderItemList));
-        //生成订单号
-        order.setOrderSn(generateOrderSn(order));
         //设置自动收货天数
         List<OmsOrderSetting> orderSettings = orderSettingMapper.selectByExample(new OmsOrderSettingExample());
         if(CollUtil.isNotEmpty(orderSettings)){
@@ -377,6 +375,15 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // TODO: 2018/9/3 bill_*,delivery_*
         //插入order表和order_item表
         orderMapper.insert(order);
+        // The persistent database ID survives Redis cache clears. The N namespace
+        // also cannot collide with any legacy all-numeric order number.
+        order.setOrderSn(generateOrderSn(order));
+        OmsOrder numberPatch = new OmsOrder();
+        numberPatch.setId(order.getId());
+        numberPatch.setOrderSn(order.getOrderSn());
+        if (orderMapper.updateByPrimaryKeySelective(numberPatch) != 1) {
+            Asserts.fail("订单编号保存失败，请重试");
+        }
         if (productPointsUsed > 0) {
             consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_PRODUCT,
                     "PRODUCT", productPointsUsed, settlement.getProductPointAmount());
@@ -662,23 +669,14 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     /**
-     * 生成18位订单编号:8位日期+2位平台号码+2位支付方式+6位以上自增id
+     * Database-backed identity, no Redis sequence or cache lifetime dependency.
      */
     private String generateOrderSn(OmsOrder order) {
-        StringBuilder sb = new StringBuilder();
-        String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        String key = REDIS_DATABASE+":"+ REDIS_KEY_ORDER_ID + date;
-        Long increment = redisService.incr(key, 1);
-        sb.append(date);
-        sb.append(String.format("%02d", order.getSourceType()));
-        sb.append(String.format("%02d", order.getPayType()));
-        String incrementStr = increment.toString();
-        if (incrementStr.length() <= 6) {
-            sb.append(String.format("%06d", increment));
-        } else {
-            sb.append(incrementStr);
-        }
-        return sb.toString();
+        if (order.getId() == null || order.getId() <= 0) throw new IllegalStateException("订单持久化编号缺失");
+        String date = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai"))
+                .format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+        return date + String.format(java.util.Locale.ROOT, "%02d%02dN%d",
+                order.getSourceType(), order.getPayType(), order.getId());
     }
 
     /**

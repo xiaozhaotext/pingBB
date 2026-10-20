@@ -18,4 +18,6 @@ public class UmsMemberRecommend implements Serializable {
     private String bindPath;   // 如 /1/3/5
     private Date bindTime;
     private Date createTime;
+    /** Current business identity, independent of the account identifier memberId. */
+    private String membershipTier;
 }

@@ -63,6 +63,7 @@ class SandboxWalletHttpTest {
    var wallet=mock(PointsWalletService.class);when(wallet.getAccount(anyLong(),anyInt())).thenAnswer(c->{var a=new UmsPointsAccount();a.setAvailable(0L);return a;});
    var orderMapper=mock(OmsOrderMapper.class);var sequence=new AtomicLong(100);
    when(orderMapper.insert(any())).thenAnswer(c->{OmsOrder o=c.getArgument(0);o.setId(sequence.incrementAndGet());return j.update("INSERT INTO qa_order(id,member_id,status,pay_amount,balance_amount) VALUES(?,?,?,?,?)",o.getId(),o.getMemberId(),o.getStatus(),o.getPayAmount(),o.getBalanceAmount());});
+   when(orderMapper.updateByPrimaryKeySelective(any())).thenAnswer(c->{OmsOrder o=c.getArgument(0);return j.update("UPDATE qa_order SET order_sn=? WHERE id=?",o.getOrderSn(),o.getId());});
    when(orderMapper.selectByPrimaryKey(anyLong())).thenAnswer(c->{var rows=j.queryForList("SELECT * FROM qa_order WHERE id=?",(Object)c.getArgument(0));if(rows.isEmpty())return null;var row=rows.get(0);var o=new OmsOrder();o.setId(((Number)row.get("id")).longValue());o.setMemberId(((Number)row.get("member_id")).longValue());o.setStatus(((Number)row.get("status")).intValue());o.setPayAmount((BigDecimal)row.get("pay_amount"));o.setBalanceAmount((BigDecimal)row.get("balance_amount"));return o;});
    var dao=mock(PortalOrderDao.class);
    when(dao.reserveSku(anyLong(),anyInt())).thenAnswer(c->j.update("UPDATE qa_stock SET reserved=reserved+? WHERE id=? AND stock-reserved>=?",c.getArgument(1),c.getArgument(0),c.getArgument(1)));
@@ -96,7 +97,7 @@ class SandboxWalletHttpTest {
   String sql=Files.readString(Path.of(System.getProperty("basedir","."),"../document/sql/custom-v10/50_three_dividend_pools.sql"));sql=sql.substring(0,sql.indexOf("-- Menu/resource additions")).replaceAll("(?m)^--.*$","");for(String statement:sql.split(";"))if(!statement.isBlank())j.execute(statement);
   j.execute("CREATE TABLE sys_audit_log(id BIGINT AUTO_INCREMENT PRIMARY KEY,operator_name VARCHAR(100),operator_id BIGINT,module VARCHAR(50),action VARCHAR(100),target_id BIGINT,detail VARCHAR(2000))");
   j.execute("CREATE TABLE qa_stock(id BIGINT PRIMARY KEY,price DECIMAL(18,2),stock INT,reserved INT)");j.update("INSERT INTO qa_stock VALUES(1,80,10,0)");
-  j.execute("CREATE TABLE qa_order(id BIGINT PRIMARY KEY,member_id BIGINT,status INT,pay_amount DECIMAL(18,2),balance_amount DECIMAL(18,2))");j.execute("CREATE TABLE qa_order_item(order_id BIGINT,sku_id BIGINT)");
+  j.execute("CREATE TABLE qa_order(id BIGINT PRIMARY KEY,order_sn VARCHAR(64) UNIQUE,member_id BIGINT,status INT,pay_amount DECIMAL(18,2),balance_amount DECIMAL(18,2))");j.execute("CREATE TABLE qa_order_item(order_id BIGINT,sku_id BIGINT)");
   j.execute("CREATE TABLE oms_order_request(member_id BIGINT,idempotency_key VARCHAR(100),request_hash VARCHAR(100),state VARCHAR(20),order_id BIGINT,UNIQUE(member_id,idempotency_key))");
   j.execute("CREATE TABLE oms_payment_confirmation(order_id BIGINT UNIQUE,channel_code VARCHAR(32),channel_trade_no VARCHAR(100),paid_amount DECIMAL(18,2),currency_code VARCHAR(3))");
  }

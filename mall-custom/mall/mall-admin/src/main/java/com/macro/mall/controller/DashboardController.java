@@ -64,7 +64,7 @@ public class DashboardController {
         result.put("totalNetPaidAmount", amount("SELECT COALESCE(SUM(pay_amount), 0) FROM oms_order WHERE delete_status = 0 AND status IN (1, 2, 3) AND payment_time IS NOT NULL").subtract(totalRefunded));
         List<Map<String, Object>> trend = jdbcTemplate.queryForList(
                 "SELECT DATE_FORMAT(payment_time, '%Y-%m-%d') AS day, COUNT(*) AS orderCount, " +
-                "COALESCE(SUM(pay_amount), 0) AS paidAmount FROM oms_order " +
+                "COALESCE(SUM(pay_amount), 0) AS paidAmount,COALESCE(SUM(pay_amount+COALESCE(balance_amount,0)),0) AS tradeAmount FROM oms_order " +
                 "WHERE delete_status = 0 AND status IN (1, 2, 3) " +
                 "AND payment_time >= CURDATE() - INTERVAL 6 DAY " +
                 "AND payment_time < CURDATE() + INTERVAL 1 DAY " +

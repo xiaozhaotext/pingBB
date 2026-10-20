@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatMoney } from '@/utils/adminDisplay'
+import { orderFundsAmount, orderPayTypeLabel } from '@/utils/orderDisplay'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -130,17 +131,7 @@ const operateOptions = [
 ]
 
 // 格式化支付方式
-const formatPayType = (value: number) => {
-  if (value === 1) {
-    return '支付宝'
-  } else if (value === 2) {
-    return '微信'
-  } else if (value === 4) {
-    return '余额 / 积分支付'
-  } else {
-    return '未支付'
-  }
-}
+const formatPayType = orderPayTypeLabel
 
 // 格式化订单来源
 const formatSourceType = (value: number) => {
@@ -373,8 +364,14 @@ const deleteOrderFn = async (ids: number[]) => {
         <el-table-column label="用户账号" align="center">
           <template #default="scope">{{ scope.row.memberUsername }}</template>
         </el-table-column>
-        <el-table-column label="订单金额" width="120" align="center">
+        <el-table-column label="商品总额" width="120" align="center">
           <template #default="scope">￥{{ formatMoney(scope.row.totalAmount) }}</template>
+        </el-table-column>
+        <el-table-column label="资金应付（含余额）" width="165" align="center">
+          <template #default="scope">￥{{ formatMoney(orderFundsAmount(scope.row)) }}</template>
+        </el-table-column>
+        <el-table-column label="外部支付应付" width="130" align="center">
+          <template #default="scope">￥{{ formatMoney(scope.row.payAmount) }}</template>
         </el-table-column>
         <el-table-column label="余额支付" width="120" align="center">
           <template #default="scope">￥{{ formatMoney(scope.row.balanceAmount ?? 0) }}</template>

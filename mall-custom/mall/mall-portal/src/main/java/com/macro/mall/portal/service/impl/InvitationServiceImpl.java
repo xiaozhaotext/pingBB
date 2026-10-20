@@ -45,6 +45,8 @@ public class InvitationServiceImpl implements InvitationService {
     private UmsMemberRecommendAuditMapper auditMapper;
     @Autowired
     private JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Value("${mall.membership-v2.enabled:false}")
+    private boolean membershipV2Enabled;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -125,7 +127,8 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Override
     public List<UmsMemberRecommend> listMyInvitees(Long memberId) {
-        return recommendMapper.selectByInviter(memberId);
+        return membershipV2Enabled ? recommendMapper.selectInviteesWithTier(memberId)
+                : recommendMapper.selectLegacyInviteesWithTier(memberId);
     }
 
     /** 判断 ancestorId 是否是 nodeId 的祖先（用于防循环） */

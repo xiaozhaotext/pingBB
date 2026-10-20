@@ -7,6 +7,7 @@ import { getOrderDetailByIdAPI, orderUpdateReceiverInfoAPI, orderUpdateMoneyInfo
 import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import type { OmsOrder, OmsOrderDetail, OmsReceiverInfoParam } from '@/types/order'
 import { formatDateTime } from '@/utils/datetime'
+import { orderFundsAmount, orderPayTypeLabel, orderPaymentStatusLabel } from '@/utils/orderDisplay'
 import { productImageUrl } from '@/utils/productImage'
 import { pcaTextArr } from 'element-china-area-data'
 
@@ -92,17 +93,7 @@ const formatLongText = (value: string | undefined) => {
 }
 
 // 格式化支付方式
-const formatPayType = (value: number) => {
-  if (value === 1) {
-    return '支付宝'
-  } else if (value === 2) {
-    return '微信'
-  } else if (value === 4) {
-    return '余额 / 积分支付'
-  } else {
-    return '未支付'
-  }
-}
+const formatPayType = orderPayTypeLabel
 
 // 格式化订单来源
 const formatSourceType = (value: number) => {
@@ -151,15 +142,7 @@ const formatStatus = (value: number) => {
 }
 
 // 格式化支付状态
-const formatPayStatus = (value: number) => {
-  if (value === 0) {
-    return '未支付'
-  } else if (value === 4) {
-    return '已退款'
-  } else {
-    return '已支付'
-  }
-}
+const formatPayStatus = orderPaymentStatusLabel
 
 // 格式化发货状态
 const formatDeliverStatus = (value: number) => {
@@ -536,6 +519,8 @@ const showLogisticsDialog = () => {
         <el-row>
           <el-col :span="6" class="table-cell-title">余额支付金额</el-col>
           <el-col :span="6" class="table-cell">￥{{ Number(order.balanceAmount || 0).toFixed(2) }}</el-col>
+          <el-col :span="6" class="table-cell-title">外部支付应付</el-col>
+          <el-col :span="6" class="table-cell">￥{{ amount(order.payAmount) }}</el-col>
         </el-row>
         <el-row>
           <el-col :span="6" class="table-cell-title">商品合计</el-col>
@@ -553,7 +538,7 @@ const showLogisticsDialog = () => {
           <el-col :span="6" class="table-cell-title">活动优惠</el-col>
           <el-col :span="6" class="table-cell-title">折扣金额</el-col>
           <el-col :span="6" class="table-cell-title">订单总金额</el-col>
-          <el-col :span="6" class="table-cell-title">应付款金额</el-col>
+          <el-col :span="6" class="table-cell-title">资金应付（含余额）</el-col>
         </el-row>
         <el-row>
           <el-col :span="6" class="table-cell">{{ deductAmount(order.promotionAmount) }}</el-col>
@@ -562,7 +547,7 @@ const showLogisticsDialog = () => {
             <span class="color-danger">￥{{ totalAmount(order.totalAmount, order.freightAmount) }}</span>
           </el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ totalAmount(order.payAmount, order.freightAmount, -Number(order.discountAmount)) }}</span>
+            <span class="color-danger">￥{{ amount(orderFundsAmount(order)) }}</span>
           </el-col>
         </el-row>
       </div>

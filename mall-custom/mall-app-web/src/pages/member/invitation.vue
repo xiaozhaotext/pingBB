@@ -15,7 +15,7 @@
 
     <view class="card">
       <text class="title">绑定推荐人</text>
-      <view v-if="bindState === 'bound'" class="bound-note">已绑定推荐人：会员 ID {{ inviter?.inviterId }}。推荐关系只能绑定一次，不能更换。</view>
+      <view v-if="bindState === 'bound'" class="bound-note">已绑定推荐人：用户 ID {{ inviter?.inviterId }}。推荐关系只能绑定一次，不能更换。</view>
       <template v-else-if="bindState === 'unbound'">
         <input class="input" v-model="bindCode" placeholder="输入邀请码" />
         <button class="btn-primary" :disabled="binding" :loading="binding" @click="handleBind">{{ binding ? '绑定中…' : '确认绑定' }}</button>
@@ -28,9 +28,12 @@
 
     <view class="card">
       <text class="title">我的下级列表</text>
+      <text class="tip">邀请总人数 {{ invitees.length }} 人 · 付费会员 {{ paidInvitees }} 人 · 游客 {{ visitorInvitees }} 人</text>
+      <text class="tip">列表包含所有已绑定下级；游客不计入有效付费直邀。</text>
       <view class="list" v-if="invitees.length">
-        <view class="item" v-for="(it, i) in invitees" :key="i">
-          <text>会员ID：{{ it.memberId }}</text>
+        <view class="item" v-for="it in invitees" :key="it.memberId">
+          <text>用户ID：{{ it.memberId }}</text>
+          <text class="sub">身份：{{ inviteeIdentity(it.membershipTier) }}</text>
         </view>
       </view>
       <text class="tip" v-else>暂无下级</text>
@@ -39,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import QRCode from 'qrcode'
 import {
@@ -64,6 +67,10 @@ const bindState = ref<'loading' | 'unbound' | 'bound' | 'error'>('loading')
 const binding = ref(false)
 const bindError = ref('')
 const invitees = ref<any[]>([])
+const paidTiers = new Set(['MEMBER', 'PARTNER', 'COFOUNDER'])
+const paidInvitees = computed(() => invitees.value.filter(it => paidTiers.has(it.membershipTier)).length)
+const visitorInvitees = computed(() => invitees.value.filter(it => it.membershipTier === 'VISITOR').length)
+const inviteeIdentity = (tier?: string) => ({ VISITOR: '游客', MEMBER: '会员', PARTNER: '合伙人', COFOUNDER: '联创' } as Record<string, string>)[tier || ''] || '身份待核实'
 
 const loadInviter = async () => {
   bindState.value = 'loading'

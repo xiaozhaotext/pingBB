@@ -14,12 +14,14 @@ class TriPoolDailyReportServiceTest {
  @BeforeEach void setup(){
   jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:daily_"+UUID.randomUUID()+";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa",""));
   jdbc.execute("CREATE TABLE tri_pool_ledger(pool_code VARCHAR(16),entry_type VARCHAR(16),amount DECIMAL(18,2),created_at TIMESTAMP)");
+  jdbc.execute("CREATE TABLE tri_pool(code VARCHAR(16) PRIMARY KEY,balance DECIMAL(18,2))");
+  jdbc.execute("INSERT INTO tri_pool VALUES('PARTNER',0),('COFOUNDER',0),('OPERATIONS',0)");
   jdbc.execute("CREATE TABLE tri_pool_distribution(pool_code VARCHAR(16),member_id BIGINT,created_at TIMESTAMP)");
   jdbc.execute("CREATE TABLE tri_pool_batch(pool_code VARCHAR(16),paid_total DECIMAL(18,2),created_at TIMESTAMP)");
   reports=new TriPoolDailyReportService(jdbc);
  }
  Timestamp at(String text){return Timestamp.from(OffsetDateTime.parse(text).toInstant());}
- void fund(String time,String type,String amount){jdbc.update("INSERT INTO tri_pool_ledger VALUES('PARTNER',?,?,?)",type,new BigDecimal(amount),at(time));}
+ void fund(String time,String type,String amount){jdbc.update("INSERT INTO tri_pool_ledger VALUES('PARTNER',?,?,?)",type,new BigDecimal(amount),at(time));jdbc.update("UPDATE tri_pool SET balance=balance+? WHERE code='PARTNER'",new BigDecimal(amount));}
  @SuppressWarnings("unchecked") Map<String,Object> partner(LocalDate day){return ((List<Map<String,Object>>)reports.daily(day).get("pools")).get(0);}
  void money(String expected,Object actual){assertEquals(0,new BigDecimal(expected).compareTo(new BigDecimal(actual.toString())));}
  @Test void historicalOpeningAndClosingExcludeNextDayAndUseSignedLedger(){
@@ -30,6 +32,7 @@ class TriPoolDailyReportServiceTest {
   fund("2026-10-17T00:00:00+08:00","FUND","900");
   var row=partner(date);money("100",row.get("opening"));money("500",row.get("funded"));money("150",row.get("distributed"));money("450",row.get("closing"));
   assertEquals(3L,((Number)row.get("ledgerCount")).longValue());
+  assertEquals(true,row.get("reconciled"));money("1350",row.get("liveBalance"));money("0",row.get("reconciliationDifference"));
  }
  @Test void emptyDayCarriesHistoricalBalanceWithoutInventingAwards(){
   fund("2026-10-15T12:00:00+08:00","FUND","200");
@@ -49,5 +52,14 @@ class TriPoolDailyReportServiceTest {
  @Test void dayBoundsAreExplicitBeijingMidnightInstants(){
   assertEquals(Instant.parse("2026-10-15T16:00:00Z"),reports.start(date).toInstant());
   assertEquals(LocalDate.now(ZoneId.of("Asia/Shanghai")),reports.day(null));
+ }
+ @Test void archivedPositiveDistributionIsFlaggedInsteadOfPresentingFalseBalance(){
+  fund("2026-10-15T12:00:00+08:00","FUND","6.85");
+  fund("2026-10-15T12:00:00+08:00","DISTRIBUTE","6.85");
+  jdbc.update("UPDATE tri_pool SET balance=0 WHERE code='PARTNER'");
+  var row=partner(date);assertEquals(false,row.get("reconciled"));money("13.70",row.get("reconciliationDifference"));
+  assertEquals(1L,((Number)row.get("invalidEntryCount")).longValue());
+  jdbc.update("UPDATE tri_pool_ledger SET amount=-amount WHERE entry_type='DISTRIBUTE'");
+  row=partner(date);assertEquals(true,row.get("reconciled"));money("0",row.get("opening"));
  }
 }

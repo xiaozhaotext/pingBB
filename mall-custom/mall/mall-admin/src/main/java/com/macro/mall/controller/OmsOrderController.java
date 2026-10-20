@@ -122,12 +122,13 @@ public class OmsOrderController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("totalOrderCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0"));
         data.put("paidOrderCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status IN (1,2,3)"));
+        data.put("pendingPaymentCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 0"));
         data.put("pendingDeliveryCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 1"));
         data.put("pendingReceiveCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 2"));
         data.put("completedCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 3"));
         data.put("closedCount", scalar("SELECT COUNT(*) FROM oms_order WHERE delete_status = 0 AND status = 4"));
         data.put("returnApplyCount", scalar("SELECT COUNT(*) FROM oms_order_return_apply"));
-        data.put("totalSalesAmount", money("SELECT COALESCE(SUM(pay_amount),0) FROM oms_order WHERE delete_status = 0 AND status IN (1,2,3) AND payment_time IS NOT NULL"));
+        data.put("totalSalesAmount", money("SELECT COALESCE(SUM(pay_amount+COALESCE(balance_amount,0)),0) FROM oms_order WHERE delete_status = 0 AND status IN (1,2,3) AND payment_time IS NOT NULL"));
         data.put("totalProductQuantity", scalar("SELECT COALESCE(SUM(i.product_quantity),0) FROM oms_order_item i JOIN oms_order o ON o.id = i.order_id WHERE o.delete_status = 0 AND o.status IN (1,2,3)"));
         return CommonResult.success(data);
     }

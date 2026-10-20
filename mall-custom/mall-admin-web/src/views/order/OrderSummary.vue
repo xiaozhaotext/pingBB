@@ -62,7 +62,7 @@ const moneyChart = computed(() => ({
       type: 'line',
       smooth: true,
       yAxisIndex: 1,
-      data: overview.value ? overview.value.paidTrend.map(item => item.paidAmount) : [],
+      data: overview.value ? overview.value.paidTrend.map(item => item.tradeAmount) : [],
     },
   ],
 }))
@@ -105,8 +105,8 @@ onMounted(load)
       <el-card v-for="item in counts" :key="item.status" shadow="never" class="metric">
         <span>{{ item.label }}</span><strong>{{ item.count }}</strong>
       </el-card>
-      <el-card shadow="never" class="metric"><span>今日支付金额</span><strong>￥{{ overview ? overview.todayPaidAmount.toFixed(2) : '—' }}</strong></el-card>
-      <el-card shadow="never" class="metric"><span>累计支付金额</span><strong>￥{{ overview ? overview.totalPaidAmount.toFixed(2) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>今日支付金额（含余额）</span><strong>￥{{ overview ? overview.todayTradeAmount.toFixed(2) : '—' }}</strong></el-card>
+      <el-card shadow="never" class="metric"><span>累计支付金额（含余额）</span><strong>￥{{ overview ? overview.totalTradeAmount.toFixed(2) : '—' }}</strong></el-card>
     </section>
     <section class="charts">
       <el-card shadow="never">

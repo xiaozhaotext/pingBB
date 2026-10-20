@@ -33,6 +33,16 @@ public class TriPoolDailyReportService {
             var row=new LinkedHashMap<String,Object>();
             for(String key:List.of("opening","funded","distributed","closing","ledgerCount"))row.put(key,amounts.get(key));
             row.put("code",pool.name());
+            var reconciliation=jdbc.queryForMap("SELECT COALESCE(SUM(amount),0) AS ledgerBalance," +
+                    "COUNT(CASE WHEN (entry_type='FUND' AND amount<0) OR (entry_type='DISTRIBUTE' AND amount>0) THEN 1 END) AS invalidEntryCount " +
+                    "FROM tri_pool_ledger WHERE pool_code=?",pool.name());
+            BigDecimal ledgerBalance=new BigDecimal(reconciliation.get("ledgerBalance").toString());
+            BigDecimal liveBalance=jdbc.queryForObject("SELECT balance FROM tri_pool WHERE code=?",BigDecimal.class,pool.name());
+            BigDecimal difference=ledgerBalance.subtract(liveBalance);
+            row.put("ledgerBalance",ledgerBalance);row.put("liveBalance",liveBalance);
+            row.put("reconciliationDifference",difference);
+            row.put("invalidEntryCount",reconciliation.get("invalidEntryCount"));
+            row.put("reconciled",difference.signum()==0 && ((Number)reconciliation.get("invalidEntryCount")).longValue()==0);
             var counts=jdbc.queryForMap("SELECT COUNT(*) AS `awardCount`,COUNT(DISTINCT member_id) AS `recipientCount` "+
                     "FROM tri_pool_distribution WHERE pool_code=? AND created_at>=? AND created_at<?",pool.name(),from,to);
             row.put("awardCount",counts.get("awardCount"));row.put("recipientCount",counts.get("recipientCount"));
