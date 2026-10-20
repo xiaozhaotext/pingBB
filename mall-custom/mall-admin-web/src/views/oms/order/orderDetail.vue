@@ -20,13 +20,8 @@ const id = ref<number>()
 const order = ref<OmsOrderDetail>({} as OmsOrderDetail)
 const loading = ref(true)
 const loadError = ref('')
-const amount = (value: unknown): string => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
-// 扣减金额：大于0时显示-￥，为0时显示￥0.00（避免-￥0.00负零）
-const deductAmount = (value: unknown): string => {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return '—'
-  return (num > 0 ? '-￥' : '￥') + num.toFixed(2)
-}
+const amount = (value: unknown): string => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? (Math.abs(Number(value)) < 0.005 ? 0 : Number(value)).toFixed(2) : '—'
+const deduction = (value: unknown): string => amount(value) === '—' ? '—' : (Math.abs(Number(value)) < 0.005 ? '￥0.00' : '-￥' + amount(value))
 const totalAmount = (...values: unknown[]): string => values.every(value => value !== null && value !== undefined && Number.isFinite(Number(value)))
   ? values.reduce<number>((total, value) => total + Number(value), 0).toFixed(2) : '—'
 
@@ -99,8 +94,12 @@ const formatPayType = (value: number) => {
     return '微信'
   } else if (value === 4) {
     return '余额 / 积分支付'
-  } else {
+  } else if (value === 3) {
+    return '沙箱支付（模拟）'
+  } else if (value === 0 || value == null) {
     return '未支付'
+  } else {
+    return `未知支付方式（${value}）`
   }
 }
 
@@ -546,23 +545,23 @@ const showLogisticsDialog = () => {
         <el-row>
           <el-col :span="6" class="table-cell">￥{{ amount(order.totalAmount) }}</el-col>
           <el-col :span="6" class="table-cell">￥{{ amount(order.freightAmount) }}</el-col>
-          <el-col :span="6" class="table-cell">{{ deductAmount(order.couponAmount) }}</el-col>
-          <el-col :span="6" class="table-cell">{{ deductAmount(order.integrationAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.couponAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.integrationAmount) }}</el-col>
         </el-row>
         <el-row>
           <el-col :span="6" class="table-cell-title">活动优惠</el-col>
           <el-col :span="6" class="table-cell-title">折扣金额</el-col>
-          <el-col :span="6" class="table-cell-title">订单总金额</el-col>
-          <el-col :span="6" class="table-cell-title">应付款金额</el-col>
+          <el-col :span="6" class="table-cell-title">商品原价＋运费</el-col>
+          <el-col :span="6" class="table-cell-title">外部应付金额</el-col>
         </el-row>
         <el-row>
-          <el-col :span="6" class="table-cell">{{ deductAmount(order.promotionAmount) }}</el-col>
-          <el-col :span="6" class="table-cell">{{ deductAmount(order.discountAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.promotionAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.discountAmount) }}</el-col>
           <el-col :span="6" class="table-cell">
             <span class="color-danger">￥{{ totalAmount(order.totalAmount, order.freightAmount) }}</span>
           </el-col>
           <el-col :span="6" class="table-cell">
-            <span class="color-danger">￥{{ totalAmount(order.payAmount, order.freightAmount, -Number(order.discountAmount)) }}</span>
+            <span class="color-danger">￥{{ amount(order.payAmount) }}</span>
           </el-col>
         </el-row>
       </div>
@@ -646,17 +645,17 @@ const showLogisticsDialog = () => {
             <el-input v-model.number="moneyInfo.freightAmount" size="small"><template
                 v-slot:prepend>￥</template></el-input>
           </el-col>
-          <el-col :span="6" class="table-cell">-￥{{ order.couponAmount }}</el-col>
-          <el-col :span="6" class="table-cell">-￥{{ order.integrationAmount }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.couponAmount) }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.integrationAmount) }}</el-col>
         </el-row>
         <el-row>
           <el-col :span="6" class="table-cell-title">活动优惠</el-col>
           <el-col :span="6" class="table-cell-title">折扣金额</el-col>
-          <el-col :span="6" class="table-cell-title">订单总金额</el-col>
-          <el-col :span="6" class="table-cell-title">应付款金额</el-col>
+          <el-col :span="6" class="table-cell-title">商品原价＋运费</el-col>
+          <el-col :span="6" class="table-cell-title">调整后外部应付</el-col>
         </el-row>
         <el-row>
-          <el-col :span="6" class="table-cell">-￥{{ order.promotionAmount }}</el-col>
+          <el-col :span="6" class="table-cell">{{ deduction(order.promotionAmount) }}</el-col>
           <el-col :span="6" class="table-cell">
             <el-input v-model.number="moneyInfo.discountAmount" size="small"><template
                 v-slot:prepend>-￥</template></el-input>

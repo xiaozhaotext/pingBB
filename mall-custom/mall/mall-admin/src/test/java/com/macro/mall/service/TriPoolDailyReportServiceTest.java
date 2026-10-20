@@ -36,6 +36,11 @@ class TriPoolDailyReportServiceTest {
   var row=partner(date);money("200",row.get("opening"));money("200",row.get("closing"));money("0",row.get("funded"));money("0",row.get("distributed"));
   assertEquals(0L,((Number)row.get("awardCount")).longValue());
  }
+ @Test void rejectsPositiveDistributionInsteadOfReportingInflatedBalance(){
+  fund("2026-10-16T08:00:00+08:00","FUND","6.85");
+  fund("2026-10-16T08:01:00+08:00","DISTRIBUTE","6.85");
+  assertThrows(IllegalStateException.class,()->reports.daily(date));
+ }
  @Test void distinctRecipientsAndPaidBatchesAreSeparateFromAwardCount(){
   for(long member:new long[]{1,1,2})jdbc.update("INSERT INTO tri_pool_distribution VALUES('PARTNER',?,?)",member,at("2026-10-16T10:00:00+08:00"));
   jdbc.update("INSERT INTO tri_pool_distribution VALUES('PARTNER',3,?)",at("2026-10-17T00:00:00+08:00"));
@@ -51,3 +56,4 @@ class TriPoolDailyReportServiceTest {
   assertEquals(LocalDate.now(ZoneId.of("Asia/Shanghai")),reports.day(null));
  }
 }
+

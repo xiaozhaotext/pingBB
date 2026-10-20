@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { formatMoney } from '@/utils/adminDisplay'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -24,6 +23,8 @@ const listQuery = ref<OrderQueryParam>({
 })
 // 订单列表数据
 const list = ref<OmsOrder[]>([])
+const currency = (value: unknown) => Number.isFinite(Number(value))
+  ? Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
 // 表格数据加载进度条
 const listLoading = ref(true)
 // 分页组件参数
@@ -137,8 +138,12 @@ const formatPayType = (value: number) => {
     return '微信'
   } else if (value === 4) {
     return '余额 / 积分支付'
-  } else {
+  } else if (value === 3) {
+    return '沙箱支付（模拟）'
+  } else if (value === 0 || value == null) {
     return '未支付'
+  } else {
+    return `未知支付方式（${value}）`
   }
 }
 
@@ -373,11 +378,14 @@ const deleteOrderFn = async (ids: number[]) => {
         <el-table-column label="用户账号" align="center">
           <template #default="scope">{{ scope.row.memberUsername }}</template>
         </el-table-column>
-        <el-table-column label="订单金额" width="120" align="center">
-          <template #default="scope">￥{{ formatMoney(scope.row.totalAmount) }}</template>
+        <el-table-column label="商品原价" width="120" align="center">
+          <template #default="scope">￥{{ currency(scope.row.totalAmount) }}</template>
+        </el-table-column>
+        <el-table-column label="外部应付" width="120" align="center">
+          <template #default="scope">￥{{ currency(scope.row.payAmount) }}</template>
         </el-table-column>
         <el-table-column label="余额支付" width="120" align="center">
-          <template #default="scope">￥{{ formatMoney(scope.row.balanceAmount ?? 0) }}</template>
+          <template #default="scope">￥{{ currency(scope.row.balanceAmount) }}</template>
         </el-table-column>
         <el-table-column label="支付方式" width="120" align="center">
           <template #default="scope">{{ formatPayType(scope.row.payType) }}</template>
@@ -451,3 +459,4 @@ const deleteOrderFn = async (ids: number[]) => {
 
 .status-tabs{margin-bottom:16px;background:#fff;padding:0 20px;border-radius:8px}
 </style>
+

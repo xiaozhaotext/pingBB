@@ -7,7 +7,6 @@ import cn.hutool.json.JSONUtil;
 import com.github.pagehelper.PageHelper;
 import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.exception.Asserts;
-import com.macro.mall.common.service.RedisService;
 import com.macro.mall.mapper.*;
 import com.macro.mall.model.*;
 import com.macro.mall.portal.component.CancelOrderSender;
@@ -59,13 +58,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     @Autowired
     private SmsCouponHistoryMapper couponHistoryMapper;
     @Autowired
-    private RedisService redisService;
-    @Autowired
     private PointsWalletService pointsWalletService;
-    @Value("${redis.key.orderId}")
-    private String REDIS_KEY_ORDER_ID;
-    @Value("${redis.database}")
-    private String REDIS_DATABASE;
     @Value("${mall.payment.alipay.enabled:false}")
     private boolean alipayEnabled;
     @Autowired
@@ -367,8 +360,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         order.setIntegration(calcGifIntegration(orderItemList));
         //计算赠送成长值
         order.setGrowth(calcGiftGrowth(orderItemList));
-        //生成订单号
-        order.setOrderSn(generateOrderSn(order));
         //设置自动收货天数
         List<OmsOrderSetting> orderSettings = orderSettingMapper.selectByExample(new OmsOrderSettingExample());
         if(CollUtil.isNotEmpty(orderSettings)){
@@ -377,6 +368,13 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // TODO: 2018/9/3 bill_*,delivery_*
         //插入order表和order_item表
         orderMapper.insert(order);
+        //数据库主键由 MySQL 保证全局唯一；Redis 计数器重置曾造成订单号重复。
+        //在同一事务内生成并写回，随后订单明细使用相同编号。
+        order.setOrderSn(generateOrderSn(order));
+        OmsOrder orderNumber = new OmsOrder();
+        orderNumber.setId(order.getId());
+        orderNumber.setOrderSn(order.getOrderSn());
+        orderMapper.updateByPrimaryKeySelective(orderNumber);
         if (productPointsUsed > 0) {
             consumeOrderPoints(order.getId(), currentMember.getId(), PointsWalletService.TYPE_PRODUCT,
                     "PRODUCT", productPointsUsed, settlement.getProductPointAmount());
@@ -662,13 +660,14 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
     /**
-     * 生成18位订单编号:8位日期+2位平台号码+2位支付方式+6位以上自增id
+     * 订单编号：日期、来源、下单时支付方式及数据库订单主键。
+     * 主键可在 Redis 重启、部署切换后继续保持唯一。
      */
     private String generateOrderSn(OmsOrder order) {
         StringBuilder sb = new StringBuilder();
-        String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        String key = REDIS_DATABASE+":"+ REDIS_KEY_ORDER_ID + date;
-        Long increment = redisService.incr(key, 1);
+        String date = new SimpleDateFormat("yyyyMMdd").format(order.getCreateTime() == null ? new Date() : order.getCreateTime());
+        Long increment = order.getId();
+        if (increment == null) throw new IllegalStateException("订单主键尚未生成");
         sb.append(date);
         sb.append(String.format("%02d", order.getSourceType()));
         sb.append(String.format("%02d", order.getPayType()));
@@ -1027,3 +1026,4 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     }
 
 }
+
