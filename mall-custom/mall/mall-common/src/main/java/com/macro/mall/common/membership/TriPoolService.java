@@ -147,17 +147,25 @@ public class TriPoolService {
         Tier tier=rows.isEmpty()?Tier.VISITOR:Tier.valueOf(String.valueOf(rows.get(0).get("tier")));
         long refs=rows.isEmpty()?0:number(rows.get(0),"direct_paid_count");
         long units=tier==Tier.VISITOR?0:membershipUnits(memberId);
+        BigDecimal totalCap=units==0?BigDecimal.ZERO:membershipCap(refs,units);
+        BigDecimal partnerReceived=received(memberId,Pool.PARTNER);
+        BigDecimal cofounderReceived=received(memberId,Pool.COFOUNDER);
+        BigDecimal totalReceived=partnerReceived.add(cofounderReceived);
+        BigDecimal totalRemaining=totalCap.subtract(totalReceived).max(BigDecimal.ZERO);
         var pools=new ArrayList<Map<String,Object>>();
         for(Pool pool:List.of(Pool.PARTNER,Pool.COFOUNDER)) {
             boolean eligible=pool==Pool.PARTNER?tier!=Tier.VISITOR:tier==Tier.COFOUNDER;
-            BigDecimal cap=units==0?BigDecimal.ZERO:membershipCap(refs,units);
-            BigDecimal received=received(memberId,pool);
+            BigDecimal received=pool==Pool.PARTNER?partnerReceived:cofounderReceived;
+            BigDecimal cap=units==0?BigDecimal.ZERO:poolCap(pool,refs,units,pool==Pool.PARTNER?cofounderReceived:partnerReceived);
             pools.add(Map.of("code",pool.name(),"eligible",eligible,"shares",eligible?(pool==Pool.PARTNER?membershipShares(refs,units):units):0,
                     "cap",eligible?cap:BigDecimal.ZERO,"received",received,"remaining",eligible?cap.subtract(received).max(BigDecimal.ZERO):BigDecimal.ZERO));
         }
-        return Map.of("enabled",true,"tier",tier.name(),"directPaidCount",refs,"pools",pools,
-                "ruleVersion",VERSION,"customTravelEligible",tier!=Tier.VISITOR,
-                "membershipPrice",TriPoolRules.PRICE,"membershipUnits",units);
+        Map<String,Object> summary=new LinkedHashMap<>();
+        summary.put("enabled",true);summary.put("tier",tier.name());summary.put("directPaidCount",refs);
+        summary.put("membershipUnits",units);summary.put("pools",pools);summary.put("ruleVersion",VERSION);
+        summary.put("customTravelEligible",tier!=Tier.VISITOR);summary.put("membershipPrice",PRICE);
+        summary.put("totalCap",totalCap);summary.put("totalReceived",totalReceived);summary.put("totalRemaining",totalRemaining);
+        return summary;
     }
 
     private Map<String,Object> distribute(Pool pool,String key,Long operator) {
@@ -193,7 +201,12 @@ public class TriPoolService {
     private List<Position> positions(Pool pool) {
         String sql=pool==Pool.OPERATIONS
                 ?"SELECT o.member_id,COALESCE(m.tier,'VISITOR') AS tier,o.shares,COALESCE(m.direct_paid_count,0) AS direct_paid_count,COALESCE(p.received,0) AS received FROM tri_operations_member o LEFT JOIN tri_member m ON m.member_id=o.member_id LEFT JOIN tri_pool_position p ON p.member_id=o.member_id AND p.pool_code=? WHERE o.enabled=1 ORDER BY o.member_id"
-                :"SELECT m.member_id,m.tier,m.direct_paid_count,COALESCE(p.received,0) AS received FROM tri_member m LEFT JOIN tri_pool_position p ON p.member_id=m.member_id AND p.pool_code=? "+(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"")+"ORDER BY m.member_id";
+                :"SELECT m.member_id,m.tier,m.direct_paid_count,COALESCE(p.received,0) AS received,"
+                    +"COALESCE(other_pos.received,0) AS other_received FROM tri_member m"
+                    +" LEFT JOIN tri_pool_position p ON p.member_id=m.member_id AND p.pool_code=?"
+                    +" LEFT JOIN tri_pool_position other_pos ON other_pos.member_id=m.member_id AND other_pos.pool_code='"
+                    +(pool==Pool.PARTNER?Pool.COFOUNDER.name():Pool.PARTNER.name())+"' "
+                    +(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"")+"ORDER BY m.member_id";
         List<Position> result=new ArrayList<>();
         // Locking reads are essential: the outer order transaction may already have a MySQL
         // REPEATABLE READ snapshot predating another payment that committed before our pool lock.
@@ -202,7 +215,7 @@ public class TriPoolService {
             long units=pool==Pool.OPERATIONS?0:Math.max(1,jdbc.queryForList("SELECT paid_amount FROM tri_payment_event WHERE member_id=? FOR UPDATE",BigDecimal.class,id).stream().mapToLong(TriPoolRules::purchaseUnits).reduce(0,Math::addExact));
             result.add(new Position(id,Tier.valueOf(String.valueOf(row.get("tier"))),
                     pool==Pool.OPERATIONS?number(row,"shares"):pool==Pool.PARTNER?membershipShares(refs,units):units,
-                    pool==Pool.OPERATIONS?null:membershipCap(refs,units),decimal(row,"received")));
+                    pool==Pool.OPERATIONS?null:poolCap(pool,refs,units,decimal(row,"other_received")),decimal(row,"received")));
         }
         return result;
     }

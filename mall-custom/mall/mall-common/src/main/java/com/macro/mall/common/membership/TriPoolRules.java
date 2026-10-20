@@ -54,6 +54,18 @@ public final class TriPoolRules {
         return partnerCap(referrals).add(BigDecimal.valueOf(units-1).multiply(new BigDecimal("1200.00")));
     }
 
+    /** Partner and cofounder distributions draw from one cumulative member cap. */
+    public static BigDecimal poolCap(Pool pool, long referrals, BigDecimal otherPoolReceived) {
+        return poolCap(pool,referrals,1,otherPoolReceived);
+    }
+
+    public static BigDecimal poolCap(Pool pool,long referrals,long units,BigDecimal otherPoolReceived) {
+        if (pool == Pool.OPERATIONS || otherPoolReceived == null || otherPoolReceived.signum() < 0)
+            throw new IllegalArgumentException("Invalid shared dividend cap input");
+        BigDecimal sharedRemaining = membershipCap(referrals,units).subtract(otherPoolReceived).max(BigDecimal.ZERO);
+        return pool == Pool.COFOUNDER ? sharedRemaining.min(new BigDecimal("1200.00").multiply(BigDecimal.valueOf(units))) : sharedRemaining;
+    }
+
     public static BigDecimal contribution(Pool pool) {
         return new BigDecimal(pool == Pool.PARTNER ? "500.00" : "200.00");
     }

@@ -75,7 +75,11 @@ public class TriPoolAdminController {
             long units=paid?pools.membershipUnits(((Number)row.get("id")).longValue()):0;
             row.put("membershipUnits",units);
             row.put("partnerShares",paid?TriPoolRules.membershipShares(refs,units):0);
-            row.put("partnerCap",paid?TriPoolRules.membershipCap(refs,units):BigDecimal.ZERO);
+            var summary=pools.memberSummary(((Number)row.get("id")).longValue());
+            var positions=(List<Map<String,Object>>)summary.get("pools");
+            row.put("partnerCap",positions.get(0).get("cap"));
+            row.put("cofounderCap",positions.get(1).get("cap"));
+            row.put("totalCap",summary.get("totalCap"));
         }
         return CommonResult.success(rows);
     }
