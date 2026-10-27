@@ -14,7 +14,7 @@ class MembershipPaymentOptionsTest {
         var jdbc = mock(JdbcTemplate.class);
         var gateway = mock(MembershipPaymentGateway.class);
         when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq("membership.purchase.enabled"))).thenReturn(List.of("1"));
-        var service = new MembershipPurchaseOrderService(jdbc, null, gateway, null, true);
+        var service = new MembershipPurchaseOrderService(jdbc, null, gateway, null, null, true);
         var options = service.paymentOptions();
         assertEquals(true, options.get("sandbox"));
         assertEquals(true, options.get("purchaseEnabled"));
@@ -26,7 +26,9 @@ class MembershipPaymentOptionsTest {
     @Test void productionWithoutCredentialsDoesNotOfferMockOrRealPayment() {
         var gateway = mock(MembershipPaymentGateway.class);
         doThrow(new MembershipPaymentException(MembershipPaymentError.CHANNEL_UNAVAILABLE)).when(gateway).requireReady(anyString());
-        var service = new MembershipPurchaseOrderService(mock(JdbcTemplate.class), null, gateway, null, false);
+        var jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq("membership.purchase.enabled"))).thenReturn(List.of());
+        var service = new MembershipPurchaseOrderService(jdbc, null, gateway, null, null, false);
         var options = service.paymentOptions();
         assertEquals(false, options.get("sandbox"));
         assertEquals(false, options.get("purchaseEnabled"));

@@ -37,9 +37,9 @@
         ></template
       ><template v-else-if="paymentOptions && !paymentOptions.sandbox"
         ><button
-          :disabled="submitting || !paymentOptions.purchaseEnabled || !paymentOptions.wechatReady"
+          :disabled="submitting || !paymentOptions.purchaseEnabled || !paymentOptions.wechatReady || (isWechatBrowser() && !paymentOptions.wechatJsapiReady)"
           @click="buyWithChannel('WECHAT')"
-          >微信支付3999元{{ paymentOptions.wechatReady ? '' : '（未开通）' }}</button
+          >微信支付3999元{{ paymentOptions.wechatReady && (!isWechatBrowser() || paymentOptions.wechatJsapiReady) ? '' : '（未开通）' }}</button
         ><button
           :disabled="submitting || !paymentOptions.purchaseEnabled || !paymentOptions.alipayReady"
           @click="buyWithChannel('ALIPAY')"
@@ -61,6 +61,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
 function openRoute() { uni.navigateTo({ url: '/pages/zone/pick' }) }
 import { getTriPoolsAPI, tierNames, type TriSummary } from '@/apis/triPools'
 const info = ref<TriSummary | null>(null),
@@ -146,11 +147,17 @@ const handleBuy = async () => {
     return
   }
   try {
+    const payMode = payChannel.value === 'WECHAT'
+      ? (isWechatBrowser() ? 'WECHAT_JSAPI' : 'WECHAT_H5') : 'ALIPAY_WAP'
+    // #ifdef H5
+    if (!sandboxMode && payMode === 'WECHAT_JSAPI'
+        && !(await ensureWechatOauth('MEMBERSHIP'))) return
+    // #endif
     const r = await createMembershipOrderAPI({
       memberId,
       level: 'MEMBER',
       payChannel: payChannel.value,
-      payMode: payChannel.value === 'WECHAT' ? 'WECHAT_H5' : 'ALIPAY_WAP',
+      payMode,
       requestId: purchaseRequestId(memberId, payChannel.value),
     })
     const o = r.data
@@ -170,7 +177,12 @@ const handleBuy = async () => {
       }, 800)
       return
     }
-    if (payment.type === 'WECHAT_H5_URL' && payment.h5Url) {
+    if (payment.type === 'WECHAT_JSAPI') {
+      // #ifdef H5
+      await invokeWechatJsapi(payment)
+      payHint.value = '支付结果确认中，请稍后刷新查看会员权益。'
+      // #endif
+    } else if (payment.type === 'WECHAT_H5_URL' && payment.h5Url) {
       payHint.value = '正在跳转微信支付…'
       // #ifdef H5
       window.location.href = payment.h5Url

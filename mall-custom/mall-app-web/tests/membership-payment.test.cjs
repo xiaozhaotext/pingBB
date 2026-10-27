@@ -24,6 +24,11 @@ async function page({ sandbox = true, serverSandbox = true, enabled = true, orde
       if (name === '@/apis/triPools') return { getTriPoolsAPI: async () => ({ data: { tier: 'VISITOR' } }), tierNames: {} }
       if (name === '@/stores/member') return { useMemberStore: () => ({ memberInfo: { id: 11 } }) }
       if (name === '@/apis/member') return api
+      if (name === '@/utils/wechatPay') return {
+        isWechatBrowser: () => false,
+        ensureWechatOauth: async () => true,
+        invokeWechatJsapi: async () => {},
+      }
       throw new Error(name)
     } }
   vm.runInNewContext(ts.transpileModule(source + '\nexports.subject = { handleBuy, actionError, submitting };', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)

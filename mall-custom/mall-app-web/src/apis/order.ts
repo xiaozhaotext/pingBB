@@ -118,6 +118,10 @@ export const wechatOrderPayH5API = (orderSn: string) =>
     params: { orderSn },
   })
 
+/** 微信内置浏览器 JSAPI 预支付；OpenID 由服务端网页授权取得。 */
+export const wechatOrderPayJsapiAPI = (orderSn: string) =>
+  http<Record<string, string>>({ method: 'POST', url: '/wechatPay/jsapi', params: { orderSn } })
+
 /** 申请退货 */
 export const createReturnApplyAPI = (data: OmsOrderReturnApplyParam) => {
   return http({

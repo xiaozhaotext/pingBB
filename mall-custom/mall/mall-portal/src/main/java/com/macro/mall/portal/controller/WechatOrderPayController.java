@@ -5,7 +5,9 @@ import com.macro.mall.model.OmsOrder;
 import com.macro.mall.portal.service.OmsPortalOrderService;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.WechatOrderPayService;
+import com.macro.mall.portal.service.WechatWebOauthService;
 import com.macro.mall.portal.service.impl.OrderWechatPayHandler;
+import org.springframework.jdbc.core.JdbcTemplate;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +38,10 @@ public class WechatOrderPayController {
     private OmsPortalOrderService portalOrderService;
     @Autowired
     private UmsMemberService memberService;
+    @Autowired
+    private WechatWebOauthService wechatOauth;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Value("${mall.payment.wechat.enabled:false}")
     private boolean paymentEnabled;
@@ -51,8 +57,9 @@ public class WechatOrderPayController {
 
     @Operation(summary = "微信JSAPI下单")
     @RequestMapping(value = "/jsapi", method = RequestMethod.POST)
-    public CommonResult<Map<String, String>> jsapi(@RequestParam String orderSn, @RequestParam String openId) {
+    public CommonResult<Map<String, String>> jsapi(@RequestParam String orderSn) {
         OmsOrder order = requireOwnPendingOrder(orderSn);
+        String openId = wechatOauth.openId(memberService.getCurrentMember().getId(), "ORDER");
         return CommonResult.success(wechatOrderPayService.prepayJsapi(
                 order.getOrderSn(), order.getPayAmount(), "订单支付 " + order.getOrderSn(), openId));
     }
@@ -83,6 +90,11 @@ public class WechatOrderPayController {
         }
         if (order.getStatus() == null || order.getStatus() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "订单当前状态不可支付");
+        }
+        Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
+                Integer.class, order.getId());
+        if (route == null || route != 1) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅开放旅游路线真实支付");
         }
         return order;
     }

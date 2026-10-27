@@ -37,7 +37,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API } from '@/apis/order'
+import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API, wechatOrderPayJsapiAPI } from '@/apis/order'
+import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
 import type { OmsOrderDetail } from '@/types/order'
 
 // 是否使用支付宝支付（H5端启用，通过环境变量配置）
@@ -83,19 +84,22 @@ const handleConfirmPay = async () => {
   // #ifdef H5
   if (USE_ALIPAY && payType.value == 1) {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-    window.location.href =
-      apiBaseUrl +
-      '/alipay/webPay?outTradeNo=' +
-      orderInfo.value.orderSn +
-      '&subject=' +
-      orderInfo.value.receiverName +
-      '的商品订单' +
-      '&totalAmount=' +
-      orderInfo.value.totalAmount
+    const query = new URLSearchParams({
+      outTradeNo: String(orderInfo.value.orderSn),
+      subject: '旅游路线订单',
+    })
+    window.location.href = `${apiBaseUrl}/alipay/webPay?${query}`
     return
   }
   if (USE_WECHAT_PAY && payType.value == 2) {
     try {
+      if (isWechatBrowser()) {
+        if (!(await ensureWechatOauth('ORDER', Number(orderId.value)))) return
+        const jsapi = await wechatOrderPayJsapiAPI(String(orderInfo.value.orderSn))
+        await invokeWechatJsapi(jsapi.data)
+        uni.showToast({ title: '支付结果确认中，请查看订单', icon: 'none' })
+        return
+      }
       const res = await wechatOrderPayH5API(String(orderInfo.value.orderSn))
       const h5Url = res.data?.h5Url
       if (h5Url) {
