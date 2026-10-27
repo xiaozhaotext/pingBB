@@ -22,6 +22,7 @@ public class MembershipPurchaseOrderService {
     private final MemberIdentityService identityService;
     private final MembershipPaymentGateway gateway;
     private final MembershipReferralRewardService referralRewards;
+    private final WechatWebOauthService wechatOauth;
     private final boolean mockPaymentEnabled;
     @Value("${mall.membership-v2.enabled:false}")
     private boolean membershipV2Enabled;
@@ -30,11 +31,13 @@ public class MembershipPurchaseOrderService {
     public MembershipPurchaseOrderService(JdbcTemplate jdbc, MemberIdentityService identityService,
                                           MembershipPaymentGateway gateway,
                                           MembershipReferralRewardService referralRewards,
+                                          WechatWebOauthService wechatOauth,
                                           @Value("${mall.payment.mock.enabled:false}") boolean mockPaymentEnabled) {
         this.jdbc = jdbc;
         this.identityService = identityService;
         this.gateway = gateway;
         this.referralRewards = referralRewards;
+        this.wechatOauth = wechatOauth;
         this.mockPaymentEnabled = mockPaymentEnabled;
     }
 
@@ -51,6 +54,8 @@ public class MembershipPurchaseOrderService {
                 catch (MembershipPaymentException ignored) { }
             }
             options.put(channel.toLowerCase() + "Ready", ready);
+            if ("WECHAT".equals(channel)) options.put("wechatJsapiReady", ready && wechatOauth != null
+                    && wechatOauth.readyFor("MEMBERSHIP"));
         }
         return options;
     }
@@ -117,8 +122,10 @@ public class MembershipPurchaseOrderService {
             payment.put("confirmPath",
                     "/mockPayment/membership/confirm?orderId=" + ((Number) order.get("id")).longValue());
         } else {
+            String openId = "WECHAT_JSAPI".equals(request.payMode())
+                    ? wechatOauth.openId(authenticatedMemberId, "MEMBERSHIP") : null;
             payment = gateway.start(no, request.level(), price, request.payChannel(),
-                    request.payMode(), request.wechatOpenId(), clientIp);
+                    request.payMode(), openId, clientIp);
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("orderId", ((Number) order.get("id")).longValue());
@@ -139,10 +146,6 @@ public class MembershipPurchaseOrderService {
                      || ("ALIPAY".equals(request.payChannel()) && "ALIPAY_WAP".equals(request.payMode())))
                 || !StringUtils.hasText(request.requestId())
                 || !request.requestId().matches("[A-Za-z0-9_-]{8,64}")) {
-            throw new MembershipPaymentException(MembershipPaymentError.INVALID_REQUEST);
-        }
-        if ("WECHAT_JSAPI".equals(request.payMode())
-                && !StringUtils.hasText(request.wechatOpenId())) {
             throw new MembershipPaymentException(MembershipPaymentError.INVALID_REQUEST);
         }
     }

@@ -43,12 +43,15 @@ logstash:
   enableInnerLog: false
 
 alipay:
-  gatewayUrl: https://openapi-sandbox.dl.alipaydev.com/gateway.do
-  appId: your appId
-  alipayPublicKey: your alipayPublicKey
-  appPrivateKey: your appPrivateKey
-  returnUrl: http://localhost:5173/#/pages/money/paySuccess
-  notifyUrl:
+  # The server currently uses the dev profile; explicit production merchant settings
+  # must override these development defaults before real payments are enabled.
+  gatewayUrl: ${MALL_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+  appId: ${MALL_ALIPAY_APP_ID:}
+  sellerId: ${MALL_ALIPAY_SELLER_ID:}
+  alipayPublicKey: ${MALL_ALIPAY_PUBLIC_KEY:}
+  appPrivateKey: ${MALL_ALIPAY_APP_PRIVATE_KEY:}
+  returnUrl: ${MALL_ALIPAY_RETURN_URL:}
+  notifyUrl: ${MALL_ALIPAY_NOTIFY_URL:}
 
 # 本地演示专用支付桩（仅 dev profile 生效，application-prod.yml 不放行）：
 # 开启后 /mockPayment/** 可用，且仅允许 127.0.0.1 调用，

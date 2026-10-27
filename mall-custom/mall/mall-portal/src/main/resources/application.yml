@@ -40,6 +40,10 @@ mall:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
     wechat:
       enabled: false # 未配置微信商户凭证并通过支付验收前禁止启用
+      oauth:
+        app-secret: ${MALL_WECHAT_OAUTH_APP_SECRET:}
+        callback-url: ${MALL_WECHAT_OAUTH_CALLBACK_URL:}
+        site-url: ${MALL_WECHAT_OAUTH_SITE_URL:}
       app-id: ${MALL_WECHAT_APP_ID:}
       merchant-id: ${MALL_WECHAT_MERCHANT_ID:}
       merchant-serial-number: ${MALL_WECHAT_MERCHANT_SERIAL:}
@@ -100,6 +104,7 @@ secure:
       - /member/membership/notify/alipay
       - /member/membership/notify/wechat
       - /wechatPay/notify
+      - /member/wechat-oauth/callback
 
 springdoc:
   swagger-ui:

@@ -86,7 +86,7 @@ export interface MembershipPurchaseParams {
   payMode: MembershipPayMode
   /** 幂等键：8-64 位字母数字 */
   requestId: string
-  /** 微信 JSAPI 支付时必填 */
+  /** 兼容旧字段；服务端忽略客户端 OpenID，使用公众号网页授权结果 */
   wechatOpenId?: string
 }
 
@@ -113,6 +113,7 @@ export interface MembershipPaymentOptions {
   sandbox: boolean
   membershipV2: boolean
   wechatReady: boolean
+  wechatJsapiReady?: boolean
   alipayReady: boolean
 }
 export const getMembershipPaymentOptionsAPI = () =>

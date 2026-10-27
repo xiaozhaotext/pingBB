@@ -19,4 +19,4 @@ jobs:
           cache-dependency-path: mall-custom/mall/pom.xml
       - name: Compile and test dividend and route purchase rules
         working-directory: mall-custom/mall
-        run: mvn -B -pl mall-common,mall-admin,mall-portal -am -DskipTests=false -Dtest=TriPoolRulesTest,TriPoolServiceTest,TriPoolDailySchedulerTest,TriMembershipOrderServiceTest,ProductZoneAdminControllerTest,PmsPortalProductServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false test
+        run: mvn -B -pl mall-common,mall-admin,mall-portal -am -DskipTests=false -Dtest=TriPoolRulesTest,TriPoolServiceTest,TriPoolDailySchedulerTest,TriMembershipOrderServiceTest,ProductZoneAdminControllerTest,PmsPortalProductServiceImplTest,MembershipPaymentOptionsTest,AlipayPrepayStatusTest -Dsurefire.failIfNoSpecifiedTests=false test

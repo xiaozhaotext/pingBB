@@ -51,11 +51,23 @@ public class AlipayServiceImpl implements AlipayService {
     @Autowired
     private PaymentExceptionRecorder paymentExceptionRecorder;
 
-    private OmsOrder requireOwnPendingOrder(String orderSn) {
+    private OmsOrder requireOwnOrder(String orderSn) {
         OmsOrder order = portalOrderService.getOrderByOrderSn(orderSn);
         if (order == null || order.getPayAmount() == null
                 || !memberService.getCurrentMember().getId().equals(order.getMemberId())) {
             Asserts.fail("订单不存在或无权支付");
+        }
+        return order;
+    }
+    private OmsOrder requireOwnPendingOrder(String orderSn) {
+        OmsOrder order = requireOwnOrder(orderSn);
+        if (order.getStatus() == null || order.getStatus() != 0) {
+            Asserts.fail("订单当前状态不可支付");
+        }
+        Long route = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
+                Long.class, order.getId());
+        if (route == null || route != 1) {
+            Asserts.fail("当前仅开放旅游路线真实支付");
         }
         return order;
     }
@@ -166,7 +178,7 @@ public class AlipayServiceImpl implements AlipayService {
 
     @Override
     public String query(String outTradeNo, String tradeNo) {
-        requireOwnPendingOrder(outTradeNo);
+        requireOwnOrder(outTradeNo);
         AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
         //******必传参数******
         JSONObject bizContent = new JSONObject();
