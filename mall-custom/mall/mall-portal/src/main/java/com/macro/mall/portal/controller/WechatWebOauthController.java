@@ -5,6 +5,8 @@ import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.WechatWebOauthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -27,13 +29,22 @@ public class WechatWebOauthController {
     }
 
     @PostMapping("/authorize")
-    public CommonResult<Map<String, String>> authorize(@RequestParam String purpose,
+    public ResponseEntity<CommonResult<Map<String, String>>> authorize(@RequestParam String purpose,
                                                         @RequestParam(required = false) Long orderId) {
-        return CommonResult.success(Map.of("url", oauth.authorize(members.getCurrentMember().getId(), purpose, orderId)));
+        var authorization = oauth.authorize(members.getCurrentMember().getId(), purpose, orderId);
+        var cookie = ResponseCookie.from("mall_wechat_oauth_state", authorization.state())
+                .httpOnly(true).secure(true).sameSite("Lax").path("/").maxAge(300).build();
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(CommonResult.success(Map.of("url", authorization.url())));
     }
 
     @GetMapping("/callback")
-    public ResponseEntity<Void> callback(@RequestParam String code, @RequestParam String state) {
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(oauth.callback(code, state))).build();
+    public ResponseEntity<Void> callback(@RequestParam String code, @RequestParam String state,
+                                         @CookieValue(value = "mall_wechat_oauth_state", required = false) String browserState) {
+        var clear = ResponseCookie.from("mall_wechat_oauth_state", "")
+                .httpOnly(true).secure(true).sameSite("Lax").path("/").maxAge(0).build();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.SET_COOKIE, clear.toString())
+                .location(URI.create(oauth.callback(code, state, browserState))).build();
     }
 }

@@ -33,6 +33,7 @@ public class WechatWebOauthService {
     private final MembershipPaymentProperties membership;
     private final SecureRandom random = new SecureRandom();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    public record Authorization(String url, String state) {}
 
     @Value("${mall.payment.wechat.oauth.app-secret:}") private String appSecret;
     @Value("${mall.payment.wechat.oauth.callback-url:}") private String callbackUrl;
@@ -46,7 +47,7 @@ public class WechatWebOauthService {
         this.membership = membership;
     }
 
-    public String authorize(long memberId, String purpose, Long orderId) {
+    public Authorization authorize(long memberId, String purpose, Long orderId) {
         String appId = appIdFor(purpose);
         requireConfigured(appId);
         if ("ORDER".equals(purpose) && (orderId == null || orderId <= 0)) badRequest();
@@ -57,14 +58,15 @@ public class WechatWebOauthService {
         redis.opsForValue().set(STATE_PREFIX + state,
                 memberId + ":" + purpose + ":" + (orderId == null ? 0 : orderId) + ":" + appId,
                 5, TimeUnit.MINUTES);
-        return "https://open.weixin.qq.com/connect/oauth2/authorize?appid=" + encode(appId)
+        String url = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=" + encode(appId)
                 + "&redirect_uri=" + encode(callbackUrl) + "&response_type=code&scope=snsapi_base&state="
                 + encode(state) + "#wechat_redirect";
+        return new Authorization(url, state);
     }
 
-    public String callback(String code, String state) {
+    public String callback(String code, String state, String browserState) {
         if (!StringUtils.hasText(code) || !StringUtils.hasText(state)
-                || !state.matches("[A-Za-z0-9_-]{32}")) badRequest();
+                || !state.matches("[A-Za-z0-9_-]{32}") || !state.equals(browserState)) badRequest();
         String saved = redis.opsForValue().getAndDelete(STATE_PREFIX + state);
         if (saved == null) badRequest();
         String[] parts = saved.split(":", -1);
