@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     /** 非现金渠道支付方式：余额或商品积分已全额抵扣，订单没有现金部分。 */
     private static final int PAY_TYPE_BALANCE_POINTS = 4;
+    @Value("${mall.payment.wechat.production-test-product-id:0}")
+    private long productionTestProductId;
 
     @Autowired
     private UmsMemberService memberService;
@@ -445,6 +447,13 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             if (portalOrderDao.consumeReservedSku(item.getProductSkuId(), item.getProductQuantity()) != 1) {
                 Asserts.fail("库存预占异常，支付确认已回滚");
             }
+        }
+        // 指定 1 元真实支付测试商品只验证订单收款，不发放积分、分享奖励或会员权益。
+        if (productionTestProductId > 0 && orderDetail.getOrderItemList().size() == 1
+                && Objects.equals(orderDetail.getOrderItemList().get(0).getProductId(), productionTestProductId)
+                && orderDetail.getPayAmount() != null
+                && orderDetail.getPayAmount().compareTo(BigDecimal.ONE) == 0) {
+            return 1;
         }
         // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）
         boolean triMembership = triMembershipOrders != null && triMembershipOrders.fulfill(orderId);

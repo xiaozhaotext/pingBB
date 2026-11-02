@@ -50,6 +50,8 @@ public class WechatOrderPayController {
     private boolean sandboxOneYuanTestEnabled;
     @Value("${mall.payment.wechat.production-test-order-sn:}")
     private String productionTestOrderSn;
+    @Value("${mall.payment.wechat.production-test-product-id:0}")
+    private long productionTestProductId;
 
     @Operation(summary = "微信H5下单")
     @RequestMapping(value = "/h5", method = RequestMethod.POST)
@@ -103,6 +105,15 @@ public class WechatOrderPayController {
             }
             return order;
         }
+        if (productionTestProductId > 0) {
+            String database = jdbc.queryForObject("SELECT DATABASE()", String.class);
+            Integer matchingItems = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM oms_order_item WHERE order_id=? AND product_id=? AND product_quantity=1",
+                    Integer.class, order.getId(), productionTestProductId);
+            Integer allItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=?",
+                    Integer.class, order.getId());
+            if (isProductionOneYuanProductOrder(order, database, matchingItems, allItems)) return order;
+        }
         Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
                 Integer.class, order.getId());
         if (route == null || route != 1) {
@@ -125,6 +136,15 @@ public class WechatOrderPayController {
         return "mall_demo".equals(database) && configuredOrderSn != null
                 && configuredOrderSn.equals(order.getOrderSn())
                 && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0);
+    }
+
+    static boolean isProductionOneYuanProductOrder(OmsOrder order, String database,
+                                                    Integer matchingItems, Integer allItems) {
+        return "mall_demo".equals(database)
+                && order.getTotalAmount() != null && order.getTotalAmount().compareTo(BigDecimal.ONE) == 0
+                && order.getPayAmount() != null && order.getPayAmount().compareTo(BigDecimal.ONE) == 0
+                && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0)
+                && Integer.valueOf(1).equals(matchingItems) && Integer.valueOf(1).equals(allItems);
     }
 
     private String resolveClientIp(HttpServletRequest request) {
