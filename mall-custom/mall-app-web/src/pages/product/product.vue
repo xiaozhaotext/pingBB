@@ -1,7 +1,7 @@
 <template>
   <DesktopHeader />
   <view class="container" :class="'theme-' + theme" @touchstart="edgeStart" @touchmove="edgeMove" @touchend="edgeEnd">
-    <view class="demo-product-note">本地演示数据：商品与促销内容来自官方示例库，请勿作为真实经营信息。</view>
+    <view v-if="isSandboxDemo" class="demo-product-note">本地演示数据：商品与促销内容来自官方示例库，请勿作为真实经营信息。</view>
     <!-- 自定义导航栏 -->
     <view class="custom-navbar" :style="{ background: navBgColor }">
       <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
@@ -297,6 +297,7 @@
 </template>
 
 <script setup lang="ts">
+const isSandboxDemo = import.meta.env.VITE_SANDBOX_MODE === 'true'
 import { productImageUrl } from '@/utils/productImage'
 const fallbackPage=ref('/pages/index/index')
 // 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集

@@ -65,7 +65,7 @@ import type { PageParam } from '@/types/common'
 
 const announcement=ref('暂无公告')
 import { http } from '@/utils/http'
-const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.[0]?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
+const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.find(item => import.meta.env.VITE_SANDBOX_MODE === 'true' || !['HTTPS验收测试-1791871259','TTPS验收测试-1791871259'].includes(item.title))?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
 const pickProducts=ref<ZoneProduct[]>([])
 const pickLoading=ref(false),pickError=ref(false)
 const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getZoneProductsAPI('PICK')).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
