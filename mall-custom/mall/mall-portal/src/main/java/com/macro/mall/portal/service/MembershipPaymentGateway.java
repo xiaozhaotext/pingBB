@@ -5,7 +5,9 @@ import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradeWapPayRequest;
-import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.macro.mall.portal.config.WechatSdkConfigFactory;
+import com.wechat.pay.java.core.Config;
+import com.wechat.pay.java.core.notification.NotificationConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
 import com.wechat.pay.java.core.notification.RequestParam;
 import com.wechat.pay.java.service.payments.h5.H5Service;
@@ -32,7 +34,7 @@ import java.util.Map;
 @Service
 public class MembershipPaymentGateway {
     private final MembershipPaymentProperties properties;
-    private volatile RSAAutoCertificateConfig wechatConfig;
+    private volatile Config wechatConfig;
 
     public MembershipPaymentGateway(MembershipPaymentProperties properties) {
         this.properties = properties;
@@ -119,7 +121,8 @@ public class MembershipPaymentGateway {
             RequestParam param = new RequestParam.Builder()
                     .body(rawBody).serialNumber(serial).nonce(nonce)
                     .signature(signature).timestamp(timestamp).build();
-            Transaction transaction = new NotificationParser(wechatConfig()).parse(param, Transaction.class);
+            Transaction transaction = new NotificationParser((NotificationConfig) wechatConfig())
+                    .parse(param, Transaction.class);
             if (transaction.getTradeState() != Transaction.TradeStateEnum.SUCCESS
                     || !config.getMerchantId().equals(transaction.getMchid())
                     || !config.getAppId().equals(transaction.getAppid())
@@ -234,21 +237,23 @@ public class MembershipPaymentGateway {
         if (!properties.isEnabled() || !p.isEnabled() || !StringUtils.hasText(p.getAppId())
                 || !StringUtils.hasText(p.getMerchantId()) || !StringUtils.hasText(p.getMerchantSerialNumber())
                 || !StringUtils.hasText(p.getApiV3Key()) || !StringUtils.hasText(p.getNotifyUrl())
-                || !fileExists(p.getPrivateKeyPath())) {
+                || !fileExists(p.getPrivateKeyPath())
+                || !WechatSdkConfigFactory.validMode(p.getVerificationMode(),
+                        p.getPublicKeyId(), p.getPublicKeyPath())) {
             throw new MembershipPaymentException(MembershipPaymentError.CHANNEL_UNAVAILABLE);
         }
         return p;
     }
 
-    private RSAAutoCertificateConfig wechatConfig() {
-        RSAAutoCertificateConfig current = wechatConfig;
+    private Config wechatConfig() {
+        Config current = wechatConfig;
         if (current != null) return current;
         synchronized (this) {
             if (wechatConfig == null) {
                 MembershipPaymentProperties.Wechat p = requireWechat();
-                wechatConfig = new RSAAutoCertificateConfig.Builder()
-                        .merchantId(p.getMerchantId()).privateKeyFromPath(p.getPrivateKeyPath())
-                        .merchantSerialNumber(p.getMerchantSerialNumber()).apiV3Key(p.getApiV3Key()).build();
+                wechatConfig = WechatSdkConfigFactory.create(p.getVerificationMode(),
+                        p.getMerchantId(), p.getPrivateKeyPath(), p.getMerchantSerialNumber(),
+                        p.getApiV3Key(), p.getPublicKeyId(), p.getPublicKeyPath());
             }
             return wechatConfig;
         }

@@ -21,6 +21,9 @@ public class MembershipPaymentProperties {
         private String merchantSerialNumber;
         private String privateKeyPath;
         private String apiV3Key;
+        private String verificationMode = "CERTIFICATE";
+        private String publicKeyId;
+        private String publicKeyPath;
         private String notifyUrl;
     }
 

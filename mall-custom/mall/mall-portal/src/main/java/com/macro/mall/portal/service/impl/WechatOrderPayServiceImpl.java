@@ -1,8 +1,10 @@
 package com.macro.mall.portal.service.impl;
 
 import com.macro.mall.portal.config.OrderWechatPayProperties;
+import com.macro.mall.portal.config.WechatSdkConfigFactory;
 import com.macro.mall.portal.service.WechatOrderPayService;
-import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.wechat.pay.java.core.Config;
+import com.wechat.pay.java.core.notification.NotificationConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
 import com.wechat.pay.java.core.notification.RequestParam;
 import com.wechat.pay.java.service.payments.h5.H5Service;
@@ -35,7 +37,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     @Autowired
     private OrderWechatPayProperties properties;
 
-    private volatile RSAAutoCertificateConfig wechatConfig;
+    private volatile Config wechatConfig;
 
     @Override
     public Map<String, String> prepayH5(String outTradeNo, BigDecimal amount, String description, String clientIp) {
@@ -117,7 +119,8 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
             RequestParam param = new RequestParam.Builder()
                     .body(rawBody).serialNumber(serial).nonce(nonce)
                     .signature(signature).timestamp(timestamp).build();
-            Transaction transaction = new NotificationParser(wechatConfig()).parse(param, Transaction.class);
+            Transaction transaction = new NotificationParser((NotificationConfig) wechatConfig())
+                    .parse(param, Transaction.class);
             if (transaction.getTradeState() != Transaction.TradeStateEnum.SUCCESS
                     || !config.getMerchantId().equals(transaction.getMchid())
                     || !config.getAppId().equals(transaction.getAppid())
@@ -151,23 +154,25 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
                 || !StringUtils.hasText(properties.getMerchantSerialNumber())
                 || !StringUtils.hasText(properties.getApiV3Key())
                 || !StringUtils.hasText(properties.getNotifyUrl())
-                || !fileExists(properties.getPrivateKeyPath())) {
+                || !fileExists(properties.getPrivateKeyPath())
+                || !WechatSdkConfigFactory.validMode(properties.getVerificationMode(),
+                        properties.getPublicKeyId(), properties.getPublicKeyPath())) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "微信支付渠道尚未启用");
         }
         return properties;
     }
 
-    private RSAAutoCertificateConfig wechatConfig() {
-        RSAAutoCertificateConfig current = wechatConfig;
+    private Config wechatConfig() {
+        Config current = wechatConfig;
         if (current != null) {
             return current;
         }
         synchronized (this) {
             if (wechatConfig == null) {
                 OrderWechatPayProperties p = requireReady();
-                wechatConfig = new RSAAutoCertificateConfig.Builder()
-                        .merchantId(p.getMerchantId()).privateKeyFromPath(p.getPrivateKeyPath())
-                        .merchantSerialNumber(p.getMerchantSerialNumber()).apiV3Key(p.getApiV3Key()).build();
+                wechatConfig = WechatSdkConfigFactory.create(p.getVerificationMode(),
+                        p.getMerchantId(), p.getPrivateKeyPath(), p.getMerchantSerialNumber(),
+                        p.getApiV3Key(), p.getPublicKeyId(), p.getPublicKeyPath());
             }
             return wechatConfig;
         }

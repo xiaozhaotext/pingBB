@@ -26,6 +26,10 @@ public class OrderWechatPayProperties {
     private String privateKeyPath;
     /** APIv3 密钥 */
     private String apiV3Key;
+    /** CERTIFICATE (default) or PUBLIC_KEY; configured per deployment. */
+    private String verificationMode = "CERTIFICATE";
+    private String publicKeyId;
+    private String publicKeyPath;
     /** 支付结果通知地址（必须公网可访问且备案） */
     private String notifyUrl;
     /** H5 支付完成后跳转地址 */
