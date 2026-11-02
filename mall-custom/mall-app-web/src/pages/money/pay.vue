@@ -51,7 +51,7 @@ const USE_MOCK_PAYMENT = import.meta.env.VITE_USE_MOCK_PAYMENT === 'true'
 // 订单ID
 const orderId = ref<number | null>(null)
 // 支付方式：1->支付宝；2->微信
-const payType = ref(1)
+const payType = ref(USE_ALIPAY ? 1 : USE_WECHAT_PAY ? 2 : 0)
 // 订单信息
 const orderInfo = ref<Partial<OmsOrderDetail>>({})
 
