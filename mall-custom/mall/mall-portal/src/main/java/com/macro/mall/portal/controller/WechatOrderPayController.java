@@ -48,6 +48,8 @@ public class WechatOrderPayController {
     private boolean paymentEnabled;
     @Value("${mall.payment.wechat.sandbox-one-yuan-test-enabled:false}")
     private boolean sandboxOneYuanTestEnabled;
+    @Value("${mall.payment.wechat.production-test-order-sn:}")
+    private String productionTestOrderSn;
 
     @Operation(summary = "微信H5下单")
     @RequestMapping(value = "/h5", method = RequestMethod.POST)
@@ -94,6 +96,13 @@ public class WechatOrderPayController {
         if (order.getStatus() == null || order.getStatus() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "订单当前状态不可支付");
         }
+        if (productionTestOrderSn != null && !productionTestOrderSn.isBlank()) {
+            String database = jdbc.queryForObject("SELECT DATABASE()", String.class);
+            if (!isProductionTestOrder(order, database, productionTestOrderSn)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅开放指定订单测试");
+            }
+            return order;
+        }
         Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
                 Integer.class, order.getId());
         if (route == null || route != 1) {
@@ -109,6 +118,12 @@ public class WechatOrderPayController {
         return enabled && "mall_demo_sandbox".equals(database)
                 && order.getTotalAmount() != null && order.getTotalAmount().compareTo(BigDecimal.ONE) == 0
                 && order.getPayAmount() != null && order.getPayAmount().compareTo(BigDecimal.ONE) == 0
+                && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0);
+    }
+
+    static boolean isProductionTestOrder(OmsOrder order, String database, String configuredOrderSn) {
+        return "mall_demo".equals(database) && configuredOrderSn != null
+                && configuredOrderSn.equals(order.getOrderSn())
                 && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0);
     }
 
