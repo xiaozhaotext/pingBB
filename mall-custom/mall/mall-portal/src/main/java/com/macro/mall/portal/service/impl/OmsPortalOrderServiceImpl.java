@@ -448,11 +448,11 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 Asserts.fail("库存预占异常，支付确认已回滚");
             }
         }
-        // 指定 1 元真实支付测试商品只验证订单收款，不发放积分、分享奖励或会员权益。
+        // 指定 0.5 元真实支付测试商品只验证订单收款，不发放积分、分享奖励或会员权益。
         if (productionTestProductId > 0 && orderDetail.getOrderItemList().size() == 1
                 && Objects.equals(orderDetail.getOrderItemList().get(0).getProductId(), productionTestProductId)
                 && orderDetail.getPayAmount() != null
-                && orderDetail.getPayAmount().compareTo(BigDecimal.ONE) == 0) {
+                && orderDetail.getPayAmount().compareTo(new BigDecimal("0.50")) == 0) {
             return 1;
         }
         // 分享下单奖励：给该会员的直推分享人入账（幂等，规则与开关由后台配置）

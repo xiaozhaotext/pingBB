@@ -112,7 +112,7 @@ public class WechatOrderPayController {
                     Integer.class, order.getId(), productionTestProductId);
             Integer allItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=?",
                     Integer.class, order.getId());
-            if (isProductionOneYuanProductOrder(order, database, matchingItems, allItems)) return order;
+            if (isProductionHalfYuanProductOrder(order, database, matchingItems, allItems)) return order;
         }
         Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
                 Integer.class, order.getId());
@@ -138,11 +138,11 @@ public class WechatOrderPayController {
                 && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0);
     }
 
-    static boolean isProductionOneYuanProductOrder(OmsOrder order, String database,
+    static boolean isProductionHalfYuanProductOrder(OmsOrder order, String database,
                                                     Integer matchingItems, Integer allItems) {
         return "mall_demo".equals(database)
-                && order.getTotalAmount() != null && order.getTotalAmount().compareTo(BigDecimal.ONE) == 0
-                && order.getPayAmount() != null && order.getPayAmount().compareTo(BigDecimal.ONE) == 0
+                && order.getTotalAmount() != null && order.getTotalAmount().compareTo(new BigDecimal("0.50")) == 0
+                && order.getPayAmount() != null && order.getPayAmount().compareTo(new BigDecimal("0.50")) == 0
                 && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0)
                 && Integer.valueOf(1).equals(matchingItems) && Integer.valueOf(1).equals(allItems);
     }
