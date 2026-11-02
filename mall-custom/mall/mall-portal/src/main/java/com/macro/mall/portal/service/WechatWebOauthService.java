@@ -98,7 +98,7 @@ public class WechatWebOauthService {
         String appId = appIdFor(purpose);
         String openId = redis.opsForValue().get(openIdKey(memberId, appId));
         if (!StringUtils.hasText(openId)) {
-            throw new ResponseStatusException(HttpStatus.PRECONDITION_REQUIRED, "请先完成微信网页授权");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少 openId，请先完成微信网页授权");
         }
         return openId;
     }

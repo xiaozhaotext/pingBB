@@ -40,6 +40,7 @@ mall:
       enabled: false # 未完成渠道验收与补偿闭环前禁止启用
     wechat:
       enabled: false # 未配置微信商户凭证并通过支付验收前禁止启用
+      sandbox-one-yuan-test-enabled: ${MALL_WECHAT_SANDBOX_ONE_YUAN_TEST_ENABLED:false}
       oauth:
         app-secret: ${MALL_WECHAT_OAUTH_APP_SECRET:}
         callback-url: ${MALL_WECHAT_OAUTH_CALLBACK_URL:}

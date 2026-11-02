@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -33,5 +34,9 @@ class WechatWebOauthServiceTest {
         assertThrows(ResponseStatusException.class,
                 () -> oauth.callback("provider-code", start.state(), "other-browser-state"));
         verify(values, never()).getAndDelete(anyString());
+
+        var missingOpenId = assertThrows(ResponseStatusException.class,
+                () -> oauth.openId(42, "ORDER"));
+        assertEquals(HttpStatus.BAD_REQUEST, missingOpenId.getStatusCode());
     }
 }

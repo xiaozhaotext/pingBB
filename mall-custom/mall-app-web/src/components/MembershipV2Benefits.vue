@@ -132,7 +132,7 @@ const buyWithChannel = (channel: 'ALIPAY' | 'WECHAT') => {
 }
 const handleBuy = async () => {
   if (submitting.value) return
-  if (!paymentOptions.value?.purchaseEnabled || sandboxMode !== paymentOptions.value.sandbox) {
+  if (!paymentOptions.value?.purchaseEnabled || (!sandboxMode && paymentOptions.value.sandbox)) {
     actionError.value = '支付环境与页面不匹配或购买未启用，请重新进入正确的应用入口'
     return
   }
@@ -150,7 +150,7 @@ const handleBuy = async () => {
     const payMode = payChannel.value === 'WECHAT'
       ? (isWechatBrowser() ? 'WECHAT_JSAPI' : 'WECHAT_H5') : 'ALIPAY_WAP'
     // #ifdef H5
-    if (!sandboxMode && payMode === 'WECHAT_JSAPI'
+    if (!paymentOptions.value.sandbox && payMode === 'WECHAT_JSAPI'
         && !(await ensureWechatOauth('MEMBERSHIP'))) return
     // #endif
     const r = await createMembershipOrderAPI({
