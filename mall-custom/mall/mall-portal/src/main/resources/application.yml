@@ -25,6 +25,9 @@ mall:
         merchant-serial-number: ${MEMBERSHIP_WECHAT_MERCHANT_SERIAL:}
         private-key-path: ${MEMBERSHIP_WECHAT_PRIVATE_KEY_PATH:}
         api-v3-key: ${MEMBERSHIP_WECHAT_API_V3_KEY:}
+        verification-mode: ${MEMBERSHIP_WECHAT_VERIFICATION_MODE:CERTIFICATE}
+        public-key-id: ${MEMBERSHIP_WECHAT_PUBLIC_KEY_ID:}
+        public-key-path: ${MEMBERSHIP_WECHAT_PUBLIC_KEY_PATH:}
         notify-url: ${MEMBERSHIP_WECHAT_NOTIFY_URL:}
       alipay:
         enabled: false
@@ -50,6 +53,9 @@ mall:
       merchant-serial-number: ${MALL_WECHAT_MERCHANT_SERIAL:}
       private-key-path: ${MALL_WECHAT_PRIVATE_KEY_PATH:}
       api-v3-key: ${MALL_WECHAT_API_V3_KEY:}
+      verification-mode: ${MALL_WECHAT_VERIFICATION_MODE:CERTIFICATE}
+      public-key-id: ${MALL_WECHAT_PUBLIC_KEY_ID:}
+      public-key-path: ${MALL_WECHAT_PUBLIC_KEY_PATH:}
       notify-url: ${MALL_WECHAT_NOTIFY_URL:}
       return-url: ${MALL_WECHAT_RETURN_URL:}
   sms:
