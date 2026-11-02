@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.math.BigDecimal;
 
 /**
  * 普通订单微信支付：H5 / JSAPI 下单与支付结果通知。
@@ -45,6 +46,8 @@ public class WechatOrderPayController {
 
     @Value("${mall.payment.wechat.enabled:false}")
     private boolean paymentEnabled;
+    @Value("${mall.payment.wechat.sandbox-one-yuan-test-enabled:false}")
+    private boolean sandboxOneYuanTestEnabled;
 
     @Operation(summary = "微信H5下单")
     @RequestMapping(value = "/h5", method = RequestMethod.POST)
@@ -94,9 +97,19 @@ public class WechatOrderPayController {
         Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
                 Integer.class, order.getId());
         if (route == null || route != 1) {
+            String database = sandboxOneYuanTestEnabled
+                    ? jdbc.queryForObject("SELECT DATABASE()", String.class) : null;
+            if (isOneYuanSandboxOrder(order, database, sandboxOneYuanTestEnabled)) return order;
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅开放旅游路线真实支付");
         }
         return order;
+    }
+
+    static boolean isOneYuanSandboxOrder(OmsOrder order, String database, boolean enabled) {
+        return enabled && "mall_demo_sandbox".equals(database)
+                && order.getTotalAmount() != null && order.getTotalAmount().compareTo(BigDecimal.ONE) == 0
+                && order.getPayAmount() != null && order.getPayAmount().compareTo(BigDecimal.ONE) == 0
+                && (order.getBalanceAmount() == null || order.getBalanceAmount().signum() == 0);
     }
 
     private String resolveClientIp(HttpServletRequest request) {
