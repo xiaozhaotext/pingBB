@@ -52,6 +52,8 @@ public class WechatOrderPayController {
     private String productionTestOrderSn;
     @Value("${mall.payment.wechat.production-test-product-id:0}")
     private long productionTestProductId;
+    @Value("${mall.payment.wechat.all-products-enabled:false}")
+    private boolean allProductsEnabled;
 
     @Operation(summary = "微信H5下单")
     @RequestMapping(value = "/h5", method = RequestMethod.POST)
@@ -113,6 +115,19 @@ public class WechatOrderPayController {
             Integer allItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=?",
                     Integer.class, order.getId());
             if (isProductionHalfYuanProductOrder(order, database, matchingItems, allItems)) return order;
+            // The test product must never ride along with a normal order and trigger benefits.
+            Integer testItems = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM oms_order_item WHERE order_id=? AND product_id=?",
+                    Integer.class, order.getId(), productionTestProductId);
+            if (testItems != null && testItems > 0) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Test product requires its own exact order");
+            }
+        }
+        if (allProductsEnabled) {
+            Integer itemCount = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=?",
+                    Integer.class, order.getId());
+            if (isPayableProductOrder(order, itemCount)) return order;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order amount or items invalid");
         }
         Integer route = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot WHERE order_id=?",
                 Integer.class, order.getId());
@@ -123,6 +138,12 @@ public class WechatOrderPayController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前仅开放旅游路线真实支付");
         }
         return order;
+    }
+
+    static boolean isPayableProductOrder(OmsOrder order, Integer itemCount) {
+        return order.getPayAmount() != null && order.getPayAmount().signum() > 0
+                && order.getTotalAmount() != null && order.getTotalAmount().signum() > 0
+                && itemCount != null && itemCount > 0;
     }
 
     static boolean isOneYuanSandboxOrder(OmsOrder order, String database, boolean enabled) {

@@ -32,4 +32,13 @@ class WechatProductionTestOrderGateTest {
         order.setPayAmount(BigDecimal.ONE);
         assertFalse(WechatOrderPayController.isProductionHalfYuanProductOrder(order, "mall_demo", 1, 1));
     }
+    @Test void ordinaryProductOrderRequiresPositiveAmountAndAnItem() {
+        OmsOrder order = new OmsOrder();
+        order.setTotalAmount(new BigDecimal("68.00"));
+        order.setPayAmount(new BigDecimal("68.00"));
+        assertTrue(WechatOrderPayController.isPayableProductOrder(order, 1));
+        assertFalse(WechatOrderPayController.isPayableProductOrder(order, 0));
+        order.setPayAmount(BigDecimal.ZERO);
+        assertFalse(WechatOrderPayController.isPayableProductOrder(order, 1));
+    }
 }
