@@ -63,6 +63,30 @@ public class P0AdminController {
         }
         return CommonResult.success(result);
     }
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.macro.mall.common.service.RedisService memberRedis;
+    @org.springframework.beans.factory.annotation.Value("${redis.database:mall}") private String memberRedisDatabase;
+    @org.springframework.beans.factory.annotation.Value("${redis.key.member:ums:member}") private String memberRedisKey;
+
+    @PostMapping("/members/{memberId}/reset-password")
+    @Transactional(rollbackFor=Exception.class)
+    public CommonResult<Void> resetMemberPassword(Principal principal,@PathVariable long memberId) {
+        long operator=access.requireAuthorized(principal);
+        if(memberRedis==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"会员缓存服务不可用");
+        var names=jdbc.queryForList("SELECT username FROM ums_member WHERE id=? FOR UPDATE",String.class,memberId);
+        if(names.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"会员不存在");
+        String hash=new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("12345678");
+        jdbc.update("UPDATE ums_member SET password=? WHERE id=?",hash,memberId);
+        audit(operator,principal.getName(),"member","password_reset",memberId,"管理员初始化账号密码");
+        String cacheKey=memberRedisDatabase+":"+memberRedisKey+":"+names.get(0);
+        memberRedis.del(cacheKey);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override public void afterCommit() { memberRedis.del(cacheKey); }
+            });
+        return CommonResult.success(null);
+    }
+
     @GetMapping("/members/count")
     public CommonResult<Map<String, Object>> memberCount(Principal principal,
             @RequestParam(defaultValue = "") String keyword) {

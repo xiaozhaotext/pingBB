@@ -72,6 +72,7 @@ public class DashboardController {
         result.put("paidTrend", trend);
         // ===== 用户维度：总用户 / 活跃用户 / 新增用户 / 每日趋势 / 区域 / 性别 =====
         result.put("totalUser", memberCount);
+        result.put("memberTierCounts", memberTierCounts());
         result.put("todayNewMemberCount", count("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE() AND create_time < CURDATE() + INTERVAL 1 DAY"));
         result.put("newUserCount", count("SELECT COUNT(*) FROM ums_member WHERE create_time >= CURDATE() - INTERVAL 29 DAY AND create_time < CURDATE() + INTERVAL 1 DAY"));
         result.put("activeUserCount", count("SELECT COUNT(*) FROM ("
@@ -150,5 +151,13 @@ public class DashboardController {
         } catch (org.springframework.dao.DataAccessException e) {
             return BigDecimal.ZERO;
         }
+    }
+    Map<String,Object> memberTierCounts() {
+        return jdbcTemplate.queryForMap("SELECT "
+            + "COALESCE(SUM(CASE WHEN t.member_id IS NULL THEN 1 ELSE 0 END),0) AS visitor,"
+            + "COALESCE(SUM(CASE WHEN t.tier='MEMBER' THEN 1 ELSE 0 END),0) AS member,"
+            + "COALESCE(SUM(CASE WHEN t.tier='PARTNER' THEN 1 ELSE 0 END),0) AS partner,"
+            + "COALESCE(SUM(CASE WHEN t.tier='COFOUNDER' THEN 1 ELSE 0 END),0) AS cofounder "
+            + "FROM ums_member m LEFT JOIN tri_member t ON t.member_id=m.id");
     }
 }

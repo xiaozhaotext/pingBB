@@ -10,6 +10,8 @@ import { getDashboardOverviewAPI, type DashboardOverview } from '@/apis/dashboar
 
 use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
 
+const showMemberTiers = ref(false)
+const memberTiers = computed(() => (overview.value as unknown as { memberTierCounts?: Record<string, number> } | null)?.memberTierCounts)
 const loading = ref(false)
 const overview = ref<DashboardOverview | null>(null)
 const cards = computed(() => [
@@ -94,7 +96,7 @@ onMounted(refresh)
   <main class="dashboard" v-loading="loading">
     <header class="heading"><div><p>{{ sandboxMode ? '智游美 · 演示环境' : '智游美 · 管理后台' }}</p><h1>经营概览</h1><span class="heading-note">让每一份经营清晰有序</span></div><el-button @click="refresh">刷新数据</el-button></header>
     <el-alert title="统计来自当前连接的数据库；历史示例数据可能影响汇总，请核对订单及资金流水后用于经营决策。" type="warning" :closable="false" show-icon />
-    <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}</span><strong>{{ card.value }}</strong></el-card></section>
+    <section class="cards"><el-card v-for="card in cards" :key="card.title" shadow="never" class="metric"><span>{{ card.title }}<button v-if="card.title === '总用户数'" type="button" :aria-expanded="showMemberTiers" aria-label="展开用户身份统计" style="border:0;background:transparent;cursor:pointer" @click="showMemberTiers = !showMemberTiers">{{ showMemberTiers ? '▼' : '▶' }}</button></span><strong>{{ card.value }}</strong><div v-if="card.title === '总用户数' && showMemberTiers" style="font-size:14px;line-height:1.8">游客：{{ memberTiers?.visitor ?? '—' }}<br>会员：{{ memberTiers?.member ?? '—' }}<br>合伙人：{{ memberTiers?.partner ?? '—' }}<br>联创：{{ memberTiers?.cofounder ?? '—' }}</div></el-card></section>
     <el-card shadow="never" class="trend"><template #header><div class="trend-head"><strong>最近 7 日已支付订单趋势</strong><small>{{ overview?.amountNote }}</small></div></template>
       <v-chart v-if="overview?.paidTrend.length" :option="chartOption" autoresize class="chart" />
       <el-empty v-else description="最近 7 日没有已支付订单数据" />

@@ -105,7 +105,7 @@ const labels: Record<string, string> = {
   wechat_account: '微信账号', total_earnings: '累计收益', available_earnings: '可提现收益', frozen_earnings: '冻结收益', withdrawn: '已提现', balance_after: '变动后余额', change_type: '变动类型', biz_id: '业务编号', remark: '备注', version: '版本',
   id: '会员 ID', member_id: '会员编号', username: '会员名称 / 账号', nickname: '昵称', phone: '手机号', status: '登录状态',
   real_name: '真实姓名（本人填写）', email: '邮箱', gender: '性别', wechat: '关联微信', login_count: '登录次数',
-  membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '消费余额（元）', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
+  membership_tier: '会员身份', membership_paid_at: '会员购买时间', direct_paid_count: '有效直邀人数', identity_type: '身份', inviter_id: '推荐人', member_balance: '账户余额（元）', product_points: '产品积分', rebuy_points: '复购积分', points_type: '积分类型', balance: '余额', available: '可用',
   frozen: '冻结', amount: '金额', delta: '调整量', reason: '原因', pay_status: '模拟支付状态',
   simulate_flag: '模拟标记', actual_amount: '扣费后金额', fee_rate: '手续费比例', fee_amount: '手续费',
   contribution_value: '贡献值', estimated_amount: '模拟分配金额', ratio: '贡献占比', stat_date: '统计日期', event_type: '贡献事件类型', member_level_id: '会员等级编号', inviter_name: '推荐人名称',
@@ -173,7 +173,7 @@ function visibleDataRows(key: string, value: unknown): P0Row[] {
 }
 function columns(value: unknown): string[] {
   const first = rows(value)[0]
-  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password', 'membership_name', 'inviter_name'].includes(key)) : []
+  return first ? Object.keys(first).filter(key => !['idempotency_key', 'password', 'membership_name', 'inviter_name', ...(sectionKey.value === 'p0Members' ? ['nickname', 'gender', 'real_name', 'email', 'wechat_account'] : [])].includes(key)) : []
 }
 function display(value: unknown, column?: string): string {
   if (column === 'membership_tier') return triTierNames[String(value || 'VISITOR')] || '未知身份'
@@ -188,12 +188,24 @@ function display(value: unknown, column?: string): string {
   return businessText(value)
 }
 function memberCell(row: P0Row, column: string): string {
+  if (column === 'member_balance') return money(row[column])
   if (column === 'member_id' && sectionKey.value === 'p0Dividend') return memberName(row)
   if (column === 'inviter_id' && row.inviter_id != null) return row.inviter_name ? `${row.inviter_name}（ID ${row.inviter_id}）` : `ID ${row.inviter_id}`
   return display(row[column], column)
 }
 function searchMembers() { memberPage.value = 1; load() }
 
+const resettingPassword = ref(false)
+async function resetMemberPassword() {
+  const id = memberId.value
+  if (!id || resettingPassword.value) return
+  try { await ElMessageBox.confirm('确认将该账号密码初始化为12345678？', '重置密码', { type: 'warning' }) } catch { return }
+  resettingPassword.value = true
+  try {
+    await postP0(`members/${id}/reset-password`, {})
+    ElMessage.success('密码已初始化为12345678')
+  } finally { resettingPassword.value = false }
+}
 async function openMember(id: number) {
   loading.value = true
   try {
@@ -416,6 +428,7 @@ const groupTitles: Record<string, string> = {
             <p>当前状态：{{ Number((memberDetail.profile as P0Row).status) === 1 ? '允许登录' : '禁止登录' }}</p>
             <el-button :type="Number((memberDetail.profile as P0Row).status) === 1 ? 'danger' : 'primary'" @click="changeMemberStatus">{{ Number((memberDetail.profile as P0Row).status) === 1 ? '禁用登录' : '恢复登录' }}</el-button>
           </el-tab-pane>
+          <el-tab-pane label="重置密码" name="password"><el-alert title="初始化后的默认密码：12345678，请提醒用户登录后及时修改。" type="warning" :closable="false" /><el-button type="danger" :loading="resettingPassword" style="margin-top:16px" @click="resetMemberPassword">一键初始化密码</el-button></el-tab-pane>
           <el-tab-pane label="列表信息" name="profile">
             <el-descriptions :column="1" border><el-descriptions-item v-for="(value, key) in (memberDetail.profile as P0Row)" :key="key" :label="labels[String(key)] || String(key)">{{ display(value, String(key)) }}</el-descriptions-item></el-descriptions>
           </el-tab-pane>
