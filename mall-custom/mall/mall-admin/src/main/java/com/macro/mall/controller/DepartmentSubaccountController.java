@@ -36,7 +36,7 @@ public class DepartmentSubaccountController {
     public CommonResult<List<Map<String, Object>>> list(Principal principal) {
         access.requirePlatformAdmin(principal);
         return CommonResult.success(jdbc.queryForList(
-                "SELECT a.id,a.username,a.nick_name,a.email,a.status,a.dept_id,d.name AS dept_name "
+                "SELECT a.id,a.username,a.nick_name,a.phone,a.status,a.dept_id,d.name AS dept_name "
                         + "FROM ums_admin a LEFT JOIN ums_department d ON d.id=a.dept_id "
                         + "WHERE a.dept_id IS NOT NULL ORDER BY a.id DESC"));
     }
@@ -53,10 +53,10 @@ public class DepartmentSubaccountController {
         param.setUsername(username);
         param.setPassword(password);
         param.setNickName(text(body, "nickName", 80));
-        param.setEmail(text(body, "email", 100));
+        String phone = phone(body);
         UmsAdmin created = admins.register(param);
         if (created == null) throw new ResponseStatusException(HttpStatus.CONFLICT, "账号已存在");
-        jdbc.update("UPDATE ums_admin SET dept_id=? WHERE id=?", department, created.getId());
+        jdbc.update("UPDATE ums_admin SET dept_id=?,phone=? WHERE id=?", department, phone, created.getId());
         audit(operator, principal.getName(), "create", created.getId(), department);
         return CommonResult.success(Map.of("id", created.getId()));
     }
@@ -71,7 +71,7 @@ public class DepartmentSubaccountController {
         long department = department(body);
         UmsAdmin change = new UmsAdmin();
         change.setNickName(text(body, "nickName", 80));
-        change.setEmail(text(body, "email", 100));
+        String phone = phone(body);
         int status = number(body, "status").intValue();
         if (status != 0 && status != 1) bad("状态无效");
         change.setStatus(status);
@@ -79,7 +79,7 @@ public class DepartmentSubaccountController {
             change.setPassword(password(body));
         }
         admins.update(id, change);
-        jdbc.update("UPDATE ums_admin SET dept_id=? WHERE id=? AND dept_id IS NOT NULL", department, id);
+        jdbc.update("UPDATE ums_admin SET dept_id=?,phone=? WHERE id=? AND dept_id IS NOT NULL", department, phone, id);
         admins.getCacheService().delAdmin(id);
         admins.getCacheService().delResourceList(id);
         audit(operator, principal.getName(), "update", id, department);
@@ -110,6 +110,12 @@ public class DepartmentSubaccountController {
         String value = body.get("password") == null ? "" : String.valueOf(body.get("password"));
         if (value.length() < 8 || value.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
             bad("密码须为 8 至 72 字节");
+        return value;
+    }
+
+    private String phone(Map<String, Object> body) {
+        String value = text(body, "phone", 11);
+        if (!value.matches("1[3-9][0-9]{9}")) bad("请输入 11 位手机号码");
         return value;
     }
 

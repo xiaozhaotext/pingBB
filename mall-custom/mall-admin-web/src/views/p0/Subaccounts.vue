@@ -4,14 +4,14 @@ import { ElMessage } from 'element-plus'
 import { getP0, postP0 } from '@/apis/p0'
 
 type Department = { id: number; name: string; status: number; role_id: number | null }
-type Account = { id: number; username: string; nick_name: string; email: string; status: number; dept_id: number; dept_name: string }
+type Account = { id: number; username: string; nick_name: string; phone: string; status: number; dept_id: number; dept_name: string }
 const rows = ref<Account[]>([])
 const departments = ref<Department[]>([])
 const loading = ref(false)
 const dialog = ref(false)
 const editing = ref<number | null>(null)
 const saving = ref(false)
-const form = ref({ username: '', password: '', nickName: '', email: '', status: 1, departmentId: null as number | null })
+const form = ref({ username: '', password: '', nickName: '', phone: '', status: 1, departmentId: null as number | null })
 
 async function load() {
   loading.value = true
@@ -24,17 +24,21 @@ async function load() {
 }
 function add() {
   editing.value = null
-  form.value = { username: '', password: '', nickName: '', email: '', status: 1, departmentId: null }
+  form.value = { username: '', password: '', nickName: '', phone: '', status: 1, departmentId: null }
   dialog.value = true
 }
 function edit(row: Account) {
   editing.value = row.id
-  form.value = { username: row.username, password: '', nickName: row.nick_name || '', email: row.email || '', status: row.status, departmentId: row.dept_id }
+  form.value = { username: row.username, password: '', nickName: row.nick_name || '', phone: row.phone || '', status: row.status, departmentId: row.dept_id }
   dialog.value = true
 }
 async function save() {
   if (!form.value.departmentId || (!editing.value && form.value.password.length < 8)) {
     ElMessage.warning('请选择已配置角色的部门，并填写至少 8 位密码')
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(form.value.phone.trim())) {
+    ElMessage.warning('请输入 11 位手机号码')
     return
   }
   saving.value = true
@@ -60,6 +64,7 @@ onMounted(load)
       <el-table :data="rows" stripe>
         <el-table-column prop="username" label="账号" min-width="160" />
         <el-table-column prop="nick_name" label="姓名" min-width="140" />
+        <el-table-column prop="phone" label="电话号码" min-width="140" />
         <el-table-column prop="dept_name" label="部门" min-width="160" />
         <el-table-column label="状态" width="100"><template #default="scope"><el-tag :type="scope.row.status === 1 ? 'success' : 'info'">{{ scope.row.status === 1 ? '启用' : '停用' }}</el-tag></template></el-table-column>
         <el-table-column label="操作" width="100"><template #default="scope"><el-button link type="primary" @click="edit(scope.row)">编辑</el-button></template></el-table-column>
@@ -69,7 +74,7 @@ onMounted(load)
       <el-form label-width="100px">
         <el-form-item label="账号"><el-input v-model="form.username" :disabled="!!editing" maxlength="40" /></el-form-item>
         <el-form-item label="姓名"><el-input v-model="form.nickName" maxlength="80" /></el-form-item>
-        <el-form-item label="邮箱"><el-input v-model="form.email" maxlength="100" /></el-form-item>
+        <el-form-item label="电话号码"><el-input v-model="form.phone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入 11 位手机号码" /></el-form-item>
         <el-form-item :label="editing ? '重设密码' : '密码'"><el-input v-model="form.password" type="password" autocomplete="new-password" :placeholder="editing ? '留空则不修改' : '至少 8 位'" /></el-form-item>
         <el-form-item label="所属部门"><el-select v-model="form.departmentId" placeholder="请选择部门" style="width:100%"><el-option v-for="d in departments.filter(x => x.status === 1 && x.role_id)" :key="d.id" :label="d.name" :value="d.id" /></el-select></el-form-item>
         <el-form-item label="启用"><el-switch v-model="form.status" :active-value="1" :inactive-value="0" /></el-form-item>
