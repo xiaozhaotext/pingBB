@@ -715,7 +715,7 @@ public class P0AdminController {
 
     @GetMapping("/departments")
     public CommonResult<List<Map<String, Object>>> departments(Principal principal) {
-        access.requireAuthorized(principal);
+        access.requirePlatformAdmin(principal);
         return CommonResult.success(jdbc.queryForList(
                 "SELECT d.id,d.parent_id,d.name,d.leader,d.phone,d.role_id,d.sort,d.status,d.remark,d.create_time,"
                         + "(SELECT COUNT(*) FROM ums_admin a WHERE a.dept_id=d.id) AS admin_count "
@@ -725,7 +725,7 @@ public class P0AdminController {
     @PostMapping("/departments")
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Map<String, Object>> createDepartment(Principal principal, @RequestBody Map<String, Object> body) {
-        long operatorId = access.requireAuthorized(principal);
+        long operatorId = access.requirePlatformAdmin(principal);
         String name = requiredText(body, "name", 1, 64);
         long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
         jdbc.update("INSERT INTO ums_department(parent_id,name,leader,phone,role_id,sort,status,remark,create_time) "
@@ -745,7 +745,7 @@ public class P0AdminController {
     @PostMapping("/departments/{id}")
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> updateDepartment(Principal principal, @PathVariable long id, @RequestBody Map<String, Object> body) {
-        long operatorId = access.requireAuthorized(principal);
+        long operatorId = access.requirePlatformAdmin(principal);
         String name = requiredText(body, "name", 1, 64);
         long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
         if (parentId == id) {
@@ -764,12 +764,15 @@ public class P0AdminController {
     @PostMapping("/departments/{id}/delete")
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> deleteDepartment(Principal principal, @PathVariable long id) {
-        long operatorId = access.requireAuthorized(principal);
+        long operatorId = access.requirePlatformAdmin(principal);
         Integer children = jdbc.queryForObject("SELECT COUNT(*) FROM ums_department WHERE parent_id=?", Integer.class, id);
         if (children != null && children > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先删除下级部门");
         }
-        jdbc.update("UPDATE ums_admin SET dept_id=NULL WHERE dept_id=?", id);
+        Integer members = jdbc.queryForObject("SELECT COUNT(*) FROM ums_admin WHERE dept_id=?", Integer.class, id);
+        if (members != null && members > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先迁移部门子账号");
+        }
         jdbc.update("DELETE FROM ums_department WHERE id=?", id);
         audit(operatorId, principal.getName(), "department", "delete", id, null);
         return CommonResult.success(null);
@@ -777,7 +780,7 @@ public class P0AdminController {
 
     @GetMapping("/departments/{id}/admins")
     public CommonResult<List<Map<String, Object>>> departmentAdmins(Principal principal, @PathVariable long id) {
-        access.requireAuthorized(principal);
+        access.requirePlatformAdmin(principal);
         return CommonResult.success(jdbc.queryForList(
                 "SELECT id,username,nick_name,email,status FROM ums_admin WHERE dept_id=? ORDER BY id", id));
     }
@@ -786,7 +789,12 @@ public class P0AdminController {
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> assignDepartmentAdmins(Principal principal, @PathVariable long id,
                                                     @RequestBody Map<String, Object> body) {
-        long operatorId = access.requireAuthorized(principal);
+        long operatorId = access.requirePlatformAdmin(principal);
+        Long active = jdbc.queryForObject("SELECT COUNT(*) FROM ums_department d JOIN ums_role r ON r.id=d.role_id "
+                + "WHERE d.id=? AND d.status=1 AND r.status=1", Long.class, id);
+        if (active == null || active != 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先配置启用的部门角色");
+        }
         List<Long> adminIds = new java.util.ArrayList<>();
         Object raw = body.get("adminIds");
         if (raw instanceof List<?> list) {
@@ -794,9 +802,10 @@ public class P0AdminController {
                 adminIds.add(Long.parseLong(String.valueOf(item)));
             }
         }
-        jdbc.update("UPDATE ums_admin SET dept_id=NULL WHERE dept_id=?", id);
         for (Long adminId : adminIds) {
-            jdbc.update("UPDATE ums_admin SET dept_id=? WHERE id=?", id, adminId);
+            if (jdbc.update("UPDATE ums_admin SET dept_id=? WHERE id=? AND dept_id IS NOT NULL", id, adminId) != 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只能调整已有部门子账号");
+            }
         }
         audit(operatorId, principal.getName(), "department", "assign-admins", id, adminIds.toString());
         return CommonResult.success(null);

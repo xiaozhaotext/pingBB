@@ -8,6 +8,7 @@ import com.macro.mall.mapper.UmsRoleMenuRelationMapper;
 import com.macro.mall.mapper.UmsRoleResourceRelationMapper;
 import com.macro.mall.model.*;
 import com.macro.mall.service.UmsAdminCacheService;
+import com.macro.mall.service.DepartmentRoleAccess;
 import com.macro.mall.service.UmsRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,8 @@ public class UmsRoleServiceImpl implements UmsRoleService {
     private UmsRoleDao roleDao;
     @Autowired
     private UmsAdminCacheService adminCacheService;
+    @Autowired
+    private DepartmentRoleAccess departmentRoleAccess;
     @Override
     public int create(UmsRole role) {
         role.setCreateTime(new Date());
@@ -71,6 +74,10 @@ public class UmsRoleServiceImpl implements UmsRoleService {
 
     @Override
     public List<UmsMenu> getMenuList(Long adminId) {
+        Long departmentRole = departmentRoleAccess.roleId(adminId);
+        if (departmentRole != null) {
+            return departmentRole > 0 ? roleDao.getMenuListByRoleId(departmentRole) : List.of();
+        }
         return roleDao.getMenuList(adminId);
     }
 

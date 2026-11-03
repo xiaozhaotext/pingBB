@@ -50,6 +50,7 @@ export const useUserStore = defineStore(
         throw new Error('该用户暂未分配角色，请先分配角色！')
       }
       userInfo.value.menus = res.data.menus
+      userInfo.value.departmentId = res.data.departmentId ?? null
       userInfo.value.avatar = res.data.icon
     }
 

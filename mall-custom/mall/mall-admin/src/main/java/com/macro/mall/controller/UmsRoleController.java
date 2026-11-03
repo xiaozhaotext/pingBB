@@ -4,6 +4,7 @@ import com.macro.mall.common.api.CommonPage;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.*;
 import com.macro.mall.service.UmsRoleService;
+import com.macro.mall.service.P0AdminAccess;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.security.Principal;
 
 /**
  * 后台用户角色管理Controller
@@ -22,6 +24,13 @@ import java.util.List;
 public class UmsRoleController {
     @Autowired
     private UmsRoleService roleService;
+    @Autowired
+    private P0AdminAccess platformAccess;
+
+    @ModelAttribute
+    public void requirePlatformAdmin(Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
+    }
 
     @Operation(summary = "添加角色")
     @RequestMapping(value = "/create", method = RequestMethod.POST)

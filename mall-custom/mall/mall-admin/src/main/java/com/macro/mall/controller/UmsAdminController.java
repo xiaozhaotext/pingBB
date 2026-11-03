@@ -9,12 +9,14 @@ import com.macro.mall.dto.UpdateAdminPasswordParam;
 import com.macro.mall.model.UmsAdmin;
 import com.macro.mall.model.UmsRole;
 import com.macro.mall.service.UmsAdminService;
+import com.macro.mall.service.P0AdminAccess;
 import com.macro.mall.service.UmsRoleService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
@@ -46,6 +48,10 @@ public class UmsAdminController {
     private UmsAdminService adminService;
     @Autowired
     private UmsRoleService roleService;
+    @Autowired
+    private P0AdminAccess platformAccess;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Operation(summary = "用户注册")
     @RequestMapping(value = "/register", method = RequestMethod.POST)
@@ -101,6 +107,7 @@ public class UmsAdminController {
         UmsAdmin umsAdmin = adminService.getAdminByUsername(username);
         Map<String, Object> data = new HashMap<>();
         data.put("username", umsAdmin.getUsername());
+        data.put("departmentId", jdbc.queryForObject("SELECT dept_id FROM ums_admin WHERE id=?", Long.class, umsAdmin.getId()));
         data.put("menus", roleService.getMenuList(umsAdmin.getId()));
         data.put("icon", umsAdmin.getIcon());
         List<UmsRole> roleList = adminService.getRoleList(umsAdmin.getId());
@@ -124,7 +131,9 @@ public class UmsAdminController {
     @ResponseBody
     public CommonResult<CommonPage<UmsAdmin>> list(@RequestParam(value = "keyword", required = false) String keyword,
                                                    @RequestParam(value = "pageSize", defaultValue = "5") Integer pageSize,
-                                                   @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum) {
+                                                   @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
+                                                   Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         List<UmsAdmin> adminList = adminService.list(keyword, pageSize, pageNum);
         return CommonResult.success(CommonPage.restPage(adminList));
     }
@@ -132,7 +141,8 @@ public class UmsAdminController {
     @Operation(summary = "获取指定用户信息")
     @RequestMapping(value = "/{id}", method = RequestMethod.GET)
     @ResponseBody
-    public CommonResult<UmsAdmin> getItem(@PathVariable Long id) {
+    public CommonResult<UmsAdmin> getItem(@PathVariable Long id, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         UmsAdmin admin = adminService.getItem(id);
         return CommonResult.success(admin);
     }
@@ -140,7 +150,8 @@ public class UmsAdminController {
     @Operation(summary = "修改指定用户信息")
     @RequestMapping(value = "/update/{id}", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult update(@PathVariable Long id, @RequestBody UmsAdmin admin) {
+    public CommonResult update(@PathVariable Long id, @RequestBody UmsAdmin admin, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         int count = adminService.update(id, admin);
         if (count > 0) {
             return CommonResult.success(count);
@@ -176,7 +187,8 @@ public class UmsAdminController {
     @Operation(summary = "删除指定用户信息")
     @RequestMapping(value = "/delete/{id}", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult delete(@PathVariable Long id) {
+    public CommonResult delete(@PathVariable Long id, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         int count = adminService.delete(id);
         if (count > 0) {
             return CommonResult.success(count);
@@ -187,7 +199,8 @@ public class UmsAdminController {
     @Operation(summary = "修改帐号状态")
     @RequestMapping(value = "/updateStatus/{id}", method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult updateStatus(@PathVariable Long id,@RequestParam(value = "status") Integer status) {
+    public CommonResult updateStatus(@PathVariable Long id,@RequestParam(value = "status") Integer status, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         UmsAdmin umsAdmin = new UmsAdmin();
         umsAdmin.setStatus(status);
         int count = adminService.update(id,umsAdmin);
@@ -201,7 +214,8 @@ public class UmsAdminController {
     @RequestMapping(value = "/role/update", method = RequestMethod.POST)
     @ResponseBody
     public CommonResult updateRole(@RequestParam("adminId") Long adminId,
-                                   @RequestParam("roleIds") List<Long> roleIds) {
+                                   @RequestParam("roleIds") List<Long> roleIds, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         int count = adminService.updateRole(adminId, roleIds);
         if (count >= 0) {
             return CommonResult.success(count);
@@ -212,7 +226,8 @@ public class UmsAdminController {
     @Operation(summary = "获取指定用户的角色")
     @RequestMapping(value = "/role/{adminId}", method = RequestMethod.GET)
     @ResponseBody
-    public CommonResult<List<UmsRole>> getRoleList(@PathVariable Long adminId) {
+    public CommonResult<List<UmsRole>> getRoleList(@PathVariable Long adminId, Principal principal) {
+        platformAccess.requirePlatformAdmin(principal);
         List<UmsRole> roleList = adminService.getRoleList(adminId);
         return CommonResult.success(roleList);
     }

@@ -26,10 +26,13 @@ export type UserInfoResult = {
   menus: UmsMenu[]
   /** 角色 */
   roles: []
+  /** 所属部门；平台管理员为 null */
+  departmentId?: number | null
 }
 
 /** 用户信息（store中存储的） */
 export type UserInfo = Pick<UserInfoResult, 'username' | 'menus' | 'roles'> & {
+  departmentId?: number | null
   /** 登录token */
   token: string
   /** 头像 */

@@ -161,12 +161,12 @@ const handleDialogConfirm = async () => {
 
 // 处理选择菜单
 const handleSelectMenu = (index: number, row: UmsRole) => {
-  router.push({ path: '/ums/allocMenu', query: { roleId: row.id } })
+  router.push({ path: '/systemSettings/admins/roles/menu', query: { roleId: row.id } })
 }
 
 // 处理选择资源
 const handleSelectResource = (index: number, row: UmsRole) => {
-  router.push({ path: '/ums/allocResource', query: { roleId: row.id } })
+  router.push({ path: '/systemSettings/admins/roles/resource', query: { roleId: row.id } })
 }
 
 // 日期格式化函数

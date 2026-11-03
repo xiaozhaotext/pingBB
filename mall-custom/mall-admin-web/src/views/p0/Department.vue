@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0, type P0Row } from '@/apis/p0'
 import http from '@/utils/http'
+import { useRouter } from 'vue-router'
 
 type Dept = {
   id: number
@@ -22,16 +23,13 @@ const loading = ref(false)
 const error = ref('')
 const flat = ref<Dept[]>([])
 const roles = ref<{ id: number; name: string }[]>([])
-const admins = ref<{ id: number; username: string; nick_name?: string }[]>([])
+const router = useRouter()
 
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const saving = ref(false)
 const form = ref<Partial<Dept>>({})
 
-const assignVisible = ref(false)
-const assignDept = ref<Dept | null>(null)
-const assignIds = ref<number[]>([])
 
 const tree = computed<Dept[]>(() => {
   const map = new Map<number, Dept>()
@@ -70,16 +68,6 @@ async function loadOptions() {
     roles.value = res.data || []
   } catch {
     roles.value = []
-  }
-  try {
-    const res = await http<{ list: { id: number; username: string; nick_name?: string }[] }>({
-      url: '/admin/list',
-      method: 'get',
-      params: { pageNum: 1, pageSize: 200 },
-    })
-    admins.value = res.data?.list || []
-  } catch {
-    admins.value = []
   }
 }
 
@@ -135,30 +123,6 @@ async function remove(row: Dept) {
   }
 }
 
-async function openAssign(row: Dept) {
-  assignDept.value = row
-  assignIds.value = []
-  try {
-    const res = await getP0<P0Row[]>(`departments/${row.id}/admins`)
-    assignIds.value = ((res.data as { id: number }[]) || []).map(a => a.id)
-  } catch {
-    assignIds.value = []
-  }
-  assignVisible.value = true
-}
-
-async function submitAssign() {
-  if (!assignDept.value) return
-  try {
-    await postP0(`departments/${assignDept.value.id}/admins`, { adminIds: assignIds.value })
-    ElMessage.success('已保存部门成员')
-    assignVisible.value = false
-    await load()
-  } catch {
-    ElMessage.error('保存失败')
-  }
-}
-
 onMounted(async () => {
   await Promise.all([load(), loadOptions()])
 })
@@ -168,7 +132,7 @@ onMounted(async () => {
     <header>
       <div>
         <h1>部门管理</h1>
-        <p>后台组织架构与部门权限：部门可绑定默认角色，并指派管理员归属</p>
+        <p>部门绑定角色；子账号仅能访问该角色授权的后台板块和接口</p>
       </div>
       <div>
         <el-button type="primary" @click="openCreate()">新建部门</el-button>
@@ -195,7 +159,7 @@ onMounted(async () => {
           <template #default="scope">
             <el-button link type="primary" @click="openCreate(scope.row)">新增下级</el-button>
             <el-button link type="primary" @click="openEdit(scope.row)">编辑</el-button>
-            <el-button link type="primary" @click="openAssign(scope.row)">成员</el-button>
+            <el-button link type="primary" @click="router.push('/systemSettings/admins/users')">成员</el-button>
             <el-button link type="danger" @click="remove(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -231,15 +195,6 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="assignVisible" :title="`部门成员 · ${assignDept?.name ?? ''}`" width="520px">
-      <el-select v-model="assignIds" multiple filterable placeholder="选择管理员" style="width: 100%">
-        <el-option v-for="a in admins" :key="a.id" :value="a.id" :label="`${a.username}${a.nick_name ? ' · ' + a.nick_name : ''}`" />
-      </el-select>
-      <template #footer>
-        <el-button @click="assignVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAssign">保存</el-button>
-      </template>
-    </el-dialog>
   </main>
 </template>
 <style scoped>

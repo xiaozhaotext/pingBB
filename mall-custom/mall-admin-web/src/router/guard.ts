@@ -3,6 +3,19 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { useUserStore } from '@/stores/user'
 import usePermissionStore from '@/stores/permission'
+import type { RouteRecordExt } from '@/types/router'
+
+function firstDepartmentPage(routes: RouteRecordExt[], parent = ''): string {
+  for (const route of routes) {
+    if (route.hidden) continue
+    const base = route.path.startsWith('/') ? route.path : `${parent.replace(/\/$/, '')}/${route.path}`
+    if (route.children?.length) {
+      const child = firstDepartmentPage(route.children, base)
+      if (child !== '/404') return child
+    } else if (parent) return base
+  }
+  return '/404'
+}
 
 // 无需登陆的白名单路径
 const whiteList = ['/login']
@@ -44,9 +57,15 @@ router.beforeEach(async (to, from, next) => {
         })
         // Resolve the original path again after adding authorized routes. Keeping
         // the temporary catch-all name would strand valid deep links on 404.
-        next({ path: to.path, query: to.query, hash: to.hash, replace: true })
+        if (userStore.userInfo.departmentId && (to.path === '/' || to.path === '/home')) {
+          next({ path: firstDepartmentPage(permissionStore.addRouters), replace: true })
+        } else {
+          next({ path: to.path, query: to.query, hash: to.hash, replace: true })
+        }
       } else {
-        next()
+        if (userStore.userInfo.departmentId && (to.path === '/' || to.path === '/home')) {
+          next({ path: firstDepartmentPage(permissionStore.addRouters), replace: true })
+        } else next()
       }
     }
   } else {

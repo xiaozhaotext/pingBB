@@ -7,6 +7,7 @@ import com.macro.mall.bo.AdminUserDetails;
 import com.macro.mall.common.exception.Asserts;
 import com.macro.mall.common.util.RequestUtil;
 import com.macro.mall.dao.UmsAdminRoleRelationDao;
+import com.macro.mall.dao.UmsRoleDao;
 import com.macro.mall.dto.UmsAdminParam;
 import com.macro.mall.dto.UpdateAdminPasswordParam;
 import com.macro.mall.mapper.UmsAdminLoginLogMapper;
@@ -17,6 +18,10 @@ import com.macro.mall.security.util.JwtTokenUtil;
 import com.macro.mall.security.util.SpringUtil;
 import com.macro.mall.service.UmsAdminCacheService;
 import com.macro.mall.service.UmsAdminService;
+import com.macro.mall.service.DepartmentRoleAccess;
+import com.macro.mall.mapper.UmsRoleMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -54,6 +59,12 @@ public class UmsAdminServiceImpl implements UmsAdminService {
     private UmsAdminRoleRelationMapper adminRoleRelationMapper;
     @Autowired
     private UmsAdminRoleRelationDao adminRoleRelationDao;
+    @Autowired
+    private UmsRoleDao roleDao;
+    @Autowired
+    private UmsRoleMapper roleMapper;
+    @Autowired
+    private DepartmentRoleAccess departmentRoleAccess;
     @Autowired
     private UmsAdminLoginLogMapper loginLogMapper;
 
@@ -205,6 +216,9 @@ public class UmsAdminServiceImpl implements UmsAdminService {
 
     @Override
     public int updateRole(Long adminId, List<Long> roleIds) {
+        if (departmentRoleAccess.roleId(adminId) != null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "部门子账号只能使用部门绑定的角色");
+        }
         int count = roleIds == null ? 0 : roleIds.size();
         //先删除原来的关系
         UmsAdminRoleRelationExample adminRoleRelationExample = new UmsAdminRoleRelationExample();
@@ -227,11 +241,20 @@ public class UmsAdminServiceImpl implements UmsAdminService {
 
     @Override
     public List<UmsRole> getRoleList(Long adminId) {
+        Long departmentRole = departmentRoleAccess.roleId(adminId);
+        if (departmentRole != null) {
+            UmsRole role = departmentRole > 0 ? roleMapper.selectByPrimaryKey(departmentRole) : null;
+            return role == null ? List.of() : List.of(role);
+        }
         return adminRoleRelationDao.getRoleList(adminId);
     }
 
     @Override
     public List<UmsResource> getResourceList(Long adminId) {
+        Long departmentRole = departmentRoleAccess.roleId(adminId);
+        if (departmentRole != null) {
+            return departmentRole > 0 ? roleDao.getResourceListByRoleId(departmentRole) : List.of();
+        }
         //先从缓存中获取数据
         List<UmsResource> resourceList = getCacheService().getResourceList(adminId);
         if(CollUtil.isNotEmpty(resourceList)){
