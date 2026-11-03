@@ -40,9 +40,8 @@ public class P0AdminAccess {
                             + "JOIN ums_resource r ON r.id=rr.resource_id "
                             + "WHERE a.username=? AND a.status=1 AND d.status=1 AND role.status=1",
                     principal.getName());
-            AntPathMatcher matcher = new AntPathMatcher();
             for (var resource : resources) {
-                if (resource.get("url") instanceof String url && matcher.match(url, path)) {
+                if (resource.get("url") instanceof String url && departmentResourceMatches(url, path)) {
                     return ((Number) resource.get("id")).longValue();
                 }
             }
@@ -65,5 +64,10 @@ public class P0AdminAccess {
                 "WHERE a.username=? AND a.status=1 AND a.dept_id IS NULL AND r.role_id=? LIMIT 1",
                 Long.class, principal.getName(), adminRoleId);
         return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    static boolean departmentResourceMatches(String url, String path) {
+        // Legacy /p0/** grants the whole back office and is reserved for platform admins.
+        return !"/p0/**".equals(url) && new AntPathMatcher().match(url, path);
     }
 }

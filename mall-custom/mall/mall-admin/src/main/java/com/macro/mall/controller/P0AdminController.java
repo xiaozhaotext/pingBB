@@ -23,6 +23,8 @@ public class P0AdminController {
     private final JdbcTemplate jdbc;
     private final P0AdminAccess access;
     private final P0ReferralAdminService referrals;
+    @org.springframework.beans.factory.annotation.Value("${mall.p0.admin-role-id:5}")
+    private long platformRoleId;
     @org.springframework.beans.factory.annotation.Autowired
     private com.macro.mall.common.membership.TriPoolService triPools;
 
@@ -726,6 +728,7 @@ public class P0AdminController {
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Map<String, Object>> createDepartment(Principal principal, @RequestBody Map<String, Object> body) {
         long operatorId = access.requirePlatformAdmin(principal);
+        validateDepartmentRole(body);
         String name = requiredText(body, "name", 1, 64);
         long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
         jdbc.update("INSERT INTO ums_department(parent_id,name,leader,phone,role_id,sort,status,remark,create_time) "
@@ -746,6 +749,7 @@ public class P0AdminController {
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> updateDepartment(Principal principal, @PathVariable long id, @RequestBody Map<String, Object> body) {
         long operatorId = access.requirePlatformAdmin(principal);
+        validateDepartmentRole(body);
         String name = requiredText(body, "name", 1, 64);
         long parentId = body.get("parentId") == null ? 0L : longValue(body, "parentId");
         if (parentId == id) {
@@ -817,6 +821,12 @@ public class P0AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, key + " 长度无效");
         }
         return value;
+    }
+
+    private void validateDepartmentRole(Map<String, Object> body) {
+        if (body.get("roleId") != null && longValue(body, "roleId") == platformRoleId) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "平台管理员角色不能绑定部门");
+        }
     }
 
     private void audit(long operatorId, String name, String module, String action, Long targetId, String detail) {

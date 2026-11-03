@@ -6,6 +6,7 @@ import com.macro.mall.model.UmsAdmin;
 import com.macro.mall.service.P0AdminAccess;
 import com.macro.mall.service.UmsAdminService;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,8 @@ public class DepartmentSubaccountController {
     private final JdbcTemplate jdbc;
     private final P0AdminAccess access;
     private final UmsAdminService admins;
+    @Value("${mall.p0.admin-role-id:5}")
+    private long platformRoleId;
 
     public DepartmentSubaccountController(JdbcTemplate jdbc, P0AdminAccess access, UmsAdminService admins) {
         this.jdbc = jdbc;
@@ -87,7 +90,7 @@ public class DepartmentSubaccountController {
         long id = number(body, "departmentId").longValue();
         Long valid = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ums_department d JOIN ums_role r ON r.id=d.role_id "
-                        + "WHERE d.id=? AND d.status=1 AND r.status=1", Long.class, id);
+                        + "WHERE d.id=? AND d.status=1 AND r.status=1 AND r.id<>?", Long.class, id, platformRoleId);
         if (valid == null || valid != 1) bad("请先为启用的部门配置有效角色");
         return id;
     }

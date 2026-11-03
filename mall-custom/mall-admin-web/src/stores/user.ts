@@ -37,7 +37,11 @@ export const useUserStore = defineStore(
       const tokenStr = res.data.tokenHead + res.data.token
       userInfo.value.token = tokenStr
       userInfo.value.username = loginParam.username
-      await getUserInfo()
+      try { await getUserInfo() }
+      catch (error) {
+        userInfo.value = { username: '', avatar: '', roles: [], token: '', menus: [] }
+        throw error
+      }
     }
 
     // 获取用户信息

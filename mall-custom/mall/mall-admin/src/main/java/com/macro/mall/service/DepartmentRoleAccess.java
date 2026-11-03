@@ -2,6 +2,7 @@ package com.macro.mall.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
@@ -9,6 +10,8 @@ import java.util.List;
 @Component
 public class DepartmentRoleAccess {
     private final JdbcTemplate jdbc;
+    @Value("${mall.p0.admin-role-id:5}")
+    private long platformRoleId;
 
     public DepartmentRoleAccess(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -24,7 +27,8 @@ public class DepartmentRoleAccess {
         var row = rows.get(0);
         if (!(row.get("status") instanceof Number status) || status.intValue() != 1
                 || !(row.get("role_status") instanceof Number roleStatus) || roleStatus.intValue() != 1
-                || !(row.get("role_id") instanceof Number role)) return 0L;
+                || !(row.get("role_id") instanceof Number role)
+                || role.longValue() == platformRoleId) return 0L;
         return role.longValue();
     }
 }
