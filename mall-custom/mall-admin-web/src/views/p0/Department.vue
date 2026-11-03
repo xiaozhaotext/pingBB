@@ -159,7 +159,7 @@ onMounted(async () => {
           <template #default="scope">
             <el-button link type="primary" @click="openCreate(scope.row)">新增下级</el-button>
             <el-button link type="primary" @click="openEdit(scope.row)">编辑</el-button>
-            <el-button link type="primary" @click="router.push('/systemSettings/admins/users')">成员</el-button>
+            <el-button link type="primary" @click="router.push('/systemSettings/admins/subaccounts')">成员</el-button>
             <el-button link type="danger" @click="remove(scope.row)">删除</el-button>
           </template>
         </el-table-column>

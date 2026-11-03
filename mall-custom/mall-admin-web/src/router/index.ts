@@ -192,7 +192,8 @@ export const asyncRouterMap: RouteRecordExt[] = [
       ] },
       { path: 'admins', name: 'systemAdminSettings', component: RouterView, redirect: '/systemSettings/admins/departments', meta: { title: '管理员设置', icon: 'ums-admin' }, children: [
         { path: 'departments', name: 'serviceDepartment', component: () => import('@/views/p0/Department.vue'), meta: { title: '部门管理', icon: 'ums' } },
-        { path: 'users', name: 'serviceAdmin', component: () => import('@/views/p0/Subaccounts.vue'), meta: { title: '子账号管理', icon: 'ums-admin' } },
+        { path: 'users', name: 'serviceAdmin', component: () => import('@/views/ums/admin/index.vue'), meta: { title: '管理用户', icon: 'ums-admin' } },
+        { path: 'subaccounts', name: 'serviceSubaccounts', component: () => import('@/views/p0/Subaccounts.vue'), meta: { title: '子账号管理', icon: 'ums-admin' } },
         { path: 'roles', name: 'serviceRoles', component: () => import('@/views/ums/role/index.vue'), meta: { title: '角色与板块', icon: 'ums-role' } },
         { path: 'roles/menu', name: 'serviceRoleAllocMenu', component: () => import('@/views/ums/role/allocMenu.vue'), hidden: true, meta: { title: '分配菜单' } },
         { path: 'roles/resource', name: 'serviceRoleAllocResource', component: () => import('@/views/ums/role/allocResource.vue'), hidden: true, meta: { title: '分配接口资源' } },
