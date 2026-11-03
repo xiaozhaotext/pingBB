@@ -97,6 +97,11 @@ export const usePermissionStore = defineStore('permission', () => {
     const accessedRouters = filterRouteTree(asyncRouterMap.map(route => cloneRoute(route)))
     //对菜单进行排序
     sortRouters(accessedRouters)
+    // Pin only these authorized top-level menus; preserve every other menu's existing order.
+    const leadingNames = ['serviceDesktop', 'memberMgr']
+    const leading = leadingNames.flatMap(name => accessedRouters.filter(route => route.name === name))
+    const remaining = accessedRouters.filter(route => !leadingNames.includes(String(route.name)))
+    accessedRouters.splice(0, accessedRouters.length, ...leading, ...remaining)
     addRouters.value = accessedRouters
     routers.value = constantRouterMap.concat(accessedRouters)
   }
