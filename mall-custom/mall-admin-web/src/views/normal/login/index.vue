@@ -31,7 +31,7 @@ const loading = ref(false)
 // 用户名验证函数
 function validateUsername(rule: unknown, value: string, callback: (error?: Error) => void) {
   if (!isvalidUsername(value)) {
-    callback(new Error('请输入正确的用户名'))
+    callback(new Error('请输入用户名或手机号码'))
   } else {
     callback()
   }
@@ -91,7 +91,7 @@ const handleLogin = () => {
         </div>
         <h2 class="login-title color-main">智游美管理后台</h2>
         <el-form-item prop="username">
-          <el-input name="username" type="text" v-model="loginForm.username" autoComplete="on" placeholder="请输入用户名">
+          <el-input name="username" type="text" v-model="loginForm.username" autoComplete="username" placeholder="请输入用户名或手机号码">
             <template #prefix>
               <span>
                 <svg-icon icon-class="user" class="color-main"></svg-icon>

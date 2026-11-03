@@ -47,6 +47,8 @@ public class DepartmentSubaccountController {
         long operator = access.requirePlatformAdmin(principal);
         String username = text(body, "username", 40);
         if (!username.matches("[A-Za-z0-9._-]{3,40}")) bad("账号格式无效");
+        Long usernameAsPhone = jdbc.queryForObject("SELECT COUNT(*) FROM ums_admin WHERE phone=?", Long.class, username);
+        if (usernameAsPhone != null && usernameAsPhone > 0) bad("账号已被用作手机号码");
         String password = password(body);
         long department = department(body);
         UmsAdminParam param = new UmsAdminParam();
@@ -54,6 +56,7 @@ public class DepartmentSubaccountController {
         param.setPassword(password);
         param.setNickName(text(body, "nickName", 80));
         String phone = phone(body);
+        ensurePhoneAvailable(phone, null);
         UmsAdmin created = admins.register(param);
         if (created == null) throw new ResponseStatusException(HttpStatus.CONFLICT, "账号已存在");
         jdbc.update("UPDATE ums_admin SET dept_id=?,phone=? WHERE id=?", department, phone, created.getId());
@@ -72,6 +75,7 @@ public class DepartmentSubaccountController {
         UmsAdmin change = new UmsAdmin();
         change.setNickName(text(body, "nickName", 80));
         String phone = phone(body);
+        ensurePhoneAvailable(phone, id);
         int status = number(body, "status").intValue();
         if (status != 0 && status != 1) bad("状态无效");
         change.setStatus(status);
@@ -117,6 +121,13 @@ public class DepartmentSubaccountController {
         String value = text(body, "phone", 11);
         if (!value.matches("1[3-9][0-9]{9}")) bad("请输入 11 位手机号码");
         return value;
+    }
+
+    private void ensurePhoneAvailable(String phone, Long excludeId) {
+        Long count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ums_admin WHERE (phone=? OR username=?) AND (? IS NULL OR id<>?)",
+                Long.class, phone, phone, excludeId, excludeId);
+        if (count != null && count > 0) bad("手机号码已被使用");
     }
 
     private void audit(long operator, String name, String action, long account, long department) {

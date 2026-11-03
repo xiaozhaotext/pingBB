@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -67,6 +68,8 @@ public class UmsAdminServiceImpl implements UmsAdminService {
     private DepartmentRoleAccess departmentRoleAccess;
     @Autowired
     private UmsAdminLoginLogMapper loginLogMapper;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Override
     public UmsAdmin getAdminByUsername(String username) {
@@ -111,7 +114,8 @@ public class UmsAdminServiceImpl implements UmsAdminService {
         String token = null;
         //密码需要客户端加密后传递
         try {
-            UserDetails userDetails = loadUserByUsername(username);
+            String accountName = resolveLoginName(username);
+            UserDetails userDetails = loadUserByUsername(accountName);
             if(!passwordEncoder.matches(password,userDetails.getPassword())){
                 Asserts.fail("密码不正确");
             }
@@ -122,11 +126,24 @@ public class UmsAdminServiceImpl implements UmsAdminService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             token = jwtTokenUtil.generateToken(userDetails);
 //            updateLoginTimeByUsername(username);
-            insertLoginLog(username);
+            insertLoginLog(accountName);
         } catch (AuthenticationException e) {
             LOGGER.warn("登录异常:{}", e.getMessage());
         }
         return token;
+    }
+
+    private String resolveLoginName(String input) {
+        String value = input == null ? "" : input.trim();
+        if (!value.matches("1[3-9][0-9]{9}")) return value;
+        List<String> names = jdbc.queryForList(
+                "SELECT username FROM ums_admin WHERE phone=? AND dept_id IS NOT NULL", String.class, value);
+        if (names.isEmpty()) return value;
+        // An existing username must never silently authenticate as another account's phone.
+        if (names.size() != 1 || (getAdminByUsername(value) != null && !value.equals(names.get(0)))) {
+            throw new UsernameNotFoundException("用户名或密码错误");
+        }
+        return names.get(0);
     }
 
     /**
