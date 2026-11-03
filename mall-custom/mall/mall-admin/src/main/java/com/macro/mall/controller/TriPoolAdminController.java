@@ -36,7 +36,8 @@ public class TriPoolAdminController {
         return CommonResult.success(Map.of("enabled",true,"ruleVersion",TriPoolRules.VERSION,
                 "pools",jdbc.queryForList("SELECT * FROM tri_pool ORDER BY code"),
                 "operationsMembers",jdbc.queryForList("SELECT o.*,m.username FROM tri_operations_member o JOIN ums_member m ON m.id=o.member_id ORDER BY o.member_id"),
-                "membershipPrice",TriPoolRules.PRICE));
+                "membershipPrice",TriPoolRules.PRICE,
+                "memberCounts",jdbc.queryForMap("SELECT COUNT(CASE WHEN tier='PARTNER' THEN 1 END) AS partner,COUNT(CASE WHEN tier='COFOUNDER' THEN 1 END) AS cofounder FROM tri_member")));
     }
     @GetMapping("/records")
     public CommonResult<List<Map<String,Object>>> records(Principal p,@RequestParam String pool,

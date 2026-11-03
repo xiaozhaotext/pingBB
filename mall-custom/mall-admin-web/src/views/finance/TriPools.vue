@@ -79,6 +79,7 @@ watch([pool, selectedDate], () => { recordPage.value = 1; ledgerPage.value = 1; 
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <el-alert v-if="!data.enabled && !error" title="新身份与三分红池尚未启用，请先完成迁移核对和测试。" type="info" :closable="false" />
     <template v-if="data.enabled">
+      <section v-if="pool !== 'OPERATIONS'"><strong>{{ pool === 'PARTNER' ? '合伙人数量' : '联创数量' }}：{{ (pool === 'PARTNER' ? data.memberCounts?.partner : data.memberCounts?.cofounder) ?? '—' }} 人</strong></section>
       <div class="stats"><el-statistic title="池内余额（元）" :value="Number(current.balance || 0)" :precision="2" /><el-statistic title="累计入池（元）" :value="Number(current.total_in || 0)" :precision="2" /><el-statistic title="累计分配（元）" :value="Number(current.total_out || 0)" :precision="2" /></div>
       <section><h3>{{ selectedDate }} · 三池每日汇总</h3><p class="day-note">按北京时间00:00至次日00:00统计。期末结余为所选日期的历史余额；上方展示当前累计数据。</p>
         <el-table :data="dailyRows" empty-text="暂无日账数据" @row-click="openPool" class="daily-table"><el-table-column label="分红池"><template #default="{ row }"><el-link type="primary">{{ names[row.code] }}</el-link></template></el-table-column><el-table-column prop="opening" label="期初结余（元）" /><el-table-column prop="funded" label="当日入池（元）" /><el-table-column prop="distributed" label="当日发放（元）" /><el-table-column prop="closing" label="期末结余（元）" /><el-table-column prop="recipientCount" label="领取人数" /><el-table-column prop="awardCount" label="领取笔数" /><el-table-column prop="batchCount" label="发放批次" /></el-table>

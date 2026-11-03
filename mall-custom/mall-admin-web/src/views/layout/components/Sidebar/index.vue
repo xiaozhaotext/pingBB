@@ -30,10 +30,12 @@ watch(() => route.name, showActiveMenu)
 </script>
 
 <template>
+  <aside class="sidebar-shell">
   <scroll-bar ref="scrollBar">
     <el-menu mode="vertical" :show-timeout="200" :default-active="String(route.name || route.path)" :collapse="isCollapse"
       background-color="#304156" text-color="#bfcbd9" active-text-color="#409EFF">
       <sidebar-item :routes="routes"></sidebar-item>
     </el-menu>
   </scroll-bar>
+  </aside>
 </template>
