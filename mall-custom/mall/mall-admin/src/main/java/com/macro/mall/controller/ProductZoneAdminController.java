@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.math.BigDecimal;
 
-/** 自选区(PICK)、复购区(REBUY)、消费区(CONSUME)三个专区的商品归属管理，专区之间相互独立。 */
+/** 自选区(PICK)、复购区(REBUY)、消费区(CONSUME)商品归属管理，每件商品只归属一个专区。 */
 @RestController
 @RequestMapping("/p0/zones")
 public class ProductZoneAdminController {
@@ -77,9 +77,11 @@ public class ProductZoneAdminController {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区路线及所有规格必须统一定价3999元");
             jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?)"
                     + " ON DUPLICATE KEY UPDATE enabled=1,updated_by=VALUES(updated_by)",body.productId(),operator);
+        } else {
+            jdbc.update("UPDATE tri_membership_product SET enabled=0 WHERE product_id=?",body.productId());
         }
+        jdbc.update("DELETE FROM pms_product_zone WHERE product_id=? AND zone_code<>?",body.productId(),zone);
         List<Integer> old = jdbc.queryForList("SELECT sort_order FROM pms_product_zone WHERE product_id=? AND zone_code=?",Integer.class,body.productId(),zone);
-        if (!old.isEmpty() && old.get(0)==body.sortOrder()) return CommonResult.success(null);
         if (old.isEmpty()) jdbc.update("INSERT INTO pms_product_zone(product_id,zone_code,sort_order) VALUES(?,?,?)",body.productId(),zone,body.sortOrder());
         else jdbc.update("UPDATE pms_product_zone SET sort_order=? WHERE product_id=? AND zone_code=?",body.sortOrder(),body.productId(),zone);
         audit(operator,principal.getName(),"assign",body.productId(),zone+" sort="+body.sortOrder());

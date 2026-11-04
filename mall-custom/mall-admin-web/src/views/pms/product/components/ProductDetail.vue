@@ -54,6 +54,7 @@ const defaultProductParam: PmsProductParam = {
   skuStockList: [],
   subjectProductRelationList: [],
   prefrenceAreaProductRelationList: [],
+  zoneCode: undefined,
   productCategoryName: '',
   productSn: '',
   promotionEndTime: '',
@@ -78,6 +79,13 @@ const active = ref(0)
 const showStatus = ref([true, false, false, false])
 // 当前商品参数
 const productParam = ref<PmsProductParam>(Object.assign({}, defaultProductParam))
+const routeZone = (): PmsProductParam['zoneCode'] => {
+  const name = String(route.name || '')
+  if (name.startsWith('pick')) return 'PICK'
+  if (name.startsWith('rebuy')) return 'REBUY'
+  if (name.startsWith('consume')) return 'CONSUME'
+  return undefined
+}
 // 实现数据跨层传递
 provide('product-key', productParam)
 
@@ -87,6 +95,7 @@ onMounted(async () => {
     const res = await getPruductUpdateInfoAPI(Number(route.query.id))
     productParam.value = res.data
   }
+  productParam.value.zoneCode = routeZone()
 })
 
 // 隐藏所有商品编辑组件
@@ -122,21 +131,14 @@ const finishCommit = async (isEdit: boolean) => {
   })
   if (isEdit) {
     await productUpdateByIdAPI(Number(route.query.id), productParam.value)
-    ElMessage({
-      type: 'success',
-      message: '提交成功',
-      duration: 1000
-    })
-    router.back()
   } else {
     await productCreateAPI(productParam.value)
-    ElMessage({
-      type: 'success',
-      message: '提交成功',
-      duration: 1000
-    })
-    location.reload()
   }
+  ElMessage.success(productParam.value.publishStatus === 1 ? '商品已保存并上架到所属专区' : '商品已保存到所属专区；请在列表中上架后展示')
+  const zoneRoute = { PICK: 'pickProduct', REBUY: 'rebuyProduct', CONSUME: 'consumeProduct' } as const
+  const selected = productParam.value.zoneCode
+  if (selected) router.push({ name: zoneRoute[selected] })
+  else router.back()
 }
 </script>
 
@@ -146,7 +148,7 @@ const finishCommit = async (isEdit: boolean) => {
       <el-step title="填写商品信息"></el-step>
       <el-step title="填写商品促销"></el-step>
       <el-step title="填写商品属性"></el-step>
-      <el-step title="选择商品关联"></el-step>
+      <el-step title="选择商品专区"></el-step>
     </el-steps>
     <product-info-detail v-show="showStatus[0]" :is-edit="isEdit" @next-step="nextStep">
     </product-info-detail>

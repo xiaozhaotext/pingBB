@@ -13,8 +13,13 @@ import com.macro.mall.service.PmsProductService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -65,8 +70,11 @@ public class PmsProductServiceImpl implements PmsProductService {
     private PmsProductDao productDao;
     @Autowired
     private PmsProductVertifyRecordDao productVertifyRecordDao;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int create(PmsProductParam productParam) {
         int count;
         //创建商品
@@ -93,6 +101,7 @@ public class PmsProductServiceImpl implements PmsProductService {
         relateAndInsertList(subjectProductRelationDao, productParam.getSubjectProductRelationList(), productId);
         //关联优选
         relateAndInsertList(prefrenceAreaProductRelationDao, productParam.getPrefrenceAreaProductRelationList(), productId);
+        saveZone(productId, productParam.getZoneCode());
         count = 1;
         return count;
     }
@@ -121,6 +130,7 @@ public class PmsProductServiceImpl implements PmsProductService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int update(Long id, PmsProductParam productParam) {
         int count;
         //更新商品信息
@@ -164,8 +174,34 @@ public class PmsProductServiceImpl implements PmsProductService {
         prefrenceAreaExample.createCriteria().andProductIdEqualTo(id);
         prefrenceAreaProductRelationMapper.deleteByExample(prefrenceAreaExample);
         relateAndInsertList(prefrenceAreaProductRelationDao, productParam.getPrefrenceAreaProductRelationList(), id);
+        saveZone(id, productParam.getZoneCode());
         count = 1;
         return count;
+    }
+
+    private void saveZone(Long productId, String zone) {
+        // Legacy callers that do not edit a zone retain their existing assignment.
+        if (zone == null) return;
+        if (!List.of("PICK", "REBUY", "CONSUME").contains(zone))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "商品专区无效");
+        if ("PICK".equals(zone)) {
+            BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?", BigDecimal.class, productId);
+            Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?", Integer.class, productId);
+            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)", Integer.class, productId);
+            if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0
+                    || skuCount == null || skuCount == 0 || invalidSkus == null || invalidSkus != 0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "自选区旅游路线及所有规格须统一售价3999元");
+            String adminName = SecurityContextHolder.getContext().getAuthentication().getName();
+            Long operatorId = jdbc.queryForObject("SELECT id FROM ums_admin WHERE username=?", Long.class, adminName);
+            jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?) "
+                    + "ON DUPLICATE KEY UPDATE enabled=1,updated_by=VALUES(updated_by)", productId, operatorId);
+        } else {
+            jdbc.update("UPDATE tri_membership_product SET enabled=0 WHERE product_id=?", productId);
+        }
+        jdbc.update("DELETE FROM pms_product_zone WHERE product_id=? AND zone_code<>?", productId, zone);
+        jdbc.update("INSERT INTO pms_product_zone(product_id,zone_code,sort_order) "
+                + "SELECT id,?,COALESCE(sort,0) FROM pms_product WHERE id=? "
+                + "ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order)", zone, productId);
     }
 
     private void handleUpdateSkuStockList(Long id, PmsProductParam productParam) {

@@ -99,7 +99,7 @@ async function assign(row: ZoneProduct) {
   }
 }
 async function remove(row: ZoneProduct) {
-  await ElMessageBox.confirm('仅将商品移出' + zoneLabel.value + '，商品本身与其他专区归属不变。', '移出专区')
+  await ElMessageBox.confirm('将商品移出' + zoneLabel.value + '后，商城不会在该专区显示它。', '移出专区')
   busy.value = row.id
   try {
     await http({ url: '/p0/zones/' + zone.value + '/products/' + row.id, method: 'delete' })
@@ -173,7 +173,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>商品可以分别归属三个专区；下架商品仍可管理，已删除商品不在此列。当前查询返回 {{ rows.length }} 个未删除商品，其中 {{ rows.filter(isAssigned).length }} 个已加入本专区。最多返回100条，请用关键词缩小范围。</span>
+        <span>每件商品只归属一个专区；仅已加入且已上架的商品在商城显示。当前查询返回 {{ rows.length }} 个未删除商品，其中 {{ rows.filter(isAssigned).length }} 个已加入本专区。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />

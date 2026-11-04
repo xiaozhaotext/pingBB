@@ -14,6 +14,8 @@ import java.util.List;
 @Data
 @EqualsAndHashCode
 public class PmsProductParam extends PmsProduct{
+    @Schema(title = "所属专区：PICK 自选区 / REBUY 复购区 / CONSUME 消费区")
+    private String zoneCode;
     @Schema(title = "商品阶梯价格设置")
     private List<PmsProductLadder> productLadderList;
     @Schema(title = "商品满减价格设置")

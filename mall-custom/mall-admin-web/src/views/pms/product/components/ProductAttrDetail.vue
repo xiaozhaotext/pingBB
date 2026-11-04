@@ -587,7 +587,7 @@ const handleNext = () => {
       <el-form-item>
         <div style="width: 100%; text-align: center;">
           <el-button @click="handlePrev">上一步，填写商品促销</el-button>
-          <el-button type="primary" @click="handleNext">下一步，选择商品关联</el-button>
+          <el-button type="primary" @click="handleNext">下一步，选择商品专区</el-button>
         </div>
       </el-form-item>
     </el-form>

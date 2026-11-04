@@ -105,6 +105,8 @@ export type ProductQueryParam = PageParam & {
 
 /** 创建和修改商品的请求参数 */
 export type PmsProductParam = PmsProduct & {
+  /** 商品只归属一个专区；自选区路线需满足 3999 元规则 */
+  zoneCode?: 'PICK' | 'REBUY' | 'CONSUME'
   /** 商品阶梯价格设置 */
   productLadderList?: PmsProductLadder[]
   /** 商品满减价格设置 */

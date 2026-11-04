@@ -1,115 +1,45 @@
 <script setup lang="ts">
-import { onMounted, inject, type Ref, computed, ref } from 'vue'
-import { type TransferDataItem } from 'element-plus'
+import { inject, type Ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import type { PmsProductParam } from '@/types/product'
-import { getSubjectListAllAPI } from '@/apis/subject'
-import { getPrefrenceAreaListAllAPI } from '@/apis/prefrenceArea'
-import type { ElTransferDataVo } from '@/types/common'
 
-// 定义属性
-const props = defineProps({
-  isEdit: {
-    type: Boolean,
-    default: false
-  }
-})
-
-// 定义事件
+const props = defineProps<{ isEdit?: boolean }>()
 const emit = defineEmits(['prev-step', 'finish-commit'])
+const product = inject('product-key') as Ref<PmsProductParam>
 
-// 获取跨层传递的数据
-const compProductParam = inject('product-key') as Ref<PmsProductParam>
-
-// 所有专题列表
-const subjectList = ref<ElTransferDataVo[]>([])
-// 所有优选专区列表
-const prefrenceAreaList = ref<ElTransferDataVo[]>([])
-// 获取专题列表
-const getSubjectList = async () => {
-  const res = await getSubjectListAllAPI()
-  subjectList.value = res.data.map(item => ({
-    label: item.title,
-    key: item.id
-  }))
-}
-// 获取优选区域列表
-const getPrefrenceAreaList = async () => {
-  const res = await getPrefrenceAreaListAllAPI()
-  prefrenceAreaList.value = res.data.map(item => ({
-    label: item.name,
-    key: item.id
-  }))
-}
-
-// 初始化数据
-onMounted(() => {
-  getSubjectList()
-  getPrefrenceAreaList()
-})
-
-// 关联专题
-const selectSubject = computed({
-  get: function () {
-    return compProductParam.value.subjectProductRelationList?.map(item => item.subjectId!)
-  },
-  set: function (newValue) {
-    compProductParam.value.subjectProductRelationList = []
-    newValue?.forEach(item => {
-      compProductParam.value.subjectProductRelationList!.push({ subjectId: item })
-    })
+function finish() {
+  if (!product.value.zoneCode) {
+    ElMessage.warning('请选择商品所属专区')
+    return
   }
-})
-
-// 关联优选
-const selectPrefrenceArea = computed({
-  get: function () {
-    return compProductParam.value.prefrenceAreaProductRelationList?.map(item => item.prefrenceAreaId!)
-  },
-  set: function (newValue) {
-    compProductParam.value.prefrenceAreaProductRelationList = []
-    newValue?.forEach(item => {
-      compProductParam.value.prefrenceAreaProductRelationList!.push({ prefrenceAreaId: item })
-    })
+  if (product.value.zoneCode === 'PICK' && Number(product.value.price) !== 3999) {
+    ElMessage.warning('自选区只销售 3999 元旅游路线')
+    return
   }
-})
-
-// 过滤方法
-const filterMethod = (query: string, item: TransferDataItem) => {
-  return item.label.indexOf(query) > -1
-}
-
-// 上一步处理
-const handlePrev = () => {
-  emit('prev-step')
-}
-
-// 完成提交处理
-const handleFinishCommit = async () => {
   emit('finish-commit', props.isEdit)
 }
 </script>
 
 <template>
-  <div style="margin-top: 50px">
-    <el-form :model="compProductParam" ref="productRelationForm" label-width="120px" class="form-inner-container">
-      <el-form-item label="关联专题：">
-        <el-transfer style="display: inline-block" filterable :filter-method="filterMethod" filter-placeholder="请输入专题名称"
-          v-model="selectSubject" :titles="['待选择', '已选择']" :data="subjectList">
-        </el-transfer>
+  <div class="zone-relation">
+    <el-form label-width="120px">
+      <el-form-item label="商品所属专区" required>
+        <el-select v-model="product.zoneCode" placeholder="请选择专区" style="width: 320px">
+          <el-option label="自选区（3999元旅游路线）" value="PICK" />
+          <el-option label="复购区" value="REBUY" />
+          <el-option label="消费区" value="CONSUME" />
+        </el-select>
       </el-form-item>
-      <el-form-item label="关联优选：">
-        <el-transfer style="display: inline-block" filterable :filter-method="filterMethod" filter-placeholder="请输入优选名称"
-          v-model="selectPrefrenceArea" :titles="['待选择', '已选择']" :data="prefrenceAreaList">
-        </el-transfer>
-      </el-form-item>
-      <el-form-item>
-        <div style="width: 100%;text-align: center">
-          <el-button @click="handlePrev">上一步，填写商品属性</el-button>
-          <el-button type="primary" @click="handleFinishCommit">完成，提交商品</el-button>
-        </div>
+      <el-alert title="一个商品只归属一个专区。自选区商品需为旅游路线，售价和所有规格均为3999元；商品还需上架才会在商城显示。" type="info" :closable="false" />
+      <el-form-item class="actions">
+        <el-button @click="emit('prev-step')">上一步，填写商品属性</el-button>
+        <el-button type="primary" @click="finish">完成，提交商品</el-button>
       </el-form-item>
     </el-form>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.zone-relation { margin: 50px auto 0; max-width: 800px; }
+.actions { margin-top: 28px; }
+</style>
