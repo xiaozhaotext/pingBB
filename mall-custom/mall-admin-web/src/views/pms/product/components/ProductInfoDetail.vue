@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, inject, type Ref } from 'vue'
-import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { getProductCategoryListWithChildrenAPI } from '@/apis/productCate'
 import { getBrandListAPI } from '@/apis/brand'
@@ -20,7 +19,6 @@ const emit = defineEmits(['next-step'])
 
 // 获取跨层传递的数据
 const compProductParam = inject('product-key') as Ref<PmsProductParam>
-const isPick = String(useRoute().name || '').startsWith('pick')
 
 // 级联选择器中当前选中的商品分类，结构为：[父分类ID,分类ID]
 const selectProductCateValue = ref<number[]>([])
@@ -35,10 +33,6 @@ const getProductCateList = async () => {
     value: item.id!,
     children: item.children?.map(it => ({ label: it.name, value: it.id! }))
   }))
-  if (isPick && !props.isEdit) {
-    const tourism = productCateOptions.value.find(item => item.label === '旅游路线')
-    if (tourism) selectProductCateValue.value = [tourism.value]
-  }
 }
 // 选择器中的品牌数据
 const brandOptions = ref<ElSelectDataVo[]>([])
@@ -138,7 +132,7 @@ const handleBrandChange = (val: number | '') => {
     <el-form :model="compProductParam" :rules="rules" ref="productInfoForm" label-width="120px"
       class="form-inner-container">
       <el-form-item label="商品分类：" prop="productCategoryId">
-        <el-cascader v-model="selectProductCateValue" :options="productCateOptions" :disabled="isPick" :props="{ checkStrictly: true }">
+        <el-cascader v-model="selectProductCateValue" :options="productCateOptions" :props="{ checkStrictly: true }">
         </el-cascader>
       </el-form-item>
       <el-form-item label="商品名称：" prop="name">
@@ -161,10 +155,10 @@ const handleBrandChange = (val: number | '') => {
         <el-input v-model="compProductParam.productSn"></el-input>
       </el-form-item>
       <el-form-item label="商品售价：">
-        <el-input v-model="compProductParam.price" :disabled="isPick"></el-input>
+        <el-input v-model="compProductParam.price"></el-input>
       </el-form-item>
       <el-form-item label="市场价：">
-        <el-input v-model="compProductParam.originalPrice" :disabled="isPick"></el-input>
+        <el-input v-model="compProductParam.originalPrice"></el-input>
       </el-form-item>
       <el-form-item label="商品库存：">
         <el-input v-model="compProductParam.stock"></el-input>
@@ -181,7 +175,7 @@ const handleBrandChange = (val: number | '') => {
       </el-form-item>
       <el-form-item>
         <div style="width: 100%;text-align: center;">
-          <el-button type="primary" @click="handleNext()">{{ isPick ? '下一步，上传路线图片与行程' : '下一步，填写商品促销' }}</el-button>
+          <el-button type="primary" @click="handleNext()">下一步，填写商品促销</el-button>
         </div>
       </el-form-item>
     </el-form>

@@ -21,11 +21,10 @@ const props = defineProps({
 })
 
 // 定义事件
-const emit = defineEmits(['prev-step', 'next-step', 'finish-commit'])
+const emit = defineEmits(['prev-step', 'next-step'])
 
 // 获取跨层传递的数据
 const compProductParam = inject('product-key') as Ref<PmsProductParam>
-const isPick = computed(() => compProductParam.value.zoneCode === 'PICK')
 
 // 模板引用
 const productAttrForm = ref<FormInstance>()
@@ -70,12 +69,6 @@ const getProductAttrCateList = async () => {
     value: item.id!
   }))
 }
-
-watch([isPick, () => state.productAttributeCategoryOptions], () => {
-  if (!isPick.value) return
-  const tourism = state.productAttributeCategoryOptions.find(item => item.label === '旅游路线')
-  if (tourism) compProductParam.value.productAttributeCategoryId = Number(tourism.value)
-}, { immediate: true })
 
 onMounted(async () => {
   await getProductAttrCateList()
@@ -470,10 +463,6 @@ const handlePrev = () => {
 }
 
 const handleNext = () => {
-  if (isPick.value) {
-    emit('finish-commit', props.isEdit)
-    return
-  }
   mergeProductAttrValue()
   mergeProductAttrPics()
   emit('next-step')
@@ -483,8 +472,7 @@ const handleNext = () => {
 <template>
   <div style="margin-top: 50px">
     <el-form :model="compProductParam" ref="productAttrForm" label-width="120px" class="form-inner-container">
-      <el-form-item v-if="isPick" label="属性类型：">旅游路线（统一售价 3999 元，无需设置规格与促销）</el-form-item>
-      <el-form-item v-else label="属性类型：">
+      <el-form-item label="属性类型：">
         <el-select v-model="compProductParam.productAttributeCategoryId" placeholder="请选择属性类型"
           @change="handleProductAttrChange">
           <el-option v-for="item in state.productAttributeCategoryOptions" :key="item.value" :label="item.label"
@@ -492,7 +480,7 @@ const handleNext = () => {
           </el-option>
         </el-select>
       </el-form-item>
-      <el-form-item v-if="!isPick" label="商品规格：">
+      <el-form-item label="商品规格：">
         <el-card shadow="never" class="cardBg">
           <div v-for="(productAttr, idx) in state.selectProductAttr" :key="'productAttr' + idx">
             {{ productAttr.name }}：
@@ -561,7 +549,7 @@ const handleNext = () => {
         <el-button type="primary" style="margin-top: 20px" @click="handleSyncProductSkuStock">同步库存
         </el-button>
       </el-form-item>
-      <el-form-item label="属性图片：" v-if="!isPick && hasAttrPic">
+      <el-form-item label="属性图片：" v-if="hasAttrPic">
         <el-card shadow="never" class="cardBg">
           <div v-for="(item, index) in state.selectProductAttrPics" :key="'productAttrPic' + index">
             <span>{{ item.name }}:</span>
@@ -570,7 +558,7 @@ const handleNext = () => {
           </div>
         </el-card>
       </el-form-item>
-      <el-form-item v-if="!isPick" label="商品参数：">
+      <el-form-item label="商品参数：">
         <el-card shadow="never" class="cardBg">
           <div v-for="(item, index) in state.selectProductParam" :class="{ littleMarginTop: index !== 0 }"
             :key="'productParam' + index">
@@ -598,8 +586,8 @@ const handleNext = () => {
       </el-form-item>
       <el-form-item>
         <div style="width: 100%; text-align: center;">
-          <el-button @click="handlePrev">{{ isPick ? '上一步，填写商品信息' : '上一步，填写商品促销' }}</el-button>
-          <el-button type="primary" @click="handleNext">{{ isPick ? '完成，提交旅游路线' : '下一步，确认商品专区' }}</el-button>
+          <el-button @click="handlePrev">上一步，填写商品促销</el-button>
+          <el-button type="primary" @click="handleNext">下一步，选择商品专区</el-button>
         </div>
       </el-form-item>
     </el-form>
