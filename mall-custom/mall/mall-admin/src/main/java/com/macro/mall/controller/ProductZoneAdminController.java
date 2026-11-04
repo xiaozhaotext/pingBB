@@ -69,12 +69,15 @@ public class ProductZoneAdminController {
         if ("PICK".equals(zone)) {
             if (!Boolean.TRUE.equals(body.tourRoute()))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请确认该商品类型为旅游路线");
+            Integer routes = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p "
+                    + "JOIN pms_product_category c ON c.id=p.product_category_id "
+                    + "WHERE p.id=? AND c.name='旅游路线'",Integer.class,body.productId());
             BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?",BigDecimal.class,body.productId());
             Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)",Integer.class,body.productId());
             Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?",Integer.class,body.productId());
-            if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0
+            if (routes == null || routes != 1 || price == null || price.compareTo(new BigDecimal("3999.00")) != 0
                     || invalidSkus == null || invalidSkus > 0 || skuCount == null || skuCount == 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区路线及所有规格必须统一定价3999元");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区须选择旅游路线分类，商品及所有规格统一售价3999元");
             jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?)"
                     + " ON DUPLICATE KEY UPDATE enabled=1,updated_by=VALUES(updated_by)",body.productId(),operator);
         } else {

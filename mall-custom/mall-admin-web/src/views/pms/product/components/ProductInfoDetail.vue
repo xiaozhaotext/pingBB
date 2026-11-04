@@ -71,8 +71,8 @@ const rules = {
 
 // 监听选择分类变化
 watch(selectProductCateValue, (newValue) => {
-  if (newValue && newValue.length === 2) {
-    compProductParam.value.productCategoryId = newValue[1]
+  if (newValue && newValue.length >= 1) {
+    compProductParam.value.productCategoryId = newValue[newValue.length - 1]
     compProductParam.value.productCategoryName = getCateNameById(compProductParam.value.productCategoryId!)
   } else {
     compProductParam.value.productCategoryId = undefined
@@ -84,7 +84,7 @@ watch(selectProductCateValue, (newValue) => {
 // 方法定义
 const handleEditCreated = () => {
   if (compProductParam.value.productCategoryId) {
-    selectProductCateValue.value.push(compProductParam.value.cateParentId!)
+    if (compProductParam.value.cateParentId) selectProductCateValue.value.push(compProductParam.value.cateParentId)
     selectProductCateValue.value.push(compProductParam.value.productCategoryId)
   }
   hasEditCreated.value = true
@@ -93,6 +93,7 @@ const handleEditCreated = () => {
 // 根据分类ID获取分类名称
 const getCateNameById = (id: number) => {
   for (const item of productCateOptions.value) {
+    if (item.value === id) return item.label
     const child = item.children?.find(child => child.value === id)
     if (child) {
       return child.label
@@ -131,7 +132,7 @@ const handleBrandChange = (val: number) => {
     <el-form :model="compProductParam" :rules="rules" ref="productInfoForm" label-width="120px"
       class="form-inner-container">
       <el-form-item label="商品分类：" prop="productCategoryId">
-        <el-cascader v-model="selectProductCateValue" :options="productCateOptions">
+        <el-cascader v-model="selectProductCateValue" :options="productCateOptions" :props="{ checkStrictly: true }">
         </el-cascader>
       </el-form-item>
       <el-form-item label="商品名称：" prop="name">

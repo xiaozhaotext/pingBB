@@ -185,12 +185,15 @@ public class PmsProductServiceImpl implements PmsProductService {
         if (!List.of("PICK", "REBUY", "CONSUME").contains(zone))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "商品专区无效");
         if ("PICK".equals(zone)) {
+            Integer routes = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p "
+                    + "JOIN pms_product_category c ON c.id=p.product_category_id "
+                    + "WHERE p.id=? AND c.name='旅游路线'", Integer.class, productId);
             BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?", BigDecimal.class, productId);
             Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?", Integer.class, productId);
             Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)", Integer.class, productId);
-            if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0
+            if (routes == null || routes != 1 || price == null || price.compareTo(new BigDecimal("3999.00")) != 0
                     || skuCount == null || skuCount == 0 || invalidSkus == null || invalidSkus != 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "自选区旅游路线及所有规格须统一售价3999元");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "自选区须选择旅游路线分类，商品及所有规格统一售价3999元");
             String adminName = SecurityContextHolder.getContext().getAuthentication().getName();
             Long operatorId = jdbc.queryForObject("SELECT id FROM ums_admin WHERE username=?", Long.class, adminName);
             jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?) "
