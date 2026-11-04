@@ -41,12 +41,23 @@ public class ProductZoneAdminController {
         validateZone(zone);
         if (keyword.length() > 120) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜索词过长");
         String like = "%" + keyword.trim() + "%";
+        String pickUnavailable = "PICK".equals(zone)
+                ? " WHEN p.price<>3999.00 OR t.product_id IS NULL OR t.enabled<>1 "
+                    + "OR NOT EXISTS (SELECT 1 FROM pms_sku_stock s WHERE s.product_id=p.id AND s.price=3999.00) "
+                    + "OR EXISTS (SELECT 1 FROM pms_sku_stock s WHERE s.product_id=p.id AND (s.price IS NULL OR s.price<>3999.00)) "
+                    + "THEN '旅游路线或规格价格不符合3999元规则' "
+                : "";
         return CommonResult.success(jdbc.queryForList(
                 "SELECT p.id,p.name,p.pic,p.price,p.publish_status AS publishStatus," +
                 "(t.product_id IS NOT NULL AND t.enabled=1) AS tourRoute," +
                 "(z.product_id IS NOT NULL) AS assigned,COALESCE(z.sort_order,0) AS sortOrder " +
+                ",CASE WHEN z.product_id IS NULL THEN '未加入当前专区' " +
+                "WHEN p.publish_status<>1 THEN '商品未上架' " +
+                "WHEN b.id IS NOT NULL AND b.show_status<>1 THEN '所属品牌未展示' " +
+                pickUnavailable + "ELSE '' END AS displayReason " +
                 "FROM pms_product p LEFT JOIN pms_product_zone z ON z.product_id=p.id AND z.zone_code=? " +
                 "LEFT JOIN tri_membership_product t ON t.product_id=p.id " +
+                "LEFT JOIN pms_brand b ON b.id=p.brand_id " +
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
                 (assignedOnly ? "AND z.product_id IS NOT NULL " : "") +
                 "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 100", zone,like,like));
@@ -106,3 +117,4 @@ public class ProductZoneAdminController {
         jdbc.update("INSERT INTO sys_audit_log(operator_id,operator_name,module,action,target_id,detail) VALUES(?,?,?,?,?,?)",id,name,"product_zone",action,productId,detail);
     }
 }
+
