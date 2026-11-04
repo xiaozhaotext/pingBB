@@ -129,6 +129,7 @@ const finishCommit = async (isEdit: boolean) => {
     cancelButtonText: '取消',
     type: 'warning'
   })
+  productParam.value.zoneCode = routeZone()
   if (isEdit) {
     await productUpdateByIdAPI(Number(route.query.id), productParam.value)
   } else {
@@ -148,7 +149,7 @@ const finishCommit = async (isEdit: boolean) => {
       <el-step title="填写商品信息"></el-step>
       <el-step title="填写商品促销"></el-step>
       <el-step title="填写商品属性"></el-step>
-      <el-step title="选择商品专区"></el-step>
+      <el-step title="确认商品专区"></el-step>
     </el-steps>
     <product-info-detail v-show="showStatus[0]" :is-edit="isEdit" @next-step="nextStep">
     </product-info-detail>

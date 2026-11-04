@@ -142,6 +142,9 @@ public class PmsProductServiceImpl implements PmsProductService {
         //SKU 价格/库存兜底；未设置规格时补一条默认 SKU，保证上架即可下单
         productParam.setSkuStockList(prepareSkuStockList(product, productParam.getSkuStockList()));
         productMapper.updateByPrimaryKeySelective(product);
+        if (productParam.getBrandId() == null) {
+            jdbc.update("UPDATE pms_product SET brand_id=NULL, brand_name=NULL WHERE id=?", id);
+        }
         //会员价格
         PmsMemberPriceExample pmsMemberPriceExample = new PmsMemberPriceExample();
         pmsMemberPriceExample.createCriteria().andProductIdEqualTo(id);

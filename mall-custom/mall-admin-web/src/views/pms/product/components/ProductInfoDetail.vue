@@ -64,7 +64,6 @@ const rules = {
   ],
   subTitle: [{ required: true, message: '请输入商品副标题', trigger: 'blur' }],
   productCategoryId: [{ required: true, message: '请选择商品分类', trigger: 'blur' }],
-  brandId: [{ required: true, message: '请选择商品品牌', trigger: 'blur' }],
   description: [{ required: true, message: '请输入商品介绍', trigger: 'blur' }],
   requiredProp: [{ required: true, message: '该项为必填项', trigger: 'blur' }]
 }
@@ -121,9 +120,10 @@ const handleNext = async () => {
 }
 
 // 处理品牌变化
-const handleBrandChange = (val: number) => {
+const handleBrandChange = (val: number | '') => {
   const findBrand = brandOptions.value.find(item => item.value === val)
-  compProductParam.value.brandName = findBrand?.label
+  compProductParam.value.brandName = findBrand?.label || ''
+  if (!findBrand) compProductParam.value.brandId = undefined
 }
 </script>
 
@@ -142,7 +142,7 @@ const handleBrandChange = (val: number) => {
         <el-input v-model="compProductParam.subTitle"></el-input>
       </el-form-item>
       <el-form-item label="商品品牌：" prop="brandId">
-        <el-select v-model="compProductParam.brandId" @change="handleBrandChange" placeholder="请选择品牌">
+        <el-select v-model="compProductParam.brandId" clearable @change="handleBrandChange" placeholder="可不选品牌">
           <el-option v-for="item in brandOptions" :key="item.value" :label="item.label" :value="item.value">
           </el-option>
         </el-select>

@@ -24,13 +24,9 @@ function finish() {
   <div class="zone-relation">
     <el-form label-width="120px">
       <el-form-item label="商品所属专区" required>
-        <el-select v-model="product.zoneCode" placeholder="请选择专区" style="width: 320px">
-          <el-option label="自选区（3999元旅游路线）" value="PICK" />
-          <el-option label="复购区" value="REBUY" />
-          <el-option label="消费区" value="CONSUME" />
-        </el-select>
+        <strong>{{ { PICK: '自选区', REBUY: '复购区', CONSUME: '消费区' }[product.zoneCode || 'PICK'] }}</strong>
       </el-form-item>
-      <el-alert title="一个商品只归属一个专区。自选区商品需为旅游路线，售价和所有规格均为3999元；商品还需上架才会在商城显示。" type="info" :closable="false" />
+      <el-alert title="商品自动归属当前进入的专区。自选区商品需为旅游路线，售价和所有规格均为3999元；商品还需上架才会在商城显示。" type="info" :closable="false" />
       <el-form-item class="actions">
         <el-button @click="emit('prev-step')">上一步，填写商品属性</el-button>
         <el-button type="primary" @click="finish">完成，提交商品</el-button>

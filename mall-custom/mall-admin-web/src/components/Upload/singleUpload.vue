@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { uploadProductImage } from '@/apis/productImage'
 import { ossPolicyAPI } from '@/apis/oss' // 假设这是API文件的正确路径
 import {
   ElMessage,
@@ -36,7 +37,7 @@ const useOss = import.meta.env.VITE_USE_OSS === 'true'
 // oss上传路径
 const ossUploadUrl = import.meta.env.VITE_OSS_UPLOAD_URL
 // minio上传路径
-const minioUploadUrl = import.meta.env.VITE_BASE_SERVER_URL + import.meta.env.VITE_MINIO_UPLOAD_URL
+const minioUploadUrl = (import.meta.env.VITE_BASE_SERVER_URL || '/admin-api') + '/product/image/upload'
 // 上传文件列表
 const fileList = ref<UploadUserFile[]>([])
 
@@ -121,6 +122,16 @@ const ossHttpRequest = (options: UploadRequestOptions) => {
     })
 }
 
+const localHttpRequest = async (options: UploadRequestOptions) => {
+  try {
+    const url = await uploadProductImage(options.file)
+    options.onSuccess({ code: 200, data: { url } })
+  } catch (error) {
+    options.onError(error as never)
+    ElMessage.error('图片上传失败，请检查商品管理权限后重试')
+  }
+}
+
 // 处理图片上传成功
 const handleUploadSuccess: UploadProps['onSuccess'] = (res, file) => {
   if (!useOss && res.code === 500) {
@@ -153,7 +164,7 @@ const handleUploadSuccess: UploadProps['onSuccess'] = (res, file) => {
       :multiple="false"
       :show-file-list="props.modelValue ? true : false"
       :file-list="fileList"
-      :http-request="useOss ? ossHttpRequest : undefined"
+      :http-request="useOss ? ossHttpRequest : localHttpRequest"
       :before-upload="beforeUpload"
       :on-remove="handleRemove"
       :on-success="handleUploadSuccess"
