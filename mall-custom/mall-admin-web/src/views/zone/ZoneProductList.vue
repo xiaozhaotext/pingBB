@@ -19,6 +19,7 @@ interface ZoneProduct {
   assigned: boolean | number
   tourRoute: boolean | number
   sortOrder: number
+  displayReason: string
 }
 
 const route = useRoute()
@@ -201,6 +202,12 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             <span v-else>未加入</span>
           </template>
         </el-table-column>
+        <el-table-column label="商城展示" min-width="180">
+          <template #default="{ row }">
+            <el-tag v-if="!row.displayReason" type="success">可展示</el-tag>
+            <el-tag v-else type="info">{{ row.displayReason }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="360" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
@@ -227,5 +234,6 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .head p { margin: 0; color: #6d8074; }
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 </style>
+
 
 
