@@ -2,7 +2,7 @@
   <view class="container">
     <view
       class="list-cell b-b m-t"
-      @click="navTo('个人资料')"
+      @click="navTo('/pages/user/profile')"
       hover-class="cell-hover"
       :hover-stay-time="50"
     >

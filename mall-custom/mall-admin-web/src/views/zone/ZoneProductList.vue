@@ -99,6 +99,22 @@ async function assign(row: ZoneProduct) {
     busy.value = null
   }
 }
+async function saveSort(row: ZoneProduct) {
+  busy.value = row.id
+  try {
+    await http({
+      url: '/p0/zones/' + zone.value + '/products',
+      method: 'post',
+      data: { productId: row.id, sortOrder: row.sortOrder, tourRoute: zone.value === 'PICK' },
+    })
+    ElMessage.success('排序已保存，数字越大越靠前')
+    await load()
+  } catch {
+    ElMessage.error('保存排序失败')
+  } finally {
+    busy.value = null
+  }
+}
 async function remove(row: ZoneProduct) {
   await ElMessageBox.confirm('将商品移出' + zoneLabel.value + '后，商城不会在该专区显示它。', '移出专区')
   busy.value = row.id
@@ -174,7 +190,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>每件商品只归属一个专区；仅已加入且已上架的商品在商城显示。当前查询返回 {{ rows.length }} 个未删除商品，其中 {{ rows.filter(isAssigned).length }} 个已加入本专区。最多返回100条，请用关键词缩小范围。</span>
+        <span>本页返回 {{ rows.length }} 个候选商品；{{ rows.filter(isAssigned).length }} 个已加入本专区，其中 {{ rows.filter(row => isAssigned(row) && !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前；自选区还须满足3999元旅游路线及规格规则。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
@@ -202,15 +218,19 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             <span v-else>未加入</span>
           </template>
         </el-table-column>
+        <el-table-column label="专区排序（数字越大越靠前）" width="190">
+          <template #default="{ row }"><el-input-number v-model="row.sortOrder" :min="-10000" :max="10000" :step="1" controls-position="right" style="width:155px" /></template>
+        </el-table-column>
         <el-table-column label="商城展示" min-width="180">
           <template #default="{ row }">
             <el-tag v-if="!row.displayReason" type="success">可展示</el-tag>
             <el-tag v-else type="info">{{ row.displayReason }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="360" fixed="right">
+        <el-table-column label="操作" width="425" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
+            <el-button v-if="isAssigned(row)" link type="primary" :disabled="busy === row.id" @click="saveSort(row)">保存排序</el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="togglePublish(row)">
               {{ row.publishStatus === 1 ? '下架' : '上架' }}
             </el-button>

@@ -21,6 +21,10 @@ export const getMemberInfoAPI = () => {
   })
 }
 
+/** 修改当前登录会员的昵称 */
+export const updateNicknameAPI = (nickname: string) =>
+  http<void>({ method: 'POST', url: '/sso/profile/nickname', data: { nickname } })
+
 /** 注册 */
 export const registerAPI = (data: RegisterParam) => {
   return http({
