@@ -86,7 +86,7 @@ const handleConfirmPay = async () => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
     const query = new URLSearchParams({
       outTradeNo: String(orderInfo.value.orderSn),
-      subject: '旅游路线订单',
+      subject: '商城订单',
     })
     window.location.href = `${apiBaseUrl}/alipay/webPay?${query}`
     return
@@ -109,6 +109,7 @@ const handleConfirmPay = async () => {
       uni.showToast({ title: '微信支付下单失败', icon: 'none' })
     } catch (e) {
       console.error('微信支付下单失败', e)
+      uni.showToast({ title: '微信支付暂不可用，请稍后重试或联系客服', icon: 'none' })
     }
     return
   }

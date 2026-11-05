@@ -26,6 +26,7 @@ export const settlementPreviewAPI = (data: {
   couponId?: number
   useBalance?: boolean
   useRepurchasePoints?: boolean
+  useProductPoints?: boolean
 }) => {
   return http<ConfirmOrderResult>({
     method: 'POST',

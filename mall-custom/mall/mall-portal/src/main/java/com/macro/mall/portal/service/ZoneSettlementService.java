@@ -84,6 +84,11 @@ public class ZoneSettlementService {
      */
     public ZoneSettlement settle(List<Line> lines, boolean useRepurchasePoints, boolean useBalance,
                                  Wallets wallets) {
+        return settle(lines, useRepurchasePoints, useBalance, true, wallets);
+    }
+
+    public ZoneSettlement settle(List<Line> lines, boolean useRepurchasePoints, boolean useBalance,
+                                  boolean useProductPoints, Wallets wallets) {
         BigDecimal ratio = rebuyPointsRatio();
         BigDecimal yuanPerPoint = productPointYuanPerPoint();
         BigDecimal maxRatio = productPointMaxRatio();
@@ -107,13 +112,18 @@ public class ZoneSettlementService {
         if (pick != null && pick.isPayable()) {
             availableBalance = nonNegative(availableBalance.subtract(pick.getBalanceAmount()));
         }
-        Wallets rebuyWallets = new Wallets(wallets.productPoints(), wallets.repurchasePoints(), availableBalance);
+        ZoneSettlement.Plan rebuy = plans.get(ZoneRules.REBUY);
+        if (rebuy != null) settleRebuy(rebuy, useRepurchasePoints, useBalance, ratio,
+                new Wallets(wallets.productPoints(), wallets.repurchasePoints(), availableBalance));
+        ZoneSettlement.Plan consume = plans.get(ZoneRules.CONSUME);
+        if (consume != null) settleConsume(consume, yuanPerPoint, maxRatio, useProductPoints, useBalance,
+                new Wallets(wallets.productPoints(), wallets.repurchasePoints(),
+                        nonNegative(availableBalance.subtract(rebuy == null ? BigDecimal.ZERO : rebuy.getBalanceAmount()))));
         ZoneSettlement settlement = new ZoneSettlement();
         for (ZoneSettlement.Plan plan : plans.values()) {
             switch (plan.getZoneCode()) {
                 case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
-                case ZoneRules.REBUY -> settleRebuy(plan, useRepurchasePoints, useBalance, ratio, rebuyWallets);
-                case ZoneRules.CONSUME -> settleConsume(plan, yuanPerPoint, maxRatio, wallets);
+                case ZoneRules.REBUY, ZoneRules.CONSUME -> { /* 余额按自选、复购、消费的顺序分配 */ }
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
             settlement.getPlans().add(plan);
@@ -203,8 +213,12 @@ public class ZoneSettlementService {
      * 保证消费区商品全额由商品积分支付、不产生现金差额；积分不足时不允许下单。
      */
     private void settleConsume(ZoneSettlement.Plan plan, BigDecimal yuanPerPoint,
-                               BigDecimal maxRatio, Wallets wallets) {
+                               BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
         BigDecimal net = plan.getNetAmount();
+        if (!useProductPoints) {
+            applyRebuyBalance(plan, net, useBalance, wallets.balance());
+            return;
+        }
         if (net.signum() <= 0) {
             plan.setCashAmount(BigDecimal.ZERO);
             return;

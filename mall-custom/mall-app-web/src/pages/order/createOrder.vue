@@ -82,12 +82,17 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区：仅用商品积分购买 -->
+        <!-- 消费区：商品积分或现金模式 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">商品积分购买<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}）</text></text>
+          <text class="cell-tit clamp">使用商品积分<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}；关闭后可用余额或微信支付）</text></text>
+          <switch :checked="useProductPoints" @change="handleProductPointsToggle" />
+        </view>
+        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME' && !useProductPoints && !hasPickZone && !hasRebuyZone">
+          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信支付）</text></text>
+          <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
         <view class="zone-plan-foot">
-          <text v-if="plan.zoneCode === 'CONSUME'">本专区应付 {{ plan.productPoints }} 商品积分</text>
+          <text v-if="plan.zoneCode === 'CONSUME' && useProductPoints">本专区应付 {{ plan.productPoints }} 商品积分</text>
           <text v-else>本专区现金应付 {{ money(plan.cashAmount) }}</text>
           <text v-if="num(plan.balanceAmount) > 0"> · 余额抵扣 {{ money(plan.balanceAmount) }}</text>
           <text v-if="num(plan.repurchasePointAmount) > 0"> · 复购积分抵扣 {{ money(plan.repurchasePointAmount) }}</text>
@@ -126,7 +131,7 @@
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.couponAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.balanceAmount) > 0">
-        <text class="cell-tit clamp">余额抵扣（自选区/复购区）</text>
+        <text class="cell-tit clamp">账户余额抵扣</text>
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.balanceAmount) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.repurchasePointAmount) > 0">
@@ -203,7 +208,7 @@ import { parseCartIds } from '@/utils/cartCheckout'
 import { formatOrderDeduction } from '@/utils/order-display'
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI } from '@/apis/order'
+import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI, getOrderListAPI } from '@/apis/order'
 import { chinaDateTime } from '@/utils/chinaTime'
 import type { CartPromotionItem, CalcAmount, ConfirmOrderResult, ZoneSettlement } from '@/types/order'
 import type { SmsCoupon } from '@/types/coupon'
@@ -230,6 +235,7 @@ const currCoupon = ref<SmsCoupon | null>(null)
 const useBalance = ref(false)
 // 复购区默认使用积分抵扣；不足时用户可切换为全现金
 const useRepurchasePoints = ref(true)
+const useProductPoints = ref(true)
 // 三个账户可用余额：商品积分、复购积分、余额
 const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
@@ -280,6 +286,7 @@ const refreshSettlement = async () => {
     const res = await settlementPreviewAPI({
       cartIds: cartIds.value.map(Number), couponId: currCoupon.value?.id,
       useBalance: useBalance.value, useRepurchasePoints: useRepurchasePoints.value,
+      useProductPoints: useProductPoints.value,
     })
     if (revision !== settlementRevision) return
     if (!res.data || !Array.isArray(res.data.zoneSettlement?.plans)) throw new Error('无有效结算结果')
@@ -385,6 +392,10 @@ const handleRepurchaseToggle = async (event: any) => {
   useRepurchasePoints.value = Boolean(event.detail.value)
   await refreshSettlement()
 }
+const handleProductPointsToggle = async (event: any) => {
+  useProductPoints.value = Boolean(event.detail.value)
+  await refreshSettlement()
+}
 
 // 提交订单
 const handleSubmit = async () => {
@@ -404,6 +415,20 @@ const handleSubmit = async () => {
     uni.showToast({ icon: 'none', title: '请选择收货地址' })
     return
   }
+  if (hasPickZone.value) {
+    let pending = false
+    try { pending = ((await getOrderListAPI({ status: 0, pageNum: 1, pageSize: 1 })).data?.list?.length || 0) > 0 }
+    catch { pending = true }
+    if (pending) {
+      const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+        title: '已有待付款订单',
+        content: '继续会创建另一笔订单。请勿重复支付同一商品；确认仍要继续下单吗？',
+        confirmText: '继续下单', cancelText: '查看原订单',
+        success: (result) => resolve(Boolean(result.confirm)), fail: () => resolve(false),
+      }))
+      if (!proceed) { uni.navigateTo({ url: '/pages/order/order?state=1' }); return }
+    }
+  }
   submitting.value = true
   const orderParam = {
     payType: 0,
@@ -413,6 +438,7 @@ const handleSubmit = async () => {
     useIntegration: 0,
     useBalance: useBalance.value,
     useRepurchasePoints: useRepurchasePoints.value ? 1 : 0,
+    useProductPoints: useProductPoints.value,
   }
   if (currCoupon.value != null) {
     orderParam.couponId = currCoupon.value.id

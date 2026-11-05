@@ -43,6 +43,32 @@ class ZoneSettlementServiceTest {
     }
 
     @Test
+    void consumeCashUsesBalanceThenExternalPaymentWithoutSpendingPoints() {
+        ZoneSettlement settlement = service.settle(
+                List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)), false, true, false, wallets(500, 0, "40.00"));
+        ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
+        assertTrue(consume.isPayable());
+        assertEquals(0, consume.getProductPoints());
+        assertAmount("40.00", consume.getBalanceAmount());
+        assertAmount("60.00", consume.getCashAmount());
+        assertAmount("60.00", settlement.getCashAmount());
+    }
+
+    @Test
+    void mixedRebuyConsumeNeverSpendsTheSameBalanceTwice() {
+        ZoneSettlement settlement = service.settle(List.of(
+                new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO),
+                new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, false, wallets(0, 100, "90.00"));
+        assertAmount("70.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
+        assertAmount("20.00", plan(settlement, ZoneRules.CONSUME).getBalanceAmount());
+        assertAmount("80.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
+        assertAmount("90.00", settlement.getBalanceAmount());
+    }
+
+    @Test
     @DisplayName("自选区现金支付：只按商品金额收现金，不使用任何积分")
     void pickZonePaysCashOnly() {
         ZoneSettlement settlement = service.settle(
