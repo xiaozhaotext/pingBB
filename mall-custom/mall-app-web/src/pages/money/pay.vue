@@ -191,7 +191,7 @@ const handleConfirmPay = async () => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
     const query = new URLSearchParams({
       outTradeNo: String(orderInfo.value.orderSn),
-      subject: '旅游路线订单',
+      subject: '商城订单',
     })
     window.location.href = `${apiBaseUrl}/alipay/webPay?${query}`
     return

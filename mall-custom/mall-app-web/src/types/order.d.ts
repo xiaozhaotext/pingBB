@@ -214,6 +214,8 @@ export type OrderParam = {
   useBalance?: boolean
   /** 复购区是否使用「30%复购积分 + 70%现金」模式；大于 0 表示启用 */
   useRepurchasePoints?: number
+  /** 消费区：true 使用商品积分，false 使用余额优先、余款外部支付 */
+  useProductPoints?: boolean
 }
 
 /** 生成订单返回结果（对应后端 OrderResult） */

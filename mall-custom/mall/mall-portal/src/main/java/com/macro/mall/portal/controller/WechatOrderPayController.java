@@ -134,6 +134,14 @@ public class WechatOrderPayController {
         if (order.getStatus() == null || order.getStatus() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "订单当前状态不可支付");
         }
+        // Zone orders may have a genuine external balance after points and wallet deductions.
+        // Keep the existing test-order restrictions for PICK membership and unassigned goods.
+        Integer zoneItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=? AND zone_code IN ('REBUY','CONSUME')",
+                Integer.class, order.getId());
+        Integer allZoneItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=?",
+                Integer.class, order.getId());
+        if (zoneItems != null && zoneItems > 0 && zoneItems.equals(allZoneItems)
+                && isPayableProductOrder(order, allZoneItems)) return order;
         if (productionTestOrderSn != null && !productionTestOrderSn.isBlank()) {
             String database = jdbc.queryForObject("SELECT DATABASE()", String.class);
             if (!isProductionTestOrder(order, database, productionTestOrderSn)) {
