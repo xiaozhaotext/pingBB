@@ -6,6 +6,8 @@ import static org.mockito.Mockito.*;
 import com.macro.mall.model.*;
 import com.macro.mall.portal.service.*;
 import com.macro.mall.portal.service.impl.OrderWechatPayHandler;
+import com.macro.mall.portal.service.impl.OmsPortalOrderServiceImpl;
+import com.macro.mall.mapper.OmsOrderMapper;
 
 import org.junit.jupiter.api.*;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -13,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.List;
 
 class WechatPaymentStatusTest {
     final WechatOrderPayController controller = new WechatOrderPayController();
@@ -45,6 +48,25 @@ class WechatPaymentStatusTest {
     void anotherMemberCannotQueryOrReconcileAnOrder() {
         order.setMemberId(2L);
         assertThrows(ResponseStatusException.class, () -> controller.status("SN10"));
+        verifyNoInteractions(wechat, handler);
+    }
+
+    @Test
+    void realOrderLookupFindsTheOrderAfterTheNotificationHasAlreadyMarkedItPaid() {
+        order.setStatus(1);
+        var mapper = mock(OmsOrderMapper.class);
+        var realOrders = new OmsPortalOrderServiceImpl();
+        ReflectionTestUtils.setField(realOrders, "orderMapper", mapper);
+        ReflectionTestUtils.setField(controller, "portalOrderService", realOrders);
+        when(mapper.selectByExample(any(OmsOrderExample.class))).thenAnswer(invocation -> {
+            OmsOrderExample query = invocation.getArgument(0);
+            // Model the persisted status, rather than returning a paid order for a pending-only query.
+            boolean excludesPaidOrder = query.getOredCriteria().get(0).getAllCriteria().stream()
+                    .anyMatch(criterion -> "status =".equals(criterion.getCondition())
+                            && !order.getStatus().equals(criterion.getValue()));
+            return excludesPaidOrder ? List.of() : List.of(order);
+        });
+        assertEquals("CONFIRMED", controller.status("SN10").getData().get("state"));
         verifyNoInteractions(wechat, handler);
     }
 

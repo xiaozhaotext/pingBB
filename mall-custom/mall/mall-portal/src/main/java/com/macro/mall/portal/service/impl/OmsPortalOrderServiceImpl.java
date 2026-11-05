@@ -664,7 +664,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         OmsOrderExample example =  new OmsOrderExample();
         example.createCriteria()
                 .andOrderSnEqualTo(orderSn)
-                .andStatusEqualTo(0)
                 .andDeleteStatusEqualTo(0);
         List<OmsOrder> orderList = orderMapper.selectByExample(example);
         if(CollUtil.isNotEmpty(orderList)){
