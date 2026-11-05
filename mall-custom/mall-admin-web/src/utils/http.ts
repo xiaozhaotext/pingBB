@@ -12,6 +12,11 @@ const http = axios.create({
 // axios请求拦截器
 http.interceptors.request.use(
   config => {
+    if (config.url?.startsWith('/productCategory')) {
+      const segment = window.location.hash.split('/')[1] || ''
+      const zone = ({ pick: 'PICK', rebuy: 'REBUY', consume: 'CONSUME' } as Record<string, string>)[segment]
+      if (zone) config.params = { ...config.params, zone }
+    }
     //从pinia获取token
     const userStore = useUserStore()
     const token = userStore.userInfo.token

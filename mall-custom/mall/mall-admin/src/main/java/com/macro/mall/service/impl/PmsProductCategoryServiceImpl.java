@@ -24,6 +24,18 @@ import java.util.List;
  */
 @Service
 public class PmsProductCategoryServiceImpl implements PmsProductCategoryService {
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate zoneJdbc;
+    @Autowired private jakarta.servlet.http.HttpServletRequest zoneRequest;
+    private String categoryZone() {
+        String z = zoneRequest.getParameter("zone");
+        if (z != null && !java.util.Set.of("PICK", "REBUY", "CONSUME").contains(z)) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "专区无效");
+        return z;
+    }
+    private List<Long> categoryIds() { return zoneJdbc.queryForList("SELECT category_id FROM pms_category_zone WHERE zone_code=?", Long.class, categoryZone()); }
+    private void requireCategory(Long id) {
+        if (categoryZone() != null && id != null && id != 0 && !categoryIds().contains(id)) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "分类不属于当前专区");
+    }
+
     @Autowired
     private PmsProductCategoryMapper productCategoryMapper;
     @Autowired
@@ -35,13 +47,16 @@ public class PmsProductCategoryServiceImpl implements PmsProductCategoryService 
     @Autowired
     private PmsProductCategoryDao productCategoryDao;
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public int create(PmsProductCategoryParam pmsProductCategoryParam) {
+        requireCategory(pmsProductCategoryParam.getParentId());
         PmsProductCategory productCategory = new PmsProductCategory();
         productCategory.setProductCount(0);
         BeanUtils.copyProperties(pmsProductCategoryParam, productCategory);
         //没有父分类时为一级分类
         setCategoryLevel(productCategory);
         int count = productCategoryMapper.insertSelective(productCategory);
+        if (categoryZone() != null) zoneJdbc.update("INSERT INTO pms_category_zone(category_id,zone_code) VALUES (?,?)", productCategory.getId(), categoryZone());
         //创建筛选属性关联
         List<Long> productAttributeIdList = pmsProductCategoryParam.getProductAttributeIdList();
         if(!CollUtil.isEmpty(productAttributeIdList)){
@@ -68,6 +83,8 @@ public class PmsProductCategoryServiceImpl implements PmsProductCategoryService 
 
     @Override
     public int update(Long id, PmsProductCategoryParam pmsProductCategoryParam) {
+        requireCategory(id);
+        requireCategory(pmsProductCategoryParam.getParentId());
         PmsProductCategory productCategory = new PmsProductCategory();
         productCategory.setId(id);
         BeanUtils.copyProperties(pmsProductCategoryParam, productCategory);
@@ -94,25 +111,30 @@ public class PmsProductCategoryServiceImpl implements PmsProductCategoryService 
 
     @Override
     public List<PmsProductCategory> getList(Long parentId, Integer pageSize, Integer pageNum) {
-        PageHelper.startPage(pageNum, pageSize);
         PmsProductCategoryExample example = new PmsProductCategoryExample();
         example.setOrderByClause("sort desc");
-        example.createCriteria().andParentIdEqualTo(parentId);
+        requireCategory(parentId);
+        var criteria = example.createCriteria().andParentIdEqualTo(parentId);
+        if (categoryZone() != null) { var ids = categoryIds(); criteria.andIdIn(ids.isEmpty() ? java.util.List.of(-1L) : ids); }
+        PageHelper.startPage(pageNum, pageSize);
         return productCategoryMapper.selectByExample(example);
     }
 
     @Override
     public int delete(Long id) {
+        requireCategory(id);
         return productCategoryMapper.deleteByPrimaryKey(id);
     }
 
     @Override
     public PmsProductCategory getItem(Long id) {
+        requireCategory(id);
         return productCategoryMapper.selectByPrimaryKey(id);
     }
 
     @Override
     public int updateNavStatus(List<Long> ids, Integer navStatus) {
+        ids.forEach(this::requireCategory);
         PmsProductCategory productCategory = new PmsProductCategory();
         productCategory.setNavStatus(navStatus);
         PmsProductCategoryExample example = new PmsProductCategoryExample();
@@ -122,6 +144,7 @@ public class PmsProductCategoryServiceImpl implements PmsProductCategoryService 
 
     @Override
     public int updateShowStatus(List<Long> ids, Integer showStatus) {
+        ids.forEach(this::requireCategory);
         PmsProductCategory productCategory = new PmsProductCategory();
         productCategory.setShowStatus(showStatus);
         PmsProductCategoryExample example = new PmsProductCategoryExample();
@@ -131,7 +154,12 @@ public class PmsProductCategoryServiceImpl implements PmsProductCategoryService 
 
     @Override
     public List<PmsProductCategoryWithChildrenItem> listWithChildren() {
-        return productCategoryDao.listWithChildren();
+        var list = productCategoryDao.listWithChildren();
+        if (categoryZone() != null) {
+            var ids = categoryIds(); list.removeIf(c -> !ids.contains(c.getId()));
+            list.forEach(c -> { if(c.getChildren()!=null) c.getChildren().removeIf(child -> !ids.contains(child.getId())); });
+        }
+        return list;
     }
 
     /**

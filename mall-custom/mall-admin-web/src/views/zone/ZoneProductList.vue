@@ -55,7 +55,7 @@ async function load() {
   try {
     const res = await http<ZoneProduct[]>({
       url: '/p0/zones/' + zone.value + '/products',
-      params: { keyword: keyword.value, assignedOnly: false },
+      params: { keyword: keyword.value, assignedOnly: true },
     })
     if (revision === loadRevision) { rows.value = res.data || []; page.value = 1 }
   } catch {
@@ -169,7 +169,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       <div>
         <small>商品管理</small>
         <h1>{{ zoneLabel }}商品管理</h1>
-        <p>商品上下架、上首页（新品/推荐）与专区归属统一在此维护。</p>
+        <p>仅展示当前专区的商品，其他专区商品不会出现在此列表。</p>
       </div>
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
@@ -179,18 +179,14 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
     <el-card shadow="never">
       <div class="filters">
         <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="load" />
-        <el-select v-model="assignmentFilter" style="width:200px" aria-label="专区归属筛选">
-          <el-option label="全部未删除商品" value="all" />
-          <el-option :label="'已加入' + zoneLabel" value="assigned" />
-          <el-option :label="'未加入' + zoneLabel" value="unassigned" />
-        </el-select>
+
         <el-button type="primary" @click="load">查询</el-button>
       </div>
       <el-alert type="info" :closable="false">
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>本页返回 {{ rows.length }} 个候选商品；{{ rows.filter(isAssigned).length }} 个已加入本专区，其中 {{ rows.filter(row => isAssigned(row) && !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前；自选区还须满足3999元旅游路线及规格规则。最多返回100条，请用关键词缩小范围。</span>
+        <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
@@ -236,7 +232,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             </el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="setFlag(row, 'new')">设为新品</el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="setFlag(row, 'recommend')">设为推荐</el-button>
-            <el-button v-if="isAssigned(row)" link type="danger" :disabled="busy === row.id" @click="remove(row)">移出</el-button>
+            <el-button v-if="isAssigned(row)" link type="danger" :disabled="busy === row.id" @click="remove(row)">移出专区</el-button>
             <el-button v-else link type="success" :disabled="busy === row.id" @click="assign(row)">加入专区</el-button>
           </template>
         </el-table-column>

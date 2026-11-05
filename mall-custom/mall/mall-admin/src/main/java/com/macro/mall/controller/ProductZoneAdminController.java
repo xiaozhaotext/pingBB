@@ -59,7 +59,7 @@ public class ProductZoneAdminController {
                 "LEFT JOIN tri_membership_product t ON t.product_id=p.id " +
                 "LEFT JOIN pms_brand b ON b.id=p.brand_id " +
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
-                (assignedOnly ? "AND z.product_id IS NOT NULL " : "") +
+                "AND z.product_id IS NOT NULL " +
                 "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 100", zone,like,like));
     }
 

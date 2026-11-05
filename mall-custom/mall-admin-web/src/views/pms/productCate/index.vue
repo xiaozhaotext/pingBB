@@ -55,7 +55,7 @@ const categoryRoutePrefix = () => {
 }
 
 // 监听查询参数变化
-watch(() => route.query, () => {
+watch(() => route.fullPath, () => {
   resetParentId()
   getList()
 })
@@ -115,7 +115,7 @@ const handleUpdate = (index: number, row: PmsProductCategory) => {
 
 // 删除分类
 const handleDelete = async (index: number, row: PmsProductCategory) => {
-  await ElMessageBox.confirm('是否要删除该品牌', '提示', {
+  await ElMessageBox.confirm('是否要删除该分类', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
