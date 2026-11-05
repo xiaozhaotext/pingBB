@@ -4,7 +4,7 @@
       <image class="avatar" :src="memberStore.memberInfo?.icon || '/static/missing-face.png'" mode="aspectFill" />
       <view class="account">账号：{{ memberStore.memberInfo?.username || '—' }}</view>
       <view class="field-label">昵称</view>
-      <input v-model="nickname" class="nickname-input" maxlength="24" placeholder="输入 2 至 24 个字符" />
+      <input v-model="nickname" class="nickname-input" :maxlength="24" placeholder="输入 2 至 24 个字符" />
       <button class="save-button" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存昵称' }}</button>
     </view>
   </view>

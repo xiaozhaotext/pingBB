@@ -19,9 +19,9 @@ class MemberLoginCountTest {
         // Keep the database alive across JdbcTemplate's separate connections.
         jdbc = new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:" + UUID.randomUUID()
                 + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", ""));
-        jdbc.execute("CREATE TABLE ums_admin(id BIGINT,username VARCHAR(50),status INT)");
+        jdbc.execute("CREATE TABLE ums_admin(id BIGINT,username VARCHAR(50),status INT,dept_id BIGINT)");
         jdbc.execute("CREATE TABLE ums_admin_role_relation(admin_id BIGINT,role_id BIGINT)");
-        jdbc.update("INSERT INTO ums_admin VALUES(3,'admin',1)");
+        jdbc.update("INSERT INTO ums_admin(id,username,status) VALUES(3,'admin',1)");
         jdbc.update("INSERT INTO ums_admin_role_relation VALUES(3,5)");
         jdbc.execute("CREATE TABLE ums_member(id BIGINT,username VARCHAR(50),nickname VARCHAR(50),phone VARCHAR(20),gender INT,status INT,create_time TIMESTAMP)");
         jdbc.update("INSERT INTO ums_member VALUES(1,'active-user','活跃会员','19900000001',0,1,NOW()),(2,'new-user','新会员','19900000002',0,1,NOW())");
