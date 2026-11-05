@@ -32,6 +32,7 @@ import java.util.UUID;
 public class PickProductImportService {
     private static final BigDecimal PRICE = new BigDecimal("3999.00");
     private static final List<String> HEADERS = List.of("商品名称", "副标题", "商品货号", "库存", "封面图URL", "行程简介", "行程详情");
+    private static final List<String> OTHER_HEADERS = List.of("商品分类", "商品名称", "副标题", "商品货号", "售价", "库存", "封面图URL", "商品简介", "商品详情");
     private final JdbcTemplate jdbc;
     private final PmsProductService productService;
 
@@ -42,10 +43,18 @@ public class PickProductImportService {
 
     public record Result(int imported, List<String> names) {}
     private record Route(int row, String name, String subtitle, String sn, int stock,
-                         String cover, String summary, String itinerary) {}
+                         String cover, String summary, String itinerary, String category, BigDecimal price) {}
 
     @Transactional(rollbackFor = Exception.class)
     public Result importFile(MultipartFile file) throws IOException {
+        return importFile("PICK", file);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Result importFile(String zone, MultipartFile file) throws IOException {
+        if (!List.of("PICK", "REBUY", "CONSUME").contains(zone)) bad("无效的商品专区");
+        boolean pick = "PICK".equals(zone);
+        List<String> headers = pick ? HEADERS : OTHER_HEADERS;
         if (file.isEmpty() || file.getSize() > 10 * 1024 * 1024)
             bad("文件不能为空且不能超过10MB");
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
@@ -61,7 +70,7 @@ public class PickProductImportService {
                 var formatter = new DataFormatter(Locale.CHINA);
                 for (Row row : sheet) {
                     List<String> values = new ArrayList<>();
-                    for (int i = 0; i < HEADERS.size(); i++) {
+                    for (int i = 0; i < headers.size(); i++) {
                         Cell cell = row.getCell(i);
                         if (cell != null && cell.getCellType() == CellType.FORMULA) bad("第" + (row.getRowNum() + 1) + "行含公式，请先粘贴为值");
                         values.add(cell == null ? "" : formatter.formatCellValue(cell).trim());
@@ -78,30 +87,32 @@ public class PickProductImportService {
             bad("仅支持 .csv、.xlsx、.xls 文件");
             return null;
         }
-        List<Route> routes = validate(rows);
-        List<Long> category = jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class);
-        if (category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
+        List<Route> routes = validate(rows, pick, headers);
+        List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
+        if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
         List<String> names = new ArrayList<>();
         for (Route route : routes) {
             PmsProductParam product = new PmsProductParam();
-            product.setZoneCode("PICK");
-            product.setProductCategoryId(category.get(0));
-            product.setProductCategoryName("旅游路线");
-            if (!attribute.isEmpty()) product.setProductAttributeCategoryId(attribute.get(0));
+            product.setZoneCode(zone);
+            String categoryName = pick ? "旅游路线" : route.category();
+            Long categoryId = pick ? category.get(0) : findCategory(categoryName, route.row());
+            product.setProductCategoryId(categoryId);
+            product.setProductCategoryName(categoryName);
+            if (pick && !attribute.isEmpty()) product.setProductAttributeCategoryId(attribute.get(0));
             product.setName(route.name());
             product.setSubTitle(route.subtitle());
-            product.setProductSn(route.sn().isBlank() ? "TOUR-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT) : route.sn());
+            product.setProductSn(route.sn().isBlank() ? (pick ? "TOUR-" : "IMP-") + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT) : route.sn());
             product.setStock(route.stock());
             product.setLowStock(0);
-            product.setPrice(PRICE);
-            product.setOriginalPrice(PRICE);
+            product.setPrice(route.price());
+            product.setOriginalPrice(route.price());
             product.setPic(route.cover());
             product.setDescription(route.summary());
             String detail = "<p>" + HtmlUtils.htmlEscape(route.itinerary()).replace("\n", "<br>") + "</p>";
             product.setDetailHtml(detail);
             product.setDetailMobileHtml(detail);
-            product.setUnit("条");
+            product.setUnit(pick ? "条" : "件");
             product.setPublishStatus(0);
             product.setDeleteStatus(0);
             product.setVerifyStatus(1);
@@ -110,7 +121,7 @@ public class PickProductImportService {
             product.setGiftGrowth(0);
             product.setUsePointLimit(0);
             PmsSkuStock sku = new PmsSkuStock();
-            sku.setPrice(PRICE);
+            sku.setPrice(route.price());
             sku.setStock(route.stock());
             sku.setLowStock(0);
             sku.setLockStock(0);
@@ -122,12 +133,18 @@ public class PickProductImportService {
         return new Result(names.size(), names);
     }
 
-    private List<Route> validate(List<List<String>> rows) {
+    private Long findCategory(String name, int line) {
+        List<Long> ids = jdbc.queryForList("SELECT id FROM pms_product_category WHERE name=? AND show_status=1 ORDER BY id LIMIT 2", Long.class, name);
+        if (ids.size() != 1) bad("第" + line + "行：商品分类不存在、未启用或名称重复，请使用唯一的已启用分类名称");
+        return ids.get(0);
+    }
+
+    private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers) {
         if (rows.isEmpty()) bad("文件没有表头");
         Map<String, Integer> columns = new HashMap<>();
         List<String> first = rows.get(0);
         for (int i = 0; i < first.size(); i++) columns.put(first.get(i).replace("\uFEFF", "").trim(), i);
-        for (String header : HEADERS) if (!columns.containsKey(header)) bad("缺少列：" + header);
+        for (String header : headers) if (!columns.containsKey(header)) bad("缺少列：" + header);
         List<Route> result = new ArrayList<>();
         Set<String> sns = new HashSet<>();
         for (int i = 1; i < rows.size(); i++) {
@@ -139,8 +156,17 @@ public class PickProductImportService {
             String sn = value(row, columns, "商品货号");
             String stockText = value(row, columns, "库存");
             String cover = value(row, columns, "封面图URL");
-            String summary = value(row, columns, "行程简介");
-            String detail = value(row, columns, "行程详情");
+            String summary = value(row, columns, pick ? "行程简介" : "商品简介");
+            String detail = value(row, columns, pick ? "行程详情" : "商品详情");
+            String categoryName = pick ? "旅游路线" : value(row, columns, "商品分类");
+            if (categoryName.isBlank() || categoryName.length() > 64) bad("第" + line + "行：商品分类不能为空或过长");
+            BigDecimal price = PRICE;
+            if (!pick) {
+                try { price = new BigDecimal(value(row, columns, "售价")); }
+                catch (NumberFormatException e) { bad("第" + line + "行：售价无效"); }
+                if (price.scale() > 2 || price.compareTo(BigDecimal.ZERO) <= 0 || price.compareTo(new BigDecimal("999999.99")) > 0)
+                    bad("第" + line + "行：售价须大于0且最多两位小数");
+            }
             if (name.length() < 2 || name.length() > 140 || subtitle.isBlank() || subtitle.length() > 255)
                 bad("第" + line + "行：商品名称或副标题无效");
             if (sn.length() > 64 || (!sn.isBlank() && !sns.add(sn))) bad("第" + line + "行：商品货号重复或过长");
@@ -152,8 +178,8 @@ public class PickProductImportService {
             if (cover.length() > 255 || !(cover.startsWith("https://") || cover.startsWith("/product-images/")))
                 bad("第" + line + "行：封面图须为 HTTPS 或后台上传的图片地址");
             if (summary.isBlank() || summary.length() > 500 || detail.isBlank() || detail.length() > 10000)
-                bad("第" + line + "行：行程简介或详情为空、过长");
-            result.add(new Route(line, name, subtitle, sn, stock, cover, summary, detail));
+                bad("第" + line + "行：简介或详情为空、过长");
+            result.add(new Route(line, name, subtitle, sn, stock, cover, summary, detail, categoryName, price));
         }
         if (result.isEmpty() || result.size() > 200) bad("每次须导入1至200条路线");
         return result;

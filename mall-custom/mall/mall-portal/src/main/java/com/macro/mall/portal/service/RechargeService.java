@@ -52,7 +52,7 @@ public class RechargeService {
         if (requestId == null || !requestId.matches("[A-Za-z0-9-]{16,64}"))
             throw new IllegalArgumentException("充值请求编号无效");
         requireChannel(channel);
-        String no = "RC" + UUID.randomUUID().toString().replace("-", "");
+        String no = "RC" + UUID.randomUUID().toString().replace("-", "").substring(0, 30);
         jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE order_no=order_no",
                 no, member, requestId, value, channel);
         Map<String,Object> row = jdbc.queryForMap("SELECT * FROM ums_recharge_order WHERE member_id=? AND request_id=?", member, requestId);
@@ -158,6 +158,8 @@ public class RechargeService {
         String channel = (String)row.get("channel");
         requireChannel(channel);
         if ("MOCK".equals(channel)) return Map.of("type", "SANDBOX_RECHARGE", "orderNo", no);
+        if ("WECHAT".equals(channel) && no.length() > 32)
+            throw new IllegalArgumentException("这笔旧充值订单号不符合微信支付要求，请返回充值列表重新创建订单；旧单不会扣款");
         boolean jsapi = "WECHAT".equals(channel) && "JSAPI".equals(mode);
         if (!jsapi && mode != null && !"H5".equals(mode))
             throw new IllegalArgumentException("支付方式无效");

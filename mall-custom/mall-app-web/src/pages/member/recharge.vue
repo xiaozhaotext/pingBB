@@ -10,7 +10,7 @@
       <view v-else class="choices"><button :disabled="busy || !!current || !availableChannels.includes('WECHAT')" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button :disabled="busy || !!current || !availableChannels.includes('ALIPAY')" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
       <button class="primary" :disabled="busy || !loaded || !!current || !supported" @click="create">确认充值</button>
       <text v-if="!supported" class="hint">请在手机浏览器打开商城完成充值。</text>
-      <view v-if="current" class="pending"><text>订单 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '已到账' : '待支付 / 到账确认中' }}</text><button v-if="current.status !== 'PAID'" :disabled="busy" @click="pay">继续支付同一订单</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="current = null">返回充值列表</button></view>
+      <view v-if="current" class="pending"><text>订单 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '已到账' : '待支付 / 到账确认中' }}</text><text v-if="current.channel === 'WECHAT' && current.orderNo.length > 32" class="error">这笔旧订单号不符合微信支付要求，未扣款。请返回充值列表重新创建订单。</text><button v-if="current.status !== 'PAID' && !(current.channel === 'WECHAT' && current.orderNo.length > 32)" :disabled="busy" @click="pay">继续支付同一订单</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="clearCurrent">返回充值列表</button></view>
       <text v-if="error" class="error">{{ error }}</text>
       <text class="hint">支付跳转或返回页面不代表到账，请以订单“已到账”为准。付款后请勿另建订单重复支付。</text>
     </view>
@@ -80,6 +80,7 @@ onShow(async () => {
   }
 })
 function select(o:Order) {current.value=o;amount.value=o.amount;channel.value=o.channel}
+function clearCurrent() {current.value=null;error.value='';uni.removeStorageSync(storageKey+'-active');uni.removeStorageSync(storageKey);uni.removeStorageSync(storageKey+'-oauth-resume')}
 async function create() {
   if(busy.value) return
   if(!loaded.value || !modeReady.value) {error.value='账户尚未加载或充值环境不匹配，请刷新后重试';return}

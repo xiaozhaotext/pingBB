@@ -49,12 +49,12 @@ const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
 
 function downloadImportTemplate() {
-  const header = '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n'
+  const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n'
   const blob = new Blob(['\uFEFF', header], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = '自选区旅游路线导入模板.csv'
+  link.download = `${zoneLabel.value}商品导入模板.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -77,10 +77,10 @@ async function importRoutes(event: Event) {
     const form = new FormData()
     form.append('file', file)
     const response = await http<{ imported: number; names: string[] }>({
-      url: '/p0/zones/PICK/products/import', method: 'post', data: form, timeout: 120000,
+      url: `/p0/zones/${zone.value}/products/import`, method: 'post', data: form, timeout: 120000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
-    ElMessage.success(`已导入 ${response.data.imported} 条旅游路线，默认下架，请核对后上架`)
+    ElMessage.success(`已导入 ${response.data.imported} 件${zoneLabel.value}商品，默认下架，请核对后上架`)
     await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
@@ -227,7 +227,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </div>
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
-        <template v-if="zone === 'PICK'">
+        <template>
           <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
           <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
           <el-button @click="downloadImportTemplate">下载导入模板</el-button>
@@ -248,6 +248,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
+      <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">

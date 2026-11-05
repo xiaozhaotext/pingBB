@@ -69,4 +69,36 @@ class PickProductImportServiceTest {
         assertTrue(error.getReason().contains("库存"));
         verifyNoInteractions(products);
     }
+
+    @Test
+    void importsRebuyProductWithSpreadsheetPriceAndCategory() throws Exception {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        PmsProductService products = mock(PmsProductService.class);
+        when(jdbc.queryForList(contains("show_status=1"), eq(Long.class), eq("日用品"))).thenReturn(List.of(42L));
+        var service = new PickProductImportService(jdbc, products);
+        String csv = "商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n"
+                + "日用品,旅行水杯,便携水杯,CUP-001,19.90,6,https://example.com/cup.jpg,随行水杯,容量500毫升\n";
+        var file = new MockMultipartFile("file", "products.csv", "text/csv", csv.getBytes(StandardCharsets.UTF_8));
+        assertEquals(1, service.importFile("REBUY", file).imported());
+        var capture = org.mockito.ArgumentCaptor.forClass(PmsProductParam.class);
+        verify(products).create(capture.capture());
+        assertEquals("REBUY", capture.getValue().getZoneCode());
+        assertEquals(42L, capture.getValue().getProductCategoryId());
+        assertEquals(new java.math.BigDecimal("19.90"), capture.getValue().getSkuStockList().get(0).getPrice());
+        assertEquals(0, capture.getValue().getPublishStatus());
+    }
+
+    @Test
+    void rejectsUnknownCategoryBeforeImport() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        PmsProductService products = mock(PmsProductService.class);
+        var service = new PickProductImportService(jdbc, products);
+        String csv = "商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n"
+                + "不存在,旅行水杯,便携水杯,CUP-001,19.90,6,https://example.com/cup.jpg,随行水杯,容量500毫升\n";
+        var file = new MockMultipartFile("file", "products.csv", "text/csv", csv.getBytes(StandardCharsets.UTF_8));
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.importFile("CONSUME", file));
+        assertTrue(error.getReason().contains("商品分类"));
+        verifyNoInteractions(products);
+    }
 }
