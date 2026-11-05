@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/utils/http'
+import type { AxiosRequestConfig } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { productImageUrl } from '@/utils/productImage'
 import {
@@ -77,11 +78,13 @@ async function importRoutes(event: Event) {
     form.append('file', file)
     const response = await http<{ imported: number; names: string[] }>({
       url: '/p0/zones/PICK/products/import', method: 'post', data: form, timeout: 120000,
-    })
+      silent: true,
+    } as AxiosRequestConfig & { silent: boolean })
     ElMessage.success(`已导入 ${response.data.imported} 条旅游路线，默认下架，请核对后上架`)
     await load()
-  } catch {
-    // 请求层展示包含行号的错误，整批导入会回滚。
+  } catch (error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    ElMessage.error(response?.data?.message || '导入失败，请检查文件后重试')
   } finally {
     importing.value = false
   }
@@ -309,6 +312,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .import-help { color: #6d8074; font-size: 13px; line-height: 1.6; }
 </style>
+
 
 
 
