@@ -115,6 +115,15 @@ async function saveSort(row: ZoneProduct) {
     busy.value = null
   }
 }
+async function deleteProduct(row: ZoneProduct) {
+  try { await ElMessageBox.confirm(`删除「${row.name}」后将进入${zoneLabel.value}商品回收站，保留期内可恢复。`, '删除商品', { type: 'warning', confirmButtonText: '删除商品', cancelButtonText: '取消' }) } catch { return }
+  busy.value = row.id
+  try {
+    await http({ url: `/p0/zones/${zone.value}/products/${row.id}/trash`, method: 'post' })
+    ElMessage.success('已移入商品回收站')
+    await load()
+  } finally { busy.value = null }
+}
 async function remove(row: ZoneProduct) {
   await ElMessageBox.confirm('将商品移出' + zoneLabel.value + '后，商城不会在该专区显示它。', '移出专区')
   busy.value = row.id
@@ -223,7 +232,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             <el-tag v-else type="info">{{ row.displayReason }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="425" fixed="right">
+        <el-table-column label="操作" width="520" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
             <el-button v-if="isAssigned(row)" link type="primary" :disabled="busy === row.id" @click="saveSort(row)">保存排序</el-button>
@@ -232,6 +241,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             </el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="setFlag(row, 'new')">设为新品</el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="setFlag(row, 'recommend')">设为推荐</el-button>
+            <el-button link type="danger" :disabled="busy === row.id" @click="deleteProduct(row)">删除商品</el-button>
             <el-button v-if="isAssigned(row)" link type="danger" :disabled="busy === row.id" @click="remove(row)">移出专区</el-button>
             <el-button v-else link type="success" :disabled="busy === row.id" @click="assign(row)">加入专区</el-button>
           </template>

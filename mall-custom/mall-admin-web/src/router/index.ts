@@ -30,6 +30,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [
       { path: 'category', name: 'pickCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
       { path: 'product', name: 'pickProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'trash', name: 'pickTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
       { path: 'add-category', name: 'pickAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
       { path: 'update-category', name: 'pickUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
       { path: 'add-product', name: 'pickAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
@@ -43,6 +44,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [
       { path: 'category', name: 'rebuyCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
       { path: 'product', name: 'rebuyProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'trash', name: 'rebuyTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
       { path: 'add-category', name: 'rebuyAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
       { path: 'update-category', name: 'rebuyUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
       { path: 'add-product', name: 'rebuyAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
@@ -56,6 +58,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [
       { path: 'category', name: 'consumeCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
       { path: 'product', name: 'consumeProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+      { path: 'trash', name: 'consumeTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
       { path: 'add-category', name: 'consumeAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
       { path: 'update-category', name: 'consumeUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
       { path: 'add-product', name: 'consumeAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
