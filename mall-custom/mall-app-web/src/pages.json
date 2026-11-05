@@ -243,7 +243,14 @@
     {
       "path": "pages/notice/notice",
       "style": {
-        "navigationBarTitleText": "消息通知"
+        "navigationBarTitleText": "消息通知",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/notice/detail",
+      "style": {
+        "navigationBarTitleText": "公告详情"
       }
     },
     {

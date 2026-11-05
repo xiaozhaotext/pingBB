@@ -93,7 +93,7 @@ const CLOUD_LOCK = {
     hidden: false
   },
   desktopClearCache: {
-    sort: 11,
+    sort: 10,
     hidden: false
   },
   financeFunds: {
@@ -133,8 +133,8 @@ const CLOUD_LOCK = {
     hidden: false
   },
   serviceDesktopUser: {
-    sort: 10,
-    hidden: false
+    sort: 9,
+    hidden: true
   },
   systemAdminSettings: {
     sort: 7,
@@ -241,8 +241,8 @@ const CLOUD_LOCK = {
     hidden: true
   },
   memberMgrNotices: {
-    sort: 8,
-    hidden: true
+    sort: 11,
+    hidden: false
   },
   systemVisits: {
     sort: 7,

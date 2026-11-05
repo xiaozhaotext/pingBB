@@ -28,6 +28,23 @@ test('fresh authorized deep link is re-matched after dynamic route registration'
   assert.equal(router.currentRoute.value.name,'financeDividend')
   assert.equal(router.currentRoute.value.query.date,'2026-10-17')
 })
+
+test('desktop displays dashboard, notice management and cache with the existing notice permission and old URL', () => {
+  const loaded = execute('router/index.ts', { 'vue-router': { ...vueRouter, createWebHashHistory: vueRouter.createMemoryHistory } })
+  const pinia = require('pinia')
+  pinia.setActivePinia(pinia.createPinia())
+  const permissions = execute('stores/permission.ts', { pinia, vue: require('vue'), '@/router/index': loaded })
+  const store = permissions.usePermissionStore()
+  const names = ['serviceDesktop', 'serviceDesktopData', 'memberMgrNotices', 'desktopClearCache', 'serviceDesktopUser']
+  store.generateRoutes({ username: 'test', menus: names.map((name, index) => ({
+    name, hidden: name === 'serviceDesktopUser' ? 1 : 0, sort: 100 - index,
+  })) })
+  const desktop = store.addRouters.find(route => route.name === 'serviceDesktop')
+  assert.deepEqual(Array.from(desktop.children.filter(route => !route.hidden), route => route.meta.title), ['大数据界面', '公告管理', '清除缓存'])
+  loaded.default.addRoute(desktop)
+  assert.equal(loaded.default.resolve('/desktop/notices').name, 'memberMgrNotices')
+  assert.equal(loaded.default.resolve('/memberMgr/operations/notices').name, 'memberMgrNotices')
+})
 test('unknown console URL renders a real not-found route instead of an empty view',async()=>{
   const router=setup();await router.push('/no-such-console-page')
   assert.equal(router.currentRoute.value.name,'notFound')
