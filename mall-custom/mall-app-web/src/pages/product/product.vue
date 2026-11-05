@@ -299,6 +299,7 @@
 <script setup lang="ts">
 const isSandboxDemo = import.meta.env.VITE_SANDBOX_MODE === 'true'
 import { productImageUrl } from '@/utils/productImage'
+import { displayedSkuPrice, promotionTips } from '@/utils/productPromotion'
 const fallbackPage=ref('/pages/index/index')
 // 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集
 const zoneCode = ref<ZoneCode | undefined>()
@@ -500,6 +501,8 @@ const skuStockList = ref<PmsSkuStock[]>([])
 // 属性、促销、服务
 const attrList = ref<{ key: string; value: string }[]>([])
 const promotionTipList = ref<string[]>([])
+let catalogueProduct: PmsProduct | undefined
+let membershipRoute = false
 const serviceList = ref<string[]>([])
 
 // 优惠券
@@ -563,7 +566,9 @@ const loadData = async (id: number) => {
     if (res.data?.product) {
       const data = res.data
       membershipOffer.value = data.membershipOffer
-      product.value = data.product
+      catalogueProduct = { ...data.product }
+      membershipRoute = data.membershipRoute === true
+      product.value = { ...data.product }
       skuStockList.value = data.skuStockList
       brand.value = data.brand || ({} as PmsBrand)
       shopName.value = data.shopName || '平台自营'
@@ -754,27 +759,7 @@ const initAttrList = (data: any) => {
 
 // 初始化促销活动信息
 const initPromotionTipList = (data: any) => {
-  const promotionType = product.value.promotionType
-
-  if (promotionType === 0) {
-    promotionTipList.value.push('暂无优惠')
-  } else if (promotionType === 1) {
-    promotionTipList.value.push('单品优惠')
-  } else if (promotionType === 2) {
-    promotionTipList.value.push('会员优惠')
-  } else if (promotionType === 3) {
-    promotionTipList.value.push('多买优惠')
-    for (const item of data.productLadderList || []) {
-      promotionTipList.value.push(`满${item.count}件打${item.discount * 10}折`)
-    }
-  } else if (promotionType === 4) {
-    promotionTipList.value.push('满减优惠')
-    for (const item of data.productFullReductionList || []) {
-      promotionTipList.value.push(`满${item.fullPrice}元减${item.reducePrice}元`)
-    }
-  } else if (promotionType === 5) {
-    promotionTipList.value.push('限时优惠')
-  }
+  promotionTipList.value = promotionTips(data, zoneCode.value === 'PICK' || (!zoneCode.value && membershipRoute))
 }
 
 // 初始化商品详情HTML
@@ -834,15 +819,8 @@ const changeSpecInfo = () => {
     if (skuStock.price != null) {
       product.value.originalPrice = skuStock.price
     }
-    if (product.value.promotionType === 1) {
-      // 单品优惠使用促销价，SKU没有促销价时使用商品本身的促销价
-      const skuPrice = skuStock.promotionPrice ?? skuStock.price
-      if (skuPrice != null) {
-        product.value.price = skuPrice
-      }
-    } else if (skuStock.price != null) {
-      product.value.price = skuStock.price
-    }
+    product.value.price = displayedSkuPrice(catalogueProduct || product.value, skuStock,
+      zoneCode.value === 'PICK' || (!zoneCode.value && membershipRoute))
     if (skuStock.stock != null) {
       product.value.stock = skuStock.stock
     }

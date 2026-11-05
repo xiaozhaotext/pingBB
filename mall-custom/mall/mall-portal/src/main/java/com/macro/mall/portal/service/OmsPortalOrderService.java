@@ -86,7 +86,7 @@ public interface OmsPortalOrderService {
     void paySuccessByOrderSn(String orderSn, Integer payType);
 
     /**
-     * 根据orderSn来获取订单
+     * 根据订单号获取未删除订单，包含已支付及已关闭状态，供支付结果核对和重复通知使用。
      */
     OmsOrder getOrderByOrderSn(String orderSn);
 }

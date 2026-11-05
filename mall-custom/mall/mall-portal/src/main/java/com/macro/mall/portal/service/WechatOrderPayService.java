@@ -18,6 +18,11 @@ public interface WechatOrderPayService {
     /** 校验并解析微信支付结果通知 */
     VerifiedPayment verifyNotify(String rawBody, String serial, String nonce, String signature, String timestamp);
 
+    /** Query the signed provider response; a browser callback is never payment evidence. */
+    PaymentQuery queryPayment(String outTradeNo);
+
+    record PaymentQuery(String tradeState, VerifiedPayment payment) { }
+
     record VerifiedPayment(String outTradeNo, String transactionId, BigDecimal amount) {
     }
 }

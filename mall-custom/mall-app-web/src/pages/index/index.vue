@@ -13,7 +13,7 @@
         </view>
       </view>
       <view class="travel-hero"><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
-      <view class="home-announcement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text></view>
+      <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
         <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
@@ -51,6 +51,7 @@ import { getZoneProductsAPI, type ZoneCode, type ZoneProduct } from '@/apis/zone
 import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import {
   onLoad,
+  onShow,
   onPullDownRefresh,
   onReachBottom,
   onPageScroll,
@@ -64,8 +65,21 @@ import type { PmsBrand } from '@/types/brand'
 import type { PageParam } from '@/types/common'
 
 const announcement=ref('暂无公告')
-import { http } from '@/utils/http'
-const loadAnnouncement=async()=>{try{const r=await http<Array<{title:string}>>({url:'/home/announcements',method:'GET'});announcement.value=r.data?.find(item => import.meta.env.VITE_SANDBOX_MODE === 'true' || !['HTTPS验收测试-1791871259','TTPS验收测试-1791871259'].includes(item.title))?.title||'暂无公告'}catch{announcement.value='公告暂不可用'}}
+const announcementId = ref<number>()
+import { getAnnouncementsAPI } from '@/apis/notice'
+const loadAnnouncement = async () => {
+  try {
+    const latest = (await getAnnouncementsAPI()).data?.[0]
+    announcement.value = latest?.title || '暂无公告'
+    announcementId.value = latest?.id
+  } catch {
+    announcement.value = '公告暂不可用'
+    announcementId.value = undefined
+  }
+}
+const openAnnouncement = () => {
+  if (announcementId.value) uni.navigateTo({ url: `/pages/notice/detail?id=${announcementId.value}` })
+}
 const pickProducts=ref<ZoneProduct[]>([])
 const pickLoading=ref(false),pickError=ref(false)
 const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getZoneProductsAPI('PICK')).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
@@ -138,16 +152,18 @@ const cutDownTime = computed(() => {
 
 // ===== 数据加载 =====
 // 加载首页数据
-const loadData = async () => { void loadAnnouncement(); void loadBanner(); await Promise.all([loadPick(),loadRebuy(),loadConsume()]); uni.stopPullDownRefresh() }
+const loadData = async () => { void loadBanner(); await Promise.all([loadPick(),loadRebuy(),loadConsume()]); uni.stopPullDownRefresh() }
 
 // ===== 生命周期 =====
 // 页面加载时执行
 onLoad(() => {
   loadData()
 })
+onShow(() => { void loadAnnouncement() })
 
 // 下拉刷新时执行
 onPullDownRefresh(() => {
+  void loadAnnouncement()
   recommendPageParam.value.pageNum = 1
   loadData()
 })

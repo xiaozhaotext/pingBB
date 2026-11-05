@@ -5,6 +5,16 @@
 import type { MemberReceiveAddress } from './address'
 import type { SmsCoupon } from './coupon'
 
+export type FullReductionOffer = {
+  productId: number
+  productName: string
+  zoneCode: string
+  currentAmount: number
+  threshold: number
+  discount: number
+  gap: number
+}
+
 /** 购物车促销项 */
 export type CartPromotionItem = {
   /** ID */
@@ -31,6 +41,7 @@ export type CartPromotionItem = {
   productSubTitle: string
   /** 促销活动信息 */
   promotionMessage: string
+  fullReductionOffer?: FullReductionOffer
   /** 商品价格 */
   price: number
   /** 购买数量 */
@@ -214,6 +225,8 @@ export type OrderParam = {
   useBalance?: boolean
   /** 复购区是否使用「30%复购积分 + 70%现金」模式；大于 0 表示启用 */
   useRepurchasePoints?: number
+  /** 消费区：true 使用商品积分，false 使用余额优先、余款外部支付 */
+  useProductPoints?: boolean
 }
 
 /** 生成订单返回结果（对应后端 OrderResult） */

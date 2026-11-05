@@ -84,7 +84,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
 
     @Override
     public ConfirmOrderResult generateConfirmOrder(List<Long> cartIds) {
-        return buildConfirmOrder(cartIds, null, false, false);
+        return buildConfirmOrder(cartIds, null, false, false, true);
     }
 
     @Override
@@ -92,7 +92,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         SettlementPreviewParam request = param == null ? new SettlementPreviewParam() : param;
         return buildConfirmOrder(request.getCartIds(), request.getCouponId(),
                 Boolean.TRUE.equals(request.getUseBalance()),
-                Boolean.TRUE.equals(request.getUseRepurchasePoints()));
+                Boolean.TRUE.equals(request.getUseRepurchasePoints()),
+                !Boolean.FALSE.equals(request.getUseProductPoints()));
     }
 
     /**
@@ -105,7 +106,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      * @param useRepurchasePoints 复购区是否用「复购积分 + 现金」模式，false 表示复购区全现金
      */
     private ConfirmOrderResult buildConfirmOrder(List<Long> cartIds, Long couponId,
-                                                 boolean useBalance, boolean useRepurchasePoints) {
+                                                 boolean useBalance, boolean useRepurchasePoints,
+                                                 boolean useProductPoints) {
         ConfirmOrderResult result = new ConfirmOrderResult();
         //获取购物车信息（含加入购物车时所在专区）
         UmsMember currentMember = memberService.getCurrentMember();
@@ -131,7 +133,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         List<OmsOrderItem> couponItemList = draftOrderItemsWithCoupon(
                 cartPromotionItemList, couponHistoryDetailList, couponId);
         ZoneSettlement settlement = zoneSettlementService.settle(
-                settlementLines(cartPromotionItemList, couponItemList), useRepurchasePoints, useBalance, wallets);
+                settlementLines(cartPromotionItemList, couponItemList), useRepurchasePoints, useBalance,
+                useProductPoints, wallets);
         result.setZoneSettlement(settlement);
         result.setRebuyEligible(!settlement.getPlans().isEmpty() && settlement.getPlans().stream()
                 .allMatch(plan -> ZoneRules.REBUY.equals(plan.getZoneCode())));
@@ -298,7 +301,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                 && orderParam.getUseRepurchasePoints() > 0;
         ZoneSettlementService.Wallets wallets = wallets(currentMember.getId());
         ZoneSettlement settlement = zoneSettlementService.settle(
-                settlementLines(cartPromotionItemList, orderItemList), useRepurchasePoints, useBalance, wallets);
+                settlementLines(cartPromotionItemList, orderItemList), useRepurchasePoints, useBalance,
+                !Boolean.FALSE.equals(orderParam.getUseProductPoints()), wallets);
         for (ZoneSettlement.Plan plan : settlement.getPlans()) {
             if (!plan.isPayable()) {
                 Asserts.fail(plan.getZoneLabel() + "：" + plan.getBlockedReason());
@@ -660,7 +664,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         OmsOrderExample example =  new OmsOrderExample();
         example.createCriteria()
                 .andOrderSnEqualTo(orderSn)
-                .andStatusEqualTo(0)
                 .andDeleteStatusEqualTo(0);
         List<OmsOrder> orderList = orderMapper.selectByExample(example);
         if(CollUtil.isNotEmpty(orderList)){

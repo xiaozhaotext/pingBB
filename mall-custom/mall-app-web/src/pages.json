@@ -45,11 +45,29 @@
       }
     },
     {
-      "path": "pages/member/contact", "style": { "navigationBarTitleText": "联系资料" }
+      "path": "pages/member/contact",
+      "style": {
+        "navigationBarTitleText": "联系资料"
+      }
     },
-    { "path": "pages/member/travel", "style": { "navigationBarTitleText": "定制旅游路线" } },
-    { "path": "pages/member/benefits", "style": { "navigationBarTitleText": "奖励与旅游权益" } },
-    { "path": "pages/member/recharge", "style": { "navigationBarTitleText": "账户充值" } },
+    {
+      "path": "pages/member/travel",
+      "style": {
+        "navigationBarTitleText": "定制旅游路线"
+      }
+    },
+    {
+      "path": "pages/member/benefits",
+      "style": {
+        "navigationBarTitleText": "奖励与旅游权益"
+      }
+    },
+    {
+      "path": "pages/member/recharge",
+      "style": {
+        "navigationBarTitleText": "账户充值"
+      }
+    },
     {
       "path": "pages/category/category",
       "style": {
@@ -129,6 +147,12 @@
       "path": "pages/set/set",
       "style": {
         "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/user/profile",
+      "style": {
+        "navigationBarTitleText": "个人资料"
       }
     },
     {
@@ -243,7 +267,14 @@
     {
       "path": "pages/notice/notice",
       "style": {
-        "navigationBarTitleText": "消息通知"
+        "navigationBarTitleText": "消息通知",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/notice/detail",
+      "style": {
+        "navigationBarTitleText": "公告详情"
       }
     },
     {
@@ -382,6 +413,12 @@
       "path": "pages/user/use",
       "style": {
         "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/product/fullReduction",
+      "style": {
+        "navigationBarTitleText": "同款满减凑单"
       }
     },
     {

@@ -14,6 +14,8 @@ import java.util.List;
 @Getter
 @Setter
 public class PmsPortalProductDetail{
+    @Schema(title = "指定的自选区会员路线，固定3999元且不可叠加优惠")
+    private boolean membershipRoute;
     @Schema(title = "商品信息")
     private PmsProduct product;
     private String membershipOffer;

@@ -12,6 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * 三区购买规则隔离：自选区现金/余额、复购区复购积分+现金、消费区商品积分。
@@ -40,6 +41,61 @@ class ZoneSettlementServiceTest {
         return settlement.getPlans().stream()
                 .filter(item -> zoneCode.equals(item.getZoneCode()))
                 .findFirst().orElseThrow();
+    }
+
+    @Test
+    void consumeCashUsesBalanceThenExternalPaymentWithoutSpendingPoints() {
+        ZoneSettlement settlement = service.settle(
+                List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)), false, true, false, wallets(500, 0, "40.00"));
+        ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
+        assertTrue(consume.isPayable());
+        assertEquals(0, consume.getProductPoints());
+        assertAmount("40.00", consume.getBalanceAmount());
+        assertAmount("60.00", consume.getCashAmount());
+        assertAmount("60.00", settlement.getCashAmount());
+    }
+
+    @Test
+    void mixedRebuyConsumeNeverSpendsTheSameBalanceTwice() {
+        ZoneSettlement settlement = service.settle(List.of(
+                new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO),
+                new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, false, wallets(0, 100, "90.00"));
+        assertAmount("70.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
+        assertAmount("20.00", plan(settlement, ZoneRules.CONSUME).getBalanceAmount());
+        assertAmount("80.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
+        assertAmount("90.00", settlement.getBalanceAmount());
+    }
+
+    @Test
+    void fractionalRepurchasePointNeverMakesSmallCashOrdersFreeOrBlocked() {
+        var lines = List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("0.50"), 1,
+                BigDecimal.ZERO, BigDecimal.ZERO));
+        var noWallet = service.settle(lines, true, true, wallets(0, 0, "0.00"));
+        var rebuy = plan(noWallet, ZoneRules.REBUY);
+        assertTrue(rebuy.isPayable());
+        assertNull(rebuy.getBlockedReason());
+        assertEquals(0, rebuy.getRepurchasePoints());
+        assertAmount("0.00", rebuy.getRepurchasePointAmount());
+        assertAmount("0.50", rebuy.getCashAmount());
+        assertAmount("0.50", noWallet.getCashAmount());
+        var withBalance = service.settle(lines, true, true, wallets(0, 0, "0.20"));
+        assertAmount("0.20", withBalance.getBalanceAmount());
+        assertAmount("0.30", withBalance.getCashAmount());
+    }
+
+    @Test
+    void wholeRepurchasePointBoundaryStillRequiresTheActualPointBalance() {
+        var below = service.settle(List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("3.33"), 1,
+                BigDecimal.ZERO, BigDecimal.ZERO)), true, false, wallets(0, 0, "0.00"));
+        assertTrue(plan(below, ZoneRules.REBUY).isPayable());
+        assertAmount("3.33", below.getCashAmount());
+        var above = service.settle(List.of(new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("3.34"), 1,
+                BigDecimal.ZERO, BigDecimal.ZERO)), true, false, wallets(0, 0, "0.00"));
+        assertFalse(plan(above, ZoneRules.REBUY).isPayable());
+        assertTrue(plan(above, ZoneRules.REBUY).getBlockedReason().contains("复购积分不足"));
     }
 
     @Test

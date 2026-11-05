@@ -16,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,7 +79,7 @@ public class UmsMemberController {
         if(principal==null){
             return CommonResult.unauthorized(null);
         }
-        UmsMember member = memberService.getCurrentMember();
+        UmsMember member = memberService.getById(memberService.getCurrentMember().getId());
         Map<String, Object> profile = new HashMap<>();
         profile.put("id", member.getId());
         profile.put("username", member.getUsername());
@@ -93,6 +94,20 @@ public class UmsMemberController {
         profile.put("growth", member.getGrowth());
         profile.put("status", member.getStatus());
         return CommonResult.success(profile);
+    }
+
+    public record NicknameUpdate(String nickname) {}
+
+    @Operation(summary = "修改当前会员昵称")
+    @RequestMapping(value = "/profile/nickname", method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult<Void> updateNickname(@RequestBody NicknameUpdate request) {
+        String nickname = request == null || request.nickname() == null ? "" : request.nickname().trim();
+        if (nickname.length() < 2 || nickname.length() > 24 || nickname.chars().anyMatch(Character::isISOControl)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "昵称须为2至24个字符，不能包含控制字符");
+        }
+        memberService.updateNickname(memberService.getCurrentMember().getId(), nickname);
+        return CommonResult.success(null);
     }
 
     @Operation(summary = "获取验证码")

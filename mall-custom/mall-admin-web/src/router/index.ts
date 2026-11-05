@@ -90,7 +90,6 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'cofounder', name: 'memberMgrCofounder', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '联创管理', icon: 'ums-role', section: 'p0Cofounder' } },
         { path: 'stats', name: 'memberStats', component: () => import('@/views/member/MemberStats.vue'), meta: { title: '会员统计', icon: 'total-today' } },
         { path: 'register-notice', name: 'memberRegisterNotice', component: () => import('@/views/member/RegisterNotice.vue'), meta: { title: '注册须知', icon: 'form' } },
-        { path: 'notices', name: 'memberMgrNotices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理', icon: 'form', section: 'p0Notices' } },
         { path: 'consultations', name: 'memberMgrConsultations', component: () => import('@/views/p0/Operations.vue'), meta: { title: '在线咨询', icon: 'form', section: 'p0Consultations' } },
         { path: 'message-records', name: 'memberMgrMessageRecords', component: () => import('@/views/p0/MessageRecords.vue'), meta: { title: '发送记录', icon: 'form' } },
       ] },
@@ -149,8 +148,9 @@ export const asyncRouterMap: RouteRecordExt[] = [
     meta: { title: '后台桌面', icon: 'dashboard' },
     children: [
       { path: 'big-data', name: 'serviceDesktopData', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '大数据界面', icon: 'dashboard' } },
+      { path: 'notices', alias: '/memberMgr/operations/notices', name: 'memberMgrNotices', component: () => import('@/views/p0/Operations.vue'), meta: { title: '公告管理', icon: 'form', section: 'p0Notices' } },
       { path: 'cache-clear', name: 'desktopClearCache', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '清除缓存', icon: 'refresh', section: 'cache' } },
-      { path: 'user', name: 'serviceDesktopUser', component: RouterView, redirect: '/desktop/user/system-home', meta: { title: '用户', icon: 'user' }, children: [
+      { path: 'user', name: 'serviceDesktopUser', hidden: true, component: RouterView, redirect: '/desktop/user/system-home', meta: { title: '用户', icon: 'user' }, children: [
         { path: 'system-home', name: 'serviceDesktopHome', component: () => import('@/views/home/LiveDashboard.vue'), meta: { title: '系统首页', icon: 'dashboard' } },
         { path: 'account', name: 'serviceDesktopPassword', component: () => import('@/views/account/Account.vue'), meta: { title: '修改密码', icon: 'password' } },
         { path: 'lock', name: 'desktopLock', component: () => import('@/views/normal/DesktopAction.vue'), meta: { title: '系统锁屏', icon: 'lock', desktopAction: 'lock' } },

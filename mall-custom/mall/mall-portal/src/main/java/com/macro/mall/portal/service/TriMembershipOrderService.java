@@ -44,12 +44,8 @@ public class TriMembershipOrderService {
             }
         }
         jdbc.queryForObject("SELECT id FROM ums_member WHERE id=? FOR UPDATE",Long.class,order.getMemberId());
-        Integer pending = jdbc.queryForObject("SELECT COUNT(*) FROM tri_order_snapshot s JOIN oms_order o ON o.id=s.order_id"
-                + " WHERE s.member_id=? AND o.status=0",Integer.class,order.getMemberId());
-        Integer pendingCard = jdbc.queryForObject("SELECT COUNT(*) FROM membership_purchase_order"
-                + " WHERE member_id=? AND status='PENDING'",Integer.class,order.getMemberId());
-        if ((pending != null && pending > 0) || (pendingCard != null && pendingCard > 0))
-            throw new ApiException("已有待付款会员订单，请先完成或取消原订单");
+        // A previous unpaid order is not an entitlement: each order is fulfilled only
+        // after its own verified payment, with source-key idempotency in TriPoolService.
         long units=0;
         for(OmsOrderItem item:items) {
             if(!ZoneRules.PICK.equals(item.getZoneCode()) || item.getProductQuantity()==null || item.getProductQuantity()<1)

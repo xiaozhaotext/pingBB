@@ -7,6 +7,10 @@ import type {
   OmsOrderReturnApplyParam,
 } from '@/types/order'
 import type { CommonPage, PageParam } from '@/types/common'
+import type { FullReductionOffer } from '@/types/order'
+
+export const getOrderFullReductionOffersAPI = (orderId: number) =>
+  http<FullReductionOffer[]>({ method: 'GET', url: `/order/fullReduction/${orderId}` })
 
 /** 生成确认单信息 */
 export const generateConfirmOrderAPI = (cartIds: number[]) => {
@@ -26,6 +30,7 @@ export const settlementPreviewAPI = (data: {
   couponId?: number
   useBalance?: boolean
   useRepurchasePoints?: boolean
+  useProductPoints?: boolean
 }) => {
   return http<ConfirmOrderResult>({
     method: 'POST',
@@ -121,6 +126,12 @@ export const wechatOrderPayH5API = (orderSn: string) =>
 /** 微信内置浏览器 JSAPI 预支付；OpenID 由服务端网页授权取得。 */
 export const wechatOrderPayJsapiAPI = (orderSn: string) =>
   http<Record<string, string>>({ method: 'POST', url: '/wechatPay/jsapi', params: { orderSn } })
+
+/** Server queries WeChat and idempotently confirms a verified payment when notifications are late. */
+export const getWechatOrderPaymentStatusAPI = (orderSn: string) =>
+  http<{ state: 'CONFIRMED' | 'PENDING' | 'CLOSED' | 'REVIEW'; canRetry: boolean }>({
+    method: 'POST', url: '/wechatPay/status', params: { orderSn },
+  })
 
 /** 申请退货 */
 export const createReturnApplyAPI = (data: OmsOrderReturnApplyParam) => {

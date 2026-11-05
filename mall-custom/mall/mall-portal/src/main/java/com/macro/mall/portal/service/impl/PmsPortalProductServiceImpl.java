@@ -125,6 +125,10 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
             List<PmsProductAttributeValue> productAttributeValueList = productAttributeValueMapper.selectByExample(attributeValueExample);
             result.setProductAttributeValueList(productAttributeValueList);
         }
+        Integer membershipRoute = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tri_membership_product t"
+                + " JOIN pms_product_zone z ON z.product_id=t.product_id AND z.zone_code='PICK'"
+                + " WHERE t.product_id=? AND t.enabled=1", Integer.class, product.getId());
+        result.setMembershipRoute(membershipRoute != null && membershipRoute > 0);
         //获取商品SKU库存信息
         PmsSkuStockExample skuExample = new PmsSkuStockExample();
         skuExample.createCriteria().andProductIdEqualTo(product.getId());

@@ -26,11 +26,19 @@ public class HomeController {
     private HomeService homeService;
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired
+    private com.macro.mall.portal.service.NoticeService noticeService;
 
     @GetMapping("/announcements")
     @ResponseBody
     public CommonResult<java.util.List<java.util.Map<String,Object>>> announcements() {
-        return CommonResult.success(jdbc.queryForList("SELECT id,title,content,publish_time FROM sys_notice WHERE status=1 AND type='SYSTEM' ORDER BY publish_time DESC,id DESC LIMIT 5"));
+        return CommonResult.success(noticeService.announcements());
+    }
+
+    @GetMapping("/announcements/{noticeId}")
+    @ResponseBody
+    public CommonResult<java.util.Map<String, Object>> announcementDetail(@PathVariable long noticeId) {
+        return CommonResult.success(noticeService.detail(noticeId));
     }
     @Operation(summary = "站点公开信息：公司资料、水印与合规文本")
     @RequestMapping(value = "/siteInfo", method = RequestMethod.GET)

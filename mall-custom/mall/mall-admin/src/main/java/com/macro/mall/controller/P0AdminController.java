@@ -517,6 +517,52 @@ public class P0AdminController {
         return CommonResult.success(null);
     }
 
+    @PostMapping("/notices/{noticeId}/update")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> updateNotice(Principal principal, @PathVariable long noticeId,
+                                           @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        String title = requiredText(body, "title", 1, 128);
+        String content = requiredText(body, "content", 1, 10000);
+        lockNotice(noticeId);
+        jdbc.update("UPDATE sys_notice SET title=?,content=? WHERE id=?", title, content, noticeId);
+        audit(operatorId, principal.getName(), "notice", "update", noticeId, "编辑公告: " + title);
+        return CommonResult.success(null);
+    }
+
+    @PostMapping("/notices/{noticeId}/status")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> updateNoticeStatus(Principal principal, @PathVariable long noticeId,
+                                                 @RequestBody Map<String, Object> body) {
+        long operatorId = access.requireAuthorized(principal);
+        int status = integer(body, "status");
+        if (status != 0 && status != 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "公告状态无效");
+        var notice = lockNotice(noticeId);
+        if (((Number) notice.get("status")).intValue() == status) return CommonResult.success(null);
+        jdbc.update("UPDATE sys_notice SET status=?,publish_time=CASE WHEN ?=1 THEN CURRENT_TIMESTAMP ELSE publish_time END WHERE id=?",
+                status, status, noticeId);
+        audit(operatorId, principal.getName(), "notice", status == 1 ? "publish" : "unpublish", noticeId,
+                (status == 1 ? "上线公告: " : "下线公告: ") + notice.get("title"));
+        return CommonResult.success(null);
+    }
+
+    @PostMapping("/notices/{noticeId}/delete")
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Void> deleteNotice(Principal principal, @PathVariable long noticeId) {
+        long operatorId = access.requireAuthorized(principal);
+        var notice = lockNotice(noticeId);
+        jdbc.update("DELETE FROM sys_notice_read WHERE notice_id=?", noticeId);
+        jdbc.update("DELETE FROM sys_notice WHERE id=?", noticeId);
+        audit(operatorId, principal.getName(), "notice", "delete", noticeId, "删除公告: " + notice.get("title"));
+        return CommonResult.success(null);
+    }
+
+    private Map<String, Object> lockNotice(long noticeId) {
+        var rows = jdbc.queryForList("SELECT id,title,status FROM sys_notice WHERE id=? FOR UPDATE", noticeId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "公告不存在或已删除");
+        return rows.get(0);
+    }
+
     @GetMapping("/consultations")
     public CommonResult<List<Map<String, Object>>> consultations(Principal principal) {
         access.requireAuthorized(principal);

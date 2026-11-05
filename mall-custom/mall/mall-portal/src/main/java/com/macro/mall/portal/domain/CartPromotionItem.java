@@ -16,6 +16,8 @@ import java.math.BigDecimal;
 public class CartPromotionItem extends OmsCartItem{
     @Schema(title = "促销活动信息")
     private String promotionMessage;
+    @Schema(title = "同款同专区尚未达到的满减门槛")
+    private FullReductionOffer fullReductionOffer;
     @Schema(title = "促销活动减去的金额，针对每个商品")
     private BigDecimal reduceAmount;
     @Schema(title = "剩余库存-锁定库存")

@@ -39,7 +39,7 @@ onMounted(load)
           <el-table-column prop="id" label="ID" width="75"/><el-table-column label="图片" width="90"><template #default="{row}"><span v-if="!row.pic">暂无图片</span><el-image v-else :src="productImageUrl(row.pic)" fit="contain" style="width:56px;height:56px"><template #error>加载失败</template></el-image></template></el-table-column>
           <el-table-column prop="name" label="商品名称" min-width="240"/><el-table-column prop="price" label="价格" width="100"/>
           <el-table-column label="归属" width="110"><template #default="{row}"><el-tag :type="row.assigned?'success':'info'">{{row.assigned?'已分配':'未分配'}}</el-tag></template></el-table-column>
-          <el-table-column label="排序" width="170"><template #default="{row}"><el-input-number v-model="row.sortOrder" :min="-10000" :max="10000" size="small"/></template></el-table-column>
+          <el-table-column label="排序（数字越大越靠前）" width="210"><template #default="{row}"><el-input-number v-model="row.sortOrder" :min="-10000" :max="10000" size="small"/></template></el-table-column>
           <el-table-column label="操作" width="190"><template #default="{row}"><el-button type="primary" link :loading="saving===row.id" @click="save(row)">{{row.assigned?'保存排序':'加入专区'}}</el-button><el-button v-if="row.assigned" type="danger" link :disabled="saving!==null" @click="remove(row)">移出</el-button></template></el-table-column>
         </el-table><p class="note">最多显示 100 条，请用搜索缩小范围。</p>
       </template>

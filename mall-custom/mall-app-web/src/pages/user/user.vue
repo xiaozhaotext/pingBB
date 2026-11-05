@@ -2,7 +2,7 @@
   <DesktopHeader />
   <view class="account-reference">
     <view class="account-top"><text>我的</text></view>
-    <view class="account-profile" @click="!hasLogin && handleNavTo('/pages/public/login')"><image :src="memberInfo?.icon || '/static/missing-face.png'"/><view><view class="account-name">{{ memberInfo?.nickname || memberInfo?.username || '点击登录' }}<text>{{ identityLabel }}</text></view><text class="account-id">{{ hasLogin ? '会员 ID：' + memberInfo?.id : '登录后查看您的账户与订单' }}</text></view></view>
+    <view class="account-profile" @click="handleNavTo(hasLogin ? '/pages/user/profile' : '/pages/public/login')"><image :src="memberInfo?.icon || '/static/missing-face.png'"/><view><view class="account-name">{{ memberInfo?.nickname || memberInfo?.username || '点击登录' }}<text>{{ identityLabel }}</text></view><text class="account-id">{{ hasLogin ? '会员 ID：' + memberInfo?.id + ' · 点击修改昵称' : '登录后查看您的账户与订单' }}</text></view></view>
     <view class="account-panels">
       <view class="account-panel" @click="handleNavTo('/pages/member/benefits')"><view class="account-section-title">奖励与旅游权益<small>审核与核销记录 ›</small></view></view>
       <view class="account-panel" @click="handleNavTo('/pages/member/recharge')"><view class="account-section-title">账户余额：¥ {{spendableBalance}}<small>充值 / 自选区余额支付 ›</small></view></view>
