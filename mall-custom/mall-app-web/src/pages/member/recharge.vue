@@ -69,6 +69,10 @@ async function refresh() {
       const active=uni.getStorageSync(storageKey+'-active')
       current.value=orders.value.find(o=>o.orderNo===active) || null
     }
+    if (current.value && legacyWechatOrder(current.value)) {
+      clearCurrent()
+      error.value='原充值订单号不符合微信支付要求，已退出旧单。请重新确认金额并创建新订单。'
+    }
     if (current.value?.status==='PAID') uni.removeStorageSync(storageKey)
   } catch(e:any) {loaded.value=false;modeReady.value=false;balance.value='—';orders.value=[];current.value=null;error.value=e?.data?.message || e?.message || '请登录并重试，账户数据加载失败'}
 }
@@ -79,7 +83,11 @@ onShow(async () => {
     await pay()
   }
 })
-function select(o:Order) {current.value=o;amount.value=o.amount;channel.value=o.channel}
+function legacyWechatOrder(o:Order) {return o.channel==='WECHAT' && o.status==='PENDING' && o.orderNo.length>32}
+function select(o:Order) {
+  if (legacyWechatOrder(o)) {clearCurrent();error.value='这笔旧订单无法发起微信支付，请重新创建充值订单。';return}
+  current.value=o;amount.value=o.amount;channel.value=o.channel
+}
 function clearCurrent() {current.value=null;error.value='';uni.removeStorageSync(storageKey+'-active');uni.removeStorageSync(storageKey);uni.removeStorageSync(storageKey+'-oauth-resume')}
 async function create() {
   if(busy.value) return
