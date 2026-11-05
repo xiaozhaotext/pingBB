@@ -3,6 +3,7 @@ package com.macro.mall.portal.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.portal.config.MembershipPaymentProperties;
 import com.macro.mall.portal.config.OrderWechatPayProperties;
+import com.macro.mall.portal.config.RechargeProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -23,7 +24,7 @@ class WechatWebOauthServiceTest {
         order.setEnabled(true);
         order.setAppId("wx-test-app");
         var oauth = new WechatWebOauthService(redis, new ObjectMapper(), order,
-                new MembershipPaymentProperties());
+                new MembershipPaymentProperties(), new RechargeProperties());
         ReflectionTestUtils.setField(oauth, "appSecret", "secret-not-logged");
         ReflectionTestUtils.setField(oauth, "callbackUrl", "https://example.com/portal/member/wechat-oauth/callback");
         ReflectionTestUtils.setField(oauth, "siteUrl", "https://example.com");

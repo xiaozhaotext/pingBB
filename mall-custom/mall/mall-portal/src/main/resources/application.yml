@@ -15,6 +15,20 @@ mybatis:
     - classpath*:com/**/mapper/*.xml
 
 mall:
+  recharge:
+    payment:
+      enabled: ${RECHARGE_PAYMENT_ENABLED:false}
+      wechat:
+        enabled: ${RECHARGE_WECHAT_ENABLED:false}
+        app-id: ${MALL_WECHAT_APP_ID:}
+        merchant-id: ${MALL_WECHAT_MERCHANT_ID:}
+        merchant-serial-number: ${MALL_WECHAT_MERCHANT_SERIAL:}
+        private-key-path: ${MALL_WECHAT_PRIVATE_KEY_PATH:}
+        api-v3-key: ${MALL_WECHAT_API_V3_KEY:}
+        verification-mode: ${MALL_WECHAT_VERIFICATION_MODE:CERTIFICATE}
+        public-key-id: ${MALL_WECHAT_PUBLIC_KEY_ID:}
+        public-key-path: ${MALL_WECHAT_PUBLIC_KEY_PATH:}
+        notify-url: ${RECHARGE_WECHAT_NOTIFY_URL:}
   membership:
     payment:
       enabled: false

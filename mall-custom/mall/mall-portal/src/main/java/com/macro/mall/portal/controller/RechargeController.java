@@ -43,11 +43,11 @@ public class RechargeController {
         return result(()->service.create(member(),request.amount(),request.channel(),request.requestId()));
     }
     @PostMapping("/orders/{no}/pay")
-    public CommonResult<?> pay(@PathVariable String no,HttpServletRequest request) {
+    public CommonResult<?> pay(@PathVariable String no,@RequestParam(required = false) String mode,HttpServletRequest request) {
         String peer=request.getRemoteAddr();
         String forwarded=request.getHeader("X-Real-IP");
         String ip=("127.0.0.1".equals(peer)||"::1".equals(peer)) && forwarded!=null && forwarded.matches("[0-9a-fA-F:.]{3,45}")?forwarded:peer;
-        return result(()->service.pay(member(),no,ip));
+        return result(()->service.pay(member(),no,ip,mode));
     }
     @PostMapping("/notify/alipay")
     public ResponseEntity<String> alipay(HttpServletRequest request) {

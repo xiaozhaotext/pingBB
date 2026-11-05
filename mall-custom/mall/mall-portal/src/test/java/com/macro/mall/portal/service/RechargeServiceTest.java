@@ -21,12 +21,12 @@ class RechargeServiceTest {
         jdbc=new JdbcTemplate(ds);tx=new TransactionTemplate(new DataSourceTransactionManager(ds));
         jdbc.execute("CREATE TABLE ums_recharge_account(member_id BIGINT PRIMARY KEY,balance_cents BIGINT NOT NULL DEFAULT 0)");
         jdbc.execute("CREATE TABLE ums_recharge_order(order_no VARCHAR(40) PRIMARY KEY,member_id BIGINT,request_id VARCHAR(64),amount_cents BIGINT,channel VARCHAR(10),status VARCHAR(12) DEFAULT 'PENDING',transaction_id VARCHAR(128),balance_after_cents BIGINT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,paid_at TIMESTAMP,UNIQUE(member_id,request_id),UNIQUE(channel,transaction_id))");
+        jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(32),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(64),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(255),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         service=new RechargeService(jdbc,new RechargeProperties());
     }
     void order(String no,long cents) {jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,1,?,?,'WECHAT')",no,no,cents);}
     @Test void sandboxRechargeCanBeSpentAndInsufficientBalanceDoesNotDebit() {
         org.springframework.test.util.ReflectionTestUtils.setField(service,"sandboxEnabled",true);
-        jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(32),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(64),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(255),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         String no=(String)tx.execute(s->service.create(1,"100.10","MOCK","sandbox-service-0001")).get("orderNo");
         tx.execute(s->service.confirmSandbox(1,no));
         tx.execute(s->service.confirmSandbox(1,no));

@@ -13,6 +13,8 @@ public class RechargeService {
     private boolean sandboxEnabled;
     private final JdbcTemplate jdbc;
     private final MembershipPaymentGateway gateway;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private WechatWebOauthService wechatOauth;
     public RechargeService(JdbcTemplate jdbc, RechargeProperties properties) {
         this.jdbc = jdbc;
         this.gateway = new MembershipPaymentGateway(properties.getPayment());
@@ -150,14 +152,18 @@ public class RechargeService {
                         + " VALUES(?,?,?,?,?,?,?)",
                 member, changeType, amountCents, balanceAfter, bizId, idempotencyKey, remark);
     }
-    public Map<String,String> pay(long member, String no, String ip) {
+    public Map<String,String> pay(long member, String no, String ip, String mode) {
         Map<String,Object> row = order(member,no);
         if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");
         String channel = (String)row.get("channel");
         requireChannel(channel);
         if ("MOCK".equals(channel)) return Map.of("type", "SANDBOX_RECHARGE", "orderNo", no);
+        boolean jsapi = "WECHAT".equals(channel) && "JSAPI".equals(mode);
+        if (!jsapi && mode != null && !"H5".equals(mode))
+            throw new IllegalArgumentException("支付方式无效");
+        String openId = jsapi ? wechatOauth.openId(member, "RECHARGE") : null;
         return gateway.start(no,"RECHARGE",new BigDecimal((String)row.get("amount")),channel,
-                "WECHAT".equals(channel)?"WECHAT_H5":"ALIPAY_WAP",null,ip);
+                jsapi ? "WECHAT_JSAPI" : "WECHAT".equals(channel) ? "WECHAT_H5" : "ALIPAY_WAP",openId,ip);
     }
     /** Only the explicit sandbox channel may use a server-generated mock receipt. */
     @Transactional(rollbackFor = Exception.class)
@@ -208,6 +214,9 @@ public class RechargeService {
         jdbc.update("UPDATE ums_recharge_account SET balance_cents=? WHERE member_id=?",next,member);
         jdbc.update("UPDATE ums_recharge_order SET status='PAID',transaction_id=?,balance_after_cents=?,paid_at=CURRENT_TIMESTAMP WHERE order_no=?",
                 payment.transactionId(),next,payment.merchantOrderNo());
+        if (!"MOCK".equals(payment.channel()))
+            recordLedger(member,"recharge",expected,next,payment.merchantOrderNo(),"recharge:"+payment.merchantOrderNo(),
+                    "WECHAT".equals(payment.channel()) ? "微信充值到账" : "支付宝充值到账");
     }
     private Map<String,Object> view(Map<String,Object> row) {
         Map<String,Object> result = new LinkedHashMap<>();

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.macro.mall.portal.config.MembershipPaymentProperties;
 import com.macro.mall.portal.config.OrderWechatPayProperties;
+import com.macro.mall.portal.config.RechargeProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,7 @@ public class WechatWebOauthService {
     private final ObjectMapper mapper;
     private final OrderWechatPayProperties orderWechat;
     private final MembershipPaymentProperties membership;
+    private final RechargeProperties recharge;
     private final SecureRandom random = new SecureRandom();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     public record Authorization(String url, String state) {}
@@ -40,11 +42,13 @@ public class WechatWebOauthService {
     @Value("${mall.payment.wechat.oauth.site-url:}") private String siteUrl;
 
     public WechatWebOauthService(StringRedisTemplate redis, ObjectMapper mapper,
-                                 OrderWechatPayProperties orderWechat, MembershipPaymentProperties membership) {
+                                 OrderWechatPayProperties orderWechat, MembershipPaymentProperties membership,
+                                 RechargeProperties recharge) {
         this.redis = redis;
         this.mapper = mapper;
         this.orderWechat = orderWechat;
         this.membership = membership;
+        this.recharge = recharge;
     }
 
     public Authorization authorize(long memberId, String purpose, Long orderId) {
@@ -52,6 +56,7 @@ public class WechatWebOauthService {
         requireConfigured(appId);
         if ("ORDER".equals(purpose) && (orderId == null || orderId <= 0)) badRequest();
         if ("MEMBERSHIP".equals(purpose) && orderId != null) badRequest();
+        if ("RECHARGE".equals(purpose) && orderId != null) badRequest();
         byte[] bytes = new byte[24];
         random.nextBytes(bytes);
         String state = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -87,7 +92,7 @@ public class WechatWebOauthService {
                 throw new IllegalStateException("WeChat OAuth response invalid");
             redis.opsForValue().set(openIdKey(Long.parseLong(parts[0]), appId), openId, 30, TimeUnit.DAYS);
             String path = "ORDER".equals(parts[1]) ? "/#/pages/money/pay?orderId=" + Long.parseLong(parts[2])
-                    : "/#/pages/user/user";
+                    : "RECHARGE".equals(parts[1]) ? "/#/pages/member/recharge" : "/#/pages/user/user";
             return siteUrl.replaceAll("/$", "") + path;
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "微信网页授权失败，请重试");
@@ -120,6 +125,9 @@ public class WechatWebOauthService {
         if ("ORDER".equals(purpose) && orderWechat.isEnabled()) return orderWechat.getAppId();
         if ("MEMBERSHIP".equals(purpose) && membership.isEnabled() && membership.getWechat().isEnabled())
             return membership.getWechat().getAppId();
+        if ("RECHARGE".equals(purpose) && recharge.getPayment().isEnabled()
+                && recharge.getPayment().getWechat().isEnabled())
+            return recharge.getPayment().getWechat().getAppId();
         throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "微信支付未启用");
     }
 

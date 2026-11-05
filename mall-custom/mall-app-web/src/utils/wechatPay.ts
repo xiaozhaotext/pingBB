@@ -3,7 +3,7 @@ import { http } from '@/utils/http'
 export const isWechatBrowser = () =>
   typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent)
 
-export const ensureWechatOauth = async (purpose: 'ORDER' | 'MEMBERSHIP', orderId?: number) => {
+export const ensureWechatOauth = async (purpose: 'ORDER' | 'MEMBERSHIP' | 'RECHARGE', orderId?: number) => {
   const status = await http<{ authorized: boolean }>({
     method: 'GET', url: '/member/wechat-oauth/status', params: { purpose },
   })

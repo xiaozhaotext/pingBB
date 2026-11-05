@@ -7,7 +7,7 @@
       <input v-model="amount" type="digit" :maxlength="8" placeholder="0.01 – 50000.00" :disabled="busy || !!current" />
       <text class="hint">充多少到账多少，无赠送、无手续费。金额最多保留两位小数。</text>
       <view v-if="sandbox && sandboxMode" class="hint">支付方式：沙盒模拟充值</view>
-      <view v-else class="choices"><button :disabled="busy || !!current" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button :disabled="busy || !!current" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
+      <view v-else class="choices"><button :disabled="busy || !!current || !availableChannels.includes('WECHAT')" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button :disabled="busy || !!current || !availableChannels.includes('ALIPAY')" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
       <button class="primary" :disabled="busy || !loaded || !!current || !supported" @click="create">确认充值</button>
       <text v-if="!supported" class="hint">请在手机浏览器打开商城完成充值。</text>
       <view v-if="current" class="pending"><text>订单 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '已到账' : '待支付 / 到账确认中' }}</text><button v-if="current.status !== 'PAID'" :disabled="busy" @click="pay">继续支付同一订单</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="current = null">返回充值列表</button></view>
@@ -25,11 +25,13 @@ import { onShow } from '@dcloudio/uni-app'
 import { http } from '@/utils/http'
 import { getMemberInfoAPI } from '@/apis/member'
 import { sandboxMode } from '@/utils/sandbox'
+import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
 type Order = {orderNo:string; amount:string; channel:string; status:string}
 const balance=ref('—'),amount=ref('100.00'),channel=ref('WECHAT'),error=ref('')
 const busy=ref(false),loaded=ref(false),orders=ref<Order[]>([]),current=ref<Order|null>(null)
 const sandbox=ref(false),modeReady=ref(false)
 const movements=ref<any[]>([])
+const availableChannels=ref<string[]>([])
 let storageKey='',supported=false
 // #ifdef H5
 supported=true
@@ -48,6 +50,7 @@ async function refresh() {
     const member=await getMemberInfoAPI()
     const [a,h,options,ledger]=await Promise.all([api<{balance:string}>('/account'),api<Order[]>('/orders'),api<{sandbox:boolean;channels:string[]}>('/payment-options'),api<any[]>('/ledger')])
     sandbox.value=options.data?.sandbox===true
+    availableChannels.value=options.data?.channels || []
     modeReady.value=Boolean(sandboxMode)===sandbox.value
     if(!modeReady.value) throw new Error('充值环境与页面不匹配，请打开正确的沙盒或正式入口')
     const nextKey=(sandbox.value?'sandbox-':'')+'recharge-request-'+member.data.id
@@ -60,16 +63,27 @@ async function refresh() {
       && (sandbox.value?['MOCK']:['WECHAT','ALIPAY']).includes(pending.channel) && /^[A-Za-z0-9-]{16,64}$/.test(pending.requestId)) {
       amount.value=pending.amount;channel.value=pending.channel
     }
-    else if(!current.value) channel.value=sandbox.value?'MOCK':'WECHAT'
+    else if(!current.value) channel.value=sandbox.value?'MOCK':(availableChannels.value[0] || 'WECHAT')
     if (current.value) current.value=orders.value.find(o=>o.orderNo===current.value?.orderNo) || (await api<Order>('/orders/'+current.value.orderNo)).data
+    if (!current.value) {
+      const active=uni.getStorageSync(storageKey+'-active')
+      current.value=orders.value.find(o=>o.orderNo===active) || null
+    }
     if (current.value?.status==='PAID') uni.removeStorageSync(storageKey)
   } catch(e:any) {loaded.value=false;modeReady.value=false;balance.value='—';orders.value=[];current.value=null;error.value=e?.data?.message || e?.message || '请登录并重试，账户数据加载失败'}
 }
-onShow(refresh)
+onShow(async () => {
+  await refresh()
+  if (uni.getStorageSync(storageKey+'-oauth-resume') && current.value?.status==='PENDING' && isWechatBrowser()) {
+    uni.removeStorageSync(storageKey+'-oauth-resume')
+    await pay()
+  }
+})
 function select(o:Order) {current.value=o;amount.value=o.amount;channel.value=o.channel}
 async function create() {
   if(busy.value) return
   if(!loaded.value || !modeReady.value) {error.value='账户尚未加载或充值环境不匹配，请刷新后重试';return}
+  if(!availableChannels.value.includes(channel.value)) {error.value='当前支付渠道尚未开通';return}
   const cents=amountCents(amount.value)
   if(cents===null) {error.value='请输入0.01至50000.00元，最多两位小数';return}
   busy.value=true;error.value=''
@@ -81,6 +95,7 @@ async function create() {
     if(!pending) {pending={amount:amount.value,channel:channel.value,requestId:'RC'+Date.now()+Math.random().toString(36).slice(2,15)};uni.setStorageSync(storageKey,pending)}
     current.value=(await api<Order>('/orders','POST',pending)).data
     uni.removeStorageSync(storageKey)
+    uni.setStorageSync(storageKey+'-active',current.value.orderNo)
   } catch(e:any) {
     if(e?.data?.code===56002) uni.removeStorageSync(storageKey)
     error.value=e?.data?.code===56002?'支付渠道尚未开通，请稍后再试':e?.data?.message || '下单结果未确认，请重试原请求'
@@ -92,7 +107,15 @@ async function pay() {
   if(busy.value || !current.value) return
   busy.value=true;error.value=''
   try {
-    const payment=(await api<Record<string,string>>('/orders/'+current.value.orderNo+'/pay','POST')).data
+    const jsapi=current.value.channel==='WECHAT' && isWechatBrowser()
+    if (jsapi) {
+      uni.setStorageSync(storageKey+'-oauth-resume',true)
+      if (!(await ensureWechatOauth('RECHARGE'))) return
+      uni.removeStorageSync(storageKey+'-oauth-resume')
+    }
+    const payment=(await http<Record<string,string>>({
+      url:'/member/recharge/orders/'+current.value.orderNo+'/pay',method:'POST',params:{mode:jsapi?'JSAPI':'H5'},
+    })).data
     if(payment.type==='SANDBOX_RECHARGE') {
       if(!sandboxMode || !sandbox.value || current.value.channel!=='MOCK') throw new Error('充值环境不匹配，未确认模拟到账')
       current.value=(await api<Order>('/orders/'+current.value.orderNo+'/sandbox-confirm','POST')).data
@@ -100,7 +123,8 @@ async function pay() {
       return
     }
     // #ifdef H5
-    if(payment.type==='WECHAT_H5_URL') window.location.assign(payment.h5Url)
+    if(payment.type==='WECHAT_JSAPI') { await invokeWechatJsapi(payment); await refresh() }
+    else if(payment.type==='WECHAT_H5_URL') window.location.assign(payment.h5Url)
     else if(payment.type==='ALIPAY_FORM') {
       const div=document.createElement('div');div.innerHTML=payment.formHtml
       document.body.appendChild(div);const form=div.querySelector('form')
