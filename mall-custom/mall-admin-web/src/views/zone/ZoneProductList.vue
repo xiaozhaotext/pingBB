@@ -227,11 +227,9 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </div>
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
-        <template>
-          <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
-          <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
-          <el-button @click="downloadImportTemplate">下载导入模板</el-button>
-        </template>
+        <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
+        <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
+        <el-button @click="downloadImportTemplate">下载导入模板</el-button>
         <el-button @click="load">刷新</el-button>
       </div>
     </header>
