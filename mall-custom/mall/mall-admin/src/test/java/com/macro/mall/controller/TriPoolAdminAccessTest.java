@@ -13,6 +13,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class TriPoolAdminAccessTest {
+    @Test void onlyNamedAdminCanManuallyChangeIdentity() {
+        var jdbc=mock(JdbcTemplate.class);var pools=mock(TriPoolService.class);var access=mock(P0AdminAccess.class);
+        var controller=new TriPoolAdminController(jdbc,pools,access);
+        Principal other=()->"other-admin";
+        when(access.requirePlatformAdmin(other)).thenReturn(9L);
+        var body=new TriPoolAdminController.IdentityChange("MEMBER","VISITOR","线下会员资格确认");
+        assertThrows(ResponseStatusException.class,()->controller.adjustIdentity(other,1,body));
+        verifyNoInteractions(pools);
+        Principal admin=()->"admin";when(access.requirePlatformAdmin(admin)).thenReturn(3L);
+        controller.adjustIdentity(admin,1,body);
+        verify(pools).adjustIdentity(1,"MEMBER","VISITOR","线下会员资格确认",3,"admin");
+    }
     @Test void membershipCardCannotUseOldRefundWithoutRewardReversal() {
         var jdbc=mock(JdbcTemplate.class);var payment=mock(com.macro.mall.service.PaymentRefundService.class);
         var service=new com.macro.mall.service.OrderReturnRefundService();

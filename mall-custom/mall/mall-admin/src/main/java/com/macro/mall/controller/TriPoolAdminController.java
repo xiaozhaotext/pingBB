@@ -22,6 +22,14 @@ public class TriPoolAdminController {
     public TriPoolAdminController(JdbcTemplate jdbc,TriPoolService pools,P0AdminAccess access) {
         this.jdbc=jdbc;this.pools=pools;this.access=access;
     }
+    public record IdentityChange(String tier,String expectedTier,String reason) {}
+    @PostMapping("/members/{memberId}/identity")
+    public CommonResult<?> adjustIdentity(Principal p,@PathVariable long memberId,@RequestBody IdentityChange body) {
+        long operator=access.requirePlatformAdmin(p);
+        if(!"admin".equals(p.getName())) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,"仅admin可调整用户身份");
+        pools.adjustIdentity(memberId,body.tier(),body.expectedTier(),body.reason(),operator,p.getName());
+        return CommonResult.success(pools.memberSummary(memberId));
+    }
     @GetMapping("/daily")
     public CommonResult<Map<String,Object>> daily(Principal p,
             @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate date) {

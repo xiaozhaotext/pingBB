@@ -154,7 +154,7 @@ public class DashboardController {
     }
     Map<String,Object> memberTierCounts() {
         return jdbcTemplate.queryForMap("SELECT "
-            + "COALESCE(SUM(CASE WHEN t.member_id IS NULL THEN 1 ELSE 0 END),0) AS visitor,"
+            + "COALESCE(SUM(CASE WHEN t.member_id IS NULL OR t.tier='VISITOR' THEN 1 ELSE 0 END),0) AS visitor,"
             + "COALESCE(SUM(CASE WHEN t.tier='MEMBER' THEN 1 ELSE 0 END),0) AS member,"
             + "COALESCE(SUM(CASE WHEN t.tier='PARTNER' THEN 1 ELSE 0 END),0) AS partner,"
             + "COALESCE(SUM(CASE WHEN t.tier='COFOUNDER' THEN 1 ELSE 0 END),0) AS cofounder "

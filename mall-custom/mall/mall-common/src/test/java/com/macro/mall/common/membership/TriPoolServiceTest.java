@@ -29,9 +29,32 @@ class TriPoolServiceTest {
         jdbc.execute("CREATE TABLE ums_earnings(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT UNIQUE,total_earnings DECIMAL(18,2),available_earnings DECIMAL(18,2),frozen_earnings DECIMAL(18,2),withdrawn DECIMAL(18,2),version BIGINT)");
         jdbc.execute("CREATE TABLE ums_earnings_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount DECIMAL(18,2),balance_after DECIMAL(18,2),biz_id VARCHAR(100),idempotency_key VARCHAR(100) UNIQUE,remark VARCHAR(255))");
         jdbc.execute("CREATE TABLE sys_audit_log(id BIGINT AUTO_INCREMENT PRIMARY KEY,operator_name VARCHAR(100),operator_id BIGINT,module VARCHAR(50),action VARCHAR(100),target_id BIGINT,detail VARCHAR(2000))");
+        jdbc.execute("CREATE TABLE tri_member_identity_log(member_id BIGINT,from_tier VARCHAR(16),to_tier VARCHAR(16),reason VARCHAR(200),operator_id BIGINT,operator_name VARCHAR(64))");
         jdbc.execute("CREATE TABLE test_points(member_id BIGINT,wallet_type INT,points BIGINT,idempotency_key VARCHAR(100) UNIQUE)");
         for(int i=1;i<=20;i++)jdbc.update("INSERT INTO ums_member(id,username) VALUES(?,?)",i,"test"+i);
         service=new TriPoolService(jdbc);ReflectionTestUtils.setField(service,"enabled",true);
+    }
+    @Test void manualIdentityDoesNotFabricatePaymentsAndAutomaticUpgradeStillWorks() {
+        tx.executeWithoutResult(s->service.adjustIdentity(1,"MEMBER","VISITOR","管理员确认线下资格",99,"admin"));
+        assertTrue(service.isMember(1));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tri_payment_event",Integer.class));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM test_points",Integer.class));
+        buy(2,1L);buy(3,1L);buy(4,1L);
+        assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+        tx.executeWithoutResult(s->service.adjustIdentity(1,"COFOUNDER","PARTNER","管理员手动晋升联创",99,"admin"));
+        buy(5,1L);
+        assertEquals("COFOUNDER",service.memberSummary(1).get("tier"));
+        tx.executeWithoutResult(s->service.adjustIdentity(1,"VISITOR","COFOUNDER","管理员取消会员资格",99,"admin"));
+        assertFalse(service.isMember(1));assertEquals(4L,service.memberSummary(1).get("directPaidCount"));
+        buy(6,1L);assertEquals(4L,service.memberSummary(1).get("directPaidCount"));
+        buy(1,null);assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+        assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM tri_member_identity_log",Integer.class));
+    }
+    @Test void staleManualChangeCannotOverwriteConcurrentAutomaticUpgrade() {
+        buy(1,null);buy(2,1L);buy(3,1L);buy(4,1L);
+        assertThrows(IllegalStateException.class,()->tx.executeWithoutResult(s->service.adjustIdentity(1,"COFOUNDER","MEMBER","修改前身份已自动升级",99,"admin")));
+        assertEquals("PARTNER",service.memberSummary(1).get("tier"));
+        assertThrows(IllegalArgumentException.class,()->service.adjustIdentity(1,"INVALID","PARTNER","无效目标身份测试",99,"admin"));
     }
     boolean buy(long buyer,Long parent) {return tx.execute(s->service.acceptPayment("ORDER:"+buyer,buyer,parent,TriPoolRules.PRICE,
             (member,type,points,key)->jdbc.update("INSERT INTO test_points VALUES(?,?,?,?)",member,type,points,key)));}

@@ -25,7 +25,7 @@ public class TriPoolService {
     }
 
     public boolean isMember(long memberId) {
-        return enabled && !jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=?",Long.class,memberId).isEmpty();
+        return enabled && !jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? AND tier<>'VISITOR'",Long.class,memberId).isEmpty();
     }
 
     /** Called only by trusted payment fulfillment, with server-side frozen membership-card evidence. */
@@ -47,17 +47,20 @@ public class TriPoolService {
         boolean memberExists=!jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? FOR UPDATE",Long.class,memberId).isEmpty();
         if(referrerId!=null && referrerId==memberId)throw new IllegalStateException("不可自我邀请");
         // Eligibility is assessed at payment: visitors receive nothing, with no later backfill.
-        if(referrerId!=null && jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? FOR UPDATE",Long.class,referrerId).isEmpty())referrerId=null;
+        if(referrerId!=null && jdbc.queryForList("SELECT member_id FROM tri_member WHERE member_id=? AND tier<>'VISITOR' FOR UPDATE",Long.class,referrerId).isEmpty())referrerId=null;
         jdbc.update("INSERT INTO tri_payment_event(source_key,member_id,referrer_id,paid_amount,rule_version) VALUES(?,?,?,?,?)",
                 sourceKey,memberId,referrerId,amount,VERSION);
         if (!memberExists) jdbc.update("INSERT INTO tri_member(member_id,tier,direct_paid_count) VALUES(?,'MEMBER',0)",memberId);
+        if(memberExists) jdbc.update("UPDATE tri_member SET tier=CASE WHEN direct_paid_count>=9 THEN 'COFOUNDER' WHEN direct_paid_count>=3 THEN 'PARTNER' ELSE 'MEMBER' END WHERE member_id=? AND tier='VISITOR'",memberId);
         audit("SYSTEM:payment",null,"MEMBER_PAID",memberId,sourceKey+";units="+units+";repeat="+memberExists+";rule="+VERSION);
         points.post(memberId,1,Math.multiplyExact(BUYER_POINTS,units),"tri:"+sourceKey+":buyer:product");
         points.post(memberId,2,Math.multiplyExact(BUYER_POINTS,units),"tri:"+sourceKey+":buyer:repurchase");
         if(referrerId!=null) {
             var parent=jdbc.queryForMap("SELECT tier,direct_paid_count FROM tri_member WHERE member_id=? FOR UPDATE",referrerId);
             long count=Math.addExact(number(parent,"direct_paid_count"),units);
-            Tier next=tier(true,count);
+            Tier automatic=tier(true,count);
+            Tier current=Tier.valueOf(String.valueOf(parent.get("tier")));
+            Tier next=current.ordinal()>automatic.ordinal()?current:automatic;
             jdbc.update("UPDATE tri_member SET direct_paid_count=?,tier=? WHERE member_id=?",count,next.name(),referrerId);
             creditEarnings(referrerId,REFERRAL_CASH.multiply(BigDecimal.valueOf(units)),"referral_reward","tri:"+sourceKey+":referral","直邀付费会员10%奖励");
             points.post(referrerId,2,Math.multiplyExact(REFERRER_POINTS,units),"tri:"+sourceKey+":referrer:repurchase");
@@ -71,6 +74,24 @@ public class TriPoolService {
                     sourceKey,in,pool.name());
         }
         return true;
+    }
+
+    /** Manual identity changes do not manufacture payments, referrals, points or historical income. */
+    @Transactional(rollbackFor=Exception.class)
+    public void adjustIdentity(long memberId,String target,String expected,String reason,long operator,String name) {
+        requireEnabled();
+        Tier next;
+        try { next=Tier.valueOf(target); } catch(Exception ex) { throw new IllegalArgumentException("身份类型无效"); }
+        if(reason==null || reason.trim().length()<5 || reason.trim().length()>200) throw new IllegalArgumentException("请填写5至200字调整原因");
+        lockPools();
+        if(jdbc.queryForList("SELECT id FROM ums_member WHERE id=?",Long.class,memberId).isEmpty()) throw new IllegalArgumentException("用户不存在");
+        var old=jdbc.queryForList("SELECT tier FROM tri_member WHERE member_id=? FOR UPDATE",String.class,memberId);
+        String before=old.isEmpty()?"VISITOR":old.get(0);
+        if(!before.equals(expected)) throw new IllegalStateException("身份已变化，请刷新详情后重新调整");
+        if(before.equals(target)) throw new IllegalArgumentException("目标身份与当前身份相同");
+        jdbc.update("INSERT INTO tri_member(member_id,tier,direct_paid_count) VALUES(?,?,0) ON DUPLICATE KEY UPDATE tier=VALUES(tier)",memberId,next.name());
+        jdbc.update("INSERT INTO tri_member_identity_log(member_id,from_tier,to_tier,reason,operator_id,operator_name) VALUES(?,?,?,?,?,?)",memberId,before,target,reason.trim(),operator,name);
+        audit(name,operator,"MANUAL_IDENTITY",memberId,"from="+before+";to="+target+";reason="+reason.trim());
     }
 
     /** Settle the completed Beijing calendar day; payment only funds the pools. */
@@ -206,7 +227,7 @@ public class TriPoolService {
                     +" LEFT JOIN tri_pool_position p ON p.member_id=m.member_id AND p.pool_code=?"
                     +" LEFT JOIN tri_pool_position other_pos ON other_pos.member_id=m.member_id AND other_pos.pool_code='"
                     +(pool==Pool.PARTNER?Pool.COFOUNDER.name():Pool.PARTNER.name())+"' "
-                    +(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"")+"ORDER BY m.member_id";
+                    +(pool==Pool.COFOUNDER?"WHERE m.tier='COFOUNDER' ":"WHERE m.tier<>'VISITOR' ")+"ORDER BY m.member_id";
         List<Position> result=new ArrayList<>();
         // Locking reads are essential: the outer order transaction may already have a MySQL
         // REPEATABLE READ snapshot predating another payment that committed before our pool lock.

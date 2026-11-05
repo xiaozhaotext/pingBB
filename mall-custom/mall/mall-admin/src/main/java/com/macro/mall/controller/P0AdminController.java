@@ -169,7 +169,10 @@ public class P0AdminController {
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会员不存在");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("profile", rows.get(0));
-        if (triPools != null && triPools.enabled()) data.put("triMembership", triPools.memberSummary(memberId));
+        if (triPools != null && triPools.enabled()) {
+            data.put("triMembership", triPools.memberSummary(memberId));
+            data.put("triIdentityHistory",jdbc.queryForList("SELECT from_tier,to_tier,reason,operator_name,create_time FROM tri_member_identity_log WHERE member_id=? ORDER BY id DESC LIMIT 50",memberId));
+        }
         data.put("addresses", jdbc.queryForList("SELECT id,name,phone_number,default_status,province,city,region,detail_address FROM ums_member_receive_address WHERE member_id=? ORDER BY id DESC", memberId));
         data.put("orders", jdbc.queryForList("SELECT o.id,o.order_sn,o.status,o.pay_amount,o.create_time,GROUP_CONCAT(DISTINCT z.zone_code) AS product_zones FROM oms_order o LEFT JOIN oms_order_item i ON i.order_id=o.id LEFT JOIN pms_product_zone z ON z.product_id=i.product_id WHERE o.member_id=? AND o.delete_status=0 GROUP BY o.id ORDER BY o.id DESC LIMIT 100",memberId));
         data.put("consumption", jdbc.queryForList("SELECT COUNT(*) AS order_count,COALESCE(SUM(CASE WHEN status IN(1,2,3) THEN pay_amount ELSE 0 END),0) AS paid_amount FROM oms_order WHERE member_id=? AND delete_status=0",memberId));

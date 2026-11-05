@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useUserStore } from '@/stores/user'
 import { computed, ref, watch } from 'vue'
 import { businessText, businessSource, contributionTypes } from '@/utils/adminDisplay'
 import { useLedgerDisplay } from '@/composables/useLedgerDisplay'
@@ -44,6 +45,23 @@ const triTierNames: Record<string,string> = { VISITOR: '游客', MEMBER: '会员
 const memberDetailTab = ref('identity')
 const memberStats = ref<Record<string, unknown> | null>(null)
 const memberZone = ref('')
+const identityAdmin = computed(() => useUserStore().userInfo.username === 'admin')
+const targetTier = ref('MEMBER')
+const identitySaving = ref(false)
+async function adjustNewIdentity() {
+  const id = memberId.value
+  const before = String(triMembership.value?.tier || 'VISITOR')
+  if (!id || identityReason.value.trim().length < 5) { ElMessage.warning('请填写至少5个字的调整原因'); return }
+  if (before === targetTier.value) { ElMessage.warning('请选择不同的目标身份'); return }
+  try { await ElMessageBox.confirm(`将用户身份由${triTierNames[before]}调整为${triTierNames[targetTier.value]}？不会补发积分、推荐奖励或历史收益，后续达成条件仍可自动升级。`, '确认调整身份', { type: 'warning' }) } catch { return }
+  identitySaving.value = true
+  try {
+    await postP0(`tri-pools/members/${id}/identity`, { tier: targetTier.value, expectedTier: before, reason: identityReason.value.trim() })
+    ElMessage.success('身份已调整并记录审计')
+    await load()
+    await openMember(id)
+  } finally { identitySaving.value = false }
+}
 const identityType = ref(0)
 const identityReason = ref('')
 const referrerId = ref<number | null>(null)
@@ -217,6 +235,7 @@ async function openMember(id: number) {
     const current = rows(response.data.identity)[0]
     identityType.value = Number(current?.identity_type ?? 0)
     identityReason.value = ''
+    targetTier.value = String((response.data.triMembership as { tier?: string } | undefined)?.tier || 'VISITOR')
     const inviter = rows(response.data.inviter)[0]
     referrerId.value = inviter?.inviter_id == null ? null : Number(inviter.inviter_id)
     referrerReason.value = ''
@@ -399,6 +418,16 @@ const groupTitles: Record<string, string> = {
             <template v-if="triMembership?.enabled">
               <p>当前身份：{{ triTierNames[triMembership.tier || 'VISITOR'] }}</p>
               <p>有效直邀会员：{{ triMembership.directPaidCount || 0 }} 人；身份通过身份牌支付和有效直邀自动晋升。</p>
+              <section v-if="identityAdmin">
+                <h3>调整身份</h3>
+                <el-select v-model="targetTier" style="width:100%;margin-bottom:12px" :disabled="identitySaving"><el-option v-for="(label, tier) in triTierNames" :key="tier" :label="label" :value="tier" /></el-select>
+                <el-input v-model="identityReason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="必填：5至200字调整原因" :disabled="identitySaving" />
+                <p>仅admin可操作。调整身份不补发积分、推荐奖励或历史收益，不修改直邀人数；后续达成条件仍可自动升级。</p>
+                <el-button type="primary" :loading="identitySaving" @click="adjustNewIdentity">保存身份调整</el-button>
+              </section>
+              <h3>手动身份调整记录</h3>
+              <el-table :data="rows(memberDetail.triIdentityHistory)" max-height="260"><el-table-column label="原身份"><template #default="{ row }">{{ triTierNames[String(row.from_tier)] }}</template></el-table-column><el-table-column label="新身份"><template #default="{ row }">{{ triTierNames[String(row.to_tier)] }}</template></el-table-column><el-table-column prop="reason" label="原因"/><el-table-column prop="operator_name" label="操作人"/><el-table-column prop="create_time" label="时间"/></el-table>
+
             </template>
             <template v-else>
             <p>当前身份：{{ ['普通会员', '合伙人', '联创'][identityType] || '未设置' }}</p>
