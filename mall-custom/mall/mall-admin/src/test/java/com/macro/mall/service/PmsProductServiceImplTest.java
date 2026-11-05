@@ -49,6 +49,7 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class PmsProductServiceImplTest {
+    @Mock org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Mock PmsProductMapper productMapper;
     @Mock PmsMemberPriceDao memberPriceDao;
     @Mock PmsMemberPriceMapper memberPriceMapper;

@@ -5,6 +5,18 @@
       <text class="price">{{ orderInfo.payAmount }}</text>
     </view>
 
+    <view v-if="orderInfo.orderSn" class="discount-summary" aria-label="付款前金额与优惠明细">
+      <view><text>商品合计</text><text>¥{{ money(orderInfo.totalAmount) }}</text></view>
+      <view v-for="rule in orderPromotionRules(orderInfo)" :key="rule" class="promotion-rule"><text>{{ rule }}</text></view>
+      <view class="discount-line"><text>本单活动优惠（已计入应付）</text><text>-¥{{ money(orderInfo.promotionAmount) }}</text></view>
+      <view v-if="Number(orderInfo.couponAmount) > 0"><text>优惠券抵扣</text><text>-¥{{ money(orderInfo.couponAmount) }}</text></view>
+      <view v-if="Number(orderInfo.balanceAmount) > 0"><text>已抵扣账户余额</text><text>-¥{{ money(orderInfo.balanceAmount) }}</text></view>
+      <view v-if="Number(orderInfo.integrationAmount) > 0"><text>已抵扣积分金额</text><text>-¥{{ money(orderInfo.integrationAmount) }}</text></view>
+      <view v-if="Number(orderInfo.freightAmount) > 0"><text>运费</text><text>¥{{ money(orderInfo.freightAmount) }}</text></view>
+      <view class="actual-pay"><text>本次实际支付</text><text>¥{{ money(orderInfo.payAmount) }}</text></view>
+      <text class="discount-note">以上金额来自已生成订单。支付时不会再次扣减优惠，微信收银台金额以“本次实际支付”为准。</text>
+    </view>
+
     <view class="pay-type-list" v-if="USE_ALIPAY || USE_WECHAT_PAY">
       <view class="type-item b-b" v-if="USE_ALIPAY" @click="handleChangePayType(1)">
         <text class="icon yticon icon-alipay"></text>
@@ -44,7 +56,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API, wechatOrderPayJsapiAPI, getWechatOrderPaymentStatusAPI } from '@/apis/order'
 import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
-import { isOrderPaid, wechatReturnUrl, withWechatReturnUrl } from '@/utils/paymentResult'
+import { isOrderPaid, wechatReturnUrl, withWechatReturnUrl, orderPromotionRules } from '@/utils/paymentResult'
 import { tokenStorageKey } from '@/utils/sessionKeys'
 import type { OmsOrderDetail } from '@/types/order'
 
@@ -61,6 +73,7 @@ const orderId = ref<number | null>(null)
 const payType = ref(USE_ALIPAY ? 1 : USE_WECHAT_PAY ? 2 : 0)
 // 订单信息
 const orderInfo = ref<Partial<OmsOrderDetail>>({})
+const money = (value: unknown) => (Number(value) || 0).toFixed(2)
 const paymentState = ref<'loading' | 'ready' | 'checking' | 'pending' | 'closed' | 'review' | 'error'>('loading')
 const paymentMessage = ref('正在读取订单…')
 const paying = ref(false)
@@ -251,6 +264,11 @@ const handleConfirmPay = async () => {
 </script>
 
 <style lang="scss" scoped>
+.discount-summary { margin: 24rpx; padding: 24rpx; background: #fff; border-radius: 12rpx; font-size: 27rpx; }
+.discount-summary > view { display: flex; justify-content: space-between; margin: 16rpx 0; gap: 20rpx; }
+.discount-summary .promotion-rule, .discount-line { color: #bd5d1c; }
+.discount-summary .actual-pay { border-top: 1px solid #eee; padding-top: 22rpx; font-weight: bold; color: #c23c35; }
+.discount-note { font-size: 23rpx; line-height: 1.6; color: #777; }
 .payment-status { margin: 28rpx; padding: 24rpx; border-radius: 12rpx; background: #fff7e6; color: #714d13; display: flex; flex-direction: column; gap: 22rpx; line-height: 1.6; }
 .status-action { color: #286da8; text-decoration: underline; }
 .mock-notice { margin: 20rpx; padding: 22rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 26rpx; line-height: 1.5; }

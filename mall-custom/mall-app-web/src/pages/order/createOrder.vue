@@ -35,6 +35,7 @@
           <text class="title clamp">{{ item.productName }}</text>
           <text class="spec">{{ formatProductAttr(item.productAttr) }}</text>
           <text class="promotion clamp">{{ item.promotionMessage }}</text>
+          <text v-if="Number(item.reduceAmount) > 0" class="promotion">本项已优惠 ¥{{ (Number(item.reduceAmount) * item.quantity).toFixed(2) }}，已计入下方应付金额</text>
           <view class="price-box">
             <text class="price">￥{{ item.price }}</text>
             <text class="number">x {{ item.quantity }}</text>

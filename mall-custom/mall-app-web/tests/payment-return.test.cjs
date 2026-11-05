@@ -2,12 +2,12 @@ const {test}=require('node:test')
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript')
 function util(name){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/utils',name+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module,exports:module.exports,URL});return module.exports}
-function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStatus=0,bridgeError,prepay,successPage=false}={}){
+function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStatus=0,bridgeError,prepay,successPage=false,order={}}={}){
  const callbacks={},storage=new Map(),redirects=[],timers=[],calls={jsapi:0,status:0,h5:0,mock:0}
  const file=successPage?'paySuccess.vue':'pay.vue'
  let source=fs.readFileSync(path.join(__dirname,'../src/pages/money',file),'utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
  source=source.replace(/import\.meta\.env\.VITE_USE_WECHAT_PAY/g,'"true"').replace(/import\.meta\.env\.VITE_USE_ALIPAY/g,'"false"').replace(/import\.meta\.env\.VITE_USE_MOCK_PAYMENT/g,'"false"').replace(/import\.meta\.env\.VITE_API_BASE_URL/g,'"/portal"')
- const api={getOrderDetailAPI:async()=>({data:{id:11,orderSn:'SN11',status:orderStatus,payAmount:10}}),
+ const api={getOrderDetailAPI:async()=>({data:{id:11,orderSn:'SN11',status:orderStatus,payAmount:10,...order}}),
   getWechatOrderPaymentStatusAPI:async()=>{calls.status++;const state=states[Math.min(calls.status-1,states.length-1)];if(state instanceof Error)throw state;return {data:state}},
   wechatOrderPayJsapiAPI:async()=>{calls.jsapi++;if(prepay)await prepay();return {data:{package:'prepay_id=p'}}},
   wechatOrderPayH5API:async()=>{calls.h5++;return {data:{h5Url:'https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb?prepay_id=p'}}},
@@ -26,7 +26,7 @@ function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStat
    if(name==='@/utils/sessionKeys')return {tokenStorageKey:'token'}
    throw Error(name)
   }}
- source+='\nexports.page = '+(successPage?'{loadData,confirmed,payText,resultMessage}':'{handleConfirmPay,paymentState,paymentMessage,checking,paying,retryCheck}')
+ source+='\nexports.page = '+(successPage?'{loadData,confirmed,payText,resultMessage}':'{handleConfirmPay,paymentState,paymentMessage,checking,paying,retryCheck,orderInfo,money,orderPromotionRules,USE_ALIPAY,USE_WECHAT_PAY,USE_MOCK_PAYMENT,payType,handleChangePayType,viewOrder}')
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context)
  return {...module.exports.page,callbacks,storage,redirects,timers,calls,context}
 }
@@ -63,4 +63,14 @@ test('success page never trusts entry URL and only returns to shop after persist
  const p=page({successPage:true,orderStatus:1});await p.callbacks.load({orderId:11});assert.equal(p.confirmed.value,true);p.timers[0]();assert.deepEqual(p.redirects,['/pages/index/index'])
  const pending=page({successPage:true});await pending.callbacks.load({orderId:11,success:'true'});assert.equal(pending.confirmed.value,false);assert.equal(pending.timers.length,0)
  const missing=page({successPage:true});await missing.callbacks.load({success:'true'});assert.equal(missing.confirmed.value,false)
+})
+test('actual payment template plainly renders the threshold, discount and final payable amount',async()=>{
+ const p=page({order:{totalAmount:100,promotionAmount:10,payAmount:90,orderItemList:[{promotionName:'满100元减10元'}]}})
+ await p.callbacks.load({orderId:11})
+ const vue=require('vue'),{compile}=require('@vue/compiler-dom'),{renderToString}=require('@vue/server-renderer')
+ const template=fs.readFileSync(path.join(__dirname,'../src/pages/money/pay.vue'),'utf8').split('<template>')[1].split('</template>')[0]
+ const render=new Function('Vue',compile(template,{mode:'function',isCustomElement:()=>true}).code)(vue)
+ const ctx=Object.fromEntries(Object.entries(p).map(([key,value])=>[key,value&&typeof value==='object'&&'value' in value?value.value:value]))
+ const html=await renderToString(vue.createSSRApp({render,setup:()=>ctx}))
+ assert.match(html,/满100元减10元/);assert.match(html,/本单活动优惠（已计入应付）/);assert.match(html,/-¥10\.00/);assert.match(html,/本次实际支付/);assert.match(html,/¥90\.00/)
 })

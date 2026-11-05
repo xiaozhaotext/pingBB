@@ -36,12 +36,13 @@ class ProductZoneAdminControllerTest {
         assertEquals(HttpStatus.BAD_REQUEST,e.getStatusCode());
         verifyNoInteractions(jdbc);
     }
-    @Test void retryDoesNotRepeatAssignmentOrAudit() {
+    @Test void retryReassertsExclusiveZoneAndRecordsTheExplicitAssignment() {
         when(access.requireAuthorized(principal)).thenReturn(3L);
         when(jdbc.queryForList(anyString(),eq(Long.class),eq(7L))).thenReturn(List.of(7L));
         when(jdbc.queryForList(anyString(),eq(Integer.class),eq(7L),eq("REBUY"))).thenReturn(List.of(5));
         controller.assign(principal,"REBUY",new ProductZoneAdminController.Assignment(7L,5));
-        verify(jdbc,never()).update(anyString(),any(Object[].class));
+        verify(jdbc).update(contains("DELETE FROM pms_product_zone"),eq(7L),eq("REBUY"));
+        verify(jdbc).update(contains("UPDATE pms_product_zone SET sort_order"),eq(5),eq(7L),eq("REBUY"));
     }
     @Test void missingProductCannotBeAssigned() {
         when(access.requireAuthorized(principal)).thenReturn(3L);
@@ -57,6 +58,7 @@ class ProductZoneAdminControllerTest {
                 new ProductZoneAdminController.Assignment(7L,5)));
         when(jdbc.queryForObject(contains("SELECT price FROM pms_product"),eq(BigDecimal.class),eq(7L)))
                 .thenReturn(new BigDecimal("3999.00"));
+        when(jdbc.queryForObject(contains("c.name='旅游路线'"),eq(Integer.class),eq(7L))).thenReturn(1);
         when(jdbc.queryForObject(contains("price IS NULL"),eq(Integer.class),eq(7L))).thenReturn(0);
         when(jdbc.queryForObject(eq("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?"),eq(Integer.class),eq(7L))).thenReturn(1);
         when(jdbc.queryForList(anyString(),eq(Integer.class),eq(7L),eq("PICK"))).thenReturn(List.of());
