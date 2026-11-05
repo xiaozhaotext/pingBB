@@ -25,6 +25,12 @@ class RechargeServiceTest {
         service=new RechargeService(jdbc,new RechargeProperties());
     }
     void order(String no,long cents) {jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,1,?,?,'WECHAT')",no,no,cents);}
+    @Test void newRechargeOrderFitsWechatMerchantOrderLimit() {
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"sandboxEnabled",true);
+        String no=(String)service.create(1,"100.00","MOCK","recharge-length-test-01").get("orderNo");
+        assertEquals(32,no.length());
+        assertTrue(no.startsWith("RC"));
+    }
     @Test void sandboxRechargeCanBeSpentAndInsufficientBalanceDoesNotDebit() {
         org.springframework.test.util.ReflectionTestUtils.setField(service,"sandboxEnabled",true);
         String no=(String)tx.execute(s->service.create(1,"100.10","MOCK","sandbox-service-0001")).get("orderNo");
