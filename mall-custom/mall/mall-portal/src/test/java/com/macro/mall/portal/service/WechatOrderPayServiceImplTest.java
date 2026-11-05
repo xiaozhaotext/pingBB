@@ -14,6 +14,8 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
+import com.wechat.pay.java.service.payments.model.Transaction;
 
 /** 微信普通订单支付：未启用/凭证缺失必须 503，参数非法必须 400，绝不发起伪造请求。 */
 class WechatOrderPayServiceImplTest {
@@ -82,5 +84,23 @@ class WechatOrderPayServiceImplTest {
         ResponseStatusException e = assertThrows(ResponseStatusException.class,
                 () -> service.verifyNotify("{}", "s", "n", "sig", "1"));
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.getStatusCode());
+    }
+
+    @Test void queryChecksProviderIdentityCurrencyAndAmountBeforeCreatingPaymentEvidence() throws Exception {
+        enableChannel();
+        Transaction transaction=mock(Transaction.class,RETURNS_DEEP_STUBS);
+        WechatOrderPayServiceImpl queryService=new WechatOrderPayServiceImpl() {
+            @Override protected Transaction queryTransaction(String no){return transaction;}
+        };
+        ReflectionTestUtils.setField(queryService,"properties",properties);
+        when(transaction.getOutTradeNo()).thenReturn("SN1");when(transaction.getAppid()).thenReturn("wx-app");
+        when(transaction.getMchid()).thenReturn("1900000000");when(transaction.getTradeState()).thenReturn(Transaction.TradeStateEnum.SUCCESS);
+        when(transaction.getAmount().getTotal()).thenReturn(990);when(transaction.getAmount().getCurrency()).thenReturn("CNY");
+        when(transaction.getTransactionId()).thenReturn("TX1");
+        assertEquals(new BigDecimal("9.90"),queryService.queryPayment("SN1").payment().amount());
+        when(transaction.getAmount().getCurrency()).thenReturn("USD");
+        assertThrows(ResponseStatusException.class,()->queryService.queryPayment("SN1"));
+        when(transaction.getAmount().getCurrency()).thenReturn("CNY");when(transaction.getMchid()).thenReturn("other-merchant");
+        assertThrows(ResponseStatusException.class,()->queryService.queryPayment("SN1"));
     }
 }

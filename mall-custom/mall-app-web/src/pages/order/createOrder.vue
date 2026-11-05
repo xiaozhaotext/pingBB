@@ -28,7 +28,7 @@
         <text class="name">商品信息</text>
       </view>
       <!-- 商品列表 -->
-      <view class="g-item" v-for="item in cartPromotionItemList" :key="item.id">
+      <view class="g-item" v-for="(item, index) in cartPromotionItemList" :key="`${item.id}-${index}`">
         <image :src="productImageUrl(item.productPic)"></image>
         <view class="right">
           <text class="zone-tag">{{ item.zoneLabel || '普通商品' }}</text>

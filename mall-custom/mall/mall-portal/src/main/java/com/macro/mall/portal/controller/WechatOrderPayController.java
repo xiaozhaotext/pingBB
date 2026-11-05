@@ -88,15 +88,49 @@ public class WechatOrderPayController {
         return orderWechatPayHandler.handle(payment);
     }
 
+    @Operation(summary = "查询并确认本人订单的微信支付结果")
+    @PostMapping("/status")
+    public CommonResult<Map<String, Object>> status(@RequestParam String orderSn) {
+        OmsOrder order = requireOwnOrder(orderSn);
+        if (isPaid(order)) return paymentStatus(order, "CONFIRMED", false);
+        if (!paymentEnabled) return paymentStatus(order, "PENDING", false);
+        var query = wechatOrderPayService.queryPayment(orderSn);
+        if (query.payment() != null) {
+            // Same transactional, amount-checked, idempotent handler used by signed notifications.
+            String result = orderWechatPayHandler.handle(query.payment());
+            OmsOrder refreshed = requireOwnOrder(orderSn);
+            return paymentStatus(refreshed, "success".equals(result) && isPaid(refreshed)
+                    ? "CONFIRMED" : "REVIEW", false);
+        }
+        boolean closed = order.getStatus() != null && order.getStatus() != 0
+                || "CLOSED".equals(query.tradeState()) || "REVOKED".equals(query.tradeState());
+        return paymentStatus(order, closed ? "CLOSED" : "PENDING",
+                !closed && "NOTPAY".equals(query.tradeState()));
+    }
+
+    private CommonResult<Map<String, Object>> paymentStatus(OmsOrder order, String state, boolean canRetry) {
+        return CommonResult.success(Map.of("orderId", order.getId(), "orderSn", order.getOrderSn(),
+                "state", state, "canRetry", canRetry));
+    }
+
+    private boolean isPaid(OmsOrder order) {
+        return order.getStatus() != null && order.getStatus() >= 1 && order.getStatus() <= 3;
+    }
+
+    private OmsOrder requireOwnOrder(String orderSn) {
+        OmsOrder order = portalOrderService.getOrderByOrderSn(orderSn);
+        if (order == null || order.getPayAmount() == null
+                || !memberService.getCurrentMember().getId().equals(order.getMemberId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "订单不存在或无权访问");
+        }
+        return order;
+    }
+
     private OmsOrder requireOwnPendingOrder(String orderSn) {
         if (!paymentEnabled) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "微信支付渠道尚未启用");
         }
-        OmsOrder order = portalOrderService.getOrderByOrderSn(orderSn);
-        if (order == null || order.getPayAmount() == null
-                || !memberService.getCurrentMember().getId().equals(order.getMemberId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "订单不存在或无权支付");
-        }
+        OmsOrder order = requireOwnOrder(orderSn);
         if (order.getStatus() == null || order.getStatus() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "订单当前状态不可支付");
         }

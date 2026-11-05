@@ -122,6 +122,12 @@ export const wechatOrderPayH5API = (orderSn: string) =>
 export const wechatOrderPayJsapiAPI = (orderSn: string) =>
   http<Record<string, string>>({ method: 'POST', url: '/wechatPay/jsapi', params: { orderSn } })
 
+/** Server queries WeChat and idempotently confirms a verified payment when notifications are late. */
+export const getWechatOrderPaymentStatusAPI = (orderSn: string) =>
+  http<{ state: 'CONFIRMED' | 'PENDING' | 'CLOSED' | 'REVIEW'; canRetry: boolean }>({
+    method: 'POST', url: '/wechatPay/status', params: { orderSn },
+  })
+
 /** 申请退货 */
 export const createReturnApplyAPI = (data: OmsOrderReturnApplyParam) => {
   return http({

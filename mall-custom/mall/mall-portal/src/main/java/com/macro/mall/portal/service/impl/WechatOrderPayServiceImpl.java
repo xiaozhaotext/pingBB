@@ -40,6 +40,37 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     private volatile Config wechatConfig;
 
     @Override
+    public PaymentQuery queryPayment(String outTradeNo) {
+        OrderWechatPayProperties config = requireReady();
+        Transaction transaction = queryTransaction(outTradeNo);
+        if (transaction == null || transaction.getTradeState() == null
+                || !outTradeNo.equals(transaction.getOutTradeNo())
+                || !config.getMerchantId().equals(transaction.getMchid())
+                || !config.getAppId().equals(transaction.getAppid())) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "微信查单结果校验失败");
+        }
+        if (transaction.getTradeState() != Transaction.TradeStateEnum.SUCCESS) {
+            return new PaymentQuery(transaction.getTradeState().name(), null);
+        }
+        if (transaction.getAmount() == null || transaction.getAmount().getTotal() == null
+                || transaction.getAmount().getTotal() <= 0
+                || !"CNY".equals(transaction.getAmount().getCurrency())
+                || !StringUtils.hasText(transaction.getTransactionId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "微信查单金额或交易号无效");
+        }
+        return new PaymentQuery("SUCCESS", new VerifiedPayment(outTradeNo, transaction.getTransactionId(),
+                BigDecimal.valueOf(transaction.getAmount().getTotal(), 2)));
+    }
+
+    /** SDK verifies the response signature before this transaction reaches the application. */
+    protected Transaction queryTransaction(String outTradeNo) {
+        var request = new com.wechat.pay.java.service.payments.h5.model.QueryOrderByOutTradeNoRequest();
+        request.setMchid(requireReady().getMerchantId());
+        request.setOutTradeNo(outTradeNo);
+        return new H5Service.Builder().config(wechatConfig()).build().queryOrderByOutTradeNo(request);
+    }
+
+    @Override
     public Map<String, String> prepayH5(String outTradeNo, BigDecimal amount, String description, String clientIp) {
         OrderWechatPayProperties config = requireReady();
         if (!StringUtils.hasText(clientIp)) {

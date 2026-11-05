@@ -4,6 +4,7 @@ import { ElButton, ElSwitch, ElCheckboxGroup, ElCheckbox, ElRadioGroup, ElRadioB
 import type { FormInstance } from 'element-plus'
 import { getMemberLevelListAPI } from '@/apis/memberLevel'
 import type { PmsProductParam } from '@/types/product'
+import { promotionValidation } from '@/utils/productPromotion'
 
 // 定义属性
 const props = defineProps({
@@ -131,6 +132,8 @@ const handlePrev = () => {
 
 // 处理下一步
 const handleNext = () => {
+  const error = promotionValidation(compProductParam.value)
+  if (error) { ElMessage.warning(error); return }
   emit('next-step')
 }
 </script>
@@ -191,6 +194,8 @@ const handleNext = () => {
           <el-radio-button :label="4">满减价格</el-radio-button>
         </el-radio-group>
       </el-form-item>
+      <el-form-item><p>特惠按有效时间及规格价生效；阶梯和满减按同款、同专区计算，确认订单显示实际优惠。3999元自选区会员路线不叠加优惠。</p></el-form-item>
+      <el-form-item v-if="compProductParam.promotionType === 2"><p style="color: #b45309">会员价格目前尚未接入结算，填写后不会自动按会员价扣款，请勿作为已生效优惠发布。</p></el-form-item>
       <el-form-item v-show="compProductParam.promotionType === 1">
         <div>
           <div>
