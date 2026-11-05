@@ -17,6 +17,8 @@
       <text class="discount-note">以上金额来自已生成订单。支付时不会再次扣减优惠，微信收银台金额以“本次实际支付”为准。</text>
     </view>
 
+    <FullReductionPanel v-if="paymentState === 'ready' && !paying && !checking" :offers="paymentOffers" :order-id="orderId || undefined" />
+
     <view class="pay-type-list" v-if="USE_ALIPAY || USE_WECHAT_PAY">
       <view class="type-item b-b" v-if="USE_ALIPAY" @click="handleChangePayType(1)">
         <text class="icon yticon icon-alipay"></text>
@@ -53,6 +55,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import FullReductionPanel from '@/components/FullReductionPanel.vue'
+import { getOrderFullReductionOffersAPI } from '@/apis/order'
+import type { FullReductionOffer } from '@/types/order'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API, wechatOrderPayJsapiAPI, getWechatOrderPaymentStatusAPI } from '@/apis/order'
 import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
@@ -73,6 +78,7 @@ const orderId = ref<number | null>(null)
 const payType = ref(USE_ALIPAY ? 1 : USE_WECHAT_PAY ? 2 : 0)
 // 订单信息
 const orderInfo = ref<Partial<OmsOrderDetail>>({})
+const paymentOffers = ref<FullReductionOffer[]>([])
 const money = (value: unknown) => (Number(value) || 0).toFixed(2)
 const paymentState = ref<'loading' | 'ready' | 'checking' | 'pending' | 'closed' | 'review' | 'error'>('loading')
 const paymentMessage = ref('正在读取订单…')
@@ -150,6 +156,9 @@ const loadData = async () => {
     }
     if (uni.getStorageSync(pendingKey())) await checkPayment()
     else { paymentState.value = 'ready'; paymentMessage.value = '' }
+    // Recommendations are supplemental. Failure must not prevent querying or paying this order.
+    try { paymentOffers.value = (await getOrderFullReductionOffersAPI(orderId.value!)).data || [] }
+    catch { paymentOffers.value = [] }
   } catch (e) {
     paymentState.value = 'error'
     paymentMessage.value = '订单信息暂时无法读取，请重新查询；如已付款请勿重复支付。'

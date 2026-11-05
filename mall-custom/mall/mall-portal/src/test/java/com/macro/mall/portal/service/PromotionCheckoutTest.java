@@ -99,6 +99,9 @@ class PromotionCheckoutTest {
         var lines = service.calcCartPromotion(List.of(item(1, "REBUY")));
         assertEquals(0, discount(lines).signum());
         assertEquals("满100元减10元（未达门槛，本次不减免）", lines.get(0).getPromotionMessage());
+        assertEquals(new BigDecimal("0.01"), lines.get(0).getFullReductionOffer().getGap());
+        assertEquals("REBUY", lines.get(0).getFullReductionOffer().getZoneCode());
+        assertEquals(10L, lines.get(0).getFullReductionOffer().getProductId());
     }
 
     @Test

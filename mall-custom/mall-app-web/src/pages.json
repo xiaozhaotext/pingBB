@@ -385,6 +385,12 @@
       }
     },
     {
+      "path": "pages/product/fullReduction",
+      "style": {
+        "navigationBarTitleText": "同款满减凑单"
+      }
+    },
+    {
       "path": "pages/member/promotion",
       "style": {
         "navigationBarTitleText": "推广中心",

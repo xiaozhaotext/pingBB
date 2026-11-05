@@ -127,10 +127,35 @@ public class OmsPromotionServiceImpl implements OmsPromotionService {
                                             .toPlainString()
                                     + "折";
                 }
-                result.add(line(item, product, sku, discount, item.getQuantity(), message));
+                CartPromotionItem promotionLine = line(item, product, sku, discount, item.getQuantity(), message);
+                if (type == 4) {
+                    promotionLine.setFullReductionOffer(unmetFullReduction(product, total, zone(item)));
+                }
+                result.add(promotionLine);
             }
         }
         return result;
+    }
+
+    private FullReductionOffer unmetFullReduction(PromotionProduct product, BigDecimal total, String zone) {
+        PmsProductFullReduction next = list(product.getProductFullReductionList()).stream()
+                .filter(rule -> rule.getFullPrice() != null && rule.getFullPrice().signum() > 0
+                        && rule.getReducePrice() != null && rule.getReducePrice().signum() > 0
+                        && rule.getReducePrice().compareTo(rule.getFullPrice()) <= 0
+                        && total.compareTo(rule.getFullPrice()) < 0)
+                .min(Comparator.comparing(PmsProductFullReduction::getFullPrice)
+                        .thenComparing(PmsProductFullReduction::getReducePrice, Comparator.reverseOrder()))
+                .orElse(null);
+        if (next == null) return null;
+        FullReductionOffer offer = new FullReductionOffer();
+        offer.setProductId(product.getId());
+        offer.setProductName(product.getName());
+        offer.setZoneCode(zone);
+        offer.setCurrentAmount(total);
+        offer.setThreshold(next.getFullPrice());
+        offer.setDiscount(next.getReducePrice());
+        offer.setGap(next.getFullPrice().subtract(total));
+        return offer;
     }
 
     /**

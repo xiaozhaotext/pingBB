@@ -181,9 +181,8 @@ public class ZoneSettlementService {
         BigDecimal cap = net.multiply(ratio).setScale(2, RoundingMode.DOWN);
         long maxPoints = cap.setScale(0, RoundingMode.DOWN).longValueExact();
         if (maxPoints <= 0) {
-            plan.setPayable(false);
-            plan.setBlockedReason("后台未开启复购积分抵扣比例，复购区可改用全现金支付");
-            plan.setCashAmount(net);
+            // Integer points cannot cover a fractional point. The remaining price is still payable.
+            applyRebuyBalance(plan, net, useBalance, wallets.balance());
             return;
         }
         if (wallets.repurchasePoints() < maxPoints) {

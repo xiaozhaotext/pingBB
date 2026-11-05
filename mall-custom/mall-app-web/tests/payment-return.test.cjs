@@ -11,7 +11,7 @@ function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStat
   getWechatOrderPaymentStatusAPI:async()=>{calls.status++;const state=states[Math.min(calls.status-1,states.length-1)];if(state instanceof Error)throw state;return {data:state}},
   wechatOrderPayJsapiAPI:async()=>{calls.jsapi++;if(prepay)await prepay();return {data:{package:'prepay_id=p'}}},
   wechatOrderPayH5API:async()=>{calls.h5++;return {data:{h5Url:'https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb?prepay_id=p'}}},
-  confirmMockPaymentAPI:async()=>{calls.mock++}}
+  confirmMockPaymentAPI:async()=>{calls.mock++},getOrderFullReductionOffersAPI:async()=>({data:[]})}
  const module={exports:{}};const context={module,exports:module.exports,console,Error,URL,URLSearchParams,
   window:{location:{href:'https://zhiyoumei.com.cn/sandbox/#/pages/money/pay?orderId=11'},addEventListener(){},removeEventListener(){}},
   document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
@@ -26,7 +26,7 @@ function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStat
    if(name==='@/utils/sessionKeys')return {tokenStorageKey:'token'}
    throw Error(name)
   }}
- source+='\nexports.page = '+(successPage?'{loadData,confirmed,payText,resultMessage}':'{handleConfirmPay,paymentState,paymentMessage,checking,paying,retryCheck,orderInfo,money,orderPromotionRules,USE_ALIPAY,USE_WECHAT_PAY,USE_MOCK_PAYMENT,payType,handleChangePayType,viewOrder}')
+ source+='\nexports.page = '+(successPage?'{loadData,confirmed,payText,resultMessage}':'{handleConfirmPay,paymentState,paymentMessage,checking,paying,retryCheck,orderInfo,money,orderPromotionRules,USE_ALIPAY,USE_WECHAT_PAY,USE_MOCK_PAYMENT,payType,handleChangePayType,viewOrder,paymentOffers,orderId}')
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context)
  return {...module.exports.page,callbacks,storage,redirects,timers,calls,context}
 }

@@ -44,6 +44,8 @@
       </view>
     </view>
 
+    <FullReductionPanel :offers="fullReductionOffers(cartPromotionItemList)" :cart-ids="cartIds" />
+
     <!-- 支付方式 -->
     <view class="yt-list">
       <view class="g-header b-b">
@@ -159,9 +161,9 @@
     <view class="footer">
       <view class="price-content">
         <view class="pay-total">
-          <text>现金应付</text>
-          <text class="price-tip">￥</text>
-          <text class="price">{{ calcAmount.payAmount }}</text>
+          <text>{{ hasBlockedZone ? '结算状态' : '现金应付' }}</text>
+          <text v-if="!hasBlockedZone" class="price-tip">￥</text>
+          <text class="price">{{ hasBlockedZone ? '待调整支付方式' : num(calcAmount.payAmount).toFixed(2) }}</text>
         </view>
         <text class="pay-points" v-if="consumePoints > 0">消费区另需 {{ consumePoints }} 商品积分</text>
         <text class="pay-points pay-warn" v-if="hasBlockedZone">存在不可结算专区，请调整支付方式或移除后提交</text>
@@ -205,6 +207,8 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
+import FullReductionPanel from '@/components/FullReductionPanel.vue'
+import { fullReductionOffers } from '@/utils/fullReduction'
 import { parseCartIds } from '@/utils/cartCheckout'
 import { formatOrderDeduction } from '@/utils/order-display'
 import { computed, ref } from 'vue'
@@ -254,6 +258,7 @@ const settlementPending = ref(false)
 const settlementReady = ref(false)
 let settlementRevision = 0
 let initialBalancePreferenceApplied = false
+let initialLoadFinished = false
 
 // ===== 计算属性 =====
 // 各专区结算明细：每个专区只能使用本专区规则，不能串用
@@ -303,6 +308,7 @@ const refreshSettlement = async () => {
     }
     applyConfirmOrder(res.data)
     settlementReady.value = true
+    initialLoadFinished = true
   } catch (e) {
     if (revision === settlementRevision) uni.showToast({ icon: 'none', title: '结算更新失败，请重新加载后提交' })
   } finally {
@@ -343,6 +349,8 @@ const addressSelectedFromPage = ref(false)
 
 // 页面显示时刷新数据（从地址页面返回时触发）
 onShow(() => {
+  // Adding a specification for the same SPU changes the selected cart IDs as well as quantities.
+  if (initialLoadFinished && !submitting.value) void loadData()
   if (addressSelectedFromPage.value) {
     // 从地址页选择了地址，不覆盖
     addressSelectedFromPage.value = false

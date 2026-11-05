@@ -7,6 +7,10 @@ import type {
   OmsOrderReturnApplyParam,
 } from '@/types/order'
 import type { CommonPage, PageParam } from '@/types/common'
+import type { FullReductionOffer } from '@/types/order'
+
+export const getOrderFullReductionOffersAPI = (orderId: number) =>
+  http<FullReductionOffer[]>({ method: 'GET', url: `/order/fullReduction/${orderId}` })
 
 /** 生成确认单信息 */
 export const generateConfirmOrderAPI = (cartIds: number[]) => {

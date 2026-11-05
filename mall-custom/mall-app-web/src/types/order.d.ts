@@ -5,6 +5,16 @@
 import type { MemberReceiveAddress } from './address'
 import type { SmsCoupon } from './coupon'
 
+export type FullReductionOffer = {
+  productId: number
+  productName: string
+  zoneCode: string
+  currentAmount: number
+  threshold: number
+  discount: number
+  gap: number
+}
+
 /** 购物车促销项 */
 export type CartPromotionItem = {
   /** ID */
@@ -31,6 +41,7 @@ export type CartPromotionItem = {
   productSubTitle: string
   /** 促销活动信息 */
   promotionMessage: string
+  fullReductionOffer?: FullReductionOffer
   /** 商品价格 */
   price: number
   /** 购买数量 */
