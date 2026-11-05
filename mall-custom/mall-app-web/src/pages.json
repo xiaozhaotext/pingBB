@@ -132,6 +132,12 @@
       }
     },
     {
+      "path": "pages/user/profile",
+      "style": {
+        "navigationBarTitleText": "个人资料"
+      }
+    },
+    {
       "path": "pages/product/list",
       "style": {
         "navigationBarTitleText": "商品列表",

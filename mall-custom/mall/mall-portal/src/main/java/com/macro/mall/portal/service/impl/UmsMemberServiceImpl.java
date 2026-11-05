@@ -171,6 +171,15 @@ public class UmsMemberServiceImpl implements UmsMemberService {
     }
 
     @Override
+    public void updateNickname(Long id, String nickname) {
+        UmsMember record = new UmsMember();
+        record.setId(id);
+        record.setNickname(nickname);
+        memberMapper.updateByPrimaryKeySelective(record);
+        memberCacheService.delMember(id);
+    }
+
+    @Override
     public void updateIntegration(Long id, Integer integration) {
         UmsMember record=new UmsMember();
         record.setId(id);

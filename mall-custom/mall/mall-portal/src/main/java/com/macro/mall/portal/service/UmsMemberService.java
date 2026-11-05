@@ -41,6 +41,9 @@ public interface UmsMemberService {
      */
     UmsMember getCurrentMember();
 
+    /** Update the current member's visible nickname and invalidate cached profile. */
+    void updateNickname(Long id, String nickname);
+
     /**
      * 根据会员id修改会员积分
      */
