@@ -30,9 +30,28 @@ class WalletAdminControllerTest {
         jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,amount_cents,channel,status,balance_after_cents) VALUES('RC1',1,10010,'MOCK','PAID',10010),('RC2',1,10000,'MOCK','PENDING',NULL),('RC3',2,123,'MOCK','PAID',123)");
         jdbc.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(80),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(200),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         jdbc.update("INSERT INTO ums_recharge_ledger(member_id,change_type,amount_cents,balance_after_cents,biz_id) VALUES(1,'sandbox_recharge',10010,10010,'RC1'),(1,'sandbox_withdrawal',9940,19950,'WITHDRAW:1'),(1,'order_pay',-8000,11950,'101'),(2,'sandbox_recharge',123,123,'RC3')");
+        jdbc.execute("ALTER TABLE ums_admin ADD COLUMN dept_id BIGINT");
+        jdbc.execute("CREATE TABLE ums_department(id BIGINT,role_id BIGINT,status INT)");
+        jdbc.execute("CREATE TABLE ums_role(id BIGINT,status INT)");
+        jdbc.execute("CREATE TABLE ums_role_resource_relation(role_id BIGINT,resource_id BIGINT)");
+        jdbc.execute("CREATE TABLE ums_resource(id BIGINT,url VARCHAR(100))");
         access = new P0AdminAccess(jdbc);
         org.springframework.test.util.ReflectionTestUtils.setField(access,"adminRoleId",5L);
         mvc = MockMvcBuilders.standaloneSetup(new WalletAdminController(jdbc,access)).build();
+    }
+    @Test void newMemberWithoutWalletIsSearchableAtZeroWithoutCreatingFinancialRecords() throws Exception {
+        jdbc.update("INSERT INTO ums_member VALUES(3,'manual-member',1)");
+        mvc.perform(get("/p0/wallet").principal(()->"admin").param("memberId","3"))
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.rows[0].member_id").value(3))
+            .andExpect(jsonPath("$.data.rows[0].balance").value("0.00"));
+        mvc.perform(get("/p0/wallet").principal(()->"admin"))
+            .andExpect(jsonPath("$.data.total").value(3));
+        mvc.perform(get("/p0/wallet").principal(()->"admin").param("memberId","999"))
+            .andExpect(jsonPath("$.data.total").value(0));
+        for(String tab:java.util.List.of("recharges","ledger")) mvc.perform(get("/p0/wallet").principal(()->"admin").param("memberId","3").param("tab",tab))
+            .andExpect(jsonPath("$.data.total").value(0));
+        org.junit.jupiter.api.Assertions.assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_account WHERE member_id=3",Integer.class));
     }
     @Test void walletMatchesConsumerBalanceAndExcludesPendingRecharge() throws Exception {
         mvc.perform(get("/p0/wallet").principal(()->"admin").param("memberId","1"))

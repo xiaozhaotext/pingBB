@@ -48,9 +48,9 @@ public class WalletAdminController {
         String columns;
         String sort;
         if ("accounts".equals(tab)) {
-            from=" FROM ums_recharge_account w LEFT JOIN ums_member m ON m.id=w.member_id";
-            columns="w.member_id,m.username,w.balance_cents";
-            sort="w.member_id DESC";
+            from=" FROM ums_member m LEFT JOIN ums_recharge_account w ON w.member_id=m.id";
+            columns="m.id AS member_id,m.username,COALESCE(w.balance_cents,0) AS balance_cents";
+            sort="m.id DESC";
         } else if ("recharges".equals(tab)) {
             from=" FROM ums_recharge_order w LEFT JOIN ums_member m ON m.id=w.member_id";
             columns="w.member_id,m.username,w.order_no,w.amount_cents,w.channel,w.status,w.transaction_id,w.balance_after_cents,w.created_at,w.paid_at";
@@ -60,7 +60,7 @@ public class WalletAdminController {
             columns="w.id,w.member_id,m.username,w.change_type,w.amount_cents,w.balance_after_cents,w.biz_id,w.remark,w.create_time";
             sort="w.id DESC";
         }
-        String where = memberId==null?"":" WHERE w.member_id=?";
+        String where = memberId==null?"":" WHERE "+("accounts".equals(tab)?"m.id":"w.member_id")+"=?";
         Long total = jdbc.queryForObject("SELECT COUNT(*)"+from+where,Long.class,filterArgs);
         var args = new ArrayList<Object>();Collections.addAll(args,filterArgs);args.add(limit);args.add(offset);
         var rows = jdbc.queryForList("SELECT "+columns+from+where+" ORDER BY "+sort+" LIMIT ? OFFSET ?",args.toArray());
