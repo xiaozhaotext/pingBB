@@ -55,8 +55,8 @@ public class PickProductImportService {
         if (!List.of("PICK", "REBUY", "CONSUME").contains(zone)) bad("无效的商品专区");
         boolean pick = "PICK".equals(zone);
         List<String> headers = pick ? HEADERS : OTHER_HEADERS;
-        if (file.isEmpty() || file.getSize() > 10 * 1024 * 1024)
-            bad("文件不能为空且不能超过10MB");
+        if (file.isEmpty() || file.getSize() > 300L * 1024 * 1024)
+            bad("文件不能为空且不能超过300MB");
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         List<List<String>> rows;
         if (filename.endsWith(".csv")) {
