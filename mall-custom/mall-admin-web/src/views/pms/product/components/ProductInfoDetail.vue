@@ -36,6 +36,7 @@ const getProductCateList = async () => {
 }
 // 选择器中的品牌数据
 const brandOptions = ref<ElSelectDataVo[]>([])
+const customBrand = ref(false)
 // 获取品牌列表数据
 const getBrandList = async () => {
   const res = await getBrandListAPI({ pageNum: 1, pageSize: 100 })
@@ -48,6 +49,7 @@ onMounted(async () => {
   await getBrandList()
   if (props.isEdit) {
     handleEditCreated()
+    customBrand.value = !compProductParam.value.brandId && !!compProductParam.value.brandName
   }
 })
 
@@ -121,9 +123,19 @@ const handleNext = async () => {
 
 // 处理品牌变化
 const handleBrandChange = (val: number | '') => {
+  if (val === -1) {
+    useCustomBrand()
+    return
+  }
+  customBrand.value = false
   const findBrand = brandOptions.value.find(item => item.value === val)
   compProductParam.value.brandName = findBrand?.label || ''
   if (!findBrand) compProductParam.value.brandId = undefined
+}
+const useCustomBrand = () => {
+  compProductParam.value.brandId = undefined
+  compProductParam.value.brandName = ''
+  customBrand.value = true
 }
 </script>
 
@@ -142,9 +154,13 @@ const handleBrandChange = (val: number | '') => {
         <el-input v-model="compProductParam.subTitle"></el-input>
       </el-form-item>
       <el-form-item label="商品品牌：" prop="brandId">
-        <el-select v-model="compProductParam.brandId" clearable @change="handleBrandChange" placeholder="可不选品牌">
+        <el-input v-if="customBrand" v-model="compProductParam.brandName" maxlength="100" show-word-limit placeholder="请输入品牌名称">
+          <template #append><el-button @click="customBrand = false; compProductParam.brandName = ''">选择已有品牌</el-button></template>
+        </el-input>
+        <el-select v-else v-model="compProductParam.brandId" clearable @change="handleBrandChange" placeholder="可不选品牌">
           <el-option v-for="item in brandOptions" :key="item.value" :label="item.label" :value="item.value">
           </el-option>
+          <el-option label="自定义品牌" :value="-1" />
         </el-select>
       </el-form-item>
       <el-form-item label="商品介绍：">

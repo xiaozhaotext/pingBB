@@ -46,7 +46,57 @@ const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
 const importing = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
+const ckirInput = ref<HTMLInputElement | null>(null)
+const ckirImporting = ref(false)
 let loadRevision = 0
+
+function downloadCkirTemplate() {
+  const link = document.createElement('a')
+  link.href = `${import.meta.env.BASE_URL}templates/ckir-import-template.xlsx`
+  link.download = 'CKIR品牌总表导入模板.xlsx'
+  link.click()
+}
+
+async function importCkir(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!/\.xlsx$/i.test(file.name) || file.size > 300 * 1024 * 1024) {
+    ElMessage.warning('请选择不超过 300 MB 的 CKIR Excel 文件（.xlsx）')
+    return
+  }
+  ckirImporting.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const preview = await http<{ products: number; perZone: number; categories: string[]; warnings: string[]; alreadyImported: number }>({
+      url: '/p0/ckir/products/preview', method: 'post', data: form, timeout: 600000,
+      silent: true,
+    } as AxiosRequestConfig & { silent: boolean })
+    const data = preview.data
+    if (data.warnings.length) {
+      ElMessageBox.alert(data.warnings.slice(0, 20).join('；') + (data.warnings.length > 20 ? '；还有更多问题' : ''),
+        `校验发现 ${data.warnings.length} 个问题`, { type: 'warning' })
+      return
+    }
+    await ElMessageBox.confirm(
+      `识别 ${data.perZone} 件商品、${data.categories.length} 个分类；复购区用平台价（缺失时用京东价），消费区用零售价。将创建最多 ${data.products - data.alreadyImported} 件商品，已有 ${data.alreadyImported} 件跳过。图片自动提取，库存设为 0，全部下架。确认导入？`,
+      '确认 CKIR 两区导入', { type: 'warning', confirmButtonText: '确认导入', cancelButtonText: '取消' })
+    const result = await http<{ createdProducts: number; skippedExisting: number }>({
+      url: '/p0/ckir/products/import', method: 'post', data: form, timeout: 1200000,
+      silent: true,
+    } as AxiosRequestConfig & { silent: boolean })
+    ElMessage.success(`已新建 ${result.data.createdProducts} 件下架商品，跳过 ${result.data.skippedExisting} 件已有商品`)
+    await load()
+  } catch (error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    if (response) ElMessage.error(response.data?.message || 'CKIR 导入失败')
+    else if (error !== 'cancel' && error !== 'close') ElMessage.error('CKIR 文件校验或导入失败')
+  } finally {
+    ckirImporting.value = false
+  }
+}
 
 function downloadImportTemplate() {
   const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n'
@@ -68,8 +118,8 @@ async function importRoutes(event: Event) {
     ElMessage.warning('请选择 CSV 或 Excel 文件')
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('文件不能超过10MB')
+  if (file.size > 300 * 1024 * 1024) {
+    ElMessage.warning('文件不能超过300MB')
     return
   }
   importing.value = true
@@ -229,6 +279,11 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-button type="primary" @click="goAdd">添加商品</el-button>
         <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
         <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
+        <template v-if="zone !== 'PICK'">
+          <input ref="ckirInput" type="file" accept=".xlsx" style="display:none" @change="importCkir" />
+          <el-button :loading="ckirImporting" @click="ckirInput?.click()">导入 CKIR 品牌总表（两区）</el-button>
+          <el-button @click="downloadCkirTemplate">下载 CKIR 模板</el-button>
+        </template>
         <el-button @click="downloadImportTemplate">下载导入模板</el-button>
         <el-button @click="load">刷新</el-button>
       </div>
