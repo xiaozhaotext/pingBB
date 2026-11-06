@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { productImportBusy } from '@/utils/productImportState'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/utils/http'
@@ -44,13 +45,17 @@ watch(assignmentFilter, () => { page.value = 1 })
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
-const importing = ref(false)
+const importing = productImportBusy
+watch(importing, value => { if (!value) load() })
 const selectedRows = ref<ZoneProduct[]>([])
 const batchBusy = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
 
 function downloadImportTemplate() {
+  if (zone.value !== 'PICK') {
+    const link=document.createElement('a');link.href='./templates/ckir-brand-catalog.xlsx';link.download=`${zoneLabel.value}-CKIR品牌导入模板.xlsx`;link.click();return
+  }
   const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n'
   const blob = new Blob(['\uFEFF', header], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -62,6 +67,7 @@ function downloadImportTemplate() {
 }
 
 async function importRoutes(event: Event) {
+  if (importing.value) { ElMessage.warning('已有商品文件正在导入，请等待完成'); return }
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -70,20 +76,22 @@ async function importRoutes(event: Event) {
     ElMessage.warning('请选择 CSV 或 Excel 文件')
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('文件不能超过10MB')
+  if (file.size > 400 * 1024 * 1024) {
+    ElMessage.warning('文件不能超过400MB')
     return
   }
+  const importZone = zone.value
+  const importLabel = zoneLabel.value
   importing.value = true
   try {
     const form = new FormData()
     form.append('file', file)
     const response = await http<{ imported: number; names: string[] }>({
-      url: `/p0/zones/${zone.value}/products/import`, method: 'post', data: form, timeout: 120000,
+      url: `/p0/zones/${importZone}/products/import`, method: 'post', data: form, timeout: 1800000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
-    ElMessage.success(`已导入 ${response.data.imported} 件${zoneLabel.value}商品，默认下架，请核对后上架`)
-    await load()
+    ElMessage.success(`已导入 ${response.data.imported} 件${importLabel}商品，默认下架，请核对后上架`)
+    if (zone.value === importZone) await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     ElMessage.error(response?.data?.message || '导入失败，请检查文件后重试')
@@ -276,7 +284,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
+      <p v-else class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，使用零售价，默认库存100；分类仅在当前专区创建。也兼容原CSV模板。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="48" />
         <el-table-column prop="id" label="ID" width="72" />

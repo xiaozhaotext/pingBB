@@ -25,6 +25,7 @@ class PickProductImportServiceTest {
     @Test
     void importsDraftTourismProductAtFixedPriceAndStock() throws Exception {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString(), anyString())).thenReturn(0);
         PmsProductService products = mock(PmsProductService.class);
         when(jdbc.queryForList(contains("pms_product_category"), eq(Long.class))).thenReturn(List.of(77L));
         when(jdbc.queryForList(contains("pms_product_attribute_category"), eq(Long.class))).thenReturn(List.of(16L));
@@ -49,6 +50,7 @@ class PickProductImportServiceTest {
     @Test
     void acceptsExcelAndRejectsBadInventoryBeforeCreatingAnything() throws Exception {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString(), anyString())).thenReturn(0);
         PmsProductService products = mock(PmsProductService.class);
         var service = new PickProductImportService(jdbc, products);
         byte[] excel;
@@ -73,8 +75,9 @@ class PickProductImportServiceTest {
     @Test
     void importsRebuyProductWithSpreadsheetPriceAndCategory() throws Exception {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString(), anyString())).thenReturn(0);
         PmsProductService products = mock(PmsProductService.class);
-        when(jdbc.queryForList(contains("show_status=1"), eq(Long.class), eq("日用品"))).thenReturn(List.of(42L));
+        when(jdbc.queryForList(contains("show_status=1"), eq(Long.class), eq("日用品"), eq("REBUY"))).thenReturn(List.of(42L));
         var service = new PickProductImportService(jdbc, products);
         String csv = "商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n"
                 + "日用品,旅行水杯,便携水杯,CUP-001,19.90,6,https://example.com/cup.jpg,随行水杯,容量500毫升\n";
@@ -91,6 +94,7 @@ class PickProductImportServiceTest {
     @Test
     void rejectsUnknownCategoryBeforeImport() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), anyString(), anyString())).thenReturn(0);
         PmsProductService products = mock(PmsProductService.class);
         var service = new PickProductImportService(jdbc, products);
         String csv = "商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n"

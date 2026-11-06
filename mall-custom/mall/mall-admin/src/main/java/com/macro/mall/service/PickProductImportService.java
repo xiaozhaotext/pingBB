@@ -55,17 +55,24 @@ public class PickProductImportService {
         if (!List.of("PICK", "REBUY", "CONSUME").contains(zone)) bad("无效的商品专区");
         boolean pick = "PICK".equals(zone);
         List<String> headers = pick ? HEADERS : OTHER_HEADERS;
-        if (file.isEmpty() || file.getSize() > 10 * 1024 * 1024)
-            bad("文件不能为空且不能超过10MB");
+        if (file.isEmpty() || file.getSize() > 400L * 1024 * 1024)
+            bad("文件不能为空且不能超过400MB");
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         List<List<String>> rows;
+        boolean brandCatalog=false;
         if (filename.endsWith(".csv")) {
             rows = parseCsv(new String(file.getBytes(), StandardCharsets.UTF_8));
         } else if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
             rows = new ArrayList<>();
-            try (var workbook = WorkbookFactory.create(file.getInputStream())) {
+            java.nio.file.Path temp=java.nio.file.Files.createTempFile("catalog-",filename.endsWith(".xls")?".xls":".xlsx");
+            file.transferTo(temp);
+            try (var workbook = WorkbookFactory.create(temp.toFile())) {
                 if (workbook.getNumberOfSheets() < 1) bad("Excel 没有工作表");
                 var sheet = workbook.getSheetAt(0);
+                boolean brand=!pick && !new DataFormatter().formatCellValue(sheet.getRow(0).getCell(0)).equals("商品分类");
+                brandCatalog=brand;
+                if(brand) rows=BrandWorkbookReader.read(workbook,temp,java.nio.file.Path.of("/opt/mall-demo/product-images"));
+                else {
                 if (sheet.getLastRowNum() > 200) bad("每次最多导入200行");
                 var formatter = new DataFormatter(Locale.CHINA);
                 for (Row row : sheet) {
@@ -78,16 +85,19 @@ public class PickProductImportService {
                     while (rows.size() < row.getRowNum()) rows.add(List.of());
                     rows.add(values);
                 }
+                }
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,e.getMessage(),e);
             } catch (ResponseStatusException e) {
                 throw e;
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Excel 文件无法读取，请使用下载的模板", e);
-            }
+            } finally { java.nio.file.Files.deleteIfExists(temp); }
         } else {
             bad("仅支持 .csv、.xlsx、.xls 文件");
             return null;
         }
-        List<Route> routes = validate(rows, pick, headers);
+        List<Route> routes = validate(rows, pick, headers, zone);
         List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
         if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
@@ -96,7 +106,7 @@ public class PickProductImportService {
             PmsProductParam product = new PmsProductParam();
             product.setZoneCode(zone);
             String categoryName = pick ? "旅游路线" : route.category();
-            Long categoryId = pick ? category.get(0) : findCategory(categoryName, route.row());
+            Long categoryId = pick ? category.get(0) : findCategory(zone, categoryName, route.row(), brandCatalog);
             product.setProductCategoryId(categoryId);
             product.setProductCategoryName(categoryName);
             if (pick && !attribute.isEmpty()) product.setProductAttributeCategoryId(attribute.get(0));
@@ -133,13 +143,18 @@ public class PickProductImportService {
         return new Result(names.size(), names);
     }
 
-    private Long findCategory(String name, int line) {
-        List<Long> ids = jdbc.queryForList("SELECT id FROM pms_product_category WHERE name=? AND show_status=1 ORDER BY id LIMIT 2", Long.class, name);
+    private Long findCategory(String zone, String name, int line, boolean create) {
+        List<Long> ids = jdbc.queryForList("SELECT c.id FROM pms_product_category c JOIN pms_category_zone z ON z.category_id=c.id WHERE c.name=? AND c.show_status=1 AND z.zone_code=? ORDER BY c.id LIMIT 2", Long.class, name, zone);
+        if(ids.isEmpty() && create) {
+            var key=new org.springframework.jdbc.support.GeneratedKeyHolder();
+            jdbc.update(connection->{var ps=connection.prepareStatement("INSERT INTO pms_product_category(parent_id,name,level,product_count,product_unit,nav_status,show_status,sort) VALUES(0,?,0,0,'件',0,1,0)",java.sql.Statement.RETURN_GENERATED_KEYS);ps.setString(1,name);return ps;},key);
+            long id=key.getKey().longValue();jdbc.update("INSERT INTO pms_category_zone(category_id,zone_code) VALUES(?,?)",id,zone);return id;
+        }
         if (ids.size() != 1) bad("第" + line + "行：商品分类不存在、未启用或名称重复，请使用唯一的已启用分类名称");
         return ids.get(0);
     }
 
-    private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers) {
+    private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers, String zone) {
         if (rows.isEmpty()) bad("文件没有表头");
         Map<String, Integer> columns = new HashMap<>();
         List<String> first = rows.get(0);
@@ -170,7 +185,7 @@ public class PickProductImportService {
             if (name.length() < 2 || name.length() > 140 || subtitle.isBlank() || subtitle.length() > 255)
                 bad("第" + line + "行：商品名称或副标题无效");
             if (sn.length() > 64 || (!sn.isBlank() && !sns.add(sn))) bad("第" + line + "行：商品货号重复或过长");
-            if (!sn.isBlank() && jdbc.queryForObject("SELECT COUNT(*) FROM pms_product WHERE product_sn=?", Integer.class, sn) > 0)
+            if (!sn.isBlank() && jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.product_sn=? AND z.zone_code=?", Integer.class, sn, zone) > 0)
                 bad("第" + line + "行：商品货号已存在");
             int stock;
             try { stock = Integer.parseInt(stockText); } catch (NumberFormatException e) { bad("第" + line + "行：库存必须为正整数"); return result; }
@@ -181,7 +196,7 @@ public class PickProductImportService {
                 bad("第" + line + "行：简介或详情为空、过长");
             result.add(new Route(line, name, subtitle, sn, stock, cover, summary, detail, categoryName, price));
         }
-        if (result.isEmpty() || result.size() > 200) bad("每次须导入1至200条路线");
+        if (result.isEmpty() || result.size() > 2000) bad("每次须导入1至2000个商品");
         return result;
     }
 
