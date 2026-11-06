@@ -22,6 +22,16 @@ export const constantRouterMap: RouteRecordExt[] = [
 
 export const asyncRouterMap: RouteRecordExt[] = [
   // ===== 后台一级功能分组（对齐原图思维导图） =====
+  {
+    path: '/withdrawalSettings', component: Layout, name: 'withdrawalSettings',
+    meta: { title: '提现手续费', icon: 'total-week' },
+    children: [{ path: 'index', name: 'withdrawalSettingsIndex', component: () => import('@/views/finance/WithdrawalSettings.vue'), meta: { title: '提现手续费' } }],
+  },
+  {
+    path: '/walletWithdrawal', component: Layout, name: 'walletWithdrawal',
+    meta: { title: '余额提现审核', icon: 'total-week' },
+    children: [{ path: 'index', name: 'walletWithdrawalIndex', component: () => import('@/views/finance/WalletWithdrawal.vue'), meta: { title: '余额提现审核' } }],
+  },
 
   // 1 自选商品管理
   {

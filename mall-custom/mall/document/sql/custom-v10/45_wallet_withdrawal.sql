@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS ums_wallet_withdrawal (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  member_id BIGINT NOT NULL,
+  request_id VARCHAR(64) NOT NULL,
+  gross_cents BIGINT NOT NULL,
+  fee_cents BIGINT NOT NULL,
+  net_cents BIGINT NOT NULL,
+  fee_rate DECIMAL(10,6) NOT NULL,
+  recipient_name VARCHAR(80) NOT NULL,
+  channel VARCHAR(16) NOT NULL,
+  bank_name VARCHAR(120) DEFAULT NULL,
+  bank_branch VARCHAR(160) DEFAULT NULL,
+  recipient_account VARCHAR(160) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  decision_note VARCHAR(255) DEFAULT NULL,
+  payout_reference VARCHAR(120) DEFAULT NULL,
+  operator_id BIGINT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  decided_at DATETIME DEFAULT NULL,
+  UNIQUE KEY uk_wallet_withdraw_request (member_id, request_id),
+  KEY idx_wallet_withdraw_status (status, created_at),
+  KEY idx_wallet_withdraw_member (member_id, created_at)
+);

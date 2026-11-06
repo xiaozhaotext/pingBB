@@ -45,6 +45,8 @@ const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
 const importing = ref(false)
+const selectedRows = ref<ZoneProduct[]>([])
+const batchBusy = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
 
@@ -102,7 +104,7 @@ async function load() {
       url: '/p0/zones/' + zone.value + '/products',
       params: { keyword: keyword.value, assignedOnly: true },
     })
-    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1 }
+    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1; selectedRows.value = [] }
   } catch {
     if (revision === loadRevision) ElMessage.error('商品列表加载失败，请重试')
   } finally {
@@ -168,6 +170,32 @@ async function deleteProduct(row: ZoneProduct) {
     ElMessage.success('已移入商品回收站')
     await load()
   } finally { busy.value = null }
+}
+async function batchPublish() {
+  const pending = selectedRows.value.filter(row => row.publishStatus !== 1)
+  if (!pending.length) return ElMessage.info('所选商品已上架')
+  await ElMessageBox.confirm(`确认上架选中的 ${pending.length} 件${zoneLabel.value}商品？`, '批量上架', {type:'warning'})
+  batchBusy.value = true
+  try {
+    await productUpdatePublishStatusAPI({ids:pending.map(row=>row.id).join(','),publishStatus:1})
+    ElMessage.success(`已上架 ${pending.length} 件商品`)
+    await load()
+  } finally {batchBusy.value=false}
+}
+async function batchDelete() {
+  const chosen=[...selectedRows.value]
+  if (!chosen.length) return
+  await ElMessageBox.confirm(`确认将选中的 ${chosen.length} 件商品移入${zoneLabel.value}回收站？`, '批量删除', {type:'warning'})
+  batchBusy.value=true
+  let done=0
+  try {
+    for (const row of chosen) {
+      try {await http({url:`/p0/zones/${zone.value}/products/${row.id}/trash`,method:'post'});done++}
+      catch {break}
+    }
+    ElMessage[done===chosen.length?'success':'warning'](`已处理 ${done}/${chosen.length} 件商品`)
+    await load()
+  } finally {batchBusy.value=false}
 }
 async function remove(row: ZoneProduct) {
   await ElMessageBox.confirm('将商品移出' + zoneLabel.value + '后，商城不会在该专区显示它。', '移出专区')
@@ -238,6 +266,8 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="load" />
 
         <el-button type="primary" @click="load">查询</el-button>
+        <el-button :disabled="!selectedRows.length || batchBusy" :loading="batchBusy" @click="batchPublish">批量上架</el-button>
+        <el-button type="danger" :disabled="!selectedRows.length || batchBusy" :loading="batchBusy" @click="batchDelete">批量删除</el-button>
       </div>
       <el-alert type="info" :closable="false">
         <template #title>
@@ -247,7 +277,8 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
+      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
+        <el-table-column type="selection" width="48" />
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">

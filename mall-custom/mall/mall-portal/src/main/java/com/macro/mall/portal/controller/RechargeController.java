@@ -3,6 +3,7 @@ package com.macro.mall.portal.controller;
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.portal.domain.MembershipPaymentException;
 import com.macro.mall.portal.service.RechargeService;
+import com.macro.mall.portal.service.WalletWithdrawalService;
 import com.macro.mall.portal.service.UmsMemberService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,8 @@ public class RechargeController {
     private static final Logger log=LoggerFactory.getLogger(RechargeController.class);
     private final RechargeService service;
     private final UmsMemberService members;
-    public RechargeController(RechargeService service,UmsMemberService members) { this.service=service; this.members=members; }
+    private final WalletWithdrawalService withdrawals;
+    public RechargeController(RechargeService service,UmsMemberService members,WalletWithdrawalService withdrawals) { this.service=service; this.members=members; this.withdrawals=withdrawals; }
     public record CreateRequest(String amount,String channel,String requestId) {}
     private long member() { return members.getCurrentMember().getId(); }
     private <T> CommonResult<T> result(Supplier<T> action) {
@@ -28,6 +30,12 @@ public class RechargeController {
     }
     @GetMapping("/account")
     public CommonResult<?> account() { return result(()->service.account(member())); }
+    @GetMapping("/withdrawals")
+    public CommonResult<?> withdrawals() { return result(()->withdrawals.list(member())); }
+    @PostMapping("/withdrawals")
+    public CommonResult<?> requestWithdrawal(@RequestBody WalletWithdrawalService.Request request) {
+        return result(()->withdrawals.apply(member(),request));
+    }
     @GetMapping("/ledger")
     public CommonResult<?> ledger() { return result(()->service.ledger(member())); }
     @GetMapping("/payment-options")

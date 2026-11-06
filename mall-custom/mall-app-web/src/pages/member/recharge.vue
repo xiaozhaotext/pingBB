@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <view v-if="sandbox && sandboxMode" class="card hint">沙盒演示：模拟充值不会扣取真实资金，到账余额可用于自选区余额下单。</view>
-    <view class="card"><text class="title">账户消费余额</text><text class="balance">¥ {{ balance }}</text><text class="hint">充值及沙盒收益提现转入的余额，可用于自选区余额支付；与可提现收益、积分分别记账。</text></view>
+    <view class="card"><text class="title">账户消费余额</text><text class="balance">¥ {{ balance }}</text><button @click="openWithdrawal">我要提现</button><text class="hint">充值及沙盒收益提现转入的余额，可用于自选区余额支付；与可提现收益、积分分别记账。</text></view>
     <view class="card">
       <text class="title">充值金额（元）</text>
       <input v-model="amount" type="digit" :maxlength="8" placeholder="0.01 – 50000.00" :disabled="busy || !!current" />
@@ -37,6 +37,7 @@ let storageKey='',supported=false
 supported=true
 // #endif
 const api=<T,>(url:string,method:'GET'|'POST'='GET',data?:any)=>http<T>({url:'/member/recharge'+url,method,data})
+function openWithdrawal(){uni.navigateTo({url:'/pages/member/walletWithdraw'})}
 function amountCents(value:string):number | null {
   if(!/^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$/.test(value)) return null
   const [yuan,fraction='']=value.split('.')
