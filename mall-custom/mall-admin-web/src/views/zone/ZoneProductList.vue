@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { productImportBusy } from '@/utils/productImportState'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/utils/http'
 import type { AxiosRequestConfig } from 'axios'
@@ -48,6 +48,19 @@ const busy = ref<number | null>(null)
 const importing = productImportBusy
 watch(importing, value => { if (!value) load() })
 const selectedRows = ref<ZoneProduct[]>([])
+const batchMode = ref(false)
+const selectionTable = ref<{ clearSelection: () => void; toggleRowSelection: (row: ZoneProduct, selected: boolean) => void }>()
+function clearBatchSelection() { selectionTable.value?.clearSelection(); selectedRows.value = [] }
+async function toggleBatchMode() {
+  if (batchBusy.value) return
+  batchMode.value = !batchMode.value
+  await nextTick()
+  clearBatchSelection()
+}
+function selectPage() { clearBatchSelection(); pagedRows.value.forEach(row => selectionTable.value?.toggleRowSelection(row, true)) }
+function selectUnpublished() { clearBatchSelection(); pagedRows.value.filter(row => row.publishStatus !== 1).forEach(row => selectionTable.value?.toggleRowSelection(row, true)) }
+watch([page, zone], () => { clearBatchSelection() })
+watch(zone, () => { batchMode.value = false })
 const batchBusy = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
@@ -274,8 +287,15 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-input v-model="keyword" placeholder="搜索商品名称或货号" clearable style="max-width: 280px" @keyup.enter="load" />
 
         <el-button type="primary" @click="load">查询</el-button>
-        <el-button :disabled="!selectedRows.length || batchBusy" :loading="batchBusy" @click="batchPublish">批量上架</el-button>
+        <el-button :disabled="batchBusy" @click="toggleBatchMode">{{ batchMode ? '退出批量管理' : '批量管理' }}</el-button>
+        <template v-if="batchMode">
+        <el-button :disabled="batchBusy || !pagedRows.length" @click="selectPage">全选本页</el-button>
+        <el-button :disabled="batchBusy || !pagedRows.length" @click="selectUnpublished">勾选本页未上架商品</el-button>
+        <el-button :disabled="batchBusy || !selectedRows.length" @click="clearBatchSelection">取消全选</el-button>
+        <span>已选 {{ selectedRows.length }} 件</span>
+        <el-button :disabled="!selectedRows.some(row => row.publishStatus !== 1) || batchBusy" :loading="batchBusy" @click="batchPublish">批量上架</el-button>
         <el-button type="danger" :disabled="!selectedRows.length || batchBusy" :loading="batchBusy" @click="batchDelete">批量删除</el-button>
+        </template>
       </div>
       <el-alert type="info" :closable="false">
         <template #title>
@@ -285,8 +305,8 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <p v-else class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，使用零售价，默认库存100；分类仅在当前专区创建。也兼容原CSV模板。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
-        <el-table-column type="selection" width="48" />
+      <el-table ref="selectionTable" row-key="id" :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
+        <el-table-column v-if="batchMode" type="selection" width="48" :selectable="() => !batchBusy" />
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">
