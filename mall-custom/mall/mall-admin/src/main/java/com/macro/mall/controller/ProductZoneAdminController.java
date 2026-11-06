@@ -60,7 +60,7 @@ public class ProductZoneAdminController {
                 "LEFT JOIN pms_brand b ON b.id=p.brand_id " +
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
                 "AND z.product_id IS NOT NULL " +
-                "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 100", zone,like,like));
+                "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 10000", zone,like,like));
     }
 
     public record Assignment(@NotNull @Min(1) Long productId, @Min(-10000) @Max(10000) int sortOrder,

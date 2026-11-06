@@ -44,7 +44,10 @@ const batchBusy = ref(false)
 const filteredRows = computed(() => rows.value.filter(row => assignmentFilter.value === 'all' || (assignmentFilter.value === 'assigned' ? isAssigned(row) : !isAssigned(row))))
 const pagedRows = computed(() => filteredRows.value.slice((page.value - 1) * 10, page.value * 10))
 watch(assignmentFilter, () => { page.value = 1; selectedIds.value = [] })
-const allSelected = computed(() => filteredRows.value.length > 0 && filteredRows.value.every(row => selectedIds.value.includes(row.id)))
+const selectedIdSet = computed(() => new Set(selectedIds.value))
+const autoSelectRows = computed(() => managementMode.value === 'trash' ? filteredRows.value.filter(row => row.publishStatus !== 1) : filteredRows.value)
+const allSelected = computed(() => autoSelectRows.value.length > 0 && autoSelectRows.value.every(row => selectedIdSet.value.has(row.id)))
+const selectionIndeterminate = computed(() => !allSelected.value && autoSelectRows.value.some(row => selectedIdSet.value.has(row.id)))
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
@@ -196,7 +199,7 @@ function selectProduct(id: number, selected: boolean) {
 
 function selectAll(selected: boolean) {
   if (batchBusy.value) return
-  selectedIds.value = selected ? filteredRows.value.map(row => row.id) : []
+  selectedIds.value = selected ? Array.from(new Set([...selectedIds.value, ...autoSelectRows.value.map(row => row.id)])) : []
 }
 
 async function submitBatch() {
@@ -205,9 +208,10 @@ async function submitBatch() {
   const targetZone = zone.value
   const targetLabel = zoneLabel.value
   const ids = [...selectedIds.value]
+  const publishedCount = rows.value.filter(row => selectedIdSet.value.has(row.id) && row.publishStatus === 1).length
   try {
     await ElMessageBox.confirm(
-      action === 'trash' ? `确认删除当前${targetLabel}勾选的 ${ids.length} 件商品？商品将进入本专区回收站。` : `确认上架当前${targetLabel}勾选的 ${ids.length} 件商品？`,
+      action === 'trash' ? `确认删除当前${targetLabel}勾选的 ${ids.length} 件商品？${publishedCount ? `其中 ${publishedCount} 件已上架，将同时下架。` : ''}商品将进入本专区回收站，历史订单保留。` : `确认上架当前${targetLabel}勾选的 ${ids.length} 件商品？`,
       action === 'trash' ? '批量删除' : '批量上架', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' },
     )
   } catch { return }
@@ -215,7 +219,7 @@ async function submitBatch() {
   batchBusy.value = true
   try {
     const result = await http<number>({
-      url: `/p0/zones/${targetZone}/products/batch-${action}`, method: 'post', data: { ids }, silent: true,
+      url: `/p0/zones/${targetZone}/products/batch-${action}`, method: 'post', data: { ids }, timeout: 120000, silent: true,
     } as AxiosRequestConfig & { silent: boolean })
     ElMessage.success(action === 'trash' ? `已将 ${result.data} 件商品移入${targetLabel}回收站` : `已上架 ${result.data} 件${targetLabel}商品`)
     if (zone.value === targetZone) { cancelBatch(); await load() }
@@ -364,20 +368,21 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
+        <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回10000条，请用关键词缩小范围。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <div v-if="managementMode" class="batch-toolbar">
         <strong>{{ managementMode === 'trash' ? '批量删除' : '批量上架' }}</strong>
-        <el-checkbox :model-value="allSelected" :indeterminate="selectedIds.length > 0 && !allSelected" :disabled="batchBusy || loading" @change="value => selectAll(Boolean(value))">全选当前查询结果（含全部分页）</el-checkbox>
+        <el-checkbox :model-value="allSelected" :indeterminate="selectionIndeterminate" :disabled="batchBusy || loading || autoSelectRows.length === 0" @change="value => selectAll(Boolean(value))">{{ managementMode === 'trash' ? '全选未上架商品（含全部分页）' : '全选当前查询结果（含全部分页）' }}</el-checkbox>
         <span>已勾选 {{ selectedIds.length }} / {{ filteredRows.length }} 件</span>
         <el-button :type="managementMode === 'trash' ? 'danger' : 'primary'" :loading="batchBusy" :disabled="loading || selectedIds.length === 0" @click="submitBatch">{{ managementMode === 'trash' ? '删除勾选商品' : '上架勾选商品' }}</el-button>
         <el-button :disabled="batchBusy" @click="cancelBatch">取消批量管理</el-button>
       </div>
+      <p v-if="managementMode === 'trash'" class="import-help">全选默认跳过已上架商品；如需删除已上架商品，请手动勾选。删除后自动下架并移入本专区回收站，历史订单保留。</p>
       <el-table :data="pagedRows" row-key="id" v-loading="loading || batchBusy" empty-text="暂无符合条件的商品">
         <el-table-column v-if="managementMode" width="50">
-          <template #default="{ row }"><el-checkbox :model-value="selectedIds.includes(row.id)" :disabled="batchBusy" :aria-label="`勾选商品${row.name}`" @change="value => selectProduct(row.id, Boolean(value))" /></template>
+          <template #default="{ row }"><el-checkbox :model-value="selectedIdSet.has(row.id)" :disabled="batchBusy" :aria-label="`勾选商品${row.name}`" @change="value => selectProduct(row.id, Boolean(value))" /></template>
         </el-table-column>
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">

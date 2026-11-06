@@ -39,9 +39,9 @@ public class ProductZoneBatchService {
 
     private List<Long> lockSelection(String zone, List<Long> ids) {
         trash.zone(zone);
-        if (ids == null || ids.isEmpty() || ids.size() > 1000
+        if (ids == null || ids.isEmpty() || ids.size() > 10000
                 || ids.stream().anyMatch(id -> id == null || id < 1)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择1至1000个当前专区商品");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择1至10000个当前专区商品");
         }
         List<Long> targets = ids.stream().distinct().sorted().toList();
         // Product row locks match zone reassignment and trash restoration, in stable ID order.

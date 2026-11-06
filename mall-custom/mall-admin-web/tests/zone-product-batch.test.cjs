@@ -14,8 +14,8 @@ function setup() {
  return {s:module.exports,route,calls,messages,setConfirm:fn=>confirm=fn,setFail:()=>fail=true}
 }
 test('select all spans pages and changing zone clears management and selection',async()=>{
- const {s,route}=setup();s.rows.value=Array.from({length:25},(_,i)=>({id:i+1,assigned:1}));s.startBatch('publish');s.selectAll(true)
- assert.equal(s.selectedIds.value.length,25);s.page.value=2;assert.equal(s.allSelected.value,true)
+ const {s,route}=setup();s.rows.value=Array.from({length:10000},(_,i)=>({id:i+1,assigned:1}));s.startBatch('publish');s.selectAll(true)
+ assert.equal(s.selectedIds.value.length,10000);s.page.value=2;assert.equal(s.allSelected.value,true)
  route.name='consumeProduct';await vue.nextTick();assert.equal(s.managementMode.value,null);assert.equal(s.selectedIds.value.length,0)
 })
 for(const action of ['trash','publish']) test(`batch ${action} submits exact current-zone selection`,async()=>{
@@ -30,3 +30,14 @@ test('server rejection displays reason and does not claim success',async()=>{
  const {s,messages,setFail}=setup();s.startBatch('publish');s.selectProduct(7,true);setFail();await s.submitBatch();assert.ok(messages.includes('不属于当前专区'));assert.ok(!messages.some(s=>s.startsWith('已上架')))
 })
 
+
+test('trash select-all skips published products but supports explicit selection and warns before trashing',async()=>{
+ const {s,calls,setConfirm}=setup();s.rows.value=[{id:1,publishStatus:0},{id:2,publishStatus:1},{id:3,publishStatus:0}]
+ s.startBatch('trash');s.selectAll(true);assert.deepEqual(Array.from(s.selectedIds.value),[1,3]);assert.equal(s.allSelected.value,true)
+ s.selectProduct(2,true);s.selectAll(true);assert.deepEqual(Array.from(s.selectedIds.value),[1,3,2])
+ let message;setConfirm(async text=>{message=text});await s.submitBatch()
+ assert.match(message,/1 件已上架/);assert.match(message,/回收站/);assert.deepEqual(Array.from(calls[0].data.ids),[1,3,2])
+})
+test('publish select-all includes both on-shelf and off-shelf products',()=>{
+ const {s}=setup();s.rows.value=[{id:1,publishStatus:0},{id:2,publishStatus:1}];s.startBatch('publish');s.selectAll(true);assert.deepEqual(Array.from(s.selectedIds.value),[1,2])
+})

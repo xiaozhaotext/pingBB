@@ -27,6 +27,17 @@ class ProductTrashServiceTest {
         jdbc.update("INSERT INTO pms_product VALUES(1,'one','','sn',3999,0,1),(2,'two','','sn2',100,0,1)");
         jdbc.update("INSERT INTO pms_product_zone VALUES(1,'PICK'),(2,'REBUY')");
     }
+    @Test void publishedDeletionMovesToRecycleBinAndKeepsOrderSnapshot() {
+        jdbc.update("INSERT INTO oms_order_item VALUES(1,'historical name')");
+        tx.executeWithoutResult(s -> service.trash("PICK",1,5,"admin"));
+        assertEquals(0,jdbc.queryForObject("SELECT publish_status FROM pms_product WHERE id=1",Integer.class));
+        assertEquals(1,jdbc.queryForObject("SELECT delete_status FROM pms_product WHERE id=1",Integer.class));
+        assertEquals(1,service.list("PICK","").size());
+        assertEquals("historical name",jdbc.queryForObject("SELECT product_name FROM oms_order_item WHERE product_id=1",String.class));
+        tx.executeWithoutResult(s -> service.restore("PICK",1,5,"admin"));
+        assertTrue(service.list("PICK","").isEmpty());
+        assertEquals(0,jdbc.queryForObject("SELECT publish_status FROM pms_product WHERE id=1",Integer.class));
+    }
     @Test void deletionAndRestoreRemainScopedAndUnpublished() {
         assertThrows(ResponseStatusException.class,()->service.trash("REBUY",1,5,"admin"));
         tx.executeWithoutResult(s->service.trash("PICK",1,5,"admin"));
