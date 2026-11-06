@@ -88,7 +88,7 @@ public class PickProductImportService {
             return null;
         }
         List<Route> routes = validate(rows, pick, headers);
-        List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
+        List<Long> category = pick ? jdbc.queryForList("SELECT c.id FROM pms_product_category c JOIN pms_category_zone z ON z.category_id=c.id WHERE c.parent_id=0 AND c.name='旅游路线' AND c.show_status=1 AND z.zone_code='PICK' ORDER BY c.id LIMIT 1", Long.class) : List.of();
         if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
         List<String> names = new ArrayList<>();
@@ -96,7 +96,7 @@ public class PickProductImportService {
             PmsProductParam product = new PmsProductParam();
             product.setZoneCode(zone);
             String categoryName = pick ? "旅游路线" : route.category();
-            Long categoryId = pick ? category.get(0) : findCategory(categoryName, route.row());
+            Long categoryId = pick ? category.get(0) : findCategory(categoryName, route.row(), zone);
             product.setProductCategoryId(categoryId);
             product.setProductCategoryName(categoryName);
             if (pick && !attribute.isEmpty()) product.setProductAttributeCategoryId(attribute.get(0));
@@ -133,9 +133,9 @@ public class PickProductImportService {
         return new Result(names.size(), names);
     }
 
-    private Long findCategory(String name, int line) {
-        List<Long> ids = jdbc.queryForList("SELECT id FROM pms_product_category WHERE name=? AND show_status=1 ORDER BY id LIMIT 2", Long.class, name);
-        if (ids.size() != 1) bad("第" + line + "行：商品分类不存在、未启用或名称重复，请使用唯一的已启用分类名称");
+    private Long findCategory(String name, int line, String zone) {
+        List<Long> ids = jdbc.queryForList("SELECT c.id FROM pms_product_category c JOIN pms_category_zone z ON z.category_id=c.id WHERE c.name=? AND c.show_status=1 AND z.zone_code=? ORDER BY c.id LIMIT 2", Long.class, name, zone);
+        if (ids.size() != 1) bad("第" + line + "行：当前专区的商品分类不存在、未启用或名称重复，请使用本专区唯一的已启用分类名称");
         return ids.get(0);
     }
 

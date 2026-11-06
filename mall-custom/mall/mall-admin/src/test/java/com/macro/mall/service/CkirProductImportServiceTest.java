@@ -2,6 +2,8 @@ package com.macro.mall.service;
 
 import com.macro.mall.dto.PmsProductParam;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -21,8 +23,9 @@ import static org.mockito.Mockito.*;
 class CkirProductImportServiceTest {
     @TempDir Path temp;
 
-    @Test
-    void createsSeparateUnpublishedZeroStockProductsWithZonePrices() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"REBUY", "CONSUME"})
+    void createsOnlyCurrentZoneWithCorrectPrice(String zone) throws Exception {
         var parser = mock(CkirWorkbookParser.class);
         var jdbc = mock(JdbcTemplate.class);
         var products = mock(PmsProductService.class);
@@ -41,19 +44,32 @@ class CkirProductImportServiceTest {
         }
         var file = new MockMultipartFile("file", "CKIR.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
-        var result = service.importFile(file);
+        var result = service.importFile(zone, file);
         var capture = org.mockito.ArgumentCaptor.forClass(PmsProductParam.class);
-        verify(products, times(2)).create(capture.capture());
+        verify(products, times(1)).create(capture.capture());
         var created = capture.getAllValues();
-        assertEquals(2, result.createdProducts());
-        assertEquals(List.of("REBUY", "CONSUME"), created.stream().map(PmsProductParam::getZoneCode).toList());
-        assertEquals(List.of(new BigDecimal("69.00"), new BigDecimal("99.00")),
+        assertEquals(1, result.createdProducts());
+        assertEquals(List.of(zone), created.stream().map(PmsProductParam::getZoneCode).toList());
+        assertEquals(List.of(new BigDecimal(zone.equals("REBUY") ? "69.00" : "99.00")),
                 created.stream().map(PmsProductParam::getPrice).toList());
+        verify(jdbc).queryForList(contains("z.zone_code=?"), eq(Long.class), eq("CKIR家纺"), eq(zone));
         for (var product : created) {
             assertEquals(0, product.getStock());
             assertEquals(0, product.getPublishStatus());
             assertTrue(product.getPic().startsWith("/product-images/ckir-"));
             assertEquals(0, product.getSkuStockList().get(0).getStock());
         }
+    }
+    @Test
+    void rejectsUnscopedAndPickImportsBeforeParsing() {
+        var parser = mock(CkirWorkbookParser.class);
+        var jdbc = mock(JdbcTemplate.class);
+        var products = mock(PmsProductService.class);
+        var service = new CkirProductImportService(parser, jdbc, products);
+        for (String zone : new String[] {null, "PICK", ""}) {
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> service.importFile(zone, null));
+        }
+        verifyNoInteractions(parser, jdbc, products);
     }
 }

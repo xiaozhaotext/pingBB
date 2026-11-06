@@ -38,9 +38,13 @@ const zoneRule = computed(() => currentZone.value.rule)
 const keyword = ref('')
 const assignmentFilter = ref('all')
 const page = ref(1)
+const managementMode = ref<'trash' | 'publish' | null>(null)
+const selectedIds = ref<number[]>([])
+const batchBusy = ref(false)
 const filteredRows = computed(() => rows.value.filter(row => assignmentFilter.value === 'all' || (assignmentFilter.value === 'assigned' ? isAssigned(row) : !isAssigned(row))))
 const pagedRows = computed(() => filteredRows.value.slice((page.value - 1) * 10, page.value * 10))
-watch(assignmentFilter, () => { page.value = 1 })
+watch(assignmentFilter, () => { page.value = 1; selectedIds.value = [] })
+const allSelected = computed(() => filteredRows.value.length > 0 && filteredRows.value.every(row => selectedIds.value.includes(row.id)))
 const loading = ref(false)
 const rows = ref<ZoneProduct[]>([])
 const busy = ref<number | null>(null)
@@ -67,28 +71,32 @@ async function importCkir(event: Event) {
     return
   }
   ckirImporting.value = true
+  const targetZone = zone.value
+  const targetLabel = zoneLabel.value
   try {
     const form = new FormData()
     form.append('file', file)
-    const preview = await http<{ products: number; perZone: number; categories: string[]; warnings: string[]; alreadyImported: number }>({
-      url: '/p0/ckir/products/preview', method: 'post', data: form, timeout: 600000,
+    const preview = await http<{ zone: string; products: number; categories: string[]; warnings: string[]; alreadyImported: number }>({
+      url: `/p0/zones/${targetZone}/products/ckir/preview`, method: 'post', data: form, timeout: 600000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
     const data = preview.data
+    if (zone.value !== targetZone) return
     if (data.warnings.length) {
       ElMessageBox.alert(data.warnings.slice(0, 20).join('；') + (data.warnings.length > 20 ? '；还有更多问题' : ''),
         `校验发现 ${data.warnings.length} 个问题`, { type: 'warning' })
       return
     }
     await ElMessageBox.confirm(
-      `识别 ${data.perZone} 件商品、${data.categories.length} 个分类；复购区用平台价（缺失时用京东价），消费区用零售价。将创建最多 ${data.products - data.alreadyImported} 件商品，已有 ${data.alreadyImported} 件跳过。图片自动提取，库存设为 0，全部下架。确认导入？`,
-      '确认 CKIR 两区导入', { type: 'warning', confirmButtonText: '确认导入', cancelButtonText: '取消' })
+      `识别 ${data.products} 件商品、${data.categories.length} 个分类，将导入当前${targetLabel}，${targetZone === 'REBUY' ? '采用平台价（缺失时用京东价）' : '采用零售价'}。将创建最多 ${data.products - data.alreadyImported} 件商品，已有 ${data.alreadyImported} 件跳过。图片自动提取，库存设为 0，默认下架。确认导入？`,
+      `确认导入${targetLabel}`, { type: 'warning', confirmButtonText: '确认导入', cancelButtonText: '取消' })
+    if (zone.value !== targetZone) return
     const result = await http<{ createdProducts: number; skippedExisting: number }>({
-      url: '/p0/ckir/products/import', method: 'post', data: form, timeout: 1200000,
+      url: `/p0/zones/${targetZone}/products/ckir/import`, method: 'post', data: form, timeout: 1200000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
     ElMessage.success(`已新建 ${result.data.createdProducts} 件下架商品，跳过 ${result.data.skippedExisting} 件已有商品`)
-    await load()
+    if (zone.value === targetZone) await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     if (response) ElMessage.error(response.data?.message || 'CKIR 导入失败')
@@ -123,15 +131,17 @@ async function importRoutes(event: Event) {
     return
   }
   importing.value = true
+  const targetZone = zone.value
+  const targetLabel = zoneLabel.value
   try {
     const form = new FormData()
     form.append('file', file)
     const response = await http<{ imported: number; names: string[] }>({
-      url: `/p0/zones/${zone.value}/products/import`, method: 'post', data: form, timeout: 120000,
+      url: `/p0/zones/${targetZone}/products/import`, method: 'post', data: form, timeout: 120000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
-    ElMessage.success(`已导入 ${response.data.imported} 件${zoneLabel.value}商品，默认下架，请核对后上架`)
-    await load()
+    ElMessage.success(`已导入 ${response.data.imported} 件${targetLabel}商品，默认下架，请核对后上架`)
+    if (zone.value === targetZone) await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
     ElMessage.error(response?.data?.message || '导入失败，请检查文件后重试')
@@ -152,7 +162,7 @@ async function load() {
       url: '/p0/zones/' + zone.value + '/products',
       params: { keyword: keyword.value, assignedOnly: true },
     })
-    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1 }
+    if (revision === loadRevision) { rows.value = res.data || []; page.value = 1; selectedIds.value = [] }
   } catch {
     if (revision === loadRevision) ElMessage.error('商品列表加载失败，请重试')
   } finally {
@@ -161,11 +171,60 @@ async function load() {
 }
 
 watch(zone, () => {
+  cancelBatch()
   keyword.value = ''
   assignmentFilter.value = 'all'
   load()
 })
 onMounted(load)
+
+function startBatch(action: 'trash' | 'publish') {
+  if (batchBusy.value || loading.value) return
+  managementMode.value = action
+  selectedIds.value = []
+}
+
+function cancelBatch() {
+  managementMode.value = null
+  selectedIds.value = []
+}
+
+function selectProduct(id: number, selected: boolean) {
+  if (batchBusy.value) return
+  selectedIds.value = selected ? Array.from(new Set([...selectedIds.value, id])) : selectedIds.value.filter(value => value !== id)
+}
+
+function selectAll(selected: boolean) {
+  if (batchBusy.value) return
+  selectedIds.value = selected ? filteredRows.value.map(row => row.id) : []
+}
+
+async function submitBatch() {
+  const action = managementMode.value
+  if (!action || batchBusy.value || loading.value || selectedIds.value.length === 0) return
+  const targetZone = zone.value
+  const targetLabel = zoneLabel.value
+  const ids = [...selectedIds.value]
+  try {
+    await ElMessageBox.confirm(
+      action === 'trash' ? `确认删除当前${targetLabel}勾选的 ${ids.length} 件商品？商品将进入本专区回收站。` : `确认上架当前${targetLabel}勾选的 ${ids.length} 件商品？`,
+      action === 'trash' ? '批量删除' : '批量上架', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' },
+    )
+  } catch { return }
+  if (zone.value !== targetZone || managementMode.value !== action) return
+  batchBusy.value = true
+  try {
+    const result = await http<number>({
+      url: `/p0/zones/${targetZone}/products/batch-${action}`, method: 'post', data: { ids }, silent: true,
+    } as AxiosRequestConfig & { silent: boolean })
+    ElMessage.success(action === 'trash' ? `已将 ${result.data} 件商品移入${targetLabel}回收站` : `已上架 ${result.data} 件${targetLabel}商品`)
+    if (zone.value === targetZone) { cancelBatch(); await load() }
+  } catch (error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    ElMessage.error(response?.data?.message || '批量操作未确认完成，请刷新列表后核对')
+    if (zone.value === targetZone) await load()
+  } finally { batchBusy.value = false }
+}
 
 function goAdd() {
   router.push({ name: `${currentZone.value.prefix}AddProduct` })
@@ -276,16 +335,23 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <p>仅展示当前专区的商品，其他专区商品不会出现在此列表。</p>
       </div>
       <div class="ops">
-        <el-button type="primary" @click="goAdd">添加商品</el-button>
+        <el-button type="primary" :disabled="managementMode !== null || batchBusy" @click="goAdd">添加商品</el-button>
+        <el-dropdown :disabled="loading || importing || ckirImporting || batchBusy || busy !== null" @command="startBatch">
+          <el-button :disabled="loading || importing || ckirImporting || batchBusy || busy !== null">批量管理 ▾</el-button>
+          <template #dropdown><el-dropdown-menu>
+            <el-dropdown-item command="trash">批量删除</el-dropdown-item>
+            <el-dropdown-item command="publish">批量上架</el-dropdown-item>
+          </el-dropdown-menu></template>
+        </el-dropdown>
         <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
-        <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
+        <el-button :loading="importing" :disabled="managementMode !== null || batchBusy" @click="importInput?.click()">一键导入自动分类</el-button>
         <template v-if="zone !== 'PICK'">
           <input ref="ckirInput" type="file" accept=".xlsx" style="display:none" @change="importCkir" />
-          <el-button :loading="ckirImporting" @click="ckirInput?.click()">导入 CKIR 品牌总表（两区）</el-button>
+          <el-button :loading="ckirImporting" :disabled="managementMode !== null || batchBusy" @click="ckirInput?.click()">导入 CKIR 品牌总表</el-button>
           <el-button @click="downloadCkirTemplate">下载 CKIR 模板</el-button>
         </template>
         <el-button @click="downloadImportTemplate">下载导入模板</el-button>
-        <el-button @click="load">刷新</el-button>
+        <el-button :disabled="batchBusy" @click="load">刷新</el-button>
       </div>
     </header>
     <el-card shadow="never">
@@ -302,7 +368,17 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品">
+      <div v-if="managementMode" class="batch-toolbar">
+        <strong>{{ managementMode === 'trash' ? '批量删除' : '批量上架' }}</strong>
+        <el-checkbox :model-value="allSelected" :indeterminate="selectedIds.length > 0 && !allSelected" :disabled="batchBusy || loading" @change="value => selectAll(Boolean(value))">全选当前查询结果（含全部分页）</el-checkbox>
+        <span>已勾选 {{ selectedIds.length }} / {{ filteredRows.length }} 件</span>
+        <el-button :type="managementMode === 'trash' ? 'danger' : 'primary'" :loading="batchBusy" :disabled="loading || selectedIds.length === 0" @click="submitBatch">{{ managementMode === 'trash' ? '删除勾选商品' : '上架勾选商品' }}</el-button>
+        <el-button :disabled="batchBusy" @click="cancelBatch">取消批量管理</el-button>
+      </div>
+      <el-table :data="pagedRows" row-key="id" v-loading="loading || batchBusy" empty-text="暂无符合条件的商品">
+        <el-table-column v-if="managementMode" width="50">
+          <template #default="{ row }"><el-checkbox :model-value="selectedIds.includes(row.id)" :disabled="batchBusy" :aria-label="`勾选商品${row.name}`" @change="value => selectProduct(row.id, Boolean(value))" /></template>
+        </el-table-column>
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">
@@ -337,7 +413,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
             <el-tag v-else type="info">{{ row.displayReason }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="520" fixed="right">
+        <el-table-column v-if="!managementMode" label="操作" width="520" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
             <el-button v-if="isAssigned(row)" link type="primary" :disabled="busy === row.id" @click="saveSort(row)">保存排序</el-button>
@@ -364,6 +440,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .head h1 { margin: 6px 0; color: #234a34; font-size: 26px; }
 .head p { margin: 0; color: #6d8074; }
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.batch-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0; padding: 12px; background: #f3f7f4; border-radius: 6px; }
 .import-help { color: #6d8074; font-size: 13px; line-height: 1.6; }
 </style>
 

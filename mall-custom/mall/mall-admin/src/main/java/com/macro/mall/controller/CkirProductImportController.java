@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,7 @@ import java.io.IOException;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/p0/ckir/products")
+@RequestMapping("/p0/zones/{zone}/products/ckir")
 public class CkirProductImportController {
     private final P0AdminAccess access;
     private final CkirProductImportService service;
@@ -29,16 +30,16 @@ public class CkirProductImportController {
 
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResult<CkirProductImportService.Preview> preview(
-            Principal principal, @RequestPart("file") MultipartFile file) throws IOException {
+            Principal principal, @PathVariable String zone, @RequestPart("file") MultipartFile file) throws IOException {
         access.requireAuthorized(principal);
-        return CommonResult.success(service.preview(file));
+        return CommonResult.success(service.preview(zone, file));
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResult<CkirProductImportService.Result> importFile(
-            Principal principal, @RequestPart("file") MultipartFile file) throws IOException {
+            Principal principal, @PathVariable String zone, @RequestPart("file") MultipartFile file) throws IOException {
         access.requireAuthorized(principal);
-        return CommonResult.success(service.importFile(file));
+        return CommonResult.success(service.importFile(zone, file));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

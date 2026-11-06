@@ -41,18 +41,20 @@ public class CkirProductImportService {
         this.products = products;
     }
 
-    public record Preview(int products, int perZone, List<String> categories, List<String> warnings,
+    public record Preview(String zone, int products, int perZone, List<String> categories, List<String> warnings,
                           int alreadyImported) {}
     public record Result(int createdProducts, int skippedExisting, List<String> categories) {}
 
-    public Preview preview(MultipartFile file) throws IOException {
+    public Preview preview(String zone, MultipartFile file) throws IOException {
+        requireZone(zone);
         try (Prepared prepared = prepare(file)) {
-            return describe(prepared.parsed());
+            return describe(zone, prepared.parsed());
         }
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Result importFile(MultipartFile file) throws IOException {
+    public Result importFile(String zone, MultipartFile file) throws IOException {
+        requireZone(zone);
         try (Prepared prepared = prepare(file); ZipFile zip = new ZipFile(prepared.path().toFile())) {
             CkirWorkbookParser.Preview parsed = prepared.parsed();
             if (!parsed.warnings().isEmpty())
@@ -62,72 +64,72 @@ public class CkirProductImportService {
             Set<String> sheetNames = new LinkedHashSet<>(
                     parsed.items().stream().map(CkirWorkbookParser.Item::sheet).toList());
             for (String sheet : sheetNames)
-                for (String zone : List.of("REBUY", "CONSUME"))
-                    categories.put(sheet + "|" + zone, category(sheet, zone));
+                categories.put(sheet, category(sheet, zone));
             int created = 0;
             int skipped = 0;
             for (CkirWorkbookParser.Item item : parsed.items()) {
+                String sn = sn(item, zone);
+                Integer existing = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM pms_product WHERE product_sn=?", Integer.class, sn);
+                if (existing != null && existing > 0) { skipped++; continue; }
                 String cover = image(zip, item.imageEntry());
-                for (String zone : List.of("REBUY", "CONSUME")) {
-                    String sn = sn(item, zone);
-                    Integer existing = jdbc.queryForObject(
-                            "SELECT COUNT(*) FROM pms_product WHERE product_sn=?", Integer.class, sn);
-                    if (existing != null && existing > 0) { skipped++; continue; }
-                    var price = "REBUY".equals(zone) ? item.rebuyPrice() : item.consumePrice();
-                    PmsProductParam product = new PmsProductParam();
-                    product.setZoneCode(zone);
-                    product.setProductCategoryId(categories.get(item.sheet() + "|" + zone));
-                    product.setProductCategoryName(item.sheet());
-                    product.setName(item.name().length() > 140 ? item.name().substring(0, 140) : item.name());
-                    product.setSubTitle(item.model().length() > 255 ? item.model().substring(0, 255) : item.model());
-                    product.setProductSn(sn);
-                    product.setStock(0);
-                    product.setLowStock(0);
-                    product.setPrice(price);
-                    product.setOriginalPrice(price);
-                    product.setPic(cover);
-                    String description = item.description().isBlank() ? item.name() : item.description();
-                    product.setDescription(description.length() > 500 ? description.substring(0, 500) : description);
-                    String detail = "<p>" + HtmlUtils.htmlEscape(description.length() > 10000
-                            ? description.substring(0, 10000) : description).replace("\n", "<br>") + "</p>";
-                    product.setDetailHtml(detail);
-                    product.setDetailMobileHtml(detail);
-                    product.setUnit("件");
-                    product.setPublishStatus(0);
-                    product.setDeleteStatus(0);
-                    product.setVerifyStatus(1);
-                    product.setPromotionType(0);
-                    product.setGiftPoint(0);
-                    product.setGiftGrowth(0);
-                    product.setUsePointLimit(0);
-                    PmsSkuStock sku = new PmsSkuStock();
-                    sku.setPrice(price);
-                    sku.setStock(0);
-                    sku.setLowStock(0);
-                    sku.setLockStock(0);
-                    sku.setSpData("[]");
-                    product.setSkuStockList(List.of(sku));
-                    products.create(product);
-                    created++;
-                }
+                var price = "REBUY".equals(zone) ? item.rebuyPrice() : item.consumePrice();
+                PmsProductParam product = new PmsProductParam();
+                product.setZoneCode(zone);
+                product.setProductCategoryId(categories.get(item.sheet()));
+                product.setProductCategoryName(item.sheet());
+                product.setName(item.name().length() > 140 ? item.name().substring(0, 140) : item.name());
+                product.setSubTitle(item.model().length() > 255 ? item.model().substring(0, 255) : item.model());
+                product.setProductSn(sn);
+                product.setStock(0);
+                product.setLowStock(0);
+                product.setPrice(price);
+                product.setOriginalPrice(price);
+                product.setPic(cover);
+                String description = item.description().isBlank() ? item.name() : item.description();
+                product.setDescription(description.length() > 500 ? description.substring(0, 500) : description);
+                String detail = "<p>" + HtmlUtils.htmlEscape(description.length() > 10000
+                        ? description.substring(0, 10000) : description).replace("\n", "<br>") + "</p>";
+                product.setDetailHtml(detail);
+                product.setDetailMobileHtml(detail);
+                product.setUnit("件");
+                product.setPublishStatus(0);
+                product.setDeleteStatus(0);
+                product.setVerifyStatus(1);
+                product.setPromotionType(0);
+                product.setGiftPoint(0);
+                product.setGiftGrowth(0);
+                product.setUsePointLimit(0);
+                PmsSkuStock sku = new PmsSkuStock();
+                sku.setPrice(price);
+                sku.setStock(0);
+                sku.setLowStock(0);
+                sku.setLockStock(0);
+                sku.setSpData("[]");
+                product.setSkuStockList(List.of(sku));
+                products.create(product);
+                created++;
             }
             return new Result(created, skipped, new ArrayList<>(sheetNames));
         }
     }
 
-    private Preview describe(CkirWorkbookParser.Preview parsed) {
+    private Preview describe(String zone, CkirWorkbookParser.Preview parsed) {
         List<String> categories = new ArrayList<>(
                 new LinkedHashSet<>(parsed.items().stream().map(CkirWorkbookParser.Item::sheet).toList()));
         int existing = 0;
         for (CkirWorkbookParser.Item item : parsed.items()) {
-            for (String zone : List.of("REBUY", "CONSUME")) {
-                Integer count = jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM pms_product WHERE product_sn=?", Integer.class, sn(item, zone));
-                if (count != null && count > 0) existing++;
-            }
+            Integer count = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM pms_product WHERE product_sn=?", Integer.class, sn(item, zone));
+            if (count != null && count > 0) existing++;
         }
-        return new Preview(parsed.items().size() * 2, parsed.items().size(), categories,
+        return new Preview(zone, parsed.items().size(), parsed.items().size(), categories,
                 parsed.warnings(), existing);
+    }
+
+    private void requireZone(String zone) {
+        if (!"REBUY".equals(zone) && !"CONSUME".equals(zone))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CKIR 商品仅支持从复购区或消费区导入，请选择当前专区");
     }
 
     private static String sn(CkirWorkbookParser.Item item, String zone) {
