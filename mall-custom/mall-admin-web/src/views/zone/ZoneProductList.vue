@@ -57,9 +57,18 @@ async function toggleBatchMode() {
   await nextTick()
   clearBatchSelection()
 }
-function selectPage() { clearBatchSelection(); pagedRows.value.forEach(row => selectionTable.value?.toggleRowSelection(row, true)) }
-function selectUnpublished() { clearBatchSelection(); pagedRows.value.filter(row => row.publishStatus !== 1).forEach(row => selectionTable.value?.toggleRowSelection(row, true)) }
-watch([page, zone], () => { clearBatchSelection() })
+async function selectAllUnpublished() {
+  const currentZone = zone.value
+  batchBusy.value = true
+  try {
+    const response = await http<ZoneProduct[]>({ url: `/p0/zones/${currentZone}/products`, params: { assignedOnly: true } })
+    if (currentZone !== zone.value || !batchMode.value) return
+    clearBatchSelection()
+    response.data.filter(row => row.publishStatus !== 1).forEach(row => selectionTable.value?.toggleRowSelection(row, true))
+    ElMessage.success(`已勾选本专区全部 ${selectedRows.value.length} 件未上架商品；已上架商品可手动勾选`)
+  } finally { batchBusy.value = false }
+}
+watch(zone, () => { clearBatchSelection() })
 watch(zone, () => { batchMode.value = false })
 const batchBusy = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
@@ -198,12 +207,13 @@ async function batchPublish() {
   await ElMessageBox.confirm(`确认上架选中的 ${pending.length} 件${zoneLabel.value}商品？`, '批量上架', {type:'warning'})
   batchBusy.value = true
   try {
-    await productUpdatePublishStatusAPI({ids:pending.map(row=>row.id).join(','),publishStatus:1})
+    await http({ url: `/p0/zones/${zone.value}/products/publish`, method: 'post', data: { ids: pending.map(row => row.id) } })
     ElMessage.success(`已上架 ${pending.length} 件商品`)
     await load()
   } finally {batchBusy.value=false}
 }
 async function batchDelete() {
+  const batchZone = zone.value
   const chosen=[...selectedRows.value]
   if (!chosen.length) return
   await ElMessageBox.confirm(`确认将选中的 ${chosen.length} 件商品移入${zoneLabel.value}回收站？`, '批量删除', {type:'warning'})
@@ -211,7 +221,7 @@ async function batchDelete() {
   let done=0
   try {
     for (const row of chosen) {
-      try {await http({url:`/p0/zones/${zone.value}/products/${row.id}/trash`,method:'post'});done++}
+      try {await http({url:`/p0/zones/${batchZone}/products/${row.id}/trash`,method:'post'});done++}
       catch {break}
     }
     ElMessage[done===chosen.length?'success':'warning'](`已处理 ${done}/${chosen.length} 件商品`)
@@ -289,8 +299,8 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-button type="primary" @click="load">查询</el-button>
         <el-button :disabled="batchBusy" @click="toggleBatchMode">{{ batchMode ? '退出批量管理' : '批量管理' }}</el-button>
         <template v-if="batchMode">
-        <el-button :disabled="batchBusy || !pagedRows.length" @click="selectPage">全选本页</el-button>
-        <el-button :disabled="batchBusy || !pagedRows.length" @click="selectUnpublished">勾选本页未上架商品</el-button>
+        <el-button :disabled="batchBusy" @click="selectAllUnpublished">全选全部商品</el-button>
+        <span>仅自动勾选本专区未上架商品，已上架商品可手动选择；跨页保留勾选。</span>
         <el-button :disabled="batchBusy || !selectedRows.length" @click="clearBatchSelection">取消全选</el-button>
         <span>已选 {{ selectedRows.length }} 件</span>
         <el-button :disabled="!selectedRows.some(row => row.publishStatus !== 1) || batchBusy" :loading="batchBusy" @click="batchPublish">批量上架</el-button>
@@ -301,12 +311,12 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <template #title>
           <span>{{ zoneRule }}</span>
         </template>
-        <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
+        <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。全选覆盖本专区全部未上架商品，不受分页和搜索条件限制。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <p v-else class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，使用零售价，默认库存100；分类仅在当前专区创建。也兼容原CSV模板。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
       <el-table ref="selectionTable" row-key="id" :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
-        <el-table-column v-if="batchMode" type="selection" width="48" :selectable="() => !batchBusy" />
+        <el-table-column v-if="batchMode" type="selection" width="60" :reserve-selection="true"><template #header>选择</template></el-table-column>
         <el-table-column prop="id" label="ID" width="72" />
         <el-table-column label="图片" width="86">
           <template #default="{ row }">

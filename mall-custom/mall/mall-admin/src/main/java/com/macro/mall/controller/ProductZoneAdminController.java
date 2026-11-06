@@ -60,7 +60,27 @@ public class ProductZoneAdminController {
                 "LEFT JOIN pms_brand b ON b.id=p.brand_id " +
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
                 "AND z.product_id IS NOT NULL " +
-                "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC LIMIT 100", zone,like,like));
+                "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC", zone,like,like));
+    }
+
+    public record BatchPublish(List<Long> ids) {}
+    @PostMapping("/{zone}/products/publish")
+    @Transactional(rollbackFor=Exception.class)
+    public CommonResult<?> publish(Principal principal,@PathVariable String zone,@RequestBody BatchPublish body) {
+        long operator=access.requireAuthorized(principal);validateZone(zone);
+        if(body.ids()==null || body.ids().isEmpty() || body.ids().stream().anyMatch(id->id==null || id<=0))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请选择有效商品");
+        var ids=body.ids().stream().distinct().sorted().toList();
+        for(long id:ids) {
+            var found=jdbc.queryForList("SELECT p.id FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.id=? AND z.zone_code=? AND p.delete_status=0 FOR UPDATE",Long.class,id,zone);
+            if(found.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"所选商品不属于当前专区或已删除，请刷新列表");
+        }
+        int changed=0;
+        for(long id:ids) {
+            changed+=jdbc.update("UPDATE pms_product SET publish_status=1 WHERE id=? AND delete_status=0 AND publish_status<>1",id);
+            audit(operator,principal.getName(),"batch_publish",id,zone);
+        }
+        return CommonResult.success(changed);
     }
 
     public record Assignment(@NotNull @Min(1) Long productId, @Min(-10000) @Max(10000) int sortOrder,

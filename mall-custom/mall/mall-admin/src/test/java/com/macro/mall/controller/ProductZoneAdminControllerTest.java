@@ -18,6 +18,19 @@ class ProductZoneAdminControllerTest {
     final Principal principal=()->"admin";
     final ProductZoneAdminController controller=new ProductZoneAdminController(jdbc,access);
 
+    @Test void batchPublishRejectsForeignZoneBeforeAnyUpdate() {
+        when(access.requireAuthorized(principal)).thenReturn(3L);
+        when(jdbc.queryForList(anyString(),eq(Long.class),eq(7L),eq("PICK"))).thenReturn(List.of(7L));
+        when(jdbc.queryForList(anyString(),eq(Long.class),eq(8L),eq("PICK"))).thenReturn(List.of());
+        assertThrows(ResponseStatusException.class,()->controller.publish(principal,"PICK",new ProductZoneAdminController.BatchPublish(List.of(7L,8L))));
+        verify(jdbc,never()).update(anyString(),any(Object[].class));
+    }
+    @Test void batchPublishLocksAndChecksCurrentZone() {
+        when(access.requireAuthorized(principal)).thenReturn(3L);
+        when(jdbc.queryForList(anyString(),eq(Long.class),eq(7L),eq("CONSUME"))).thenReturn(List.of(7L));
+        controller.publish(principal,"CONSUME",new ProductZoneAdminController.BatchPublish(List.of(7L)));
+        verify(jdbc).update(contains("UPDATE pms_product SET publish_status=1"),eq(7L));
+    }
     @Test void unauthorizedWriteHasNoDatabaseSideEffects() {
         when(access.requireAuthorized(principal)).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
         assertThrows(ResponseStatusException.class,()->controller.assign(principal,"REBUY",new ProductZoneAdminController.Assignment(7L,0)));
