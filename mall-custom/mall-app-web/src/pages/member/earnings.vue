@@ -30,7 +30,8 @@
 
     <view class="card">
       <text class="title">申请提现</text>
-      <input class="input" v-model="withdrawAmount" placeholder="输入提现金额" type="digit" />
+      <input class="input" v-model="withdrawAmount" placeholder="输入100、200、300等整百金额" type="number" />
+      <text class="hint">每次至少提现100元，且金额须为100元的整数倍。</text>
       <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">{{sandbox?'沙盒提现到消费余额':'申请提现'}}</button>
     </view>
 
@@ -93,8 +94,8 @@ const handleWithdraw = async () => {
   if (withdrawing.value) return
   if(!modeReady.value) {uni.showToast({title:'提现环境尚未加载，请刷新后重试',icon:'none'});return}
   const input = withdrawAmount.value.trim()
-  if (!/^\d{1,10}(\.\d{1,2})?$/.test(input) || Number(input) <= 0) {
-    uni.showToast({ title: '请输入大于0且最多两位小数的金额', icon: 'none' }); return
+  if (!/^\d+$/.test(input) || Number(input) < 100 || Number(input) % 100 !== 0) {
+    uni.showToast({ title: '提现金额只能是100元的整数倍', icon: 'none' }); return
   }
   withdrawing.value = true
   try {

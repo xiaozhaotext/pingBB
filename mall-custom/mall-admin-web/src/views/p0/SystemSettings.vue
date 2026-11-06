@@ -79,6 +79,9 @@ async function load() {
 
 async function save() {
   if (!dirtyKeys.value.length) return ElMessage.info('没有需要保存的修改')
+  if (dirtyKeys.value.includes('withdraw.fee_rate') && !/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/.test(drafts.value['withdraw.fee_rate']?.trim() ?? '')) {
+    return ElMessage.warning('提现手续费率请填写0至1的小数，例如0.006表示0.6%')
+  }
   if (dirtyKeys.value.includes('ip.access.enabled') && drafts.value['ip.access.enabled'] === '1') {
     await ElMessageBox.confirm(
       `启用后，只有列表内的 IP 可以访问后台。当前 IP：${currentIp.value || '未知'}。请确认列表已包含你的 IP。`,
@@ -182,6 +185,9 @@ onMounted(async () => { await load(); await loadContent() })
                   </el-select>
                   <el-input v-else-if="multiline.includes(field.config_key)" v-model="drafts[field.config_key]" type="textarea" :rows="4"
                     placeholder="203.0.113.7, 10.0.0.0/24" />
+                  <el-input v-else-if="field.config_key === 'withdraw.fee_rate'" v-model="drafts[field.config_key]" placeholder="例如 0.006">
+                    <template #append>{{ Number(drafts[field.config_key] || 0) * 100 }}%</template>
+                  </el-input>
                   <el-input v-else v-model="drafts[field.config_key]" :type="field.secret ? 'password' : 'text'"
                     :show-password="field.secret" :placeholder="field.configured ? '已配置，留空保存表示清除' : '未配置'" />
                   <span v-if="field.secret" class="hint">敏感项：列表仅显示脱敏值，未修改时不会覆盖原值</span>

@@ -117,6 +117,9 @@ public class EarningsServiceImpl implements EarningsService {
         if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2 || amount.precision() - amount.scale() > 10) {
             return CommonResult.validateFailed("提现金额必须大于0，最多两位小数且不得超出金额范围");
         }
+        if (amount.compareTo(new BigDecimal("100")) < 0 || amount.remainder(new BigDecimal("100")).signum() != 0) {
+            return CommonResult.validateFailed("提现金额只能为100元的整数倍，如100、200、300元");
+        }
         if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9:_-]{8,64}")) {
             return CommonResult.validateFailed("请提供有效的提现请求编号");
         }
