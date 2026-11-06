@@ -51,7 +51,7 @@ const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
 
 function downloadImportTemplate() {
-  const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n'
+  const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '一级类目,二级类目,三级类目,品牌,产品图片,产品名称,产品型号,平台价,零售价,库存,产品信息\n'
   const blob = new Blob(['\uFEFF', header], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -70,8 +70,8 @@ async function importRoutes(event: Event) {
     ElMessage.warning('请选择 CSV 或 Excel 文件')
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('文件不能超过10MB')
+  if (file.size > 400 * 1024 * 1024) {
+    ElMessage.warning('文件不能超过400MB')
     return
   }
   importing.value = true
@@ -79,7 +79,7 @@ async function importRoutes(event: Event) {
     const form = new FormData()
     form.append('file', file)
     const response = await http<{ imported: number; names: string[] }>({
-      url: `/p0/zones/${zone.value}/products/import`, method: 'post', data: form, timeout: 120000,
+      url: `/p0/zones/${zone.value}/products/import`, method: 'post', data: form, timeout: 600000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
     ElMessage.success(`已导入 ${response.data.imported} 件${zoneLabel.value}商品，默认下架，请核对后上架`)
@@ -276,7 +276,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。最多返回100条，请用关键词缩小范围。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <p v-else class="import-help">导入 CSV 或 Excel：按模板填写已启用的商品分类名称、售价、库存、封面图、简介及详情；商品自动归属当前专区并建立对应价格和库存的规格。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
+      <p v-else class="import-help">支持上传 CKIR 原始多工作表 Excel 或下载的 CKIR 格式 CSV。按工作表或三级类目自动分类，优先使用平台价，空缺时使用零售价；原表内嵌图片可随表导入。未填写库存时按 0 建立商品。商品只进入当前专区，默认下架，请核对价格、库存和图片后再上架。文件上限 400 MB。</p>
       <el-table :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="48" />
         <el-table-column prop="id" label="ID" width="72" />

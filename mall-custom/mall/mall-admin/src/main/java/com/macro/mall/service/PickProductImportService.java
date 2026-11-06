@@ -9,6 +9,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,9 @@ import org.springframework.web.util.HtmlUtils;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 
 /** Excel/CSV 导入自选区旅游路线，整批校验、整批提交，默认下架供运营复核。 */
 @Service
@@ -35,6 +40,8 @@ public class PickProductImportService {
     private static final List<String> OTHER_HEADERS = List.of("商品分类", "商品名称", "副标题", "商品货号", "售价", "库存", "封面图URL", "商品简介", "商品详情");
     private final JdbcTemplate jdbc;
     private final PmsProductService productService;
+    @Value("${mall.product.image-dir:/opt/mall-demo/product-images}")
+    private String imageDir;
 
     public PickProductImportService(JdbcTemplate jdbc, PmsProductService productService) {
         this.jdbc = jdbc;
@@ -55,9 +62,32 @@ public class PickProductImportService {
         if (!List.of("PICK", "REBUY", "CONSUME").contains(zone)) bad("无效的商品专区");
         boolean pick = "PICK".equals(zone);
         List<String> headers = pick ? HEADERS : OTHER_HEADERS;
-        if (file.isEmpty() || file.getSize() > 10 * 1024 * 1024)
-            bad("文件不能为空且不能超过10MB");
+        if (file.isEmpty() || file.getSize() > 400L * 1024 * 1024)
+            bad("文件不能为空且不能超过400MB");
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
+        if (!pick && filename.endsWith(".csv")) {
+            List<List<String>> csv = parseCsv(new String(file.getBytes(), StandardCharsets.UTF_8));
+            if (!csv.isEmpty() && csv.get(0).stream().anyMatch(value -> value.replace("\uFEFF", "").trim().equals("产品名称"))) {
+                List<CkirWorkbookReader.Item> items = new ArrayList<>();
+                List<String> headings = csv.get(0);
+                for (int i = 1; i < csv.size(); i++) {
+                    Map<String, String> values = new HashMap<>();
+                    for (int j = 0; j < Math.min(headings.size(), csv.get(i).size()); j++)
+                        values.put(headings.get(j).replace("\uFEFF", "").trim(), csv.get(i).get(j));
+                    items.add(new CkirWorkbookReader.Item("CKIR商品", i + 1, values, null));
+                }
+                return importCkir(zone, new CkirWorkbookReader.Result(items, null));
+            }
+        }
+        if (!pick && filename.endsWith(".xlsx")) {
+            try (CkirWorkbookReader.Result workbook = CkirWorkbookReader.read(file)) {
+                if (!workbook.items().isEmpty()) return importCkir(zone, workbook);
+            } catch (ResponseStatusException error) {
+                throw error;
+            } catch (Exception error) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CKIR Excel 文件无法读取：" + error.getMessage(), error);
+            }
+        }
         List<List<String>> rows;
         if (filename.endsWith(".csv")) {
             rows = parseCsv(new String(file.getBytes(), StandardCharsets.UTF_8));
@@ -139,6 +169,115 @@ public class PickProductImportService {
         return ids.get(0);
     }
 
+    private record CkirProduct(CkirWorkbookReader.Item source, String category, String name,
+                               String model, String description, BigDecimal price, int stock, String cover) {}
+
+    private Result importCkir(String zone, CkirWorkbookReader.Result workbook) throws IOException {
+        List<CkirProduct> products = new ArrayList<>();
+        for (CkirWorkbookReader.Item item : workbook.items()) {
+            String name = item.get("产品名称");
+            if (name.isBlank()) continue;
+            String category = item.get("三级类目");
+            if (category.isBlank()) category = item.sheet().trim();
+            String model = item.get("产品型号");
+            String description = item.get("产品信息");
+            if (description.isBlank()) description = item.get("产品特点");
+            if (description.isBlank()) description = item.get("信息整合");
+            String priceText = item.get("平台价");
+            if (priceText.isBlank()) priceText = item.get("零售价");
+            if (priceText.isBlank()) bad(item.sheet() + "第" + item.line() + "行：缺少平台价或零售价");
+            BigDecimal price;
+            try { price = new BigDecimal(priceText.replace("¥", "").replace("￥", "").replace(",", "").trim()); }
+            catch (NumberFormatException error) { bad(item.sheet() + "第" + item.line() + "行：售价无效"); return null; }
+            if (price.signum() <= 0 || price.scale() > 2 || price.compareTo(new BigDecimal("999999.99")) > 0)
+                bad(item.sheet() + "第" + item.line() + "行：售价须大于0且最多两位小数");
+            String stockText = item.get("库存");
+            int stock = 0;
+            if (!stockText.isBlank()) {
+                try { stock = Integer.parseInt(stockText); }
+                catch (NumberFormatException error) { bad(item.sheet() + "第" + item.line() + "行：库存须为整数"); }
+                if (stock < 0 || stock > 100000) bad(item.sheet() + "第" + item.line() + "行：库存范围为0至100000");
+            }
+            String cover = item.get("产品图片");
+            if (cover.isBlank()) cover = item.get("图片");
+            if (cover.startsWith("=DISPIMG")) cover = "";
+            if (!cover.isBlank() && !(cover.startsWith("https://") || cover.startsWith("/product-images/")))
+                bad(item.sheet() + "第" + item.line() + "行：产品图片须为 HTTPS 地址或工作簿内嵌图片");
+            if (name.length() > 140 || category.length() > 64 || description.length() > 10000)
+                bad(item.sheet() + "第" + item.line() + "行：商品名称、分类或介绍过长");
+            products.add(new CkirProduct(item, category, name, model, description, price, stock, cover));
+        }
+        if (products.isEmpty()) bad("CKIR 表格中没有可导入商品");
+        Path directory = Path.of(imageDir).toAbsolutePath().normalize();
+        Files.createDirectories(directory);
+        List<Path> written = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        Map<String, Long> categories = new HashMap<>();
+        try {
+            for (CkirProduct item : products) {
+                Long categoryId = categories.computeIfAbsent(item.category(), this::findOrCreateCkirCategory);
+                String cover = item.cover();
+                String imageEntry = item.source().imageEntry();
+                if (cover.isBlank() && imageEntry != null) {
+                    String suffix = imageEntry.toLowerCase(Locale.ROOT).endsWith(".png") ? ".png" : ".jpg";
+                    Path target = directory.resolve(UUID.randomUUID() + suffix);
+                    Files.write(target, CkirWorkbookReader.image(workbook.temporaryFile(), imageEntry));
+                    written.add(target);
+                    cover = "/product-images/" + target.getFileName();
+                }
+                PmsProductParam product = new PmsProductParam();
+                product.setZoneCode(zone);
+                product.setProductCategoryId(categoryId);
+                product.setProductCategoryName(item.category());
+                product.setName(item.name());
+                product.setSubTitle(item.model().isBlank() ? item.category() : item.model());
+                product.setProductSn("CKIR-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT));
+                product.setStock(item.stock());
+                product.setLowStock(0);
+                product.setPrice(item.price());
+                product.setOriginalPrice(item.price());
+                product.setPic(cover);
+                product.setDescription(item.description().substring(0, Math.min(500, item.description().length())));
+                String detail = "<p>" + HtmlUtils.htmlEscape(item.description()).replace("\n", "<br>") + "</p>";
+                product.setDetailHtml(detail);
+                product.setDetailMobileHtml(detail);
+                product.setUnit("件");
+                product.setPublishStatus(0);
+                product.setDeleteStatus(0);
+                product.setVerifyStatus(1);
+                product.setPromotionType(0);
+                product.setGiftPoint(0);
+                product.setGiftGrowth(0);
+                product.setUsePointLimit(0);
+                PmsSkuStock sku = new PmsSkuStock();
+                sku.setPrice(item.price());
+                sku.setStock(item.stock());
+                sku.setLowStock(0);
+                sku.setLockStock(0);
+                sku.setSpData("[]");
+                product.setSkuStockList(List.of(sku));
+                productService.create(product);
+                names.add(item.name());
+            }
+        } catch (RuntimeException | IOException error) {
+            for (Path path : written) Files.deleteIfExists(path);
+            throw error;
+        }
+        return new Result(names.size(), names);
+    }
+
+    private Long findOrCreateCkirCategory(String name) {
+        List<Long> ids = jdbc.queryForList("SELECT id FROM pms_product_category WHERE name=? AND show_status=1 ORDER BY id LIMIT 1", Long.class, name);
+        if (!ids.isEmpty()) return ids.get(0);
+        GeneratedKeyHolder key = new GeneratedKeyHolder();
+        jdbc.update(connection -> {
+            var statement = connection.prepareStatement("INSERT INTO pms_product_category(parent_id,name,level,product_count,product_unit,nav_status,show_status,sort) VALUES(0,?,0,0,'件',0,1,0)", Statement.RETURN_GENERATED_KEYS);
+            statement.setString(1, name);
+            return statement;
+        }, key);
+        return key.getKey().longValue();
+    }
+
     private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers) {
         if (rows.isEmpty()) bad("文件没有表头");
         Map<String, Integer> columns = new HashMap<>();
@@ -206,7 +345,7 @@ public class PickProductImportService {
                 if (c == '\r' && i + 1 < content.length() && content.charAt(i + 1) == '\n') i++;
                 row.add(field.toString()); field.setLength(0);
                 rows.add(row); row = new ArrayList<>();
-                if (rows.size() > 201) bad("每次最多导入200条路线");
+                if (rows.size() > 3001) bad("每次最多导入3000条商品");
             } else field.append(c);
         }
         if (quoted) bad("CSV 引号未闭合");
