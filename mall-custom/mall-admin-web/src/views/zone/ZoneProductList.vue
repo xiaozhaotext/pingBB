@@ -68,8 +68,8 @@ async function importRoutes(event: Event) {
     ElMessage.warning('请选择 CSV 或 Excel 文件')
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('文件不能超过10MB')
+  if (file.size > 300 * 1024 * 1024) {
+    ElMessage.warning('文件不能超过300MB')
     return
   }
   importing.value = true
