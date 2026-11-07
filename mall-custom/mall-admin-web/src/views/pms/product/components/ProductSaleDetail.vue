@@ -11,6 +11,10 @@ const props = defineProps({
   isEdit: {
     type: Boolean,
     default: false
+  },
+  nextLabel: {
+    type: String,
+    default: '下一步，填写商品属性'
   }
 })
 
@@ -268,7 +272,7 @@ const handleNext = () => {
       <el-form-item>
         <div style="width: 100%;text-align: center">
           <el-button @click="handlePrev">上一步，填写商品信息</el-button>
-          <el-button type="primary" @click="handleNext">下一步，填写商品属性</el-button>
+          <el-button type="primary" @click="handleNext">{{ props.nextLabel }}</el-button>
         </div>
       </el-form-item>
     </el-form>

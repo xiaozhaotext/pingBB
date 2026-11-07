@@ -53,10 +53,13 @@ http.interceptors.response.use(
     // 全局处理异常请求
     const silent = (error?.config as unknown as { silent?: boolean } | undefined)?.silent === true
     if (!silent) {
+      const serverMessage = error?.response?.data?.message
       ElMessage({
-        message: error.code === 'ECONNABORTED' ? '请求超时，请重试；登录状态已保留' : error.message,
+        message: error.code === 'ECONNABORTED'
+          ? '请求超时，请重试；登录状态已保留'
+          : (typeof serverMessage === 'string' && serverMessage ? serverMessage : error.message),
         type: 'error',
-        duration: 3 * 1000,
+        duration: 5 * 1000,
       })
     }
     return Promise.reject(error)

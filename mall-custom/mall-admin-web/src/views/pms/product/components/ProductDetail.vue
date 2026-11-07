@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, provide, } from 'vue'
+import { ref, computed, onMounted, provide, } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ProductInfoDetail from './ProductInfoDetail.vue'
@@ -20,6 +20,10 @@ const props = defineProps({
     default: false
   }
 })
+
+// 自选区统一售价
+const PICK_PRICE = 3999
+const PICK_DEFAULT_STOCK = 100
 
 // 默认商品参数
 const defaultProductParam: PmsProductParam = {
@@ -73,12 +77,7 @@ const defaultProductParam: PmsProductParam = {
   verifyStatus: 0,
   weight: 0
 }
-// el-steps的激活状态
-const active = ref(0)
-// 商品信息/促销/属性/关联组件显示状态
-const showStatus = ref([true, false, false, false])
-// 当前商品参数
-const productParam = ref<PmsProductParam>(Object.assign({}, defaultProductParam))
+
 const routeZone = (): PmsProductParam['zoneCode'] => {
   const name = String(route.name || '')
   if (name.startsWith('pick')) return 'PICK'
@@ -86,8 +85,66 @@ const routeZone = (): PmsProductParam['zoneCode'] => {
   if (name.startsWith('consume')) return 'CONSUME'
   return undefined
 }
+
+// 自选区：单一价格 3999 元的旅游路线，不需要填写商品属性（规格/参数）
+const isPick = computed(() => routeZone() === 'PICK')
+
+// 步骤定义：自选区跳过「填写商品属性」
+const steps = computed(() => {
+  const base = [
+    { key: 'info', title: '填写商品信息' },
+    { key: 'sale', title: '填写商品促销' },
+  ]
+  if (!isPick.value) base.push({ key: 'attr', title: '填写商品属性' })
+  base.push({ key: 'zone', title: '确认商品专区' })
+  return base
+})
+
+// 当前步骤
+const activeKey = ref('info')
+// el-steps的激活状态
+const active = computed(() => Math.max(0, steps.value.findIndex(item => item.key === activeKey.value)))
+// 商品促销步骤的「下一步」按钮文案
+const saleNextLabel = computed(() => (isPick.value ? '下一步，确认商品专区' : '下一步，填写商品属性'))
+// 确认专区步骤的「上一步」按钮文案
+const zonePrevLabel = computed(() => (isPick.value ? '上一步，填写商品促销' : '上一步，填写商品属性'))
+
+// 当前商品参数
+const productParam = ref<PmsProductParam>(Object.assign({}, defaultProductParam))
+
 // 实现数据跨层传递
 provide('product-key', productParam)
+
+// 自选区进入「确认商品专区」前，自动补齐 3999 元规格
+const ensurePickSku = () => {
+  const param = productParam.value
+  if (Number(param.price) !== PICK_PRICE) {
+    param.price = PICK_PRICE
+    ElMessage.info(`自选区商品统一售价 ${PICK_PRICE} 元，已自动填写`)
+  }
+  const stock = Number(param.stock) > 0 ? Number(param.stock) : PICK_DEFAULT_STOCK
+  param.stock = stock
+  const skus = param.skuStockList || []
+  if (!skus.length) {
+    param.skuStockList = [{
+      skuCode: `PICK${Date.now()}`,
+      price: PICK_PRICE,
+      stock,
+      lowStock: 0,
+      pic: param.pic || '',
+      sale: 0,
+      lockStock: 0,
+      spData: '[]'
+    }]
+  } else {
+    param.skuStockList = skus.map(item => ({
+      ...item,
+      price: PICK_PRICE,
+      stock: Number(item.stock) > 0 ? Number(item.stock) : stock,
+      spData: item.spData || '[]'
+    }))
+  }
+}
 
 // 组件挂载后执行
 onMounted(async () => {
@@ -98,28 +155,19 @@ onMounted(async () => {
   productParam.value.zoneCode = routeZone()
 })
 
-// 隐藏所有商品编辑组件
-const hideAll = () => {
-  // 将所有状态设置为false
-  showStatus.value.fill(false)
-}
-
 // 上一步
 const prevStep = () => {
-  if (active.value > 0 && active.value < showStatus.value.length) {
-    active.value--
-    hideAll()
-    showStatus.value[active.value] = true
-  }
+  const index = active.value
+  if (index > 0) activeKey.value = steps.value[index - 1]!.key
 }
 
 // 下一步
 const nextStep = () => {
-  if (active.value < showStatus.value.length - 1) {
-    active.value++
-    hideAll()
-    showStatus.value[active.value] = true
-  }
+  const index = active.value
+  if (index >= steps.value.length - 1) return
+  const next = steps.value[index + 1]!
+  if (next.key === 'zone' && isPick.value) ensurePickSku()
+  activeKey.value = next.key
 }
 
 // 结束步骤，提交数据
@@ -146,19 +194,16 @@ const finishCommit = async (isEdit: boolean) => {
 <template>
   <el-card class="form-container" shadow="never">
     <el-steps :active="active" finish-status="success" align-center>
-      <el-step title="填写商品信息"></el-step>
-      <el-step title="填写商品促销"></el-step>
-      <el-step title="填写商品属性"></el-step>
-      <el-step title="确认商品专区"></el-step>
+      <el-step v-for="step in steps" :key="step.key" :title="step.title"></el-step>
     </el-steps>
-    <product-info-detail v-show="showStatus[0]" :is-edit="isEdit" @next-step="nextStep">
+    <product-info-detail v-show="activeKey === 'info'" :is-edit="isEdit" @next-step="nextStep">
     </product-info-detail>
-    <product-sale-detail v-show="showStatus[1]" :is-edit="isEdit" @next-step="nextStep" @prev-step="prevStep">
+    <product-sale-detail v-show="activeKey === 'sale'" :is-edit="isEdit" :next-label="saleNextLabel" @next-step="nextStep" @prev-step="prevStep">
     </product-sale-detail>
-    <product-attr-detail v-show="showStatus[2]" v-model="productParam" :is-edit="isEdit" @next-step="nextStep"
+    <product-attr-detail v-if="!isPick" v-show="activeKey === 'attr'" v-model="productParam" :is-edit="isEdit" @next-step="nextStep"
       @prev-step="prevStep">
     </product-attr-detail>
-    <product-relation-detail v-show="showStatus[3]" v-model="productParam" :is-edit="isEdit" @prev-step="prevStep"
+    <product-relation-detail v-show="activeKey === 'zone'" v-model="productParam" :is-edit="isEdit" :prev-label="zonePrevLabel" @prev-step="prevStep"
       @finish-commit="finishCommit">
     </product-relation-detail>
   </el-card>
