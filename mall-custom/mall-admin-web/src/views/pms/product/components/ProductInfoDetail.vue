@@ -3,6 +3,7 @@ import { ref, onMounted, watch, inject, type Ref } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { getProductCategoryListWithChildrenAPI } from '@/apis/productCate'
 import { getBrandListAPI } from '@/apis/brand'
+import SingleUpload from '@/components/Upload/singleUpload.vue'
 import type { PmsProductParam } from '@/types/product'
 import type { ElCascaderDataVo, ElSelectDataVo } from '@/types/common'
 
@@ -150,6 +151,12 @@ const handleBrandChange = (val: number | '') => {
       <el-form-item label="商品介绍：">
         <el-input :autoSize="true" v-model="compProductParam.description" type="textarea"
           placeholder="请输入内容"></el-input>
+      </el-form-item>
+      <el-form-item v-if="compProductParam.zoneCode === 'PICK'" label="商品图片：">
+        <single-upload v-model="compProductParam.pic" />
+        <div style="width:100%;color:#999;font-size:12px;line-height:1.6;margin-top:4px">
+          上传商品主图（JPG/PNG/WebP/GIF，不超过 10MB）。自选区商城前台会展示这张图，建议先传图再进入下一步
+        </div>
       </el-form-item>
       <el-form-item label="商品货号：">
         <el-input v-model="compProductParam.productSn"></el-input>
