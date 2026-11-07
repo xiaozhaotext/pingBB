@@ -31,6 +31,8 @@ import java.util.UUID;
 @Service
 public class PickProductImportService {
     private static final BigDecimal PRICE = new BigDecimal("3999.00");
+    /** 品牌总表内嵌图片的落盘目录，可用 -Dmall.product-images 覆盖，默认沿用线上路径。 */
+    private static final java.nio.file.Path IMAGE_DIR = java.nio.file.Path.of(System.getProperty("mall.product-images", "/opt/mall-demo/product-images"));
     private static final List<String> HEADERS = List.of("商品名称", "副标题", "商品货号", "库存", "封面图URL", "行程简介", "行程详情");
     private static final List<String> OTHER_HEADERS = List.of("商品分类", "商品名称", "副标题", "商品货号", "售价", "库存", "封面图URL", "商品简介", "商品详情");
     private final JdbcTemplate jdbc;
@@ -41,7 +43,8 @@ public class PickProductImportService {
         this.productService = productService;
     }
 
-    public record Result(int imported, List<String> names) {}
+    /** skipped：因缺少产品图片等原因被跳过的行，随结果返回给后台提示运营。 */
+    public record Result(int imported, List<String> names, List<String> skipped) {}
     private record Route(int row, String name, String subtitle, String sn, int stock,
                          String cover, String summary, String itinerary, String category, BigDecimal price) {}
 
@@ -59,6 +62,7 @@ public class PickProductImportService {
             bad("文件不能为空且不能超过400MB");
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         List<List<String>> rows;
+        List<String> skipped = new ArrayList<>();
         boolean brandCatalog=false;
         if (filename.endsWith(".csv")) {
             rows = parseCsv(new String(file.getBytes(), StandardCharsets.UTF_8));
@@ -69,9 +73,11 @@ public class PickProductImportService {
             try (var workbook = WorkbookFactory.create(temp.toFile())) {
                 if (workbook.getNumberOfSheets() < 1) bad("Excel 没有工作表");
                 var sheet = workbook.getSheetAt(0);
-                boolean brand=!pick && !new DataFormatter().formatCellValue(sheet.getRow(0).getCell(0)).equals("商品分类");
+                Row head = sheet.getRow(0);
+                String firstCell = head == null || head.getCell(0) == null ? "" : new DataFormatter(Locale.CHINA).formatCellValue(head.getCell(0)).replaceAll("\\s+", "");
+                boolean brand=!pick && !"商品分类".equals(firstCell);
                 brandCatalog=brand;
-                if(brand) rows=BrandWorkbookReader.read(workbook,temp,java.nio.file.Path.of("/opt/mall-demo/product-images"));
+                if(brand) rows=BrandWorkbookReader.read(workbook,temp,IMAGE_DIR,zone,skipped);
                 else {
                 if (sheet.getLastRowNum() > 200) bad("每次最多导入200行");
                 var formatter = new DataFormatter(Locale.CHINA);
@@ -97,7 +103,7 @@ public class PickProductImportService {
             bad("仅支持 .csv、.xlsx、.xls 文件");
             return null;
         }
-        List<Route> routes = validate(rows, pick, headers, zone);
+        List<Route> routes = validate(rows, pick, headers, zone, brandCatalog, skipped);
         List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
         if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
@@ -140,7 +146,7 @@ public class PickProductImportService {
             productService.create(product);
             names.add(route.name());
         }
-        return new Result(names.size(), names);
+        return new Result(names.size(), names, skipped);
     }
 
     private Long findCategory(String zone, String name, int line, boolean create) {
@@ -154,7 +160,8 @@ public class PickProductImportService {
         return ids.get(0);
     }
 
-    private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers, String zone) {
+    private List<Route> validate(List<List<String>> rows, boolean pick, List<String> headers, String zone,
+                                 boolean brandCatalog, List<String> skipped) {
         if (rows.isEmpty()) bad("文件没有表头");
         Map<String, Integer> columns = new HashMap<>();
         List<String> first = rows.get(0);
@@ -185,8 +192,10 @@ public class PickProductImportService {
             if (name.length() < 2 || name.length() > 140 || subtitle.isBlank() || subtitle.length() > 255)
                 bad("第" + line + "行：商品名称或副标题无效");
             if (sn.length() > 64 || (!sn.isBlank() && !sns.add(sn))) bad("第" + line + "行：商品货号重复或过长");
-            if (!sn.isBlank() && jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.product_sn=? AND z.zone_code=?", Integer.class, sn, zone) > 0)
+            if (!sn.isBlank() && jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.product_sn=? AND z.zone_code=?", Integer.class, sn, zone) > 0) {
+                if (brandCatalog) { skipped.add("第" + line + "行货号已存在，已跳过：" + name); continue; }
                 bad("第" + line + "行：商品货号已存在");
+            }
             int stock;
             try { stock = Integer.parseInt(stockText); } catch (NumberFormatException e) { bad("第" + line + "行：库存必须为正整数"); return result; }
             if (stock < 1 || stock > 100000) bad("第" + line + "行：库存范围为1至100000");

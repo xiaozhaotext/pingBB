@@ -108,11 +108,21 @@ async function importRoutes(event: Event) {
   try {
     const form = new FormData()
     form.append('file', file)
-    const response = await http<{ imported: number; names: string[] }>({
+    const response = await http<{ imported: number; names: string[]; skipped?: string[] }>({
       url: `/p0/zones/${importZone}/products/import`, method: 'post', data: form, timeout: 1800000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
-    ElMessage.success(`已导入 ${response.data.imported} 件${importLabel}商品，默认下架，请核对后上架`)
+    const skipped = response.data.skipped ?? []
+    if (skipped.length) {
+      const detail = skipped.slice(0, 20).join('<br>')
+      await ElMessageBox.alert(
+        `${detail}${skipped.length > 20 ? `<br>…共 ${skipped.length} 行` : ''}<br><br>已存在的货号会自动跳过；缺图的商品补齐图片后可只保留缺失行再导一次。`,
+        `已导入 ${response.data.imported} 件，${skipped.length} 行未导入`,
+        { dangerouslyUseHTMLString: true, confirmButtonText: '知道了' },
+      ).catch(() => {})
+    } else {
+      ElMessage.success(`已导入 ${response.data.imported} 件${importLabel}商品，默认下架，请核对后上架`)
+    }
     if (zone.value === importZone) await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
@@ -287,7 +297,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
         <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
-        <el-button :loading="importing" @click="importInput?.click()">一键导入自动分类</el-button>
+        <el-button :loading="importing" @click="importInput?.click()">{{ zone === 'PICK' ? '一键导入自动分类' : '一键导入CKIR品牌总表' }}</el-button>
         <el-button @click="downloadImportTemplate">下载导入模板</el-button>
         <el-button @click="load">刷新</el-button>
       </div>
