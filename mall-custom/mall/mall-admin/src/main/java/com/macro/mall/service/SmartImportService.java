@@ -120,6 +120,30 @@ public class SmartImportService {
         }
         List<String> notes = new ArrayList<>(table.notes);
         notes.add(0, "工作表「" + table.sheet + "」第 " + (table.firstRow + table.headerRow + 1) + " 行识别为表头，共 " + table.rows.size() + " 行数据");
+        // 多出来的数据：识别不出用途的列，明确告诉运营这些列会被丢掉
+        List<String> ignored = new ArrayList<>();
+        for (Column column : list) {
+            if (!"IGNORE".equals(column.role()) || column.title() == null || column.title().isBlank()) continue;
+            ignored.add("第 " + letter(column.index()) + " 列「" + column.title() + "」");
+        }
+        if (!ignored.isEmpty()) {
+            notes.add("多出来的数据：" + String.join("、", ignored)
+                    + " 这几列没认出用途，导入时会忽略；要保留就点开对应列改成正确的用途");
+        }
+        // 少的数据：缺关键列时给出后果，避免导完才发现价格/图片全空
+        if (!"PICK".equals(zone) && !columns.containsKey(Role.PRICE)) {
+            notes.add("缺少价格列：复购区/消费区必须有售价，请把价格那一列改成「售价」，否则整张表都导不进去");
+        }
+        if (!columns.containsKey(Role.PIC)) {
+            notes.add("缺少图片列：没有可识别的图片列或内嵌图片，导入后商品没有主图，需要逐个上传");
+        }
+        if (!"PICK".equals(zone) && !columns.containsKey(Role.CATEGORY)) {
+            notes.add("缺少分类列：将按工作表名归类，需要更细的分类请把对应列改成「商品分类」");
+        }
+        long blankNames = table.rows.stream().filter(row -> value(row, columns, Role.NAME).isBlank()).count();
+        if (blankNames > 0) {
+            notes.add("有 " + blankNames + " 行没有商品名称，这些行会被跳过（数据从第 " + (table.dataStart + 1) + " 行开始）");
+        }
         return new Preview(table.sheet, table.firstRow + table.headerRow, table.rows.size(), zone, list, samples, notes);
     }
 
@@ -318,10 +342,17 @@ public class SmartImportService {
         file.transferTo(temp);
         try (Workbook workbook = WorkbookFactory.create(temp.toFile())) {
             if (workbook.getNumberOfSheets() < 1) bad("Excel 没有工作表");
+            // 内嵌图片整本只解一次：以前每张表都重新解压一遍 Excel，多工作表的大文件会慢好几倍
+            Map<String, String> cellImages = new HashMap<>();
+            try {
+                cellImages.putAll(BrandWorkbookReader.readCellImages(temp, IMAGE_DIR));
+            } catch (Exception e) {
+                LOGGER.debug("读取单元格图片失败，跳过内嵌图片", e);
+            }
             Table best = null;
             for (Sheet sheet : workbook) {
                 if (wantedSheet != null && !wantedSheet.isBlank() && !wantedSheet.equals(sheet.getSheetName())) continue;
-                Table table = readSheet(zone, sheet, temp, mappingJson, wantedHeader);
+                Table table = readSheet(zone, sheet, cellImages, mappingJson, wantedHeader);
                 if (table == null) continue;
                 if (best == null || table.columns.size() > best.columns.size()
                         || (table.columns.size() == best.columns.size() && table.rows.size() > best.rows.size())) best = table;
@@ -339,32 +370,18 @@ public class SmartImportService {
         }
     }
 
-    private Table readSheet(String zone, Sheet sheet, Path source, String mappingJson, int wantedHeader) {
+    private Table readSheet(String zone, Sheet sheet, Map<String, String> cellImages, String mappingJson, int wantedHeader) {
         DataFormatter formatter = new DataFormatter(Locale.CHINA);
         int first = Math.max(0, sheet.getFirstRowNum());
         int last = sheet.getLastRowNum();
         if (last < first) return null;
+        // 先用前 15 行判断表头；认不出商品名称列就直接跳过这张表，不再逐行解析（大工作簿的关键提速点）
+        int probeEnd = Math.min(last, first + 14);
         List<List<String>> grid = new ArrayList<>();
-        for (int r = first; r <= last; r++) {
-            Row row = sheet.getRow(r);
-            List<String> values = new ArrayList<>();
-            int cells = row == null ? 0 : Math.max(row.getLastCellNum(), 0);
-            for (int c = 0; c < cells; c++) {
-                Cell cell = row == null ? null : row.getCell(c);
-                if (cell == null) { values.add(""); continue; }
-                String text;
-                if (cell.getCellType() == CellType.FORMULA) {
-                    String formula = cell.getCellFormula();
-                    text = formula.contains("DISPIMG") ? formula : formatter.formatCellValue(cell);
-                } else {
-                    text = formatter.formatCellValue(cell);
-                }
-                values.add(text == null ? "" : text.trim());
-            }
-            grid.add(values);
-        }
-        int header = wantedHeader >= 0 && wantedHeader >= first && wantedHeader <= last ? wantedHeader - first : detectHeader(grid);
+        for (int r = first; r <= probeEnd; r++) grid.add(readRow(sheet.getRow(r), formatter));
+        int header = wantedHeader >= first && wantedHeader <= last ? wantedHeader - first : detectHeader(grid);
         if (header < 0) return null;
+        for (int r = probeEnd + 1; r <= last; r++) grid.add(readRow(sheet.getRow(r), formatter));
         Table table = new Table();
         table.sheet = sheet.getSheetName();
         table.firstRow = first;
@@ -373,13 +390,28 @@ public class SmartImportService {
         table.headers = padded(grid.get(header));
         table.rows = new ArrayList<>(grid.subList(header + 1, grid.size()));
         table.columns = mapping(zone, table.headers, mappingJson);
-        try {
-            table.cellImages.putAll(BrandWorkbookReader.readCellImages(source, IMAGE_DIR));
-        } catch (Exception e) {
-            LOGGER.debug("读取单元格图片失败 sheet={}", sheet.getSheetName(), e);
-        }
+        table.cellImages.putAll(cellImages);
         collectPictures(sheet, table.rowImages);
         return table;
+    }
+
+    /** 读一行单元格文本，公式保留 DISPIMG 以便之后映射到内嵌图片。 */
+    private static List<String> readRow(Row row, DataFormatter formatter) {
+        List<String> values = new ArrayList<>();
+        int cells = row == null ? 0 : Math.max(row.getLastCellNum(), 0);
+        for (int c = 0; c < cells; c++) {
+            Cell cell = row.getCell(c);
+            if (cell == null) { values.add(""); continue; }
+            String text;
+            if (cell.getCellType() == CellType.FORMULA) {
+                String formula = cell.getCellFormula();
+                text = formula.contains("DISPIMG") ? formula : formatter.formatCellValue(cell);
+            } else {
+                text = formatter.formatCellValue(cell);
+            }
+            values.add(text == null ? "" : text.trim());
+        }
+        return values;
     }
 
     private static List<String> padded(List<String> row) {
@@ -523,6 +555,18 @@ public class SmartImportService {
                 LOGGER.debug("保存内嵌图片失败", e);
             }
         }
+    }
+
+    /** 列序号转 Excel 列名，方便运营对着表找列。 */
+    static String letter(int index) {
+        if (index < 0) return "?";
+        StringBuilder sb = new StringBuilder();
+        int value = index;
+        while (value >= 0) {
+            sb.insert(0, (char) ('A' + value % 26));
+            value = value / 26 - 1;
+        }
+        return sb.toString();
     }
 
     private static void bad(String message) {

@@ -77,6 +77,8 @@ public class PmsProductServiceImpl implements PmsProductService {
     @Transactional(rollbackFor = Exception.class)
     public int create(PmsProductParam productParam) {
         int count;
+        //先校验：少了什么、哪里不合规，一次性告诉前端，避免只返回一个 400
+        validateProductParam(productParam, true);
         //创建商品
         PmsProduct product = productParam;
         product.setId(null);
@@ -133,6 +135,7 @@ public class PmsProductServiceImpl implements PmsProductService {
     @Transactional(rollbackFor = Exception.class)
     public int update(Long id, PmsProductParam productParam) {
         int count;
+        validateProductParam(productParam, false);
         //更新商品信息
         PmsProduct product = productParam;
         product.setId(id);
@@ -182,21 +185,91 @@ public class PmsProductServiceImpl implements PmsProductService {
         return count;
     }
 
+    /**
+     * 保存前把能判断出来的问题一次性列清楚：少了哪个必填项、哪个值不合规。
+     * creating=true 时校验必填，false 时只校验已填的内容（兼容局部更新）。
+     */
+    private void validateProductParam(PmsProductParam productParam, boolean creating) {
+        if (productParam == null) throw bad("没有收到商品数据：请求体是空的，请刷新页面重新填写");
+        List<String> problems = new ArrayList<>();
+        String zone = productParam.getZoneCode();
+        if (StrUtil.isNotBlank(zone) && !List.of("PICK", "REBUY", "CONSUME").contains(zone))
+            problems.add("商品专区「" + zone + "」不存在，只能是 PICK(自选区)、REBUY(复购区)、CONSUME(消费区)");
+        String name = productParam.getName();
+        if (creating && StrUtil.isBlank(name)) problems.add("缺少「商品名称」");
+        else if (name != null && name.trim().length() > 200) problems.add("「商品名称」超过 200 字，请精简");
+        if (creating && productParam.getProductCategoryId() == null) problems.add("缺少「商品分类」，请先选择分类");
+        if ("PICK".equals(zone)) {
+            if (productParam.getProductCategoryId() != null) {
+                String categoryName = categoryName(productParam.getProductCategoryId());
+                if (categoryName == null)
+                    problems.add("商品分类 id=" + productParam.getProductCategoryId() + " 已经不存在（可能被删除），请重新选择「旅游路线」");
+                else if (!"旅游路线".equals(categoryName))
+                    problems.add("自选区只能选「旅游路线」分类，当前选的是「" + categoryName + "」");
+            }
+            BigDecimal price = productParam.getPrice();
+            if (price != null && price.compareTo(new BigDecimal("3999.00")) != 0)
+                problems.add("自选区商品售价固定 3999 元，当前填的是 " + price.toPlainString() + " 元");
+            List<PmsSkuStock> skus = productParam.getSkuStockList();
+            if (skus != null) {
+                for (int i = 0; i < skus.size(); i++) {
+                    PmsSkuStock sku = skus.get(i);
+                    if (sku == null) continue;
+                    if (sku.getPrice() == null || sku.getPrice().compareTo(new BigDecimal("3999.00")) != 0)
+                        problems.add("第 " + (i + 1) + " 个规格" + (StrUtil.isBlank(sku.getSkuCode()) ? "" : "（" + sku.getSkuCode() + "）")
+                                + "价格是 " + (sku.getPrice() == null ? "空" : sku.getPrice().toPlainString() + " 元")
+                                + "，自选区每个规格都必须是 3999 元");
+                }
+            }
+        }
+        if (!problems.isEmpty())
+            throw bad("商品数据有问题，没能保存：\n" + String.join("\n", problems.stream().map(p -> "· " + p).toList()));
+    }
+
+    /** 按库里已保存的数据检查自选区规则，返回逐条问题（空表示合规）。 */
+    private List<String> pickProblems(Long productId) {
+        List<String> problems = new ArrayList<>();
+        List<String> names = jdbc.queryForList("SELECT c.name FROM pms_product p "
+                + "JOIN pms_product_category c ON c.id=p.product_category_id WHERE p.id=?", String.class, productId);
+        String categoryName = names.isEmpty() ? null : names.get(0);
+        if (categoryName == null) problems.add("查不到这个商品的分类，请重新选择「旅游路线」");
+        else if (!"旅游路线".equals(categoryName)) problems.add("商品分类是「" + categoryName + "」，自选区必须是「旅游路线」");
+        List<BigDecimal> prices = jdbc.queryForList("SELECT price FROM pms_product WHERE id=?", BigDecimal.class, productId);
+        BigDecimal price = prices.isEmpty() ? null : prices.get(0);
+        if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0)
+            problems.add("商品售价是 " + (price == null ? "空" : price.toPlainString() + " 元") + "，自选区必须是 3999 元");
+        List<java.util.Map<String, Object>> skus = jdbc.queryForList("SELECT id,sku_code,price FROM pms_sku_stock WHERE product_id=?", productId);
+        if (skus.isEmpty()) problems.add("这个商品还没有任何规格，请至少添加一条 3999 元的规格");
+        for (java.util.Map<String, Object> sku : skus) {
+            Object skuPrice = sku.get("price");
+            Object code = sku.get("sku_code");
+            boolean priced = skuPrice instanceof BigDecimal decimal && decimal.compareTo(new BigDecimal("3999.00")) == 0;
+            if (!priced) {
+                String label = code == null || String.valueOf(code).isBlank() ? "id=" + sku.get("id") : String.valueOf(code);
+                problems.add("规格「" + label + "」价格是 " + (skuPrice == null ? "空" : String.valueOf(skuPrice) + " 元") + "，必须是 3999 元");
+            }
+        }
+        return problems;
+    }
+
+    private String categoryName(Long categoryId) {
+        List<String> names = jdbc.queryForList("SELECT name FROM pms_product_category WHERE id=?", String.class, categoryId);
+        return names.isEmpty() ? null : names.get(0);
+    }
+
+    private static ResponseStatusException bad(String message) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
     private void saveZone(Long productId, String zone) {
         // Legacy callers that do not edit a zone retain their existing assignment.
         if (zone == null) return;
         if (!List.of("PICK", "REBUY", "CONSUME").contains(zone))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "商品专区无效");
         if ("PICK".equals(zone)) {
-            Integer routes = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p "
-                    + "JOIN pms_product_category c ON c.id=p.product_category_id "
-                    + "WHERE p.id=? AND c.name='旅游路线'", Integer.class, productId);
-            BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?", BigDecimal.class, productId);
-            Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?", Integer.class, productId);
-            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)", Integer.class, productId);
-            if (routes == null || routes != 1 || price == null || price.compareTo(new BigDecimal("3999.00")) != 0
-                    || skuCount == null || skuCount == 0 || invalidSkus == null || invalidSkus != 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "自选区须选择旅游路线分类，商品及所有规格统一售价3999元");
+            List<String> problems = pickProblems(productId);
+            if (!problems.isEmpty())
+                throw bad("自选区商品还不符合规则，没能保存：\n" + String.join("\n", problems.stream().map(p -> "· " + p).toList()));
             String adminName = SecurityContextHolder.getContext().getAuthentication().getName();
             Long operatorId = jdbc.queryForObject("SELECT id FROM ums_admin WHERE username=?", Long.class, adminName);
             jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?) "

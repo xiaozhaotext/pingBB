@@ -2,7 +2,7 @@
 import { productImportBusy } from '@/utils/productImportState'
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import http from '@/utils/http'
+import http, { showApiError } from '@/utils/http'
 import type { AxiosRequestConfig } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { productImageUrl } from '@/utils/productImage'
@@ -109,8 +109,12 @@ async function importRoutes(event: Event) {
   try {
     const form = new FormData()
     form.append('file', file)
+    previewProgress.value = 0
     const response = await http<SmartPreview>({
-      url: `/p0/zones/${zone.value}/products/import/preview`, method: 'post', data: form, timeout: 600000, silent: true,
+      url: `/p0/zones/${zone.value}/products/import/preview`, method: 'post', data: form, timeout: 1800000, silent: true,
+      onUploadProgress: (event: { loaded: number; total?: number }) => {
+        if (event.total) previewProgress.value = Math.min(99, Math.round((event.loaded * 100) / event.total))
+      },
     } as AxiosRequestConfig & { silent: boolean })
     pendingFile.value = file
     pendingZone.value = zone.value
@@ -121,7 +125,7 @@ async function importRoutes(event: Event) {
     previewVisible.value = true
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
-    ElMessage.error(response?.data?.message || '表格解析失败，请检查文件')
+    showApiError(response?.data?.message, '表格解析失败，请检查文件')
   } finally {
     previewLoading.value = false
   }
@@ -133,7 +137,15 @@ interface SmartPreview { sheet: string; headerRow: number; totalRows: number; zo
 
 const previewVisible = ref(false)
 const previewLoading = ref(false)
+const previewProgress = ref(0)
 const previewData = ref<SmartPreview | null>(null)
+const importButtonText = computed(() => {
+  if (importing.value) return '正在导入，请勿关闭页面…'
+  if (!previewLoading.value) return '一键导入（自动识别表格）'
+  return previewProgress.value > 0 && previewProgress.value < 100
+    ? `上传中 ${previewProgress.value}%`
+    : '正在识别表格…'
+})
 const previewMapping = ref<Record<number, string>>({})
 const pendingFile = ref<File | null>(null)
 const pendingZone = ref('')
@@ -187,7 +199,7 @@ async function confirmSmartImport() {
     if (zone.value === importZone) await load()
   } catch (error) {
     const response = (error as { response?: { data?: { message?: string } } }).response
-    ElMessage.error(response?.data?.message || '导入失败，请检查文件后重试')
+    showApiError(response?.data?.message, '导入失败，请检查文件后重试')
   } finally {
     importing.value = false
   }
@@ -358,7 +370,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
         <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
-        <el-button :loading="importing || previewLoading" @click="importInput?.click()">一键导入（自动识别表格）</el-button>
+        <el-button :loading="importing || previewLoading" @click="importInput?.click()">{{ importButtonText }}</el-button>
         <el-button @click="downloadImportTemplate">下载导入模板</el-button>
         <el-button @click="load">刷新</el-button>
       </div>

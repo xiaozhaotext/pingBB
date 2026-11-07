@@ -99,16 +99,12 @@ public class ProductZoneAdminController {
         if (products.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"商品不存在");
         if ("PICK".equals(zone)) {
             if (!Boolean.TRUE.equals(body.tourRoute()))
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请确认该商品类型为旅游路线");
-            Integer routes = jdbc.queryForObject("SELECT COUNT(*) FROM pms_product p "
-                    + "JOIN pms_product_category c ON c.id=p.product_category_id "
-                    + "WHERE p.id=? AND c.name='旅游路线'",Integer.class,body.productId());
-            BigDecimal price = jdbc.queryForObject("SELECT price FROM pms_product WHERE id=?",BigDecimal.class,body.productId());
-            Integer invalidSkus = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=? AND (price IS NULL OR price<>3999.00)",Integer.class,body.productId());
-            Integer skuCount = jdbc.queryForObject("SELECT COUNT(*) FROM pms_sku_stock WHERE product_id=?",Integer.class,body.productId());
-            if (routes == null || routes != 1 || price == null || price.compareTo(new BigDecimal("3999.00")) != 0
-                    || invalidSkus == null || invalidSkus > 0 || skuCount == null || skuCount == 0)
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"自选区须选择旅游路线分类，商品及所有规格统一售价3999元");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"要把商品放进自选区，请先勾选确认「该商品是旅游路线」");
+            List<String> problems = pickProblems(body.productId());
+            if (!problems.isEmpty())
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "商品 " + body.productId() + " 还不能放进自选区：\n"
+                                + String.join("\n", problems.stream().map(p -> "· " + p).toList()));
             jdbc.update("INSERT INTO tri_membership_product(product_id,enabled,updated_by) VALUES(?,1,?)"
                     + " ON DUPLICATE KEY UPDATE enabled=1,updated_by=VALUES(updated_by)",body.productId(),operator);
         } else {
@@ -131,6 +127,33 @@ public class ProductZoneAdminController {
         int changed=jdbc.update("DELETE FROM pms_product_zone WHERE product_id=? AND zone_code=?",productId,zone);
         if(changed>0) audit(operator,principal.getName(),"remove",productId,zone);
         return CommonResult.success(null);
+    }
+
+    /** 自选区规则逐条检查：分类、商品价、每个规格价，返回具体问题而不是一句话。 */
+    private List<String> pickProblems(long productId) {
+        List<String> problems = new java.util.ArrayList<>();
+        List<String> names = jdbc.queryForList("SELECT c.name FROM pms_product p "
+                + "JOIN pms_product_category c ON c.id=p.product_category_id WHERE p.id=?", String.class, productId);
+        String category = names.isEmpty() ? null : names.get(0);
+        if (category == null) problems.add("查不到这个商品的分类，请先编辑商品并选「旅游路线」");
+        else if (!"旅游路线".equals(category)) problems.add("商品分类是「" + category + "」，必须是「旅游路线」");
+        List<BigDecimal> prices = jdbc.queryForList("SELECT price FROM pms_product WHERE id=?", BigDecimal.class, productId);
+        BigDecimal price = prices.isEmpty() ? null : prices.get(0);
+        if (price == null || price.compareTo(new BigDecimal("3999.00")) != 0)
+            problems.add("商品售价是 " + (price == null ? "空" : price.toPlainString() + " 元") + "，必须是 3999 元");
+        List<Map<String, Object>> skus = jdbc.queryForList(
+                "SELECT id,sku_code,price FROM pms_sku_stock WHERE product_id=?", productId);
+        if (skus.isEmpty()) problems.add("这个商品没有任何规格，请至少加一条 3999 元的规格");
+        for (Map<String, Object> sku : skus) {
+            Object skuPrice = sku.get("price");
+            boolean priced = skuPrice instanceof BigDecimal decimal && decimal.compareTo(new BigDecimal("3999.00")) == 0;
+            if (!priced) {
+                Object code = sku.get("sku_code");
+                String label = code == null || String.valueOf(code).isBlank() ? "id=" + sku.get("id") : String.valueOf(code);
+                problems.add("规格「" + label + "」价格是 " + (skuPrice == null ? "空" : String.valueOf(skuPrice) + " 元") + "，必须是 3999 元");
+            }
+        }
+        return problems;
     }
 
     private void audit(long id,String name,String action,long productId,String detail) {
