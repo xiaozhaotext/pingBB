@@ -30,7 +30,16 @@
 </template>
 
 <script setup lang="ts">
-const goPage = (url: string) => uni.navigateTo({ url })
+// 购物车是 tabBar 页面，必须用 switchTab；用 navigateTo 会静默失败（按钮点了没反应）
+const TAB_PAGES = ['/pages/index/index', '/pages/cart/cart', '/pages/member/promotion']
+const goPage = (url: string) => {
+  const path = url.split('?')[0]
+  if (TAB_PAGES.includes(path)) {
+    uni.switchTab({ url: path, fail: () => uni.navigateTo({ url }) })
+    return
+  }
+  uni.navigateTo({ url, fail: () => uni.switchTab({ url: path }) })
+}
 
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
