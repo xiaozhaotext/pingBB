@@ -84,6 +84,16 @@ const paymentState = ref<'loading' | 'ready' | 'checking' | 'pending' | 'closed'
 const paymentMessage = ref('正在读取订单…')
 const paying = ref(false)
 const checking = ref(false)
+// autoPay=1：从创建订单页直接跳转过来，订单就绪后自动拉起微信支付（只自动触发一次）
+const autoPayRequested = ref(false)
+let autoPayTriggered = false
+const maybeAutoPay = () => {
+  if (!autoPayRequested.value || autoPayTriggered || disposed) return
+  if (!USE_WECHAT_PAY || !isWechatBrowser()) return
+  if (paymentState.value !== 'ready' || paying.value || checking.value || !orderInfo.value.orderSn) return
+  autoPayTriggered = true
+  setTimeout(() => { void handleConfirmPay() }, 400)
+}
 let initialized = false
 let disposed = false
 let navigating = false
@@ -155,7 +165,10 @@ const loadData = async () => {
       return
     }
     if (uni.getStorageSync(pendingKey())) await checkPayment()
-    else { paymentState.value = 'ready'; paymentMessage.value = '' }
+    else {
+      paymentState.value = 'ready'; paymentMessage.value = ''
+      maybeAutoPay()
+    }
     // Recommendations are supplemental. Failure must not prevent querying or paying this order.
     try { paymentOffers.value = (await getOrderFullReductionOffersAPI(orderId.value!)).data || [] }
     catch { paymentOffers.value = [] }
@@ -173,6 +186,7 @@ onLoad(async (options: any) => {
     paymentState.value = 'error'; paymentMessage.value = '订单链接无效，请从我的订单进入。'; return
   }
   orderId.value = id
+  autoPayRequested.value = options.autoPay === '1'
   if (options.checkPayment === '1') uni.setStorageSync(pendingKey(), 'attempted')
   await loadData()
   initialized = true

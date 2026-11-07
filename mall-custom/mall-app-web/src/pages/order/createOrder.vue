@@ -463,22 +463,9 @@ const handleSubmit = async () => {
       }, 800)
       return
     }
-    uni.showModal({
-      title: '提示',
-      content: '订单创建成功，是否要立即支付？',
-      confirmText: '去支付',
-      cancelText: '取消',
-      success: function (res) {
-        if (res.confirm) {
-          uni.redirectTo({
-            url: `/pages/money/pay?orderId=${orderId}`,
-          })
-        } else if (res.cancel) {
-          uni.redirectTo({
-            url: '/pages/order/order?state=1',
-          })
-        }
-      },
+    // 有现金应付时直接进支付页并自动拉起微信支付，不再多问一次「是否要立即支付」
+    uni.redirectTo({
+      url: `/pages/money/pay?orderId=${orderId}&autoPay=1`,
     })
   } catch (e: any) {
     const msg = e?.data?.message || e?.message || '提交订单失败，请重试'
