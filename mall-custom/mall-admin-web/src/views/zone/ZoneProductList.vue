@@ -105,21 +105,79 @@ async function importRoutes(event: Event) {
     ElMessage.warning('文件不能超过400MB')
     return
   }
-  const importZone = zone.value
+  previewLoading.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await http<SmartPreview>({
+      url: `/p0/zones/${zone.value}/products/import/preview`, method: 'post', data: form, timeout: 600000, silent: true,
+    } as AxiosRequestConfig & { silent: boolean })
+    pendingFile.value = file
+    pendingZone.value = zone.value
+    previewData.value = response.data
+    const mapping: Record<number, string> = {}
+    response.data.columns.forEach(column => { mapping[column.index] = column.role || 'IGNORE' })
+    previewMapping.value = mapping
+    previewVisible.value = true
+  } catch (error) {
+    const response = (error as { response?: { data?: { message?: string } } }).response
+    ElMessage.error(response?.data?.message || '表格解析失败，请检查文件')
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+interface PreviewColumn { index: number; title: string; role: string; confidence: number; samples: string[] }
+interface PreviewSample { name: string; price: string; category: string; subtitle: string; sn: string; stock: string; pic: string }
+interface SmartPreview { sheet: string; headerRow: number; totalRows: number; zone: string; columns: PreviewColumn[]; samples: PreviewSample[]; notes: string[] }
+
+const previewVisible = ref(false)
+const previewLoading = ref(false)
+const previewData = ref<SmartPreview | null>(null)
+const previewMapping = ref<Record<number, string>>({})
+const pendingFile = ref<File | null>(null)
+const pendingZone = ref('')
+const ROLE_OPTIONS = [
+  { value: 'NAME', label: '商品名称' },
+  { value: 'SUBTITLE', label: '副标题' },
+  { value: 'SN', label: '货号' },
+  { value: 'PRICE', label: '价格' },
+  { value: 'STOCK', label: '库存' },
+  { value: 'PIC', label: '图片' },
+  { value: 'CATEGORY', label: '分类' },
+  { value: 'SUMMARY', label: '简介' },
+  { value: 'DETAIL', label: '详情' },
+  { value: 'BRAND', label: '品牌' },
+  { value: 'IGNORE', label: '忽略此列' },
+]
+
+async function confirmSmartImport() {
+  if (!previewData.value || !pendingFile.value) return
+  if (!Object.values(previewMapping.value).includes('NAME')) {
+    ElMessage.warning('请至少把一列指定为「商品名称」')
+    return
+  }
+  const importZone = pendingZone.value
   const importLabel = zoneLabel.value
   importing.value = true
   try {
     const form = new FormData()
-    form.append('file', file)
+    form.append('file', pendingFile.value)
+    form.append('mapping', JSON.stringify({
+      sheet: previewData.value.sheet,
+      headerRow: previewData.value.headerRow,
+      columns: previewMapping.value,
+    }))
     const response = await http<{ imported: number; names: string[]; skipped?: string[] }>({
-      url: `/p0/zones/${importZone}/products/import`, method: 'post', data: form, timeout: 1800000,
+      url: `/p0/zones/${importZone}/products/import/smart`, method: 'post', data: form, timeout: 1800000,
       silent: true,
     } as AxiosRequestConfig & { silent: boolean })
+    previewVisible.value = false
     const skipped = response.data.skipped ?? []
     if (skipped.length) {
       const detail = skipped.slice(0, 20).join('<br>')
       await ElMessageBox.alert(
-        `${detail}${skipped.length > 20 ? `<br>…共 ${skipped.length} 行` : ''}<br><br>已存在的货号会自动跳过；缺图的商品补齐图片后可只保留缺失行再导一次。`,
+        `${detail}${skipped.length > 20 ? `<br>…共 ${skipped.length} 行` : ''}`,
         `已导入 ${response.data.imported} 件，${skipped.length} 行未导入`,
         { dangerouslyUseHTMLString: true, confirmButtonText: '知道了' },
       ).catch(() => {})
@@ -300,7 +358,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       <div class="ops">
         <el-button type="primary" @click="goAdd">添加商品</el-button>
         <input ref="importInput" type="file" accept=".csv,.xlsx,.xls" style="display:none" @change="importRoutes" />
-        <el-button :loading="importing" @click="importInput?.click()">{{ zone === 'PICK' ? '一键导入自动分类' : '一键导入CKIR品牌总表' }}</el-button>
+        <el-button :loading="importing || previewLoading" @click="importInput?.click()">一键导入（自动识别表格）</el-button>
         <el-button @click="downloadImportTemplate">下载导入模板</el-button>
         <el-button @click="load">刷新</el-button>
       </div>
@@ -326,10 +384,7 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </template>
         <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。全选覆盖本专区全部未上架商品，不受分页和搜索条件限制。</span>
       </el-alert>
-      <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <p v-else-if="zone === 'REBUY'" class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，价格按「平台价 → 京东价 → 零售价」取第一个有值的列，默认库存100。请先「下载导入模板」（空表，只有表头），填入商品后上传。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。缺图或货号重复的行会跳过并在结果里列出。</p>
-      <p v-else-if="zone === 'CONSUME'" class="import-help">导入 CKIR 品牌分类表：按分类分工作表（组合装/CKIR女包/CKIR手表…），自动读取全部工作表与内嵌图片，价格取「零售价」，默认库存100；工作表名即商品分类。请先「下载导入模板」填写。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。缺图或货号重复的行会跳过并在结果里列出。</p>
-      <p v-else class="import-help">导入 9 列商品模板（CSV 或 Excel）：商品分类、商品名称、副标题、商品货号、售价、库存、封面图URL、商品简介、商品详情。请先「下载导入模板」按表头填写。缺图、价格非法或货号已存在的行会跳过并在结果里列出，其余正常导入；导入后默认下架。</p>
+      <p class="import-help">导入 CSV 或 Excel：<b>不要求固定表头</b>。系统自动找表头行、识别哪列是名称/货号/价格/库存/图片/分类，识别结果会先给你确认，可以手动改列对应关系再导入。{{ zone === 'PICK' ? '自选区商品统一归入「旅游路线」，价格与规格统一 3999 元。' : zone === 'REBUY' ? '复购区价格自动按「平台价 → 京东价 → 零售价」取第一个有值的列。' : '消费区价格自动取「零售价」；表内分类不存在时会自动创建到本专区。' }} 缺图或货号重复的行会跳过并在结果里列出；导入后默认下架，核对后再上架。</p>
       <el-table ref="selectionTable" row-key="id" :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
         <el-table-column v-if="batchMode" type="selection" width="60" :reserve-selection="true"><template #header>选择</template></el-table-column>
         <el-table-column prop="id" label="ID" width="72" />
@@ -383,6 +438,44 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
       </el-table>
       <el-pagination v-model:current-page="page" :page-size="10" :total="filteredRows.length" layout="total, prev, pager, next" />
     </el-card>
+
+    <el-dialog v-model="previewVisible" title="确认导入内容" width="960px" :close-on-click-modal="false">
+      <template v-if="previewData">
+        <el-alert type="success" :closable="false" :title="previewData.notes[0]" />
+        <p class="preview-tip">下面是对表格各列的理解，不对可以直接改；确认后按这张映射表导入。</p>
+        <el-table :data="previewData.columns" size="small" max-height="300">
+          <el-table-column prop="title" label="表格列" width="240" show-overflow-tooltip />
+          <el-table-column label="识别为" width="190">
+            <template #default="{ row }">
+              <el-select v-model="previewMapping[row.index]" size="small">
+                <el-option v-for="option in ROLE_OPTIONS" :key="option.value" :label="option.label" :value="option.value" />
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column label="示例值" min-width="320" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.samples.join(' / ') || '（空）' }}</template>
+          </el-table-column>
+        </el-table>
+        <h4 class="preview-title">导入预览（前 5 行，按当前映射解析）</h4>
+        <el-table :data="previewData.samples" size="small">
+          <el-table-column label="图片" width="80">
+            <template #default="{ row }">
+              <el-image v-if="row.pic" :src="productImageUrl(row.pic)" fit="contain" style="width: 40px; height: 40px" />
+              <span v-else>无图</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="price" label="价格" width="100" />
+          <el-table-column prop="category" label="分类" width="140" show-overflow-tooltip />
+          <el-table-column prop="stock" label="库存" width="80" />
+        </el-table>
+        <p v-for="(note, index) in previewData.notes.slice(1)" :key="index" class="preview-note">{{ note }}</p>
+      </template>
+      <template #footer>
+        <el-button @click="previewVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importing" @click="confirmSmartImport">确认导入</el-button>
+      </template>
+    </el-dialog>
   </main>
 </template>
 
@@ -394,6 +487,9 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
 .head p { margin: 0; color: #6d8074; }
 .filters { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .import-help { color: #6d8074; font-size: 13px; line-height: 1.6; }
+.preview-tip { color: #6d8074; font-size: 13px; margin: 12px 0 8px; }
+.preview-title { margin: 16px 0 8px; font-size: 14px; color: #234a34; }
+.preview-note { color: #a06b29; font-size: 12px; margin: 4px 0; }
 </style>
 
 

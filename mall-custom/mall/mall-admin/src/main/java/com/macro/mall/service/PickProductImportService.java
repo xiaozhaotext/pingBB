@@ -50,6 +50,9 @@ public class PickProductImportService {
     public record Result(int imported, List<String> names, List<String> skipped) {}
     private record Route(int row, String name, String subtitle, String sn, int stock,
                          String cover, String summary, String itinerary, String category, BigDecimal price) {}
+    /** 任意表格导入的统一商品行，row 为原始行号，仅用于提示。 */
+    public record ProductRow(int row, String category, String name, String subtitle, String sn, int stock,
+                             String cover, String summary, String detail, BigDecimal price) {}
 
     @Transactional(rollbackFor = Exception.class)
     public Result importFile(MultipartFile file) throws IOException {
@@ -110,28 +113,55 @@ public class PickProductImportService {
         List<Route> routes = validate(rows, pick, headers, zone, brandCatalog, skipped);
         LOGGER.info("商品导入解析完成 zone={} file={} bytes={} brand={} rows={} skipped={}", zone,
                 file.getOriginalFilename(), file.getSize(), brandCatalog, rows.size(), skipped.size());
+        List<ProductRow> items = new ArrayList<>(routes.size());
+        for (Route route : routes) {
+            items.add(new ProductRow(route.row(), route.category(), route.name(), route.subtitle(), route.sn(),
+                    route.stock(), route.cover(), route.summary(), route.itinerary(), route.price()));
+        }
+        return createAll(zone, items, skipped, brandCatalog, brandCatalog);
+    }
+
+    /**
+     * 统一建品入口：模板导入与智能导入共用，保证价格、规格、分类规则一致。
+     *
+     * @param autoCreateCategory 分类不存在时是否自动创建（智能导入按表内分类自动整理）
+     * @param skipDuplicates     货号重复时跳过该行而不是整批失败
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Result createAll(String zone, List<ProductRow> items, List<String> skipped,
+                            boolean autoCreateCategory, boolean skipDuplicates) {
+        boolean pick = "PICK".equals(zone);
         List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
         if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
         List<String> names = new ArrayList<>();
-        for (Route route : routes) {
+        for (ProductRow item : items) {
+            if (!item.sn().isBlank() && jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id WHERE p.product_sn=? AND z.zone_code=?",
+                    Integer.class, item.sn(), zone) > 0) {
+                if (skipDuplicates) {
+                    skipped.add("第" + item.row() + "行货号已存在，已跳过：" + item.name());
+                    continue;
+                }
+                bad("第" + item.row() + "行：商品货号已存在");
+            }
             PmsProductParam product = new PmsProductParam();
             product.setZoneCode(zone);
-            String categoryName = pick ? "旅游路线" : route.category();
-            Long categoryId = pick ? category.get(0) : findCategory(zone, categoryName, route.row(), brandCatalog);
+            String categoryName = pick ? "旅游路线" : item.category();
+            Long categoryId = pick ? category.get(0) : findCategory(zone, categoryName, item.row(), autoCreateCategory);
             product.setProductCategoryId(categoryId);
             product.setProductCategoryName(categoryName);
             if (pick && !attribute.isEmpty()) product.setProductAttributeCategoryId(attribute.get(0));
-            product.setName(route.name());
-            product.setSubTitle(route.subtitle());
-            product.setProductSn(route.sn().isBlank() ? (pick ? "TOUR-" : "IMP-") + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT) : route.sn());
-            product.setStock(route.stock());
+            product.setName(item.name());
+            product.setSubTitle(item.subtitle());
+            product.setProductSn(item.sn().isBlank() ? (pick ? "TOUR-" : "IMP-") + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT) : item.sn());
+            product.setStock(item.stock());
             product.setLowStock(0);
-            product.setPrice(route.price());
-            product.setOriginalPrice(route.price());
-            product.setPic(route.cover());
-            product.setDescription(route.summary());
-            String detail = "<p>" + HtmlUtils.htmlEscape(route.itinerary()).replace("\n", "<br>") + "</p>";
+            product.setPrice(item.price());
+            product.setOriginalPrice(item.price());
+            product.setPic(item.cover());
+            product.setDescription(item.summary());
+            String detail = "<p>" + HtmlUtils.htmlEscape(item.detail()).replace("\n", "<br>") + "</p>";
             product.setDetailHtml(detail);
             product.setDetailMobileHtml(detail);
             product.setUnit(pick ? "条" : "件");
@@ -143,14 +173,14 @@ public class PickProductImportService {
             product.setGiftGrowth(0);
             product.setUsePointLimit(0);
             PmsSkuStock sku = new PmsSkuStock();
-            sku.setPrice(route.price());
-            sku.setStock(route.stock());
+            sku.setPrice(item.price());
+            sku.setStock(item.stock());
             sku.setLowStock(0);
             sku.setLockStock(0);
             sku.setSpData("[]");
             product.setSkuStockList(List.of(sku));
             productService.create(product);
-            names.add(route.name());
+            names.add(item.name());
         }
         return new Result(names.size(), names, skipped);
     }
@@ -221,7 +251,7 @@ public class PickProductImportService {
         return index < row.size() ? row.get(index).trim() : "";
     }
 
-    static List<List<String>> parseCsv(String content) {
+    public static List<List<String>> parseCsv(String content) {
         List<List<String>> rows = new ArrayList<>();
         List<String> row = new ArrayList<>();
         StringBuilder field = new StringBuilder();

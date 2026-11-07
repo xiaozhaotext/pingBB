@@ -51,7 +51,7 @@ public final class BrandWorkbookReader {
         return f.newDocumentBuilder().parse(in);
     }
 
-    private static String save(byte[] bytes, String ext, Path dir) throws Exception {
+    public static String save(byte[] bytes, String ext, Path dir) throws Exception {
         if (bytes.length > MAX_IMAGE_BYTES) throw new IllegalArgumentException("单张图片超过20MB");
         ext = ext.toLowerCase(Locale.ROOT);
         if (!Set.of("png", "jpg", "jpeg", "gif", "webp").contains(ext)) throw new IllegalArgumentException("不支持的商品图片格式");
@@ -162,7 +162,7 @@ public final class BrandWorkbookReader {
     }
 
     /** WPS 单元格图片（DISPIMG）→ 已落盘的图片地址。 */
-    private static Map<String, String> readCellImages(Path source, Path imageDir) throws Exception {
+    public static Map<String, String> readCellImages(Path source, Path imageDir) throws Exception {
         Map<String, String> cellImages = new HashMap<>();
         try (ZipFile zip = new ZipFile(source.toFile())) {
             var rel = zip.getEntry("xl/_rels/cellimages.xml.rels");
