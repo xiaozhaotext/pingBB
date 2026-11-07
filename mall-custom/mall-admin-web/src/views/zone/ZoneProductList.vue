@@ -75,7 +75,10 @@ const importInput = ref<HTMLInputElement | null>(null)
 let loadRevision = 0
 
 function downloadImportTemplate() {
-  if (zone.value !== 'PICK') {
+  if (zone.value === 'REBUY') {
+    const link=document.createElement('a');link.href='./templates/ckir-brand-master.xlsx';link.download=`${zoneLabel.value}-CKIR品牌总表导入模板.xlsx`;link.click();return
+  }
+  if (zone.value === 'CONSUME') {
     const link=document.createElement('a');link.href='./templates/ckir-brand-catalog.xlsx';link.download=`${zoneLabel.value}-CKIR品牌导入模板.xlsx`;link.click();return
   }
   const header = zone.value === 'PICK' ? '商品名称,副标题,商品货号,库存,封面图URL,行程简介,行程详情\n' : '商品分类,商品名称,副标题,商品货号,售价,库存,封面图URL,商品简介,商品详情\n'
@@ -324,7 +327,9 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <span>每件商品只归属一个专区；移出专区会从此列表和该专区商城入口移除，不删除商品资料。本专区共 {{ rows.length }} 个商品，其中 {{ rows.filter(row => !row.displayReason).length }} 个符合商城展示条件。排序数字越大越靠前。全选覆盖本专区全部未上架商品，不受分页和搜索条件限制。</span>
       </el-alert>
       <p v-if="zone === 'PICK'" class="import-help">导入 CSV 或 Excel：按模板填写名称、副标题、库存、封面图和行程；系统自动归类旅游路线、定价 3999 元并建立可购买规格。导入商品默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
-      <p v-else class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，使用零售价，默认库存100；分类仅在当前专区创建。也兼容原CSV模板。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。整批任一行有误时不会创建商品。</p>
+      <p v-else-if="zone === 'REBUY'" class="import-help">导入 CKIR 品牌 Excel 总表：自动读取所有工作表与内嵌图片，价格按「平台价 → 京东价 → 零售价」取第一个有值的列，默认库存100。请先「下载导入模板」（空表，只有表头），填入商品后上传。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。缺图或货号重复的行会跳过并在结果里列出。</p>
+      <p v-else-if="zone === 'CONSUME'" class="import-help">导入 CKIR 品牌分类表：按分类分工作表（组合装/CKIR女包/CKIR手表…），自动读取全部工作表与内嵌图片，价格取「零售价」，默认库存100；工作表名即商品分类。请先「下载导入模板」填写。单文件最大400MB，导入期间切换页面不会重复提交。导入后默认下架，核对后再上架。缺图或货号重复的行会跳过并在结果里列出。</p>
+      <p v-else class="import-help">导入 9 列商品模板（CSV 或 Excel）：商品分类、商品名称、副标题、商品货号、售价、库存、封面图URL、商品简介、商品详情。请先「下载导入模板」按表头填写。缺图、价格非法或货号已存在的行会跳过并在结果里列出，其余正常导入；导入后默认下架。</p>
       <el-table ref="selectionTable" row-key="id" :data="pagedRows" v-loading="loading" empty-text="暂无符合条件的商品" @selection-change="selectedRows = $event">
         <el-table-column v-if="batchMode" type="selection" width="60" :reserve-selection="true"><template #header>选择</template></el-table-column>
         <el-table-column prop="id" label="ID" width="72" />

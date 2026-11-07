@@ -12,7 +12,7 @@ class BrandWorkbookReaderTest {
   String file=System.getProperty("brand.workbook");Assumptions.assumeTrue(file!=null);
   try(var wb=WorkbookFactory.create(Path.of(file).toFile())){
    var warnings=new java.util.ArrayList<String>();
-   var rows=BrandWorkbookReader.read(wb,Path.of(file),images,"REBUY",warnings);
+   var rows=BrandWorkbookReader.read(wb,Path.of(file),images,"CONSUME",warnings);
    assertTrue(rows.size()>=550,"导入行数异常："+rows.size()+"，跳过 "+warnings.size()+" 行");
    for(var row:rows.subList(1,rows.size())) {
     assertEquals("100",row.get(5));assertTrue(new BigDecimal(row.get(4)).signum()>0);

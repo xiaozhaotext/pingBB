@@ -20,6 +20,7 @@ import java.security.Principal;
 @RestController
 @RequestMapping("/p0/zones/{zone}/products")
 public class PickProductImportController {
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(PickProductImportController.class);
     private final P0AdminAccess access;
     private final PickProductImportService importer;
 
@@ -35,8 +36,17 @@ public class PickProductImportController {
         return CommonResult.success(importer.importFile(zone, file));
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    public ResponseEntity<CommonResult<Void>> importPartMissing(
+            org.springframework.web.multipart.support.MissingServletRequestPartException error) {
+        LOGGER.warn("商品导入请求里没有文件部件", error);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                .body(CommonResult.failed("没有收到上传的文件，请重新选择文件后再试"));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<CommonResult<Void>> importError(ResponseStatusException error) {
+        LOGGER.warn("商品导入被拒绝 status={} reason={}", error.getStatusCode(), error.getReason(), error);
         return ResponseEntity.status(error.getStatusCode()).body(CommonResult.failed(error.getReason()));
     }
 }

@@ -7,6 +7,8 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ import java.util.UUID;
 /** Excel/CSV 导入自选区旅游路线，整批校验、整批提交，默认下架供运营复核。 */
 @Service
 public class PickProductImportService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PickProductImportService.class);
     private static final BigDecimal PRICE = new BigDecimal("3999.00");
     /** 品牌总表内嵌图片的落盘目录，可用 -Dmall.product-images 覆盖，默认沿用线上路径。 */
     private static final java.nio.file.Path IMAGE_DIR = java.nio.file.Path.of(System.getProperty("mall.product-images", "/opt/mall-demo/product-images"));
@@ -75,6 +78,7 @@ public class PickProductImportService {
                 var sheet = workbook.getSheetAt(0);
                 Row head = sheet.getRow(0);
                 String firstCell = head == null || head.getCell(0) == null ? "" : new DataFormatter(Locale.CHINA).formatCellValue(head.getCell(0)).replaceAll("\\s+", "");
+                // 复购区/消费区均支持 CKIR 品牌总表；9 列「商品分类」表头走 CSV 模板，自选区沿用 7 列模板
                 boolean brand=!pick && !"商品分类".equals(firstCell);
                 brandCatalog=brand;
                 if(brand) rows=BrandWorkbookReader.read(workbook,temp,IMAGE_DIR,zone,skipped);
@@ -104,6 +108,8 @@ public class PickProductImportService {
             return null;
         }
         List<Route> routes = validate(rows, pick, headers, zone, brandCatalog, skipped);
+        LOGGER.info("商品导入解析完成 zone={} file={} bytes={} brand={} rows={} skipped={}", zone,
+                file.getOriginalFilename(), file.getSize(), brandCatalog, rows.size(), skipped.size());
         List<Long> category = pick ? jdbc.queryForList("SELECT id FROM pms_product_category WHERE parent_id=0 AND name='旅游路线' ORDER BY id LIMIT 1", Long.class) : List.of();
         if (pick && category.isEmpty()) bad("缺少旅游路线商品分类，请先在后台建立分类");
         List<Long> attribute = jdbc.queryForList("SELECT id FROM pms_product_attribute_category WHERE name='旅游路线' ORDER BY id LIMIT 1", Long.class);
@@ -205,7 +211,8 @@ public class PickProductImportService {
                 bad("第" + line + "行：简介或详情为空、过长");
             result.add(new Route(line, name, subtitle, sn, stock, cover, summary, detail, categoryName, price));
         }
-        if (result.isEmpty() || result.size() > 2000) bad("每次须导入1至2000个商品");
+        if (result.isEmpty()) bad("文件里没有可导入的商品数据：识别到表头 " + rows.size() + " 行、其中有效商品 0 行。请确认选择的是已填写商品的那个文件（而不是下载后未填写的空模板），每行一个商品并附产品图片，再重新导入");
+        if (result.size() > 2000) bad("每次须导入1至2000个商品");
         return result;
     }
 
