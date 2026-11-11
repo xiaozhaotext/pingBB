@@ -1,5 +1,5 @@
 <template>
-  <view class="zone-page">
+  <view class="zone-page" :class="'zone-' + props.zone.toLowerCase()">
     <DesktopHeader />
     <view class="zone-wrap">
       <view class="zone-head">
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-const goPage = (url: string) => uni.navigateTo({ url })
+const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
 
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
@@ -82,7 +82,7 @@ onShow(() => { loadCategories(); load() })
 </script>
 
 <style scoped>
-.zone-page { min-height: 100vh; background: #f5f7f3; color: #213d30; }
+.zone-page { min-height: 100vh; background: #fff9f1; color: #604737; }
 .zone-wrap { max-width: 1240px; margin: auto; padding: 24px 20px 110px; }
 .zone-head { display: flex; justify-content: space-between; gap: 20px; align-items: end; padding: 30px; border-radius: 20px; background: #e4eee5; }
 .zone-kicker,.zone-title,.zone-description { display: block; }
@@ -96,7 +96,7 @@ onShow(() => { loadCategories(); load() })
 .zone-filters input { flex: 1; min-width: 150px; padding: 8px 10px; border: 1px solid #dce6df; border-radius: 8px; }
 .zone-filters text,.zone-category { padding: 7px 9px; cursor: pointer; font-size: 13px; }
 .zone-filters .active { color: #226842; font-weight: 800; }
-.zone-search-button { background: #285b40; color: #fff; border-radius: 8px; }
+.zone-search-button { background: #b84432; color: #fff; border-radius: 8px; }
 .zone-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 18px; }
 .zone-card { overflow: hidden; background: #fff; border-radius: 14px; cursor: pointer; box-shadow: 0 2px 12px #14351a0d; }
 .zone-card image { width: 100%; height: 210px; }
@@ -107,8 +107,12 @@ onShow(() => { loadCategories(); load() })
 .zone-card-foot { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
 .zone-card-foot text:first-child { color: #bb6540; font-weight: 800; font-size: 20px; }
 .zone-card-foot text:last-child { color: #87958c; font-size: 12px; }
-.zone-add-cart { padding: 4px 10px; border-radius: 14px; background: #285b40; color: #fff !important; font-size: 12px !important; }
+.zone-add-cart { padding: 4px 10px; border-radius: 14px; background: #b84432; color: #fff !important; font-size: 12px !important; }
 .zone-empty { padding: 70px 15px; background: #fff; border-radius: 14px; text-align: center; color: #718277; }
 .zone-empty text { display: block; margin-top: 10px; color: #287749; cursor: pointer; }
 @media(max-width:800px) { .zone-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; } .zone-card image { height: 155px; } .zone-head { padding: 22px; align-items: start; flex-direction: column; } .zone-title { font-size: 26px; } .zone-wrap { padding: 12px 12px 85px; } }
+
+.zone-pick .zone-head { background: #b80912 url("https://zhiyoumei.com.cn/static/festive-home/pick.jpg") center / cover no-repeat !important; }
+.zone-rebuy .zone-head { background: #b80912 url("https://zhiyoumei.com.cn/static/festive-home/rebuy.jpg") center / cover no-repeat !important; }
+.zone-consume .zone-head { background: #b80912 url("https://zhiyoumei.com.cn/static/festive-home/consume.jpg") center / cover no-repeat !important; }
 </style>

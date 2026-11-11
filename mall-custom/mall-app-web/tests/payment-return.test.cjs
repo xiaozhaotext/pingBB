@@ -2,11 +2,12 @@ const {test}=require('node:test')
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript')
 function util(name){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/utils',name+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module,exports:module.exports,URL});return module.exports}
-function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStatus=0,bridgeError,prepay,successPage=false,order={}}={}){
- const callbacks={},storage=new Map(),redirects=[],timers=[],calls={jsapi:0,status:0,h5:0,mock:0}
+function page({mini=false,wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStatus=0,bridgeError,prepay,successPage=false,order={}}={}){
+ const callbacks={},storage=new Map(),redirects=[],timers=[],calls={jsapi:0,status:0,h5:0,mock:0,miniPrepay:0,nativePay:0}
  const file=successPage?'paySuccess.vue':'pay.vue'
  let source=fs.readFileSync(path.join(__dirname,'../src/pages/money',file),'utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
  source=source.replace(/import\.meta\.env\.VITE_USE_WECHAT_PAY/g,'"true"').replace(/import\.meta\.env\.VITE_USE_ALIPAY/g,'"false"').replace(/import\.meta\.env\.VITE_USE_MOCK_PAYMENT/g,'"false"').replace(/import\.meta\.env\.VITE_API_BASE_URL/g,'"/portal"')
+ source=source.replace(/\/\/ #ifdef (MP-WEIXIN|H5)[\s\S]*?\/\/ #endif/g,(block,platform)=>mini===(platform==='MP-WEIXIN')?block:'')
  const api={getOrderDetailAPI:async()=>({data:{id:11,orderSn:'SN11',status:orderStatus,payAmount:10,...order}}),
   getWechatOrderPaymentStatusAPI:async()=>{calls.status++;const state=states[Math.min(calls.status-1,states.length-1)];if(state instanceof Error)throw state;return {data:state}},
   wechatOrderPayJsapiAPI:async()=>{calls.jsapi++;if(prepay)await prepay();return {data:{package:'prepay_id=p'}}},
@@ -21,6 +22,7 @@ function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStat
    if(name==='vue')return {ref:value=>({value}),onMounted:fn=>{callbacks.mounted=fn},onUnmounted:fn=>{callbacks.unmounted=fn}}
    if(name==='@dcloudio/uni-app')return {onLoad:fn=>{callbacks.load=fn},onShow:fn=>{callbacks.show=fn},onUnload:fn=>{callbacks.unload=fn}}
    if(name==='@/apis/order')return api
+   if(name==='@/utils/wechatMiniPay')return {prepareMiniProgramPayment:async()=>{calls.miniPrepay++;return {}},requestMiniProgramPayment:async()=>{calls.nativePay++;if(bridgeError)throw bridgeError}}
    if(name==='@/utils/wechatPay')return {isWechatBrowser:()=>wechat,ensureWechatOauth:async()=>true,invokeWechatJsapi:async()=>{if(bridgeError)throw bridgeError}}
    if(name==='@/utils/paymentResult')return util('paymentResult')
    if(name==='@/utils/sessionKeys')return {tokenStorageKey:'token'}
@@ -73,4 +75,17 @@ test('actual payment template plainly renders the threshold, discount and final 
  const ctx=Object.fromEntries(Object.entries(p).map(([key,value])=>[key,value&&typeof value==='object'&&'value' in value?value.value:value]))
  const html=await renderToString(vue.createSSRApp({render,setup:()=>ctx}))
  assert.match(html,/满100元减10元/);assert.match(html,/本单活动优惠（已计入应付）/);assert.match(html,/-¥10\.00/);assert.match(html,/本次实际支付/);assert.match(html,/¥90\.00/)
+})
+
+test('mini program opens native payment and only reports success after backend confirmation',async()=>{
+ const p=page({mini:true,states:[{state:'PENDING',canRetry:false},{state:'CONFIRMED',canRetry:false}]});await p.callbacks.load({orderId:11});await p.handleConfirmPay();
+ assert.equal(p.calls.miniPrepay,1);assert.equal(p.calls.nativePay,1);assert.equal(p.calls.h5,0);assert.equal(p.calls.jsapi,0);assert.deepEqual(p.redirects,['/pages/money/paySuccess?orderId=11']);
+})
+test('mini payment cancellation keeps the order available and never reports paid',async()=>{
+ const p=page({mini:true,bridgeError:new Error('requestPayment:fail cancel')});await p.callbacks.load({orderId:11});await p.handleConfirmPay();
+ assert.equal(p.calls.nativePay,1);assert.equal(p.calls.status,0);assert.equal(p.paymentState.value,'ready');assert.equal(p.redirects.length,0);assert.match(p.paymentMessage.value,/已取消/);
+})
+test('native success without server confirmation remains pending and cannot pay twice',async()=>{
+ const p=page({mini:true,states:[{state:'PENDING',canRetry:true}]});await p.callbacks.load({orderId:11});await p.handleConfirmPay();await p.handleConfirmPay();
+ assert.equal(p.calls.nativePay,1);assert.equal(p.paymentState.value,'pending');assert.equal(p.redirects.length,0);
 })

@@ -88,7 +88,7 @@ onLoad(loadData)
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .tabs { display: flex; margin-bottom: 20rpx; background: #fff; border-radius: 16rpx; overflow: hidden; }
 .tabs .tab { flex: 1; text-align: center; padding: 24rpx 0; font-size: 28rpx; color: #606266; }
-.tabs .tab.active { color: #285b40; font-weight: 600; box-shadow: inset 0 -4rpx 0 #285b40; }
+.tabs .tab.active { color: #b84432; font-weight: 600; box-shadow: inset 0 -4rpx 0 #b84432; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
 .row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #606266; }

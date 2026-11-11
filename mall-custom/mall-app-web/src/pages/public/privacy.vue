@@ -44,7 +44,7 @@ onLoad(async (options?: Record<string, string>) => {
 .title {
   font-size: 40rpx;
   font-weight: 600;
-  color: #285a62;
+  color: #604737;
 }
 .meta {
   margin-top: 12rpx;

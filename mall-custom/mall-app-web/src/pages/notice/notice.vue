@@ -60,5 +60,5 @@ onPullDownRefresh(loadNotices)
 .time { font-size: 24rpx; color: #999; margin: 8rpx 0; }
 .time, .detail-link { display: block; }
 .content { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: pre-wrap; font-size: 28rpx; color: #333; line-height: 1.6; }
-.detail-link { margin-top: 16rpx; color: #277f80; font-size: 24rpx; }
+.detail-link { margin-top: 16rpx; color: #b84432; font-size: 24rpx; }
 </style>

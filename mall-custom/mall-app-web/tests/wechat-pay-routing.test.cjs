@@ -12,6 +12,7 @@ function paymentPage(inWechat) {
     .replaceAll("import.meta.env.VITE_USE_WECHAT_PAY === 'true'", 'true')
     .replaceAll("import.meta.env.VITE_USE_MOCK_PAYMENT === 'true'", 'false')
     .replaceAll('import.meta.env.VITE_API_BASE_URL', "'/sandbox/portal'")
+  source = source.replace(/\/\/ #ifdef MP-WEIXIN[\s\S]*?\/\/ #endif/g, '')
   const calls = { h5: 0, jsapi: 0, oauth: 0, bridge: 0 }
   const window = { location: { href: 'https://example.com/sandbox/' } }
   const storage = new Map()

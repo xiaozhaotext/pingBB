@@ -244,7 +244,7 @@ const handleBuy = async () => {
 .card {
   padding: 22px;
   background: white;
-  border: 1px solid #e8eeec;
+  border: 1px solid #efdfcb;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -254,13 +254,13 @@ const handleBuy = async () => {
 }
 .subtitle {
   font-weight: 600;
-  color: #167a80;
+  color: #b84432;
 }
 .error {
   color: #ae2929;
 }
 button {
-  background: #167a80;
+  background: #b84432;
   color: white;
   font-size: 15px;
 }

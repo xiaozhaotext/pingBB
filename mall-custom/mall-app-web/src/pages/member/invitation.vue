@@ -1,5 +1,6 @@
 <template>
   <view class="app">
+    <canvas canvas-id="invitationQr" id="invitationQr" style="position:absolute;left:-10000px;top:-10000px;width:240px;height:240px" />
     <view class="mock-banner">邀请关系仅能绑定一次。直邀奖励在被邀请人完成会员购买后按当前规则入账。</view>
 
     <view class="card">
@@ -39,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, getCurrentInstance } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import QRCode from 'qrcode'
 import {
@@ -51,6 +52,33 @@ import {
 } from '@/apis/member'
 
 const qrImage = ref('')
+const pageInstance = getCurrentInstance()
+const renderInvitationQr = async (content: string): Promise<string> => {
+  const modules = QRCode.create(content, { errorCorrectionLevel: 'M' }).modules
+  const context = uni.createCanvasContext('invitationQr', pageInstance?.proxy)
+  const size = 240
+  const cell = size / (modules.size + 8)
+  context.setFillStyle('#ffffff')
+  context.fillRect(0, 0, size, size)
+  context.setFillStyle('#000000')
+  for (let row = 0; row < modules.size; row++) {
+    for (let column = 0; column < modules.size; column++) {
+      if (modules.get(row, column)) {
+        const x = Math.round((column + 4) * cell)
+        const y = Math.round((row + 4) * cell)
+        context.fillRect(x, y, Math.round((column + 5) * cell) - x, Math.round((row + 5) * cell) - y)
+      }
+    }
+  }
+  return new Promise((resolve, reject) => {
+    context.draw(false, () => {
+      uni.canvasToTempFilePath({ canvasId: 'invitationQr', width: size, height: size,
+        destWidth: size, destHeight: size,
+        success: result => resolve(result.tempFilePath), fail: reject,
+      }, pageInstance?.proxy)
+    })
+  })
+}
 const myCode = ref('')
 const detail = ref<any>(null)
 const copyInviteLink = () => {
@@ -83,7 +111,7 @@ const loadInviter = async () => {
 const loadData = async () => {
   await loadInviter()
   try { const r = await getMyInviteCodeAPI(); myCode.value = r.data || '' } catch (e) {}
-  try { const r = await getInvitationDetailAPI(); detail.value = r.data; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
+  try { const r = await getInvitationDetailAPI(); detail.value = r.data; if(r.data?.qrContent) qrImage.value = await renderInvitationQr(r.data.qrContent) } catch (e) {}
   try { const r = await getMyInviteesAPI(); invitees.value = r.data || []; inviteeCount.value = invitees.value.length } catch (e) { invitees.value = []; inviteeCount.value = 0 }
 }
 
@@ -127,12 +155,12 @@ onShow(loadData)
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
 .code-box { display: flex; align-items: center; gap: 16rpx; }
-.code { font-size: 40rpx; font-weight: 700; color: #285b40; letter-spacing: 4rpx; }
+.code { font-size: 40rpx; font-weight: 700; color: #b84432; letter-spacing: 4rpx; }
 .input { margin: 16rpx 0; height: 80rpx; border: 1rpx solid #dcdfe6; border-radius: 12rpx; padding: 0 20rpx; font-size: 28rpx; }
 .btn { background: #f4f4f5; color: #606266; }
-.btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
+.btn-primary { margin-top: 10rpx; background: #b84432; color: #fff; border-radius: 12rpx; }
 .tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; }
-.bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #285b40; font-size: 26rpx; line-height: 1.6; }
+.bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #b84432; font-size: 26rpx; line-height: 1.6; }
 .bind-error { display: block; margin-top: 12rpx; color: #b42318; font-size: 26rpx; }
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #303133; }
 .list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }

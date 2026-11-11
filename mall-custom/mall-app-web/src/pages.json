@@ -437,11 +437,11 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "智游美",
     "navigationBarBackgroundColor": "#FFFFFF",
-    "backgroundColor": "#f8f8f8"
+    "backgroundColor": "#fff9f1"
   },
   "tabBar": {
     "color": "#C0C4CC",
-    "selectedColor": "#167a80",
+    "selectedColor": "#b84432",
     "borderStyle": "black",
     "backgroundColor": "#ffffff",
     "list": [

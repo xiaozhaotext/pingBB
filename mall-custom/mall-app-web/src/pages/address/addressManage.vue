@@ -55,7 +55,7 @@
       <text class="tit">设为默认</text>
       <switch
         :checked="addressData.defaultStatus === 1"
-        color="#fa436a"
+        color="#b84432"
         @change="handleSwitchChange"
       />
     </view>

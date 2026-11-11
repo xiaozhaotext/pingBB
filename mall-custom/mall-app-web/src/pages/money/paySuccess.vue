@@ -98,7 +98,7 @@ onUnload(() => {
 
 .success-icon {
   font-size: 160rpx;
-  color: #fa436a;
+  color: #b84432;
   margin-top: 100rpx;
 }
 

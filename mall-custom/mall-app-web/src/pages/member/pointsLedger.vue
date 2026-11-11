@@ -97,7 +97,7 @@ onShow(loadData)
 .row .v { color: #303133; font-weight: 600; }
 .tabs { display: flex; gap: 16rpx; margin-bottom: 16rpx; }
 .tab { padding: 10rpx 24rpx; border-radius: 999rpx; background: #f4f4f5; color: #606266; font-size: 24rpx; }
-.tab.active { background: #285b40; color: #fff; }
+.tab.active { background: #b84432; color: #fff; }
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
 .list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
 .tip { font-size: 24rpx; color: #909399; }

@@ -27,7 +27,7 @@
           <text>推荐使用支付宝支付</text>
         </view>
         <label class="radio">
-          <radio name="payType" value="" color="#fa436a" :checked="payType == 1" />
+          <radio name="payType" value="" color="#b84432" :checked="payType == 1" />
         </label>
       </view>
       <view class="type-item b-b" v-if="USE_WECHAT_PAY" @click="handleChangePayType(2)">
@@ -36,7 +36,7 @@
           <text class="tit">微信支付</text>
         </view>
         <label class="radio">
-          <radio name="payType" value="" color="#fa436a" :checked="payType == 2" />
+          <radio name="payType" value="" color="#b84432" :checked="payType == 2" />
         </label>
       </view>
     </view>
@@ -63,6 +63,7 @@ import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API, wechatOr
 import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
 import { isOrderPaid, wechatReturnUrl, withWechatReturnUrl, orderPromotionRules } from '@/utils/paymentResult'
 import { tokenStorageKey } from '@/utils/sessionKeys'
+import { prepareMiniProgramPayment, requestMiniProgramPayment } from '@/utils/wechatMiniPay'
 import type { OmsOrderDetail } from '@/types/order'
 
 // 是否使用支付宝支付（H5端启用，通过环境变量配置）
@@ -208,6 +209,30 @@ const handleConfirmPay = async () => {
   if (paying.value || checking.value || paymentState.value !== 'ready' || !orderInfo.value.orderSn) return
   paying.value = true
   try {
+  // #ifdef MP-WEIXIN
+  if (USE_WECHAT_PAY && payType.value === 2) {
+    try {
+      const payment = await prepareMiniProgramPayment(String(orderInfo.value.orderSn))
+      uni.setStorageSync(pendingKey(), 'attempted')
+      await requestMiniProgramPayment(payment)
+      uni.setStorageSync(pendingKey(), 'submitted')
+      await checkPayment()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '暂时无法发起微信支付，请重试'
+      if (uni.getStorageSync(pendingKey())) {
+        if (message.toLowerCase().includes('cancel')) {
+          uni.removeStorageSync(pendingKey())
+          await loadData()
+          paymentMessage.value = '已取消本次支付，可重新支付或查看订单。'
+        } else {
+          await checkPayment()
+          if (paymentState.value === 'ready') paymentMessage.value = message + '。' + paymentMessage.value
+        }
+      } else paymentMessage.value = message
+    }
+    return
+  }
+  // #endif
   // #ifdef H5
   if (USE_ALIPAY && payType.value == 1) {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL

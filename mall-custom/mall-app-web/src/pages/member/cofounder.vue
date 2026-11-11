@@ -151,11 +151,11 @@ const handleBuy = async () => {
 .row .v { color: #303133; font-weight: 600; }
 .pay-methods { display: flex; gap: 20rpx; margin: 8rpx 0 8rpx; }
 .pay-item { flex: 1; text-align: center; padding: 24rpx 0; border: 2rpx solid #e5e5e5; border-radius: 12rpx; font-size: 28rpx; color: #606266; }
-.pay-item.active { border-color: #285b40; color: #285b40; font-weight: 700; background: #f0f7f3; }
-.btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
+.pay-item.active { border-color: #b84432; color: #b84432; font-weight: 700; background: #f0f7f3; }
+.btn-primary { background: #b84432; color: #fff; border-radius: 12rpx; }
 .btn-primary[disabled] { opacity: 0.6; }
 .mt { margin-top: 16rpx; }
-.result { margin-top: 16rpx; font-size: 26rpx; color: #285b40; line-height: 1.6; }
+.result { margin-top: 16rpx; font-size: 26rpx; color: #b84432; line-height: 1.6; }
 .hint { margin-top: 16rpx; font-size: 22rpx; color: #909399; line-height: 1.6; }
 .error { color: #b42318; }
 </style>

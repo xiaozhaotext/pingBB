@@ -9,5 +9,5 @@ import MembershipV2Benefits from '@/components/MembershipV2Benefits.vue'
 </script>
 
 <style scoped>
-.membership-page { min-height: 100vh; background: #f5f7f3; padding: 20rpx; }
+.membership-page { min-height: 100vh; background: #fff9f1; padding: 20rpx; }
 </style>

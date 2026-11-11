@@ -9,5 +9,8 @@ export function productImageUrl(pic?: string | null): string {
     return window.location.origin + value
     // #endif
   }
+  // #ifdef MP-WEIXIN
+  if (value.startsWith('/') && !value.startsWith('/static/')) return 'https://zhiyoumei.com.cn' + value
+  // #endif
   return value
 }

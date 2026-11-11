@@ -64,5 +64,5 @@ async function save() {
 .account { margin: 12px 0 28px; color: #687773; font-size: 14px; }
 .field-label { margin-bottom: 10px; text-align: left; color: #284c48; font-weight: 600; }
 .nickname-input { height: 46px; padding: 0 14px; border: 1px solid #d7e1de; border-radius: 10px; text-align: left; }
-.save-button { margin-top: 28px; color: #fff; background: #286251; border-radius: 10px; }
+.save-button { margin-top: 28px; color: #fff; background: #b84432; border-radius: 10px; }
 </style>

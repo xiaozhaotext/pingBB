@@ -34,4 +34,4 @@ async function submit() {
   finally { busy.value = false }
 }
 </script>
-<style scoped>.travel-form{max-width:720px;margin:auto;padding:24px;display:flex;flex-direction:column;gap:18px}.title{font-size:24px;font-weight:600}input,textarea{padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-sizing:border-box;width:100%}.error{color:#a52828}button{background:#167a80;color:white}</style>
+<style scoped>.travel-form{max-width:720px;margin:auto;padding:24px;display:flex;flex-direction:column;gap:18px}.title{font-size:24px;font-weight:600}input,textarea{padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-sizing:border-box;width:100%}.error{color:#a52828}button{background:#b84432;color:white}</style>

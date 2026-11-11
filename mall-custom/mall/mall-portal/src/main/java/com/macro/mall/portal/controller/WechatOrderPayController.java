@@ -6,6 +6,9 @@ import com.macro.mall.portal.service.OmsPortalOrderService;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.WechatOrderPayService;
 import com.macro.mall.portal.service.WechatWebOauthService;
+import com.macro.mall.portal.service.WechatMiniProgramService;
+import com.macro.mall.portal.service.WechatMiniPaymentService;
+import org.springframework.http.ResponseEntity;
 import com.macro.mall.portal.service.impl.OrderWechatPayHandler;
 import org.springframework.jdbc.core.JdbcTemplate;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -43,6 +49,10 @@ public class WechatOrderPayController {
     private WechatWebOauthService wechatOauth;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private WechatMiniProgramService miniProgram;
+    @Autowired
+    private WechatMiniPaymentService miniPayments;
 
     @Value("${mall.payment.wechat.enabled:false}")
     private boolean paymentEnabled;
@@ -73,6 +83,30 @@ public class WechatOrderPayController {
                 order.getOrderSn(), order.getPayAmount(), "订单支付 " + order.getOrderSn(), openId));
     }
 
+    public record MiniPrepayRequest(@NotBlank @Size(max = 64) String orderSn,
+                                    @NotBlank @Size(min = 32, max = 32) String paymentTicket) {}
+
+    @PostMapping("/mini")
+    public CommonResult<Map<String, String>> mini(@Valid @RequestBody MiniPrepayRequest request) {
+        OmsOrder order = requireOwnPendingOrder(request.orderSn());
+        String openId = miniProgram.paymentOpenId(memberService.getCurrentMember().getId(), request.paymentTicket());
+        return CommonResult.success(miniPayments.prepay(order, openId));
+    }
+
+    @PostMapping("/mini/notify")
+    public ResponseEntity<Void> miniNotify(@RequestBody String rawBody,
+            @RequestHeader(value = "Wechatpay-Serial", required = false) String serial,
+            @RequestHeader(value = "Wechatpay-Nonce", required = false) String nonce,
+            @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
+            @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp) {
+        var verified = wechatOrderPayService.verifyMiniNotify(rawBody, serial, nonce, signature, timestamp);
+        String result = orderWechatPayHandler.handle(miniPayments.originalPayment(verified));
+        if (!"success".equals(result)) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "支付通知尚未处理完成，请重试");
+        }
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "微信支付结果通知")
     @RequestMapping(value = "/notify", method = RequestMethod.POST)
     public String notify(@RequestBody String rawBody,
@@ -91,10 +125,19 @@ public class WechatOrderPayController {
     @Operation(summary = "查询并确认本人订单的微信支付结果")
     @PostMapping("/status")
     public CommonResult<Map<String, Object>> status(@RequestParam String orderSn) {
+        return paymentResult(orderSn, false);
+    }
+
+    @PostMapping("/mini/status")
+    public CommonResult<Map<String, Object>> miniStatus(@RequestParam String orderSn) {
+        return paymentResult(orderSn, true);
+    }
+
+    private CommonResult<Map<String, Object>> paymentResult(String orderSn, boolean mini) {
         OmsOrder order = requireOwnOrder(orderSn);
         if (isPaid(order)) return paymentStatus(order, "CONFIRMED", false);
         if (!paymentEnabled) return paymentStatus(order, "PENDING", false);
-        var query = wechatOrderPayService.queryPayment(orderSn);
+        var query = mini ? miniPayments.query(order) : wechatOrderPayService.queryPayment(orderSn);
         if (query.payment() != null) {
             // Same transactional, amount-checked, idempotent handler used by signed notifications.
             String result = orderWechatPayHandler.handle(query.payment());

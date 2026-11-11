@@ -49,7 +49,7 @@ onShow(() => { if (initialized) void loadNotice() })
 <style scoped>
 .notice-detail { margin: 24rpx; padding: 36rpx; background: white; border-radius: 16rpx; }
 .title, .time, .content { display: block; }
-.title { color: #285a62; font-size: 38rpx; font-weight: bold; line-height: 1.6; overflow-wrap: anywhere; }
+.title { color: #604737; font-size: 38rpx; font-weight: bold; line-height: 1.6; overflow-wrap: anywhere; }
 .time { color: #888; font-size: 24rpx; margin: 20rpx 0 36rpx; }
 .content { color: #333; font-size: 30rpx; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
 .state { padding: 50rpx 0; color: #777; font-size: 28rpx; line-height: 1.8; }

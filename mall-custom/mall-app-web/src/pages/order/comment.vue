@@ -115,7 +115,7 @@ onLoad((options) => {
 .title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
 .tip { font-size: 24rpx; color: #909399; }
 .pending-item { display: flex; align-items: center; padding: 16rpx; border: 1rpx solid #eee; border-radius: 12rpx; margin-bottom: 14rpx; }
-.pending-item.active { border-color: #285b40; background: #f2f8f4; }
+.pending-item.active { border-color: #b84432; background: #f2f8f4; }
 .pending-item .pic { width: 90rpx; height: 90rpx; border-radius: 10rpx; margin-right: 16rpx; background: #f3f3f3; }
 .pending-item .info { flex: 1; display: flex; flex-direction: column; }
 .pending-item .name { font-size: 28rpx; color: #303133; }
@@ -125,5 +125,5 @@ onLoad((options) => {
 .star-row .star.active { color: #ffb400; }
 .star-row .star-tip { font-size: 26rpx; color: #909399; margin-left: 8rpx; }
 .input { width: 100%; box-sizing: border-box; min-height: 180rpx; padding: 16rpx; background: #f7f7f7; border-radius: 12rpx; font-size: 26rpx; }
-.btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
+.btn-primary { background: #b84432; color: #fff; border-radius: 12rpx; }
 </style>

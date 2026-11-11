@@ -123,7 +123,7 @@ page {
   position: relative;
 
   &.active {
-    color: #fa436a;
+    color: #b84432;
     background: #f8f8f8;
 
     &::before {
@@ -134,7 +134,7 @@ page {
       transform: translateY(-50%);
       height: 36rpx;
       width: 8rpx;
-      background-color: #fa436a;
+      background-color: #b84432;
       border-radius: 0 4px 4px 0;
       opacity: 0.8;
     }

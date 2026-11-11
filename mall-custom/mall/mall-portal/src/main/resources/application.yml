@@ -15,6 +15,11 @@ mybatis:
     - classpath*:com/**/mapper/*.xml
 
 mall:
+  wechat-mini:
+    enabled: ${MALL_WECHAT_MINI_ENABLED:false}
+    app-id: ${MALL_WECHAT_MINI_APP_ID:}
+    app-secret: ${MALL_WECHAT_MINI_APP_SECRET:}
+    notify-url: ${MALL_WECHAT_MINI_NOTIFY_URL:}
   recharge:
     payment:
       enabled: ${RECHARGE_PAYMENT_ENABLED:false}
@@ -125,6 +130,7 @@ secure:
       - /member/membership/notify/alipay
       - /member/membership/notify/wechat
       - /wechatPay/notify
+      - /wechatPay/mini/notify
       - /member/wechat-oauth/callback
 
 springdoc:

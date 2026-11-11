@@ -18,7 +18,7 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .user-info-box .username { color: #304d40; font-weight: 700; }
 .travel-brand { font-size: 36rpx; font-weight: 700; color: #36584b; display: block; }
 .travel-search { margin-top: 22rpx; padding: 20rpx 28rpx; background: #fffdf5; border-radius: 48rpx; color: #8b8b77; font-size: 26rpx; }
-.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: linear-gradient(90deg,#142b36a0,#142b3620), url('/static/travel-photo/alpine-lake.jpg') center/cover; }
+.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: linear-gradient(90deg,#142b36a0,#142b3620), url('https://zhiyoumei.com.cn/static/travel-photo/alpine-lake.jpg') center/cover; }
 .travel-hero-title { display: block; color: #2d5041; font-size: 46rpx; font-weight: 700; }
 .travel-hero-sub { display: block; color: #586d58; font-size: 25rpx; margin-top: 14rpx; }
 .travel-entry-grid { margin: 22rpx 24rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
@@ -36,21 +36,25 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .tj-sction, .order-section, .history-section { border-radius: 24rpx !important; background: #fffdf8 !important; }
 .order-section .yticon { color: #b78235 !important; }
 .uni-tabbar { border-top: 1px solid #e7dcc7 !important; background: #fffdf8 !important; }
-.zone-head { background: linear-gradient(90deg,#203c36c9,#203c3625), url('/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
+.zone-head { background: linear-gradient(90deg,#203c36c9,#203c3625), url('https://zhiyoumei.com.cn/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
 .zone-card { border-radius: 18px !important; box-shadow: 0 7px 22px #806f4b0a; }
+/* #ifdef H5 */
 @media(min-width:900px) {
   body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #f7f3eb !important; }
   .desktop-topline { background: #365d50 !important; }
-  .desktop-hero { height: 370px !important; background: linear-gradient(90deg,#142b36aa,#142b3615), url('/static/travel-photo/alpine-lake.jpg') center/cover !important; border-radius: 24px !important; }
+  .desktop-hero { height: 370px !important; background: linear-gradient(90deg,#142b36aa,#142b3615), url('https://zhiyoumei.com.cn/static/travel-photo/alpine-lake.jpg') center/cover !important; border-radius: 24px !important; }
   .desktop-hero-copy { width: 68% !important; background: linear-gradient(90deg,#fff5dded,transparent); }
   .desktop-hero-media { display:none; }
   .desktop-hero-title { font-weight: 700 !important; }
   .desktop-product { border-radius: 18px !important; border: 1px solid #eee5d6; }
 }
+/* #endif */
 
 .mobile-home .carousel-section, .mobile-home .cate-section { display: none !important; }
 .travel-hero-title { max-width: none; font-size: 42rpx; }
+/* #ifdef H5 */
 body:has(.travel-intro) .uni-page-head { display: none !important; }
+/* #endif */
 .mobile-home .price { color: #a57932 !important; font-weight: 600; }
 
 /* 真实旅行摄影，覆盖原插画主题。 */
@@ -69,4 +73,14 @@ page,body,.zone-page{background:#f5f2eb;color:#263b34}
 .tj-sction,.order-section,.history-section{box-shadow:0 5px 20px #6b5c3f08;border:1px solid #ebe5d9}
 
 /* 海岸与森林色系：覆盖早期金黄色主题。 */
-page,body,.zone-page{background:#f2f6f5!important;color:#284b51}.cover-container{background:#f2f6f5!important}.uni-tabbar{background:#fff!important;border-color:#dce8e5!important}.uni-tabbar .uni-tabbar__item img{filter:grayscale(1)}.uni-tabbar .uni-tabbar__item.uni-tabbar__item--active img{filter:grayscale(1) sepia(.7) hue-rotate(125deg) saturate(2)}.order-section .yticon{color:#278786!important}.desktop-topline{background:#286f67!important}.reserved{background:#edf4f1!important}.reserved-tag{color:#347e75!important}.zone-card{border-color:#dce8e1!important}
+page,body,.zone-page{background:#fff9f1!important;color:#604737}.cover-container{background:#fff9f1!important}.uni-tabbar{background:#fff!important;border-color:#efdfcb!important}.uni-tabbar .uni-tabbar__item img{filter:grayscale(1)}.uni-tabbar .uni-tabbar__item.uni-tabbar__item--active img{filter:grayscale(1) sepia(.7) hue-rotate(125deg) saturate(2)}.order-section .yticon{color:#b84432!important}.desktop-topline{background:#286f67!important}.reserved{background:#fff3e1!important}.reserved-tag{color:#a8793c!important}.zone-card{border-color:#efdfcb!important}
+
+/* Bright commerce palette coordinated with the formal home page's red and gold photography. */
+page, body, .zone-page { background: #fff9f1 !important; color: #604737; }
+.cover-container { background: #fff9f1 !important; }
+.user-section, .vip-card-box { background: linear-gradient(115deg, #fff0cf, #fff7e9) !important; }
+.user-info-box .username { color: #69452d !important; text-shadow: none; }
+.vip-card-box { border-color: #efd9b8; box-shadow: 0 8px 22px #b77c2e0b; }
+
+.desktop-topline { background: #fff0d8 !important; color: #72533e !important; }
+.desktop-topline text, .desktop-topline a { color: #72533e !important; }
