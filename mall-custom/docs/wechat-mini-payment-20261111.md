@@ -8,7 +8,7 @@
 
 小程序回调地址为 `https://zhiyoumei.com.cn/portal/wechatPay/mini/notify`。商户私钥、APIv3 密钥、微信支付公钥和公钥 ID 沿用现有后端配置，验签模式为 PUBLIC_KEY。
 
-先备份数据库，执行 `mall/document/sql/custom-v10/55_wechat_mini_payment.sql`，再部署同一提交构建的 portal.jar 和 H5。SQL 仅新增小程序身份及支付关联表。回滚代码时保留支付关联表，避免丢失已发起支付的订单追踪信息。
+先备份数据库，执行 `mall/document/sql/custom-v10/55_wechat_mini_payment.sql`，再部署同一提交构建的 portal.jar 和 H5。SQL 新增小程序身份及支付关联表，并兼容移除早期测试版的 openid 唯一索引。账号切换沿用既有会员登录方式，支付授权票据按会员隔离。回滚代码时保留支付关联表，避免丢失已发起支付的订单追踪信息。
 
 ## 正常流程
 

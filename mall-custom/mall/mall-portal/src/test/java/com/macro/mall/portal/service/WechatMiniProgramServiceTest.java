@@ -23,7 +23,7 @@ class WechatMiniProgramServiceTest {
     @BeforeEach void setup() {
         var ds = new DriverManagerDataSource("jdbc:h2:mem:"+UUID.randomUUID()+";MODE=MySQL;DB_CLOSE_DELAY=-1","sa","");
         jdbc = new JdbcTemplate(ds);tx = new TransactionTemplate(new DataSourceTransactionManager(ds));
-        jdbc.execute("CREATE TABLE ums_member_wechat_identity(app_id VARCHAR(32),member_id BIGINT,open_id VARCHAR(128),updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(app_id,member_id),UNIQUE(app_id,open_id))");
+        jdbc.execute("CREATE TABLE ums_member_wechat_identity(app_id VARCHAR(32),member_id BIGINT,open_id VARCHAR(128),updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(app_id,member_id))");
         var redis=mock(StringRedisTemplate.class);
         @SuppressWarnings("unchecked") ValueOperations<String,String> values=mock(ValueOperations.class);
         when(redis.opsForValue()).thenReturn(values);
@@ -45,11 +45,13 @@ class WechatMiniProgramServiceTest {
         String response=mapper.writeValueAsString(auth);
         assertFalse(response.contains("openid-A"));assertFalse(response.contains("server-only"));
     }
-    @Test void anotherMemberCannotTakeOverTheSameWechatIdentity() {
-        tx.execute(s->service.login(27,"code1"));
-        assertThrows(ResponseStatusException.class,()->tx.execute(s->service.login(28,"code2")));
-        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ums_member_wechat_identity",Integer.class));
-        assertEquals(27L,jdbc.queryForObject("SELECT member_id FROM ums_member_wechat_identity",Long.class));
+    @Test void sharedWechatPayerKeepsDifferentMemberSessionsIsolated() {
+        var first=tx.execute(s->service.login(27,"code1"));
+        var second=tx.execute(s->service.login(28,"code2"));
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM ums_member_wechat_identity",Integer.class));
+        assertEquals("openid-A",service.paymentOpenId(27,first.paymentTicket()));
+        assertEquals("openid-A",service.paymentOpenId(28,second.paymentTicket()));
+        assertThrows(ResponseStatusException.class,()->service.paymentOpenId(28,first.paymentTicket()));
     }
     @Test void separateDeviceTicketsDoNotOverwriteTheOriginalPayer() {
         var first=tx.execute(s->service.login(27,"code1"));providerBody="{\"openid\":\"openid-B\"}";

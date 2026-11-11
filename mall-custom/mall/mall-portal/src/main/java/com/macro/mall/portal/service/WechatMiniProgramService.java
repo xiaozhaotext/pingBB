@@ -59,7 +59,7 @@ public class WechatMiniProgramService {
                         properties.getAppId(), memberId, openId);
             }
         } catch (DuplicateKeyException exception) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "该微信已关联其他会员，或授权发生变化，请核对账号后重试");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "微信授权已更新，请重新发起支付");
         }
         byte[] bytes = new byte[24];
         random.nextBytes(bytes);
