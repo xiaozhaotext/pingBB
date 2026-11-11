@@ -22,8 +22,7 @@ function page({mini=false,wechat=true,states=[{state:'CONFIRMED',canRetry:false}
    if(name==='vue')return {ref:value=>({value}),onMounted:fn=>{callbacks.mounted=fn},onUnmounted:fn=>{callbacks.unmounted=fn}}
    if(name==='@dcloudio/uni-app')return {onLoad:fn=>{callbacks.load=fn},onShow:fn=>{callbacks.show=fn},onUnload:fn=>{callbacks.unload=fn}}
    if(name==='@/apis/order')return api
-   if(name==='@/utils/wechatMiniPay')return {prepareMiniProgramPayment:async()=>{calls.miniPrepay++;return {}},requestMiniProgramPayment:async()=>{calls.nativePay++;if(bridgeError)throw bridgeError}}
-   if(name==='@/utils/wechatPay')return {isWechatBrowser:()=>wechat,ensureWechatOauth:async()=>true,invokeWechatJsapi:async()=>{if(bridgeError)throw bridgeError}}
+   if(name==='@/utils/wechatPay')return {prepareMiniProgramPayment:async()=>{calls.miniPrepay++;return {}},requestMiniProgramPayment:async()=>{calls.nativePay++;if(bridgeError)throw bridgeError},isWechatBrowser:()=>wechat,ensureWechatOauth:async()=>true,invokeWechatJsapi:async()=>{if(bridgeError)throw bridgeError}}
    if(name==='@/utils/paymentResult')return util('paymentResult')
    if(name==='@/utils/sessionKeys')return {tokenStorageKey:'token'}
    throw Error(name)

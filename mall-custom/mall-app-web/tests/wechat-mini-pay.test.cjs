@@ -5,7 +5,7 @@ function load({responseAppId='wx-mini'}={}) {
  const calls=[],sdk=[],module={exports:{}}
  const uni={login:options=>options.success({code:'fresh-wx-code'}),getAccountInfoSync:()=>({miniProgram:{appId:'wx-mini'}}),requestPayment:options=>{sdk.push(options);options.success({})}}
  const context={module,exports:module.exports,uni,Error,require:name=>({http:async options=>{calls.push(options);return options.url.includes('/login')?{data:{appId:responseAppId,paymentTicket:'short-lived-ticket'}}:{data:{type:'WECHAT_MINIPROGRAM',appId:'wx-mini',timeStamp:'123',nonceStr:'nonce',package:'prepay_id=provider-order',signType:'RSA',paySign:'server-signature',outTradeNo:'MP-alias'}}}})}
- const source=fs.readFileSync(path.join(__dirname,'../src/utils/wechatMiniPay.ts'),'utf8')
+ const source=fs.readFileSync(path.join(__dirname,'../src/utils/wechatPay.ts'),'utf8')
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context)
  return {...module.exports,calls,sdk,uni}
 }

@@ -60,10 +60,9 @@ import { getOrderFullReductionOffersAPI } from '@/apis/order'
 import type { FullReductionOffer } from '@/types/order'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getOrderDetailAPI, confirmMockPaymentAPI, wechatOrderPayH5API, wechatOrderPayJsapiAPI, getWechatOrderPaymentStatusAPI } from '@/apis/order'
-import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
+import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser, prepareMiniProgramPayment, requestMiniProgramPayment } from '@/utils/wechatPay'
 import { isOrderPaid, wechatReturnUrl, withWechatReturnUrl, orderPromotionRules } from '@/utils/paymentResult'
 import { tokenStorageKey } from '@/utils/sessionKeys'
-import { prepareMiniProgramPayment, requestMiniProgramPayment } from '@/utils/wechatMiniPay'
 import type { OmsOrderDetail } from '@/types/order'
 
 // 是否使用支付宝支付（H5端启用，通过环境变量配置）
