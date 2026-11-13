@@ -1,0 +1,1406 @@
+--- /dev/null
++++ b/mall-custom/deploy/migrations/20261113_pick_activities.sql
+@@ -0,0 +1,23 @@
++-- 旅游活动及正品关联独立存储，不改动其他专区分类及历史订单数据。
++CREATE TABLE IF NOT EXISTS pms_pick_activity (
++    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++    title VARCHAR(120) NOT NULL,
++    image_url VARCHAR(500) NOT NULL,
++    rules TEXT NOT NULL,
++    enabled TINYINT NOT NULL DEFAULT 0,
++    sort_order INT NOT NULL DEFAULT 0,
++    KEY idx_pick_activity_visible (enabled,sort_order,id)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
++
++CREATE TABLE IF NOT EXISTS pms_pick_activity_product (
++    activity_id BIGINT NOT NULL,
++    product_id BIGINT NOT NULL,
++    sort_order INT NOT NULL DEFAULT 0,
++    PRIMARY KEY (activity_id,product_id),
++    KEY idx_pick_activity_product (product_id),
++    CONSTRAINT fk_pick_activity FOREIGN KEY (activity_id) REFERENCES pms_pick_activity(id)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
++
++-- 下线赠品菜单入口，保留原有赠品历史数据供审计。
++UPDATE ums_menu SET hidden=1 WHERE name IN ('giftOptionsMgr','giftOptions');
++-- 活动接口沿用商品分类权限资源，原分类权限不变。
+--- a/mall-custom/mall-admin-web/src/router/index.ts
++++ b/mall-custom/mall-admin-web/src/router/index.ts
+@@ -21,10 +21,6 @@
+ ]
+ 
+ export const asyncRouterMap: RouteRecordExt[] = [
+-  { path: '/giftOptions', component: Layout, redirect: '/giftOptions/index', name: 'giftOptionsMgr',
+-    meta: { title: '赠品商品', icon: 'product' },
+-    children: [{ path: 'index', name: 'giftOptions', component: () => import('@/views/gift/GiftOptions.vue'), meta: { title: '赠品商品', icon: 'product' } }],
+-  },
+   // ===== 后台一级功能分组（对齐原图思维导图） =====
+   {
+     path: '/withdrawalSettings', component: Layout, name: 'withdrawalSettings',
+@@ -42,11 +38,11 @@
+     path: '/pick', component: Layout, redirect: '/pick/category', name: 'pick', alwaysShow: true,
+     meta: { title: '自选商品管理', icon: 'product' },
+     children: [
+-      { path: 'category', name: 'pickCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
++      { path: 'category', name: 'pickCategory', component: () => import('@/views/zone/PickActivities.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+       { path: 'product', name: 'pickProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
+       { path: 'trash', name: 'pickTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
+-      { path: 'add-category', name: 'pickAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
+-      { path: 'update-category', name: 'pickUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
++      { path: 'add-category', name: 'pickAddCategory', redirect: '/pick/category', hidden: true },
++      { path: 'update-category', name: 'pickUpdateCategory', redirect: '/pick/category', hidden: true },
+       { path: 'add-product', name: 'pickAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
+       { path: 'update-product', name: 'pickUpdateProduct', component: () => import('@/views/pms/product/update.vue'), meta: { title: '编辑商品' }, hidden: true },
+     ],
+--- a/mall-custom/mall-admin-web/src/views/gift/GiftOptions.vue
++++ /dev/null
+@@ -1,89 +0,0 @@
+-<script setup lang="ts">
+-import { onMounted, ref } from 'vue'
+-import { ElMessage, ElMessageBox } from 'element-plus'
+-import http from '@/utils/http'
+-import { uploadProductImage } from '@/apis/productImage'
+-
+-type Gift = { id: number; name: string; imageUrl: string; enabled: boolean }
+-type CatalogProduct = { id: number; name: string; pic?: string }
+-const gifts = ref<Gift[]>(Array.from({ length: 4 }, (_, index) => ({ id: index + 1, name: '', imageUrl: '', enabled: false })))
+-const products = ref<CatalogProduct[]>([])
+-const selectedProduct = ref<Record<number, number>>({})
+-const busy = ref<number | null>(null)
+-function catalogImage(pic?: string) {
+-  const value = String(pic || '').trim()
+-  if (/^https?:\/\/macro-oss\.oss-cn-shenzhen\.aliyuncs\.com\//i.test(value))
+-    return value.replace(/^https?:\/\/macro-oss\.oss-cn-shenzhen\.aliyuncs\.com\//i, '/oss/')
+-  if (/^https?:\/\/zhiyoumei\.com\.cn\/product-images\//i.test(value))
+-    return new URL(value).pathname
+-  return value
+-}
+-async function searchProducts(keyword: string) {
+-  if (!keyword.trim()) { products.value = []; return }
+-  const result = await http.get('/product/list', { params: { keyword, pageNum: 1, pageSize: 20 } }) as unknown as { data: { list: CatalogProduct[] } }
+-  products.value = result.data?.list || []
+-}
+-function matchProduct(gift: Gift, productId: number) {
+-  const product = products.value.find(item => item.id === productId)
+-  if (!product) return
+-  const image = catalogImage(product.pic)
+-  if (!image.startsWith('/product-images/') && !image.startsWith('/oss/')) {
+-    ElMessage.warning('这个商品的图片不能直接复用，请手动上传赠品图片'); return
+-  }
+-  gift.name = product.name
+-  gift.imageUrl = image
+-  ElMessage.success('已带入商品名称和图片，记得保存')
+-}
+-async function refresh() {
+-  const result = await http.get('/p0/gift-options') as unknown as { data: Gift[] }
+-  const byId = new Map((result.data || []).map(gift => [Number(gift.id), gift]))
+-  gifts.value = gifts.value.map(gift => byId.get(gift.id) || gift)
+-}
+-async function upload(gift: Gift, event: Event) {
+-  const input = event.target as HTMLInputElement
+-  const file = input.files?.[0]
+-  input.value = ''
+-  if (!file) return
+-  if (!file.type.startsWith('image/') || file.size > 100 * 1024 * 1024) {
+-    ElMessage.warning('请选择不超过100MB的图片'); return
+-  }
+-  busy.value = gift.id
+-  try { gift.imageUrl = await uploadProductImage(file); ElMessage.success('图片已上传，记得保存赠品') }
+-  catch { ElMessage.error('图片上传失败') }
+-  finally { busy.value = null }
+-}
+-async function save(gift: Gift) {
+-  if (!gift.name.trim() || !gift.imageUrl) { ElMessage.warning('请填写名称并上传图片'); return }
+-  try { await ElMessageBox.confirm(`确认保存赠品${gift.id}？`, '保存赠品') }
+-  catch { return }
+-  busy.value = gift.id
+-  try { await http.post('/p0/gift-options', gift); ElMessage.success('已保存'); await refresh() }
+-  catch { ElMessage.error('保存失败') }
+-  finally { busy.value = null }
+-}
+-onMounted(refresh)
+-</script>
+-
+-<template>
+-  <div class="gift-page"><h2>赠品商品</h2>
+-    <p>每笔3999元自选区路线订单可从四件赠品中选一件。四个赠品位全部启用后，结算页才会要求选择。已下单的赠品记录保留当时的名称和图片。</p>
+-    <div class="gift-table"><div v-for="gift in gifts" :key="gift.id" class="gift-row">
+-      <strong>赠品 {{ gift.id }}</strong>
+-      <img v-if="gift.imageUrl" :src="gift.imageUrl" :alt="gift.name" />
+-      <div v-else class="placeholder">暂无图片</div>
+-      <div class="fields">
+-        <el-select v-model="selectedProduct[gift.id]" filterable remote clearable :remote-method="searchProducts" placeholder="搜索已有商品，自动带入名称和图片" @change="matchProduct(gift, Number($event))">
+-          <el-option v-for="product in products" :key="product.id" :label="product.name" :value="product.id" />
+-        </el-select>
+-        <el-input v-model="gift.name" maxlength="120" placeholder="赠品名称" />
+-      </div>
+-      <label class="upload">上传图片<input type="file" accept="image/*" :disabled="busy !== null" @change="upload(gift, $event)" /></label>
+-      <el-switch v-model="gift.enabled" active-text="启用" inactive-text="停用" />
+-      <el-button type="primary" :loading="busy === gift.id" @click="save(gift)">保存</el-button>
+-    </div></div>
+-  </div>
+-</template>
+-
+-<style scoped>
+-.gift-page{padding:24px}.gift-page p{color:#667085;line-height:1.6}.gift-table{max-width:1200px;background:#fff;border:1px solid #e5e7eb;border-radius:12px}.gift-row{display:grid;grid-template-columns:72px 96px minmax(240px,1fr) 90px 90px 66px;gap:16px;align-items:center;padding:14px;border-bottom:1px solid #eee}.gift-row:last-child{border-bottom:0}img,.placeholder{width:96px;height:72px;object-fit:cover;border-radius:6px;background:#f5f6f7}.placeholder{display:grid;place-items:center;color:#888;font-size:12px}.fields{display:grid;gap:8px;min-width:0}.upload{display:inline-block;padding:8px 10px;background:#a87b35;color:white;border-radius:6px;cursor:pointer;text-align:center;white-space:nowrap}.upload input{display:none}@media(max-width:800px){.gift-row{grid-template-columns:72px 96px 1fr}.fields{grid-column:1/-1}.upload{grid-column:1}.gift-row .el-switch{grid-column:2}.gift-row .el-button{grid-column:3;justify-self:end}}
+-</style>
+--- a/mall-custom/mall-admin-web/src/views/oms/order/orderDetail.vue
++++ b/mall-custom/mall-admin-web/src/views/oms/order/orderDetail.vue
+@@ -9,7 +9,6 @@
+ import { formatDateTime } from '@/utils/datetime'
+ import { productImageUrl } from '@/utils/productImage'
+ import { pcaTextArr } from 'element-china-area-data'
+-import http from '@/utils/http'
+ 
+ // 获取路由对象
+ const router = useRouter()
+@@ -19,7 +18,6 @@
+ const id = ref<number>()
+ // 订单详情数据
+ const order = ref<OmsOrderDetail>({} as OmsOrderDetail)
+-const orderGifts = ref<{ id: number; name: string; imageUrl: string }[]>([])
+ const loading = ref(true)
+ const loadError = ref('')
+ const amount = (value: unknown): string => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
+@@ -38,8 +36,6 @@
+     id.value = Number(route.query.id)
+     const res = await getOrderDetailByIdAPI(id.value!)
+     order.value = res.data
+-    const giftResult = await http.get(`/p0/gift-options/order/${id.value}`) as unknown as { data: typeof orderGifts.value }
+-    orderGifts.value = giftResult.data || []
+   } catch {
+     loadError.value = '订单详情加载失败，请返回列表后重试'
+   } finally { loading.value = false }
+@@ -393,13 +389,6 @@
+   <div v-if="loading" class="detail-container">正在加载订单详情…</div>
+   <div v-else-if="loadError" class="detail-container">{{ loadError }}</div>
+   <div v-else-if="order.id" class="detail-container">
+-    <el-card v-if="orderGifts.length" shadow="never" style="margin-bottom:15px">
+-      <strong>本单赠品</strong>
+-      <div v-for="gift in orderGifts" :key="gift.id" style="display:flex;align-items:center;gap:12px;margin-top:12px">
+-        <img :src="gift.imageUrl" :alt="gift.name" style="width:64px;height:64px;object-fit:cover" />
+-        <span>{{ gift.name }} · ¥0</span>
+-      </div>
+-    </el-card>
+     <div>
+       <el-steps :active="formatStepStatus(order.status)" finish-status="success" align-center>
+         <el-step title="提交订单" :description="order.createTime ? formatDateTime(order.createTime) : ''"></el-step>
+--- /dev/null
++++ b/mall-custom/mall-admin-web/src/views/zone/PickActivities.vue
+@@ -0,0 +1,122 @@
++<script setup lang="ts">
++import { onMounted, ref } from 'vue'
++import { ElMessage } from 'element-plus'
++import http from '@/utils/http'
++import { uploadProductImage } from '@/apis/productImage'
++import { productImageUrl } from '@/utils/productImage'
++
++type Product = { id: number; name: string; pic: string; publishStatus: number }
++type Activity = { id?: number; title: string; imageUrl: string; rules: string; enabled: boolean | number; sortOrder: number; products?: Product[] }
++const endpoint = '/productCategory/pickActivity'
++const rows = ref<Activity[]>([])
++const loading = ref(false)
++const loadError = ref(false)
++const dialog = ref(false)
++const busy = ref(false)
++const uploading = ref(false)
++const searching = ref(false)
++const options = ref<Product[]>([])
++const selected = ref<Product[]>([])
++const productId = ref<number>()
++const blank = (): Activity => ({ title: '', imageUrl: '', rules: '', enabled: false, sortOrder: 0 })
++const form = ref<Activity>(blank())
++let searchVersion = 0
++async function refresh() {
++  loading.value = true
++  loadError.value = false
++  try { rows.value = (await http.get<Activity[]>(endpoint)).data || [] }
++  catch { loadError.value = true }
++  finally { loading.value = false }
++}
++async function edit(row?: Activity) {
++  busy.value = true
++  try {
++    const value = row ? (await http.get<Activity>(`${endpoint}/${row.id}`)).data : blank()
++    form.value = { ...value, enabled: Boolean(value.enabled) }
++    selected.value = [...(value.products || [])]
++    options.value = []
++    productId.value = undefined
++    dialog.value = true
++    await search('')
++  } catch { ElMessage.error('活动详情加载失败，请重试') }
++  finally { busy.value = false }
++}
++async function search(keyword: string) {
++  const version = ++searchVersion
++  searching.value = true
++  try {
++    const result = await http.get<Product[]>(`${endpoint}/products`, { params: { keyword } })
++    if (version === searchVersion) options.value = result.data || []
++  } catch { if (version === searchVersion) ElMessage.error('商品搜索失败，请重试') }
++  finally { if (version === searchVersion) searching.value = false }
++}
++function addProduct() {
++  const product = options.value.find(item => item.id === productId.value)
++  if (!product) return
++  if (selected.value.some(item => item.id === product.id)) { ElMessage.warning('该商品已经添加'); return }
++  if (selected.value.length >= 50) { ElMessage.warning('最多关联50件正品'); return }
++  selected.value.push(product)
++  productId.value = undefined
++}
++function move(index: number, step: number) {
++  const next = index + step
++  if (next < 0 || next >= selected.value.length) return
++  const item = selected.value.splice(index, 1)[0]!
++  selected.value.splice(next, 0, item)
++}
++async function upload(event: Event) {
++  const input = event.target as HTMLInputElement
++  const file = input.files?.[0]
++  if (!file) return
++  if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
++    ElMessage.warning('请上传10MB以内的 JPG、PNG 或 WebP 图片'); input.value = ''; return
++  }
++  uploading.value = true
++  try { form.value.imageUrl = await uploadProductImage(file); ElMessage.success('图片已上传，请保存活动') }
++  catch { ElMessage.error('图片上传失败，请重试') }
++  finally { uploading.value = false; input.value = '' }
++}
++async function save() {
++  if (busy.value || uploading.value) return
++  if (!form.value.title.trim() || !form.value.imageUrl || !form.value.rules.trim() || !selected.value.length) {
++    ElMessage.warning('请填写活动名称、图片、规则，并至少选择一件正品'); return
++  }
++  busy.value = true
++  try {
++    await http.post(endpoint, { ...form.value, products: undefined, enabled: Boolean(form.value.enabled), productIds: selected.value.map(item => item.id) })
++    ElMessage.success('活动已保存'); dialog.value = false; await refresh()
++  } catch { ElMessage.error('活动保存失败，请检查商品归属后重试') }
++  finally { busy.value = false }
++}
++onMounted(refresh)
++</script>
++<template>
++  <div class="activity-admin">
++    <div class="heading"><div><h2>分类管理 · 旅游活动</h2><p>配置自选区活动标签页、活动规则和可选旅游正品。商品图文、价格、库存仍在商品列表维护。</p></div><el-button type="primary" :disabled="busy" @click="edit()">新增活动</el-button></div>
++    <el-alert v-if="loadError" title="活动加载失败，请重试" type="error" :closable="false"><el-button @click="refresh">重试</el-button></el-alert>
++    <el-table v-loading="loading" :data="rows" border>
++      <el-table-column prop="title" label="活动标签名称" />
++      <el-table-column label="活动图片" width="150"><template #default="{ row }"><img class="cover" :src="productImageUrl(row.imageUrl)" :alt="row.title" /></template></el-table-column>
++      <el-table-column label="状态" width="100"><template #default="{ row }">{{ row.enabled ? '已发布' : '已停用' }}</template></el-table-column>
++      <el-table-column prop="sortOrder" label="排序（大值优先）" width="150" />
++      <el-table-column label="操作" width="120"><template #default="{ row }"><el-button :disabled="busy" @click="edit(row)">编辑</el-button></template></el-table-column>
++    </el-table>
++    <el-dialog v-model="dialog" :title="form.id ? '编辑旅游活动' : '新增旅游活动'" width="min(900px, 96vw)" :close-on-click-modal="false" :close-on-press-escape="!busy && !uploading" :show-close="!busy && !uploading">
++      <el-form label-position="top" :disabled="busy || uploading">
++        <el-form-item label="活动标签名称" required><el-input v-model="form.title" maxlength="120" show-word-limit placeholder="例如：旅游活动详情1" /></el-form-item>
++        <el-form-item label="活动顶部图片" required><img v-if="form.imageUrl" class="preview" :src="productImageUrl(form.imageUrl)" /><input type="file" accept="image/jpeg,image/png,image/webp" :disabled="busy || uploading" @change="upload" /><span v-if="uploading">上传中…</span></el-form-item>
++        <el-form-item label="区域1：活动规则详情" required><el-input v-model="form.rules" type="textarea" :rows="6" maxlength="20000" show-word-limit /></el-form-item>
++        <el-form-item label="区域2：旅游正品选择（按下方顺序展示，默认首件可售商品）" required>
++          <div class="product-search"><el-select v-model="productId" filterable remote :remote-method="search" :loading="searching" placeholder="搜索自选区已有商品"><el-option v-for="item in options" :key="item.id" :value="item.id" :label="`${item.name}（${item.id}）`" /></el-select><el-button @click="addProduct">添加正品</el-button></div>
++          <div class="selected-products"><div v-for="(item, index) in selected" :key="item.id" class="product-row"><span>{{ index + 1 }}. {{ item.name }} <small v-if="item.publishStatus !== 1">（未上架）</small></span><el-button :disabled="index === 0" @click="move(index, -1)">上移</el-button><el-button :disabled="index === selected.length - 1" @click="move(index, 1)">下移</el-button><el-button type="danger" plain @click="selected.splice(index, 1)">移除关联</el-button></div></div>
++        </el-form-item>
++        <el-form-item label="活动排序"><el-input-number v-model="form.sortOrder" :min="0" :max="999999" :precision="0" /></el-form-item>
++        <el-form-item label="发布状态"><el-switch v-model="form.enabled" active-text="发布" inactive-text="停用" /></el-form-item>
++      </el-form>
++      <template #footer><el-button :disabled="busy || uploading" @click="dialog = false">取消</el-button><el-button type="primary" :loading="busy" :disabled="uploading" @click="save">保存活动</el-button></template>
++    </el-dialog>
++  </div>
++</template>
++<style scoped>
++.activity-admin{padding:24px}.heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.heading p{color:#667085}.cover{width:110px;height:65px;object-fit:cover}.preview{display:block;width:100%;max-width:480px;max-height:280px;object-fit:contain;margin-bottom:12px}.product-search{display:flex;gap:10px;width:100%}.product-search .el-select{flex:1}.selected-products{width:100%;margin-top:14px}.product-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eee}.product-row span{flex:1}.product-row small{color:#b46a1e}@media(max-width:650px){.heading{align-items:start;flex-direction:column}.product-row{flex-wrap:wrap}.product-row span{flex-basis:100%}}
++</style>
+--- a/mall-custom/mall-app-web/src/apis/order.ts
++++ b/mall-custom/mall-app-web/src/apis/order.ts
+@@ -12,9 +12,6 @@
+ export const getOrderFullReductionOffersAPI = (orderId: number) =>
+   http<FullReductionOffer[]>({ method: 'GET', url: `/order/fullReduction/${orderId}` })
+ 
+-export type GiftOption = { id: number; name: string; imageUrl: string }
+-export const getGiftOptionsAPI = () =>
+-  http<GiftOption[]>({ method: 'GET', url: '/order/giftOptions' })
+ 
+ /** 生成确认单信息 */
+ export const generateConfirmOrderAPI = (cartIds: number[]) => {
+--- /dev/null
++++ b/mall-custom/mall-app-web/src/apis/pickActivity.ts
+@@ -0,0 +1,12 @@
++import { http } from '@/utils/http'
++
++export interface ActivityProduct { id: number; name: string; pic: string; price: number }
++export interface PickActivity {
++  id: number
++  title: string
++  imageUrl: string
++  rules: string
++  products?: ActivityProduct[]
++}
++export const getPickActivitiesAPI = () => http<PickActivity[]>({ method: 'GET', url: '/product/pickActivity' })
++export const getPickActivityAPI = (id: number) => http<PickActivity>({ method: 'GET', url: `/product/pickActivity/${id}` })
+--- a/mall-custom/mall-app-web/src/pages/index/index.vue
++++ b/mall-custom/mall-app-web/src/pages/index/index.vue
+@@ -20,11 +20,11 @@
+         <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+         <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><text class="home-zone-title">消费区</text><text class="home-zone-caption">商品积分购买 · 兑换好物</text><text class="zone-arrow">→</text></view>
+       </view>
+-      <view class="home-product-heading"><view><text>自选区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
+-      <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
++      <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
++      <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
+       <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
+-      <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无已上架商品，请在后台专区管理中配置。</view>
+-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item, 'PICK')">加入购物车</text></view></view></view></view>
++      <view class="home-zone-status" v-else-if="!pickProducts.length">暂无已发布的旅游活动。</view>
++      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="productImageUrl(item.imageUrl)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.title}}</text><text class="home-product-sub">查看活动规则与旅游正品</text><view><text class="rebuy-label">自选区活动</text></view></view></view></view>
+       <view class="home-product-heading"><view><text>复购区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/rebuy')">更多 →</text></view>
+       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
+       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
+@@ -47,6 +47,7 @@
+ const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
+ 
+ import { ref, computed } from 'vue'
++import { getPickActivitiesAPI, type PickActivity } from '@/apis/pickActivity'
+ import { getZoneProductsAPI, type ZoneCode, type ZoneProduct } from '@/apis/zone'
+ import { addFirstAvailableSkuToCart } from '@/utils/cart'
+ import {
+@@ -80,10 +81,10 @@
+ const openAnnouncement = () => {
+   if (announcementId.value) uni.navigateTo({ url: `/pages/notice/detail?id=${announcementId.value}` })
+ }
+-const pickProducts=ref<ZoneProduct[]>([])
++const pickProducts=ref<PickActivity[]>([])
+ const pickLoading=ref(false),pickError=ref(false)
+-const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getZoneProductsAPI('PICK')).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
+-const openPickProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=PICK`})
++const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getPickActivitiesAPI()).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
++const openPickProduct=(item:PickActivity)=>uni.navigateTo({url:`/pages/product/product?activityId=${item.id}&zone=PICK`})
+ const rebuyProducts=ref<ZoneProduct[]>([])
+ const rebuyLoading=ref(false),rebuyError=ref(false)
+ const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=((await getZoneProductsAPI('REBUY')).data||[]).slice(0,4)}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}
+--- a/mall-custom/mall-app-web/src/pages/order/createOrder.vue
++++ b/mall-custom/mall-app-web/src/pages/order/createOrder.vue
+@@ -40,18 +40,6 @@
+             <text class="price">￥{{ item.price }}</text>
+             <text class="number">x {{ item.quantity }}</text>
+           </view>
+-        </view>
+-      </view>
+-    </view>
+-
+-    <view v-if="giftUnits > 0 && giftOptions.length === 4" class="gift-section">
+-      <view class="gift-title">购买自选区路线，赠品四选一</view>
+-      <view class="gift-hint">每件3999元路线可选一件赠品 · 本单可选{{ giftUnits }}件，已选{{ giftOptionIds.length }}件</view>
+-      <view class="gift-list">
+-        <view v-for="gift in giftOptions" :key="gift.id" class="gift-row" :class="{ selected: giftCount(gift.id) > 0 }">
+-          <image :src="productImageUrl(gift.imageUrl)" mode="aspectFill" />
+-          <view class="gift-info"><text>{{ gift.name }}</text><text class="gift-price">赠品 ¥0</text></view>
+-          <view class="gift-quantity"><text @click="removeGift(gift.id)">−</text><text>{{ giftCount(gift.id) }}</text><text @click="addGift(gift.id)">＋</text></view>
+         </view>
+       </view>
+     </view>
+@@ -225,8 +213,7 @@
+ import { formatOrderDeduction } from '@/utils/order-display'
+ import { computed, ref } from 'vue'
+ import { onLoad, onShow } from '@dcloudio/uni-app'
+-import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI, getOrderListAPI, getGiftOptionsAPI } from '@/apis/order'
+-import type { GiftOption } from '@/apis/order'
++import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI, getOrderListAPI } from '@/apis/order'
+ import { chinaDateTime } from '@/utils/chinaTime'
+ import type { CartPromotionItem, CalcAmount, ConfirmOrderResult, ZoneSettlement } from '@/types/order'
+ import type { SmsCoupon } from '@/types/coupon'
+@@ -245,20 +232,6 @@
+ const currentAddress = ref<MemberReceiveAddress>({} as MemberReceiveAddress)
+ // 购物车促销商品列表
+ const cartPromotionItemList = ref<CartPromotionItem[]>([])
+-const giftOptions = ref<GiftOption[]>([])
+-const giftOptionIds = ref<number[]>([])
+-const giftUnits = computed(() => cartPromotionItemList.value
+-  .filter(item => item.zoneCode === 'PICK' && Number(item.price) === 3999)
+-  .reduce((total, item) => total + Number(item.quantity || 0), 0))
+-const giftCount = (id: number) => giftOptionIds.value.filter(selected => selected === id).length
+-const addGift = (id: number) => {
+-  if (giftOptionIds.value.length >= giftUnits.value) { uni.showToast({ icon: 'none', title: `本单最多选择${giftUnits.value}件赠品` }); return }
+-  giftOptionIds.value.push(id)
+-}
+-const removeGift = (id: number) => {
+-  const index = giftOptionIds.value.indexOf(id)
+-  if (index >= 0) giftOptionIds.value.splice(index, 1)
+-}
+ // 计算金额
+ const calcAmount = ref<CalcAmount>({} as CalcAmount)
+ // 当前选中的优惠券
+@@ -351,7 +324,6 @@
+     currentAddress.value = getDefaultAddress()
+   }
+   cartPromotionItemList.value = data.cartPromotionItemList || []
+-  giftOptionIds.value = giftOptionIds.value.slice(0, giftUnits.value)
+   if (couponList.value.length === 0) {
+     for (const item of data.couponHistoryDetailList || []) {
+       couponList.value.push(item.coupon)
+@@ -402,9 +374,6 @@
+   }
+   cartIds.value = ids
+   loadData()
+-  getGiftOptionsAPI().then(res => { giftOptions.value = res.data || [] }).catch(() => {
+-    uni.showToast({ icon: 'none', title: '赠品加载失败，请刷新页面' })
+-  })
+ })
+ 
+ // ===== 事件处理方法 =====
+@@ -453,11 +422,6 @@
+   }
+   if (!currentAddress.value?.id) {
+     uni.showToast({ icon: 'none', title: '请选择收货地址' })
+-    return
+-  }
+-  if (giftUnits.value > 0 && giftOptions.value.length === 4 &&
+-      (giftOptionIds.value.length !== giftUnits.value || giftOptionIds.value.some(id => !giftOptions.value.some(gift => gift.id === id)))) {
+-    uni.showToast({ icon: 'none', title: `本单需选择${giftUnits.value}件赠品` })
+     return
+   }
+   if (hasPickZone.value) {
+@@ -476,7 +440,6 @@
+   }
+   submitting.value = true
+   const orderParam = {
+-    giftOptionIds: giftUnits.value > 0 && giftOptions.value.length === 4 ? [...giftOptionIds.value] : [],
+     payType: 0,
+     couponId: undefined as number | undefined,
+     cartIds: cartIds.value.map(Number),
+@@ -1059,15 +1022,5 @@
+ .footer .price-content .pay-total{display:flex;align-items:center}
+ .footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
+ .footer .price-content .pay-warn{color:#e93b3d}
+-.gift-section{margin:20rpx 24rpx;padding:24rpx;background:#fff;border-radius:18rpx}
+-.gift-title{font-size:30rpx;font-weight:700;color:#283e35}
+-.gift-hint{font-size:23rpx;color:#888;margin:8rpx 0 18rpx}
+-.gift-list{margin-bottom:16rpx}
+-.gift-row{display:flex;align-items:center;gap:16rpx;min-height:100rpx;padding:10rpx 14rpx;border:2rpx solid #eee;border-radius:12rpx;margin-bottom:10rpx;font-size:24rpx}
+-.gift-row.selected{border-color:#d29a35;background:#fff9ee}
+-.gift-row image{width:90rpx;height:80rpx;flex:none;border-radius:8rpx}
+-.gift-info{display:flex;flex:1;min-width:0;flex-direction:column}
+-.gift-price{color:#b58229;margin-top:6rpx}
+-.gift-quantity{display:flex;align-items:center;gap:14rpx;flex:none;color:#af7b25;font-size:27rpx}.gift-quantity text:first-child,.gift-quantity text:last-child{display:grid;place-items:center;width:50rpx;height:50rpx;border:1rpx solid #d9bd8a;border-radius:50%}
+ </style>
+ 
+--- a/mall-custom/mall-app-web/src/pages/product/product.vue
++++ b/mall-custom/mall-app-web/src/pages/product/product.vue
+@@ -20,7 +20,19 @@
+     <!-- 轮播图本身需要顶到最上面，导航栏覆盖其上 -->
+     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
+ 
+-    <view class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
++    <view v-if="activityId" class="travel-activity">
++      <view v-if="activityLoading" class="activity-state">活动加载中…</view>
++      <view v-else-if="activityError" class="activity-state" @click="loadActivity">{{ activityError }}，点击重试</view>
++      <template v-else-if="activity">
++        <image class="activity-banner" :src="productImageUrl(activity.imageUrl)" mode="widthFix" />
++        <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
++        <view class="activity-selection"><text class="activity-label">选择旅游正品</text>
++          <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
++          <view v-else class="activity-products"><button v-for="item in activity.products" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ item.name }}</button></view>
++        </view>
++      </template>
++    </view>
++    <view v-else class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
+     <view v-if="detailLoading" class="product-load-state">正在加载商品详情…</view>
+     <view v-else-if="detailError" class="product-load-state product-load-error" @click="loadData(requestedProductId)">{{ detailError }}，点击重试</view>
+     <!-- 轮播图 -->
+@@ -299,6 +311,7 @@
+ <script setup lang="ts">
+ const isSandboxDemo = import.meta.env.VITE_SANDBOX_MODE === 'true'
+ import { productImageUrl } from '@/utils/productImage'
++import { getPickActivityAPI, type PickActivity } from '@/apis/pickActivity'
+ import { displayedSkuPrice, promotionTips } from '@/utils/productPromotion'
+ const fallbackPage=ref('/pages/index/index')
+ // 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集
+@@ -486,6 +499,38 @@
+ const membershipOffer = ref<string | undefined>()
+ const product = ref<PmsProduct>({} as PmsProduct)
+ const requestedProductId = ref(0)
++const activityId = ref(0)
++const activity = ref<PickActivity>()
++const activityLoading = ref(false)
++const activityError = ref('')
++const switchingProduct = ref(false)
++async function loadActivity() {
++  if (activityLoading.value) return
++  activityLoading.value = true
++  activityError.value = ''
++  detailError.value = ''
++  product.value = {} as PmsProduct
++  try {
++    const result = await getPickActivityAPI(activityId.value)
++    activity.value = result.data
++    const products = result.data.products || []
++    const selected = products.find(item => item.id === requestedProductId.value) || products[0]
++    if (selected) {
++      requestedProductId.value = selected.id
++      await loadData(selected.id)
++    }
++  } catch { activityError.value = '活动不存在、已停用或加载失败' }
++  finally { activityLoading.value = false }
++}
++function selectActivityProduct(id: number) {
++  if (switchingProduct.value || id === requestedProductId.value || !activity.value?.products?.some(item => item.id === id)) return
++  // 切换时重建详情页，确保规格、收藏、库存和购买目标都属于新商品。
++  switchingProduct.value = true
++  uni.redirectTo({
++    url: `/pages/product/product?zone=PICK&activityId=${activityId.value}&id=${id}`,
++    fail: () => { switchingProduct.value = false; uni.showToast({ icon: 'none', title: '切换失败，请重试' }) },
++  })
++}
+ const detailLoading = ref(false)
+ const detailError = ref('')
+ const brand = ref<PmsBrand>({} as PmsBrand)
+@@ -579,6 +624,13 @@
+         product.value.originalPrice = product.value.price
+       }
+ 
++      // 重试加载时清空派生数据，避免图片和规格重复累积。
++      imgList.value = []
++      serviceList.value = []
++      specList.value = []
++      specChildList.value = []
++      specSelected.value = []
++      attrList.value = []
+       initImgList()
+       initServiceList()
+       initSpecList(data)
+@@ -625,7 +677,17 @@
+   requestedProductId.value = id
+   shareList.value = defaultShareList
+   loadWatermark()
+-  loadData(id)
++  if (options?.activityId !== undefined) {
++    const parsed = Number(options.activityId)
++    if (!Number.isSafeInteger(parsed) || parsed <= 0 || requestedZone !== 'PICK') {
++      detailError.value = '活动链接无效'
++      return
++    }
++    activityId.value = parsed
++    void loadActivity()
++  } else {
++    loadData(id)
++  }
+ })
+ 
+ // 商品图水印设置（后台可开关，失败时保持关闭，不影响详情展示）
+@@ -2156,3 +2218,7 @@
+ .product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#173e49cc,#173e4933),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
+ @media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
+ </style>
++
++<style scoped>
++.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-banner{width:100%;display:block}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
++</style>
+--- a/mall-custom/mall-app-web/src/pages/zone/pick.vue
++++ b/mall-custom/mall-app-web/src/pages/zone/pick.vue
+@@ -1,3 +1,45 @@
+-<template><ZonePage zone="PICK" title="自选区" description="按分类挑选心仪商品，查看详情并加入购物车" /><MainNavigation active="pick" /></template>
+-<script setup lang="ts">import MainNavigation from '@/components/MainNavigation.vue';import ZonePage from '@/components/ZonePage.vue';
++<template>
++  <view class="activities-page">
++    <DesktopHeader />
++    <view class="activities-wrap">
++      <view class="activities-heading"><text class="title">自选区 · 旅游活动</text><text>查看活动规则，选择心仪的旅游正品</text></view>
++      <view v-if="loading" class="empty">活动加载中…</view>
++      <view v-else-if="error" class="empty" @click="load">活动加载失败，点击重试</view>
++      <view v-else-if="!activities.length" class="empty">暂无已发布的旅游活动</view>
++      <view v-else class="activity-grid">
++        <view v-for="activity in activities" :key="activity.id" class="activity-card" @click="open(activity.id)">
++          <image :src="productImageUrl(activity.imageUrl)" mode="aspectFill" />
++          <view class="activity-name"><text>{{ activity.title }}</text><text>查看活动 ›</text></view>
++        </view>
++      </view>
++    </view>
++    <MainNavigation active="pick" />
++  </view>
++</template>
++<script setup lang="ts">
++import { ref } from 'vue'
++import { onShow } from '@dcloudio/uni-app'
++import DesktopHeader from '@/components/DesktopHeader.vue'
++import MainNavigation from '@/components/MainNavigation.vue'
++import { getPickActivitiesAPI, type PickActivity } from '@/apis/pickActivity'
++import { productImageUrl } from '@/utils/productImage'
++const activities = ref<PickActivity[]>([])
++const loading = ref(false)
++const error = ref(false)
++let requestId = 0
++async function load() {
++  const current = ++requestId
++  loading.value = true
++  error.value = false
++  try {
++    const result = await getPickActivitiesAPI()
++    if (current === requestId) activities.value = result.data || []
++  } catch { if (current === requestId) error.value = true }
++  finally { if (current === requestId) loading.value = false }
++}
++function open(id: number) { uni.navigateTo({ url: `/pages/product/product?zone=PICK&activityId=${id}` }) }
++onShow(load)
+ </script>
++<style scoped>
++.activities-page{min-height:100vh;background:#f5f7f3;color:#213d30}.activities-wrap{max-width:1240px;margin:auto;padding:24px 20px 110px}.activities-heading{padding:28px;background:#e4eee5;border-radius:20px;margin-bottom:24px}.activities-heading text{display:block}.title{font-size:28px;font-weight:700;margin-bottom:12px}.activity-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.activity-card{border-radius:16px;overflow:hidden;background:#fff;cursor:pointer}.activity-card image{width:100%;height:230px}.activity-name{padding:18px;display:flex;gap:12px;justify-content:space-between;align-items:center}.activity-name text:first-child{font-weight:700;overflow-wrap:anywhere}.activity-name text:last-child{font-size:12px;color:#54745e;white-space:nowrap}.empty{padding:64px 20px;text-align:center;background:white;border-radius:16px}@media(max-width:800px){.activity-grid{grid-template-columns:1fr}.activities-wrap{padding:16px 12px 100px}.activity-card image{height:200px}.title{font-size:24px}}
++</style>
+--- a/mall-custom/mall-app-web/src/types/order.d.ts
++++ b/mall-custom/mall-app-web/src/types/order.d.ts
+@@ -211,8 +211,6 @@
+ 
+ /** 创建订单请求参数（对应API文档 OrderParam） */
+ export type OrderParam = {
+-  /** 每件符合条件的3999元自选区商品各选择一件赠品 */
+-  giftOptionIds?: number[]
+   /** 支付方式：0->未支付；1->支付宝；2->微信 */
+   payType: number
+   /** 优惠券ID */
+--- a/mall-custom/mall/mall-admin/src/main/java/com/macro/mall/controller/GiftOptionAdminController.java
++++ /dev/null
+@@ -1,36 +0,0 @@
+-package com.macro.mall.controller;
+-
+-import com.macro.mall.common.api.CommonResult;
+-import com.macro.mall.service.P0AdminAccess;
+-import org.springframework.jdbc.core.JdbcTemplate;
+-import org.springframework.web.bind.annotation.*;
+-import java.security.Principal;
+-import java.util.List;
+-import java.util.Map;
+-
+-@RestController
+-@RequestMapping("/p0/gift-options")
+-public class GiftOptionAdminController {
+-    private final JdbcTemplate jdbc;
+-    private final P0AdminAccess access;
+-    public GiftOptionAdminController(JdbcTemplate jdbc,P0AdminAccess access){this.jdbc=jdbc;this.access=access;}
+-    @GetMapping public CommonResult<List<Map<String,Object>>> list(Principal p){
+-        access.requireAuthorized(p);
+-        return CommonResult.success(jdbc.queryForList("SELECT id,name,image_url AS imageUrl,enabled,sort_order AS sortOrder FROM oms_gift_option ORDER BY id"));
+-    }
+-    @GetMapping("/order/{orderId}") public CommonResult<List<Map<String,Object>>> orderGifts(Principal p,@PathVariable long orderId){
+-        access.requireAuthorized(p);
+-        return CommonResult.success(jdbc.queryForList("SELECT id,name_snapshot AS name,image_snapshot AS imageUrl FROM oms_order_gift WHERE order_id=? ORDER BY id",orderId));
+-    }
+-    public record GiftOption(long id,String name,String imageUrl,boolean enabled){}
+-    @PostMapping public CommonResult<?> save(Principal p,@RequestBody GiftOption gift){
+-        long operator=access.requirePlatformAdmin(p);
+-        if(gift==null || gift.id()<1 || gift.id()>4 || gift.name()==null || gift.name().trim().isEmpty() || gift.name().length()>120
+-                || gift.imageUrl()==null || gift.imageUrl().length()>500
+-                || !(gift.imageUrl().startsWith("/product-images/") || gift.imageUrl().startsWith("/oss/")))
+-            throw new IllegalArgumentException("请填写赠品名称并上传图片；只支持4个赠品位");
+-        jdbc.update("INSERT INTO oms_gift_option(id,name,image_url,enabled,sort_order) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),image_url=VALUES(image_url),enabled=VALUES(enabled)",gift.id(),gift.name().trim(),gift.imageUrl(),gift.enabled()?1:0,gift.id());
+-        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'gift_option','SAVE',?)",p.getName(),operator,"slot="+gift.id()+";enabled="+gift.enabled());
+-        return CommonResult.success(null);
+-    }
+-}
+--- /dev/null
++++ b/mall-custom/mall/mall-admin/src/main/java/com/macro/mall/controller/PickActivityAdminController.java
+@@ -0,0 +1,41 @@
++package com.macro.mall.controller;
++
++import com.macro.mall.common.api.CommonResult;
++import com.macro.mall.common.service.PickActivityService;
++import com.macro.mall.service.P0AdminAccess;
++import org.springframework.web.bind.annotation.*;
++import java.security.Principal;
++import java.util.List;
++import java.util.Map;
++
++/** 分类管理中的自选区旅游活动配置入口。 */
++@RestController
++@RequestMapping("/productCategory/pickActivity")
++public class PickActivityAdminController {
++    private final PickActivityService service;
++    private final P0AdminAccess access;
++    public PickActivityAdminController(PickActivityService service, P0AdminAccess access) {
++        this.service = service;
++        this.access = access;
++    }
++    @GetMapping
++    public CommonResult<List<Map<String,Object>>> list(Principal principal) {
++        access.requireAuthorized(principal);
++        return CommonResult.success(service.list(false));
++    }
++    @GetMapping("/products")
++    public CommonResult<List<Map<String,Object>>> products(Principal principal, @RequestParam(required=false) String keyword) {
++        access.requireAuthorized(principal);
++        return CommonResult.success(service.candidates(keyword));
++    }
++    @GetMapping("/{id}")
++    public CommonResult<Map<String,Object>> detail(Principal principal, @PathVariable long id) {
++        access.requireAuthorized(principal);
++        return CommonResult.success(service.detail(id, false));
++    }
++    @PostMapping
++    public CommonResult<Long> save(Principal principal, @RequestBody PickActivityService.Activity activity) {
++        access.requireAuthorized(principal);
++        return CommonResult.success(service.save(activity));
++    }
++}
+--- /dev/null
++++ b/mall-custom/mall/mall-admin/src/test/java/com/macro/mall/controller/PickActivityAdminControllerTest.java
+@@ -0,0 +1,40 @@
++package com.macro.mall.controller;
++
++import com.macro.mall.common.service.PickActivityService;
++import com.macro.mall.service.P0AdminAccess;
++import org.junit.jupiter.api.Test;
++import org.springframework.http.HttpStatus;
++import org.springframework.web.server.ResponseStatusException;
++import java.security.Principal;
++import java.util.List;
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++class PickActivityAdminControllerTest {
++    @Test void unauthorizedSaveCannotWriteActivity() {
++        var service = mock(PickActivityService.class);
++        var access = mock(P0AdminAccess.class);
++        when(access.requireAuthorized(null)).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
++        var controller = new PickActivityAdminController(service, access);
++        assertThrows(ResponseStatusException.class, () -> controller.save(null, null));
++        verifyNoInteractions(service);
++    }
++
++    @Test void authorizedCategoryManagerCanSaveAndReadActivities() {
++        var service = mock(PickActivityService.class);
++        var access = mock(P0AdminAccess.class);
++        Principal principal = () -> "分类管理员";
++        when(access.requireAuthorized(principal)).thenReturn(1L);
++        var input = new PickActivityService.Activity(null,"活动","/product-images/1.png","规则",true,1,List.of(1L));
++        when(service.save(input)).thenReturn(7L);
++        var controller = new PickActivityAdminController(service, access);
++        assertEquals(7L, controller.save(principal, input).getData());
++        controller.list(principal);
++        controller.detail(principal, 7);
++        controller.products(principal, "旅游");
++        verify(service).list(false);
++        verify(service).detail(7, false);
++        verify(service).candidates("旅游");
++        verify(access, times(4)).requireAuthorized(principal);
++    }
++}
+--- /dev/null
++++ b/mall-custom/mall/mall-common/src/main/java/com/macro/mall/common/service/PickActivityService.java
+@@ -0,0 +1,111 @@
++package com.macro.mall.common.service;
++
++import com.macro.mall.common.exception.ApiException;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.support.GeneratedKeyHolder;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.sql.Statement;
++import java.util.*;
++
++/** 自选区旅游活动配置，商品价格、库存和结算仍由原商品系统负责。 */
++@Service
++public class PickActivityService {
++    private final JdbcTemplate jdbc;
++
++    public PickActivityService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
++
++    public record Activity(Long id, String title, String imageUrl, String rules,
++                           boolean enabled, int sortOrder, List<Long> productIds) {}
++
++    private static final String FIELDS = "id,title,image_url AS imageUrl,rules,enabled,sort_order AS sortOrder";
++    private static final String ELIGIBLE = " z.zone_code='PICK' AND p.delete_status=0 AND p.publish_status=1"
++            + " AND p.price=3999.00"
++            + " AND (p.brand_id IS NULL OR p.brand_id=0 OR NOT EXISTS"
++            + " (SELECT 1 FROM pms_brand b WHERE b.id=p.brand_id AND b.show_status<>1))"
++            + " AND EXISTS (SELECT 1 FROM tri_membership_product t WHERE t.product_id=p.id AND t.enabled=1)"
++            + " AND EXISTS (SELECT 1 FROM pms_sku_stock s WHERE s.product_id=p.id AND s.price=3999.00)"
++            + " AND NOT EXISTS (SELECT 1 FROM pms_sku_stock s WHERE s.product_id=p.id AND (s.price IS NULL OR s.price<>3999.00))";
++
++    public List<Map<String, Object>> list(boolean publicView) {
++        return jdbc.queryForList("SELECT " + FIELDS + " FROM pms_pick_activity"
++                + (publicView ? " WHERE enabled=1" : "") + " ORDER BY sort_order DESC,id ASC");
++    }
++
++    @Transactional(readOnly = true)
++    public Map<String, Object> detail(long id, boolean publicView) {
++        var rows = jdbc.queryForList("SELECT " + FIELDS + " FROM pms_pick_activity WHERE id=?"
++                + (publicView ? " AND enabled=1" : ""), id);
++        if (rows.isEmpty()) throw new ApiException("活动不存在或已停用");
++        Map<String, Object> result = new LinkedHashMap<>(rows.get(0));
++        var products = jdbc.queryForList("SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.publish_status AS publishStatus "
++                + "FROM pms_pick_activity_product ap JOIN pms_product p ON p.id=ap.product_id "
++                + "LEFT JOIN pms_product_zone z ON z.product_id=p.id WHERE ap.activity_id=?"
++                + (publicView ? " AND" + ELIGIBLE : "") + " ORDER BY ap.sort_order ASC,p.id ASC", id);
++        result.put("products", products);
++        return result;
++    }
++
++    public List<Map<String, Object>> candidates(String keyword) {
++        if (keyword != null && keyword.length() > 80) throw new ApiException("搜索词不能超过80字");
++        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
++        return jdbc.queryForList("SELECT p.id,p.name,p.pic,p.price,p.publish_status AS publishStatus FROM pms_product p "
++                + "JOIN pms_product_zone z ON z.product_id=p.id WHERE z.zone_code='PICK' AND p.delete_status=0 "
++                + "AND p.name LIKE ? ORDER BY p.id DESC LIMIT 100", pattern);
++    }
++
++    @Transactional
++    public long save(Activity activity) {
++        validate(activity);
++        Long id = activity.id();
++        if (id != null) {
++            var existing = jdbc.queryForList("SELECT id FROM pms_pick_activity WHERE id=? FOR UPDATE", id);
++            if (existing.isEmpty()) throw new ApiException("活动不存在，请刷新列表");
++        }
++        // 锁定商品及专区归属，防止编辑过程中把非自选区商品关联到活动。
++        for (Long productId : activity.productIds()) {
++            var products = jdbc.queryForList("SELECT p.id FROM pms_product p JOIN pms_product_zone z ON z.product_id=p.id "
++                    + "WHERE p.id=? AND p.delete_status=0 AND z.zone_code='PICK' FOR UPDATE", productId);
++            if (products.isEmpty()) throw new ApiException("所选商品已删除或不属于自选区，请重新选择");
++        }
++        if (id == null) {
++            var key = new GeneratedKeyHolder();
++            jdbc.update(connection -> {
++                var statement = connection.prepareStatement("INSERT INTO pms_pick_activity(title,image_url,rules,enabled,sort_order) VALUES(?,?,?,?,?)", Statement.RETURN_GENERATED_KEYS);
++                statement.setString(1, activity.title().trim());
++                statement.setString(2, activity.imageUrl().trim());
++                statement.setString(3, activity.rules().trim());
++                statement.setInt(4, activity.enabled() ? 1 : 0);
++                statement.setInt(5, activity.sortOrder());
++                return statement;
++            }, key);
++            id = Objects.requireNonNull(key.getKey()).longValue();
++        } else {
++            jdbc.update("UPDATE pms_pick_activity SET title=?,image_url=?,rules=?,enabled=?,sort_order=? WHERE id=?",
++                    activity.title().trim(), activity.imageUrl().trim(), activity.rules().trim(), activity.enabled() ? 1 : 0, activity.sortOrder(), id);
++            jdbc.update("DELETE FROM pms_pick_activity_product WHERE activity_id=?", id);
++        }
++        for (int index = 0; index < activity.productIds().size(); index++) {
++            jdbc.update("INSERT INTO pms_pick_activity_product(activity_id,product_id,sort_order) VALUES(?,?,?)", id, activity.productIds().get(index), index);
++        }
++        return id;
++    }
++
++    private static void validate(Activity a) {
++        if (a == null || a.title() == null || a.title().isBlank() || a.title().length() > 120
++                || a.rules() == null || a.rules().isBlank() || a.rules().length() > 20000
++                || a.imageUrl() == null || a.imageUrl().length() > 500 || !safeImage(a.imageUrl())
++                || a.productIds() == null || a.productIds().isEmpty() || a.productIds().size() > 50
++                || a.productIds().stream().anyMatch(id -> id == null || id <= 0)
++                || new HashSet<>(a.productIds()).size() != a.productIds().size()
++                || (a.id() != null && a.id() <= 0)) {
++            throw new ApiException("请填写活动名称、上传图片、填写规则，并选择1至50件不重复的自选区正品");
++        }
++    }
++
++    private static boolean safeImage(String value) {
++        return (value.startsWith("/product-images/") || value.startsWith("/oss/"))
++                && !value.contains("..") && !value.contains("\\") && !value.contains("\n") && !value.contains("\r");
++    }
++}
+--- /dev/null
++++ b/mall-custom/mall/mall-common/src/test/java/com/macro/mall/common/service/PickActivityServiceTest.java
+@@ -0,0 +1,114 @@
++package com.macro.mall.common.service;
++
++import com.macro.mall.common.exception.ApiException;
++import org.h2.jdbcx.JdbcDataSource;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.springframework.aop.framework.ProxyFactory;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.datasource.DataSourceTransactionManager;
++import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
++import org.springframework.transaction.interceptor.TransactionInterceptor;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.*;
++import static org.junit.jupiter.api.Assertions.*;
++
++class PickActivityServiceTest {
++    private JdbcTemplate jdbc;
++    private PickActivityService service;
++
++    @BeforeEach
++    void prepare() throws Exception {
++        var data = new JdbcDataSource();
++        data.setURL("jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");
++        jdbc = new JdbcTemplate(data);
++        jdbc.execute("CREATE TABLE ums_menu(id BIGINT PRIMARY KEY,name VARCHAR(100),hidden INT)");
++        // 直接执行本次交付迁移，验证可重复执行且无需赠品数据表。
++        String migration = Files.readString(Path.of("../../deploy/migrations/20261113_pick_activities.sql"));
++        for (int run = 0; run < 2; run++) for (String sql : migration.split(";")) if (!sql.isBlank()) jdbc.execute(sql);
++        jdbc.execute("CREATE TABLE pms_product(id BIGINT PRIMARY KEY,name VARCHAR(100),pic VARCHAR(100),sub_title VARCHAR(100),price DECIMAL(10,2),brand_id BIGINT,publish_status INT,delete_status INT)");
++        jdbc.execute("CREATE TABLE pms_product_zone(product_id BIGINT PRIMARY KEY,zone_code VARCHAR(20))");
++        jdbc.execute("CREATE TABLE pms_brand(id BIGINT PRIMARY KEY,show_status INT)");
++        jdbc.execute("CREATE TABLE tri_membership_product(product_id BIGINT PRIMARY KEY,enabled INT)");
++        jdbc.execute("CREATE TABLE pms_sku_stock(id BIGINT AUTO_INCREMENT PRIMARY KEY,product_id BIGINT,price DECIMAL(10,2))");
++        for (long id = 1; id <= 4; id++) {
++            jdbc.update("INSERT INTO pms_product VALUES(?,?,'/product-images/a.png','介绍',3999,NULL,1,0)", id, "旅游正品" + id);
++            jdbc.update("INSERT INTO pms_product_zone VALUES(?,'PICK')", id);
++            jdbc.update("INSERT INTO tri_membership_product VALUES(?,1)", id);
++            jdbc.update("INSERT INTO pms_sku_stock(product_id,price) VALUES(?,3999)", id);
++        }
++        var proxy = new ProxyFactory(new PickActivityService(jdbc));
++        proxy.setProxyTargetClass(true);
++        proxy.addAdvice(new TransactionInterceptor(new DataSourceTransactionManager(data), new AnnotationTransactionAttributeSource()));
++        service = (PickActivityService) proxy.getProxy();
++    }
++
++    private PickActivityService.Activity config(Long id, boolean enabled, List<Long> products) {
++        return new PickActivityService.Activity(id, "旅游活动详情1", "/product-images/activity.png", "活动规则\n第二行", enabled, 10, products);
++    }
++
++    @SuppressWarnings("unchecked")
++    private List<Long> ids(long id, boolean publicView) {
++        return ((List<Map<String,Object>>) service.detail(id, publicView).get("products")).stream()
++                .map(row -> ((Number) row.get("id")).longValue()).toList();
++    }
++
++    @Test void savesActivityAndKeepsConfiguredProductOrder() {
++        long id = service.save(config(null, true, List.of(3L,1L,4L,2L)));
++        assertEquals(List.of(3L,1L,4L,2L), ids(id, true));
++        assertEquals("活动规则\n第二行", service.detail(id, true).get("rules"));
++        service.save(config(id, true, List.of(2L,3L)));
++        assertEquals(List.of(2L,3L), ids(id, true));
++        assertEquals(1, service.list(true).size());
++    }
++
++    @Test void disabledActivitiesAreNotPublicButRemainEditable() {
++        long id = service.save(config(null, false, List.of(1L)));
++        assertTrue(service.list(true).isEmpty());
++        assertThrows(ApiException.class, () -> service.detail(id, true));
++        assertEquals(List.of(1L), ids(id, false));
++    }
++
++    @Test void hidesUnpublishedWrongZoneAndInvalidPriceWithoutChangingSelectionOrder() {
++        long id = service.save(config(null, true, List.of(1L,2L,3L,4L)));
++        jdbc.update("UPDATE pms_product SET publish_status=0 WHERE id=1");
++        jdbc.update("UPDATE pms_product_zone SET zone_code='REBUY' WHERE product_id=2");
++        jdbc.update("UPDATE pms_sku_stock SET price=1 WHERE product_id=3");
++        assertEquals(List.of(4L), ids(id, true));
++        assertEquals(List.of(1L,2L,3L,4L), ids(id, false));
++    }
++
++    @Test void hidesDisabledBrandsDeletedProductsAndDisabledMembershipRoutes() {
++        long id = service.save(config(null, true, List.of(1L,2L,3L)));
++        jdbc.update("INSERT INTO pms_brand VALUES(10,0)");
++        jdbc.update("UPDATE pms_product SET brand_id=10 WHERE id=1");
++        jdbc.update("UPDATE pms_product SET delete_status=1 WHERE id=2");
++        jdbc.update("UPDATE tri_membership_product SET enabled=0 WHERE product_id=3");
++        assertTrue(ids(id, true).isEmpty());
++    }
++
++    @Test void rejectsInvalidAssociationsBeforeChangingExistingActivity() {
++        long id = service.save(config(null, true, List.of(1L)));
++        assertThrows(ApiException.class, () -> service.save(config(id, true, List.of(2L,2L))));
++        assertThrows(ApiException.class, () -> service.save(config(id, true, List.of(999L))));
++        jdbc.update("UPDATE pms_product_zone SET zone_code='CONSUME' WHERE product_id=2");
++        assertThrows(ApiException.class, () -> service.save(config(id, true, List.of(2L))));
++        assertEquals(List.of(1L), ids(id, true));
++    }
++
++    @Test void failedAssociationInsertRollsBackParentAndExistingAssociations() {
++        long id = service.save(config(null, true, List.of(1L)));
++        jdbc.execute("ALTER TABLE pms_pick_activity_product ADD CONSTRAINT test_reject CHECK(product_id<>2)");
++        assertThrows(RuntimeException.class, () -> service.save(config(id, false, List.of(3L,2L))));
++        assertEquals(List.of(1L), ids(id, true));
++        assertThrows(RuntimeException.class, () -> service.save(config(null, true, List.of(2L))));
++        assertEquals(1, service.list(false).size());
++    }
++
++    @Test void rejectsEmptyActivityAndUnsafeImage() {
++        assertThrows(ApiException.class, () -> service.save(config(null, true, List.of())));
++        assertThrows(ApiException.class, () -> service.save(new PickActivityService.Activity(null,"活动","javascript:alert(1)","规则",true,0,List.of(1L))));
++        assertThrows(ApiException.class, () -> service.save(config(999L, true, List.of(1L))));
++    }
++}
+--- a/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/controller/OmsPortalOrderController.java
++++ b/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/controller/OmsPortalOrderController.java
+@@ -29,12 +29,6 @@
+ @Tag(name = "OmsPortalOrderController", description = "订单管理")
+ @RequestMapping("/order")
+ public class OmsPortalOrderController {
+-    @Autowired private org.springframework.jdbc.core.JdbcTemplate giftJdbc;
+-    @GetMapping("/giftOptions")
+-    @ResponseBody
+-    public CommonResult<List<Map<String,Object>>> giftOptions() {
+-        return CommonResult.success(giftJdbc.queryForList("SELECT id,name,image_url AS imageUrl FROM oms_gift_option WHERE enabled=1 ORDER BY sort_order,id LIMIT 4"));
+-    }
+     @Autowired
+     private OmsPortalOrderService portalOrderService;
+ 
+--- /dev/null
++++ b/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/controller/PickActivityController.java
+@@ -0,0 +1,19 @@
++package com.macro.mall.portal.controller;
++
++import com.macro.mall.common.api.CommonResult;
++import com.macro.mall.common.service.PickActivityService;
++import org.springframework.web.bind.annotation.*;
++import java.util.List;
++import java.util.Map;
++
++/** 仅向商城展示已启用活动及满足原自选区销售规则的商品。 */
++@RestController
++@RequestMapping("/product/pickActivity")
++public class PickActivityController {
++    private final PickActivityService service;
++    public PickActivityController(PickActivityService service) { this.service = service; }
++    @GetMapping
++    public CommonResult<List<Map<String,Object>>> list() { return CommonResult.success(service.list(true)); }
++    @GetMapping("/{id}")
++    public CommonResult<Map<String,Object>> detail(@PathVariable long id) { return CommonResult.success(service.detail(id, true)); }
++}
+--- a/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/domain/OrderParam.java
++++ b/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/domain/OrderParam.java
+@@ -29,6 +29,4 @@
+     private Integer payType;
+     @Schema(title = "被选中的购物车商品ID")
+     private List<Long> cartIds;
+-    @Schema(title = "每件3999元自选区路线对应的一件赠品；所选赠品编号")
+-    private List<Long> giftOptionIds;
+ }
+--- a/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/service/impl/OmsPortalOrderServiceImpl.java
++++ b/mall-custom/mall/mall-portal/src/main/java/com/macro/mall/portal/service/impl/OmsPortalOrderServiceImpl.java
+@@ -278,23 +278,6 @@
+             //生成下单商品信息，并保留加入购物车时所在专区
+             orderItemList.add(toOrderItem(cartPromotionItem));
+         }
+-        int giftUnits=orderItemList.stream().filter(item->"PICK".equals(item.getZoneCode())
+-                && item.getProductPrice()!=null && item.getProductPrice().compareTo(new BigDecimal("3999.00"))==0)
+-                .mapToInt(item->item.getProductQuantity()==null?0:item.getProductQuantity()).sum();
+-        int activeGifts=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oms_gift_option WHERE enabled=1",Integer.class);
+-        List<Map<String,Object>> selectedGifts=new ArrayList<>();
+-        if(giftUnits>0 && activeGifts==4) {
+-            List<Long> selected=orderParam.getGiftOptionIds();
+-            if(selected==null || selected.size()!=giftUnits)Asserts.fail("每件3999元自选区路线须四选一赠品");
+-            for(Long giftId:selected) {
+-                if(giftId==null)Asserts.fail("请选择赠品");
+-                var match=jdbcTemplate.queryForList("SELECT id,name,image_url FROM oms_gift_option WHERE id=? AND enabled=1",giftId);
+-                if(match.size()!=1)Asserts.fail("赠品已下架，请重新选择");
+-                selectedGifts.add(match.get(0));
+-            }
+-        } else if(orderParam.getGiftOptionIds()!=null && !orderParam.getGiftOptionIds().isEmpty()) {
+-            Asserts.fail("当前订单不可选择赠品");
+-        }
+         //判断购物车中商品是否都有库存
+         if (!hasStock(cartPromotionItemList)) {
+             Asserts.fail("库存不足，无法下单");
+@@ -393,9 +376,6 @@
+         // TODO: 2018/9/3 bill_*,delivery_*
+         //插入order表和order_item表
+         orderMapper.insert(order);
+-        for(Map<String,Object> gift:selectedGifts) jdbcTemplate.update(
+-                "INSERT INTO oms_order_gift(order_id,member_id,gift_option_id,name_snapshot,image_snapshot) VALUES(?,?,?,?,?)",
+-                order.getId(),currentMember.getId(),gift.get("id"),gift.get("name"),gift.get("image_url"));
+         //数据库主键由 MySQL 保证全局唯一；Redis 计数器重置曾造成订单号重复。
+         //在同一事务内生成并写回，随后订单明细使用相同编号。
+         order.setOrderSn(generateOrderSn(order));
+--- a/mall-custom/mall/mall-portal/src/main/resources/application.yml
++++ b/mall-custom/mall/mall-portal/src/main/resources/application.yml
+@@ -118,6 +118,8 @@
+       - /product/detail/*
+       - /product/comment/list
+       - /product/zone/**
++      - /product/pickActivity
++      - /product/pickActivity/*
+       - /brand/**
+       - /alipay/notify
+       - /member/recharge/notify/alipay
+--- a/mall-custom/mall/mall-portal/src/test/java/com/macro/mall/portal/service/impl/OmsPortalOrderServiceImplSecurityTests.java
++++ b/mall-custom/mall/mall-portal/src/test/java/com/macro/mall/portal/service/impl/OmsPortalOrderServiceImplSecurityTests.java
+@@ -35,6 +35,7 @@
+     @Mock OmsOrderItemMapper orderItemMapper;
+     @Mock PortalOrderDao portalOrderDao;
+     @Mock JdbcTemplate jdbcTemplate;
++    @Mock com.macro.mall.portal.service.OmsCartItemService cartItemService;
+     @InjectMocks OmsPortalOrderServiceImpl service;
+ 
+     private void otherMemberOrder() {
+@@ -121,4 +122,30 @@
+         assertThrows(ApiException.class, () -> service.generateOrder(new OrderParam(), "short"));
+         verify(jdbcTemplate, never()).update(any(String.class), any(), any(), any());
+     }
++
++    @Test
++    void pickOrderReachesStockValidationWithoutGiftTablesOrGiftSelection() {
++        UmsMember member = new UmsMember();
++        member.setId(1L);
++        when(memberService.getCurrentMember()).thenReturn(member);
++        var item = new com.macro.mall.portal.domain.CartPromotionItem();
++        item.setProductId(1L);
++        item.setProductSkuId(10L);
++        item.setZoneCode("PICK");
++        item.setPrice(new java.math.BigDecimal("3999"));
++        item.setQuantity(1);
++        item.setRealStock(0);
++        when(cartItemService.listPromotion(eq(1L), any())).thenReturn(List.of(item));
++        OrderParam request = new OrderParam();
++        request.setMemberReceiveAddressId(1L);
++        request.setCartIds(List.of(1L));
++        ApiException error = assertThrows(ApiException.class, () -> service.generateOrder(request, "no_gift_required_12345"));
++        assertEquals("库存不足，无法下单", error.getMessage());
++        // 缺少赠品表时也必须走原库存校验，不能查询赠品或要求旧赠品参数。
++        for (var invocation : org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations()) {
++            for (Object arg : invocation.getArguments()) {
++                if (arg instanceof String sql) org.junit.jupiter.api.Assertions.assertFalse(sql.contains("oms_gift") || sql.contains("oms_order_gift"));
++            }
++        }
++    }
+ }
+--- /dev/null
++++ b/mall-custom/qa/pick-activities.browser.cjs
+@@ -0,0 +1,174 @@
++// 使用构建产物和模拟接口验证页面交互，绝不请求线上服务或创建真实订单。
++const { chromium } = require('playwright');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const http = require('node:http');
++const root = path.resolve(__dirname, '..');
++const output = path.join(__dirname, 'pick-activity-results');
++fs.mkdirSync(output, { recursive: true });
++const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2' };
++function serve(directory) {
++  return new Promise(resolve => {
++    const server = http.createServer((req, res) => {
++      const name = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
++      const target = path.resolve(directory, '.' + (name === '/' ? '/index.html' : name));
++      if (!target.startsWith(directory + path.sep) || !fs.existsSync(target) || !fs.statSync(target).isFile()) { res.writeHead(404); res.end(); return; }
++      res.setHeader('Content-Type', mime[path.extname(target)] || 'application/octet-stream');
++      fs.createReadStream(target).pipe(res);
++    }).listen(0, '127.0.0.1', () => resolve({ server, url: `http://127.0.0.1:${server.address().port}` }));
++  });
++}
++const products = [1,2,3,4].map(id => ({ id, name: `旅游正品${id}`, pic: `/product-images/${id}.png`, price: 3999, publishStatus: 1 }));
++const activity = { id: 9, title: '旅游活动详情1', imageUrl: '/product-images/activity.png', rules: '活动规则第一行\n活动规则第二行', enabled: true, sortOrder: 10, products };
++const image = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="360"><rect width="900" height="360" fill="#d5e7dd"/><path d="M0 360L260 80 470 300 640 100 900 360" fill="#82ab94"/></svg>';
++async function mock(context, admin = false) {
++  const requests = [];
++  const state = { activities: [activity], detail: activity, fail: false, saved: null };
++  await context.route('**/*', async route => {
++    const request = route.request(), url = new URL(request.url());
++    if (url.hostname !== '127.0.0.1') return route.abort();
++    if (url.pathname.startsWith('/product-images/')) return route.fulfill({ contentType: 'image/svg+xml', body: image });
++    if (!url.pathname.startsWith('/portal/') && !url.pathname.startsWith('/admin-api/')) return route.continue();
++    const p = url.pathname.replace(/^\/(portal|admin-api)/, '');
++    requests.push({ path: p, method: request.method(), body: request.postData() });
++    let data = {};
++    if (p === '/product/pickActivity') {
++      if (state.fail) return route.fulfill({ status: 500, json: { code: 500, message: '测试网络故障' } });
++      data = state.activities;
++    } else if (p === '/product/pickActivity/9') data = state.detail;
++    else if (p.startsWith('/product/detail/')) {
++      const id = Number(p.split('/').pop());
++      data = { product: { ...products.find(x => x.id === id), subTitle: `正品${id}介绍`, stock: 10, sale: 1, detailMobileHtml: `<p>正品${id}完整内容介绍</p>`, albumPics: '', serviceIds: '', promotionType: 0 }, skuStockList: [{ id: id * 10, price: 3999, stock: 10, spData: '[]' }], productAttributeList: [], productAttributeValueList: [], membershipRoute: true, brand: {}, shopName: '平台自营' };
++    } else if (p === '/cart/list') data = [{ id: 101, productId: 2, productSkuId: 20, zoneCode: 'PICK' }];
++    else if (p === '/member/productCollection/detail') data = null;
++    else if (p.includes('productCollection/add') || p === '/cart/add') data = 1;
++    else if (p === '/product/zone/PICK') data = [];
++    else if (p === '/product/search' || p === '/product/comment/list') data = { list: [], total: 0 };
++    else if (p === '/admin/info') data = { roles: ['admin'], username: 'admin', departmentId: null, menus: ['pick','pickCategory','pickProduct','giftOptionsMgr','giftOptions'].map((name,id) => ({ id, name, title: name === 'pick' ? '自选商品管理' : name === 'pickCategory' ? '分类管理' : name === 'pickProduct' ? '商品列表' : '赠品商品', hidden: 0 })) };
++    else if (p === '/productCategory/pickActivity/products') data = products;
++    else if (p === '/productCategory/pickActivity/9') data = state.detail;
++    else if (p === '/productCategory/pickActivity') {
++      if (request.method() === 'POST') { state.saved = JSON.parse(request.postData()); data = 9; }
++      else data = state.activities;
++    } else if (p === '/product/image/upload') data = { url: '/product-images/new.png' };
++    else if (p === '/order/generateConfirmOrder') data = { cartPromotionItemList: [], memberReceiveAddressList: [], couponHistoryDetailList: [], calcAmount: {}, memberIntegration: 0 };
++    else if (p === '/order/settlementPreview') data = { zones: [], totalPayAmount: 0 };
++    else if (p.includes('/list') || p.includes('coupon') || p.includes('fullReduction')) data = [];
++    await route.fulfill({ json: { code: 200, message: '成功', data } });
++  });
++  return { requests, state };
++}
++async function main() {
++  const app = await serve(path.join(root, 'mall-app-web/dist/build/h5'));
++  const admin = await serve(path.join(root, 'mall-admin-web/dist'));
++  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
++  const results = [];
++  try {
++    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
++    const { requests, state } = await mock(context);
++    await context.addInitScript(() => {
++      // uni-app 的网页存储包含类型包装，与实际持久化格式一致。
++      localStorage.setItem('member', JSON.stringify({ type: 'string', data: JSON.stringify({ memberInfo: { id: 1, nickname: '测试会员' } }) }));
++      localStorage.setItem('token', JSON.stringify({ type: 'string', data: 'Bearer local-test' }));
++    });
++    const page = await context.newPage();
++    const errors = []; page.on('pageerror', e => errors.push(e.message));
++    await page.goto(app.url + '/#/pages/zone/pick');
++    await page.getByText('旅游活动详情1', { exact: true }).waitFor();
++    await page.getByText('旅游活动详情1', { exact: true }).click();
++    await page.locator('.introduce-section .title').filter({ hasText: '旅游正品1' }).waitFor();
++    assert.equal(await page.locator('.activity-option.selected').innerText(), '旅游正品1');
++    assert.match(await page.locator('.activity-rule-text').innerText(), /活动规则第二行/);
++    await page.screenshot({ path: path.join(output, 'mobile-activity.png'), fullPage: true });
++    await page.locator('.activity-option').filter({ hasText: '旅游正品2' }).click();
++    await page.locator('.introduce-section .title').filter({ hasText: '旅游正品2' }).waitFor();
++    assert.equal(await page.locator('.activity-option.selected').innerText(), '旅游正品2');
++    assert.match(await page.locator('.detail-desc').innerText(), /正品2完整内容介绍/);
++    assert.equal(await page.locator('.carousel uni-image').count(), 1);
++    await Promise.all([page.waitForResponse(r => r.url().includes('/productCollection/add')), page.locator('.page-bottom .p-b-btn').filter({ hasText: '收藏' }).click()]);
++    assert.equal(JSON.parse(requests.find(x => x.path.endsWith('productCollection/add')).body).productId, 2);
++    await Promise.all([page.waitForResponse(r => r.url().endsWith('/cart/add')), page.locator('.add-cart-btn').click()]);
++    const cart = requests.find(x => x.path === '/cart/add');
++    assert.equal(JSON.parse(cart.body).productSkuId, 20);
++    assert.equal(JSON.parse(cart.body).zoneCode, 'PICK');
++    await page.locator('.buy-now-btn').click();
++    await page.waitForURL(/createOrder/);
++    assert(!requests.some(x => /giftOptions|gift-options/.test(x.path)));
++    results.push('活动入口、默认首件、商品切换、图文更新、收藏及购买目标正确，未请求赠品接口');
++    state.detail = { ...activity, products: [] };
++    await page.goto(app.url + '/#/pages/product/product?zone=PICK&activityId=9');
++    await page.getByText('本活动暂无可售正品').waitFor();
++    assert.equal(await page.locator('.page-bottom').count(), 0);
++    results.push('无可售正品时不显示购买入口');
++    state.activities = [];
++    await page.goto(app.url + '/#/pages/zone/pick');
++    await page.getByText('暂无已发布的旅游活动').waitFor();
++    state.fail = true;
++    await page.reload();
++    await page.getByText('活动加载失败，点击重试').waitFor();
++    state.fail = false; state.activities = [activity];
++    await page.getByText('活动加载失败，点击重试').click();
++    await page.getByText('旅游活动详情1', { exact: true }).waitFor();
++    results.push('活动空状态、失败提示及重试恢复正常');
++    const adminContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
++    const adminMock = await mock(adminContext, true);
++    await adminContext.addInitScript(() => localStorage.setItem('user', JSON.stringify({ userInfo: { username: 'admin', token: 'Bearer local-test', roles: ['admin'], menus: [] } })));
++    const backoffice = await adminContext.newPage();
++    backoffice.on('pageerror', e => errors.push(e.message));
++    await backoffice.goto(admin.url + '/#/pick/category');
++    await backoffice.getByRole('heading', { name: '分类管理 · 旅游活动' }).waitFor();
++    assert.equal(await backoffice.getByText('赠品商品', { exact: true }).count(), 0);
++    await backoffice.getByRole('button', { name: '编辑', exact: true }).click();
++    await backoffice.locator('.el-dialog').waitFor();
++    await backoffice.locator('.product-row').nth(1).getByRole('button', { name: '上移', exact: true }).click();
++    await backoffice.screenshot({ path: path.join(output, 'admin-activity.png'), fullPage: true });
++    try {
++      await Promise.all([backoffice.waitForResponse(r => r.url().includes('/productCategory/pickActivity') && r.request().method() === 'POST'), backoffice.getByRole('button', { name: '保存活动', exact: true }).click()]);
++    } catch (error) {
++      console.log(JSON.stringify({ requests: adminMock.requests, errors, text: await backoffice.locator('body').innerText() }));
++      throw error;
++    }
++    assert.deepEqual(adminMock.state.saved.productIds, [2,1,3,4]);
++    assert.equal(adminMock.state.saved.title, '旅游活动详情1');
++    results.push('后台活动编辑与正品排序保存正常，旧赠品菜单不可见');
++    await backoffice.locator('.el-dialog').waitFor({ state: 'hidden' });
++    await backoffice.getByRole('button', { name: '新增活动', exact: true }).click();
++    await backoffice.locator('.el-dialog').waitFor();
++    const postCount = adminMock.requests.filter(x => x.method === 'POST').length;
++    await backoffice.getByRole('button', { name: '保存活动', exact: true }).click();
++    await backoffice.getByText('请填写活动名称、图片、规则，并至少选择一件正品', { exact: true }).waitFor();
++    assert.equal(adminMock.requests.filter(x => x.method === 'POST').length, postCount);
++    await backoffice.locator('.el-dialog input[maxlength="120"]').fill('旅游活动详情2');
++    await backoffice.locator('.el-dialog textarea').fill('新增活动规则');
++    await Promise.all([
++      backoffice.waitForResponse(r => r.url().includes('/product/image/upload')),
++      backoffice.locator('input[type="file"]').setInputFiles({ name: 'activity.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB9sAAAAASUVORK5CYII=', 'base64') }),
++    ]);
++    await backoffice.locator('.product-search .el-select').click();
++    await backoffice.getByRole('option', { name: '旅游正品2（2）', exact: true }).click();
++    await backoffice.getByRole('button', { name: '添加正品', exact: true }).click();
++    await Promise.all([backoffice.waitForResponse(r => r.url().includes('/productCategory/pickActivity') && r.request().method() === 'POST'), backoffice.getByRole('button', { name: '保存活动', exact: true }).click()]);
++    assert.deepEqual(adminMock.state.saved.productIds, [2]);
++    assert.equal(adminMock.state.saved.imageUrl, '/product-images/new.png');
++    assert.equal(adminMock.state.saved.rules, '新增活动规则');
++    results.push('后台必填校验、图片上传、添加正品及新建活动保存正常');
++    state.detail = activity;
++    await page.setViewportSize({ width: 1440, height: 1000 });
++    await page.goto(app.url + '/#/pages/product/product?zone=PICK&activityId=9');
++    await page.locator('.introduce-section .title').filter({ hasText: '旅游正品1' }).waitFor();
++    const activityBox = await page.locator('.travel-activity').boundingBox();
++    const productBox = await page.locator('.carousel').boundingBox();
++    assert(productBox.y >= activityBox.y + activityBox.height - 2);
++    await page.screenshot({ path: path.join(output, 'desktop-activity.png'), fullPage: true });
++    await page.goto(app.url + '/#/pages/index/index');
++    await page.getByText('旅游活动详情1', { exact: true }).waitFor();
++    await page.getByText('旅游活动详情1', { exact: true }).click();
++    await page.waitForURL(/activityId=9/);
++    results.push('桌面活动区位于商品详情上方，首页活动推荐进入对应活动');
++    assert.deepEqual(errors, []);
++    fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ passed: results, pageErrors: errors }, null, 2));
++    console.log(JSON.stringify(results, null, 2));
++  } finally { await browser.close(); app.server.close(); admin.server.close(); }
++}
++main().catch(e => { console.error(e); process.exitCode = 1; });
+--- /dev/null
++++ b/mall-custom/qa/pick-activity-results/results.json
+@@ -0,0 +1,11 @@
++{
++  "passed": [
++    "活动入口、默认首件、商品切换、图文更新、收藏及购买目标正确，未请求赠品接口",
++    "无可售正品时不显示购买入口",
++    "活动空状态、失败提示及重试恢复正常",
++    "后台活动编辑与正品排序保存正常，旧赠品菜单不可见",
++    "后台必填校验、图片上传、添加正品及新建活动保存正常",
++    "桌面活动区位于商品详情上方，首页活动推荐进入对应活动"
++  ],
++  "pageErrors": []
++}
+--- /dev/null
++++ b/mall-custom/qa/旅游活动优化验收.md
+@@ -0,0 +1,64 @@
++# 旅游活动与赠品移除验收
++
++日期：2026-11-13。
++
++## 源码位置与基线
++
++工作目录：`D:\AIPROJECTS\pingBB-optimized`。
++开发分支：`feature/pick-travel-activities`。
++基线：`1227b10`（11月13日购物车汇总），包含 `8689b1f`（11月13日赠品、图片管理、提现修复）。
++原 GitHub 主分支副本和下载的服务器快照保持不变。本次没有部署线上系统。
++此前服务器导出的源码目录停在11月7日；本次从已拉取的部署分支找到更完整基线，并在此实现优化。仍不能仅凭源码提交断言它与线上所有编译文件逐字节等价。
++
++## 完成的行为
++
++1. 移除实物赠品后台页面、路由、管理接口、订单详情展示，以及前端结算选择、赠品参数、服务端选赠品校验与写入。
++2. 积分赠送、会员升级、价格、库存、原有支付和订单幂等流程保持原逻辑；历史赠品数据不删除。
++3. 自选区和首页自选区推荐改为旅游活动入口。
++4. 活动详情先显示顶部图片及规则，再显示后台指定顺序的旅游正品选项，默认第一件满足原专区销售规则的正品。
++5. 切换选项重新建立商品详情页，商品图片、介绍、规格、库存、收藏与加购目标同步切换。
++6. 自选商品管理的“分类管理”改为活动配置；可编辑名称、顶部图片、规则、发布状态、排序及正品关联。正品支持搜索、添加、移除关联、调整顺序。
++7. 活动支持1至50件不重复正品，四件正品是该功能支持的常见配置。关联到其他专区、删除的商品不能保存；已下架、不符合原3999元会员路线规则的商品不向用户展示。
++8. 复购区和消费区的分类、商品管理及购买流程不变。
++
++## 验证结果
++
++- 管理后台生产构建及 `vue-tsc --build` 通过。
++- 应用 H5 生产构建、静态资源复制及 `vue-tsc --noEmit --skipLibCheck` 通过。
++- uni-app App 端编译通过，未进行手机真机测试或原生安装包签名。
++- Java 17 编译通过；指定的52项回归测试全部通过，失败0、错误0、跳过0。
++  - 活动保存、顺序、停用、商品过滤、非法输入与事务回滚：7项。
++  - 活动后台权限：2项；原专区商品管理：8项。
++  - 订单权限、幂等与移除赠品后的库存校验：8项。
++  - 原积分赠送与持久化：7项；原专区结算：20项。
++- Playwright 使用本地构建产物和模拟接口，覆盖手机及桌面布局、默认正品、切换详情、收藏、加购、购买导航、活动空状态、失败重试、后台上传与保存、首页活动入口；无页面脚本异常。
++- 迁移脚本在隔离 H2 MySQL 兼容模式中执行两次，验证重复执行与基本 SQL 行为；未在生产 MySQL 执行。
++- 没有进行真实支付、没有创建真实订单、没有使用生产数据库做测试。
++
++本机缺少 Maven 且下载失败，因此 Java 编译和指定测试在服务器独立目录执行，测试数据仅使用 H2 内存数据库或 Mockito，不连接业务数据库。没有启动测试版业务服务。
++
++## 发布顺序
++
++1. 使用正常发布流程备份数据库、当前 JAR 和前端文件。
++2. 执行 `mall-custom/deploy/migrations/20261113_pick_activities.sql`：创建活动及关联表，隐藏赠品菜单。脚本不删除任何历史订单或赠品数据。
++3. 构建并发布新版后台及商城接口。活动管理沿用 `/productCategory/**` 权限；商城活动查询已加入公开接口白名单。
++4. 发布管理后台，在“自选商品管理 → 分类管理”创建真实活动，填写图片和规则，按顺序关联正品并发布。活动图上传沿用原商品图片接口。
++5. 配置好至少一个活动后发布应用前端，避免上线时自选区没有活动。首件展示的商品为配置顺序中第一件符合原销售规则的商品。
++6. 使用测试账号核对活动、正品切换、购物车、收藏以及结算；真实付款按正常发布验收流程人工执行。
++
++未构造虚假的旅游活动内容，实际活动名称、图片、规则及正品由后台配置。
++
++## 重跑验证
++
++前端在各自目录使用项目已有命令：后台 `npm ci && npm run build`；应用 `npm ci && npm run build:h5 && npm run tsc`。
++
++Java 在 `mall-custom/mall` 执行：
++
++```text
++mvn -B -pl mall-admin,mall-portal -am -DskipTests=false -Dtest=PickActivityServiceTest,PickActivityAdminControllerTest,OmsPortalOrderServiceImplSecurityTests,OrderGiftZoneTests,OrderGiftPersistenceTests,ProductZoneAdminControllerTest,ZoneSettlementServiceTest -Dsurefire.failIfNoSpecifiedTests=false test
++```
++
++浏览器回归：安装或提供 Playwright 后，在项目根目录执行 `node mall-custom/qa/pick-activities.browser.cjs`。可用 `CHROME_PATH` 指定 Chrome 路径。脚本禁止访问本地之外的地址，接口均为模拟数据。
++
++本地构建日志：根目录 `admin-build.log`、`app-build.log`、`admin-typecheck.log`、`app-typecheck.log`、`backend-test.log`、`browser-test.log`。
++浏览器结果与截图：`mall-custom/qa/pick-activity-results/`。

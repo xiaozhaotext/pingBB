@@ -12,9 +12,6 @@ import type { FullReductionOffer } from '@/types/order'
 export const getOrderFullReductionOffersAPI = (orderId: number) =>
   http<FullReductionOffer[]>({ method: 'GET', url: `/order/fullReduction/${orderId}` })
 
-export type GiftOption = { id: number; name: string; imageUrl: string }
-export const getGiftOptionsAPI = () =>
-  http<GiftOption[]>({ method: 'GET', url: '/order/giftOptions' })
 
 /** 生成确认单信息 */
 export const generateConfirmOrderAPI = (cartIds: number[]) => {

@@ -278,23 +278,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //生成下单商品信息，并保留加入购物车时所在专区
             orderItemList.add(toOrderItem(cartPromotionItem));
         }
-        int giftUnits=orderItemList.stream().filter(item->"PICK".equals(item.getZoneCode())
-                && item.getProductPrice()!=null && item.getProductPrice().compareTo(new BigDecimal("3999.00"))==0)
-                .mapToInt(item->item.getProductQuantity()==null?0:item.getProductQuantity()).sum();
-        int activeGifts=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM oms_gift_option WHERE enabled=1",Integer.class);
-        List<Map<String,Object>> selectedGifts=new ArrayList<>();
-        if(giftUnits>0 && activeGifts==4) {
-            List<Long> selected=orderParam.getGiftOptionIds();
-            if(selected==null || selected.size()!=giftUnits)Asserts.fail("每件3999元自选区路线须四选一赠品");
-            for(Long giftId:selected) {
-                if(giftId==null)Asserts.fail("请选择赠品");
-                var match=jdbcTemplate.queryForList("SELECT id,name,image_url FROM oms_gift_option WHERE id=? AND enabled=1",giftId);
-                if(match.size()!=1)Asserts.fail("赠品已下架，请重新选择");
-                selectedGifts.add(match.get(0));
-            }
-        } else if(orderParam.getGiftOptionIds()!=null && !orderParam.getGiftOptionIds().isEmpty()) {
-            Asserts.fail("当前订单不可选择赠品");
-        }
         //判断购物车中商品是否都有库存
         if (!hasStock(cartPromotionItemList)) {
             Asserts.fail("库存不足，无法下单");
@@ -393,9 +376,6 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         // TODO: 2018/9/3 bill_*,delivery_*
         //插入order表和order_item表
         orderMapper.insert(order);
-        for(Map<String,Object> gift:selectedGifts) jdbcTemplate.update(
-                "INSERT INTO oms_order_gift(order_id,member_id,gift_option_id,name_snapshot,image_snapshot) VALUES(?,?,?,?,?)",
-                order.getId(),currentMember.getId(),gift.get("id"),gift.get("name"),gift.get("image_url"));
         //数据库主键由 MySQL 保证全局唯一；Redis 计数器重置曾造成订单号重复。
         //在同一事务内生成并写回，随后订单明细使用相同编号。
         order.setOrderSn(generateOrderSn(order));

@@ -118,6 +118,8 @@ secure:
       - /product/detail/*
       - /product/comment/list
       - /product/zone/**
+      - /product/pickActivity
+      - /product/pickActivity/*
       - /brand/**
       - /alipay/notify
       - /member/recharge/notify/alipay

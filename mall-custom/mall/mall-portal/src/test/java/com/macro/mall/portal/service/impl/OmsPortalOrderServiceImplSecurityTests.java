@@ -35,6 +35,7 @@ class OmsPortalOrderServiceImplSecurityTests {
     @Mock OmsOrderItemMapper orderItemMapper;
     @Mock PortalOrderDao portalOrderDao;
     @Mock JdbcTemplate jdbcTemplate;
+    @Mock com.macro.mall.portal.service.OmsCartItemService cartItemService;
     @InjectMocks OmsPortalOrderServiceImpl service;
 
     private void otherMemberOrder() {
@@ -120,5 +121,31 @@ class OmsPortalOrderServiceImplSecurityTests {
     void invalidIdempotencyKeyIsRejectedBeforeDatabaseWrite() {
         assertThrows(ApiException.class, () -> service.generateOrder(new OrderParam(), "short"));
         verify(jdbcTemplate, never()).update(any(String.class), any(), any(), any());
+    }
+
+    @Test
+    void pickOrderReachesStockValidationWithoutGiftTablesOrGiftSelection() {
+        UmsMember member = new UmsMember();
+        member.setId(1L);
+        when(memberService.getCurrentMember()).thenReturn(member);
+        var item = new com.macro.mall.portal.domain.CartPromotionItem();
+        item.setProductId(1L);
+        item.setProductSkuId(10L);
+        item.setZoneCode("PICK");
+        item.setPrice(new java.math.BigDecimal("3999"));
+        item.setQuantity(1);
+        item.setRealStock(0);
+        when(cartItemService.listPromotion(eq(1L), any())).thenReturn(List.of(item));
+        OrderParam request = new OrderParam();
+        request.setMemberReceiveAddressId(1L);
+        request.setCartIds(List.of(1L));
+        ApiException error = assertThrows(ApiException.class, () -> service.generateOrder(request, "no_gift_required_12345"));
+        assertEquals("库存不足，无法下单", error.getMessage());
+        // 缺少赠品表时也必须走原库存校验，不能查询赠品或要求旧赠品参数。
+        for (var invocation : org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations()) {
+            for (Object arg : invocation.getArguments()) {
+                if (arg instanceof String sql) org.junit.jupiter.api.Assertions.assertFalse(sql.contains("oms_gift") || sql.contains("oms_order_gift"));
+            }
+        }
     }
 }

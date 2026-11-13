@@ -21,10 +21,6 @@ export const constantRouterMap: RouteRecordExt[] = [
 ]
 
 export const asyncRouterMap: RouteRecordExt[] = [
-  { path: '/giftOptions', component: Layout, redirect: '/giftOptions/index', name: 'giftOptionsMgr',
-    meta: { title: '赠品商品', icon: 'product' },
-    children: [{ path: 'index', name: 'giftOptions', component: () => import('@/views/gift/GiftOptions.vue'), meta: { title: '赠品商品', icon: 'product' } }],
-  },
   // ===== 后台一级功能分组（对齐原图思维导图） =====
   {
     path: '/withdrawalSettings', component: Layout, name: 'withdrawalSettings',
@@ -42,11 +38,11 @@ export const asyncRouterMap: RouteRecordExt[] = [
     path: '/pick', component: Layout, redirect: '/pick/category', name: 'pick', alwaysShow: true,
     meta: { title: '自选商品管理', icon: 'product' },
     children: [
-      { path: 'category', name: 'pickCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+      { path: 'category', name: 'pickCategory', component: () => import('@/views/zone/PickActivities.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
       { path: 'product', name: 'pickProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
       { path: 'trash', name: 'pickTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
-      { path: 'add-category', name: 'pickAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
-      { path: 'update-category', name: 'pickUpdateCategory', component: () => import('@/views/pms/productCate/update.vue'), meta: { title: '编辑商品分类' }, hidden: true },
+      { path: 'add-category', name: 'pickAddCategory', redirect: '/pick/category', hidden: true },
+      { path: 'update-category', name: 'pickUpdateCategory', redirect: '/pick/category', hidden: true },
       { path: 'add-product', name: 'pickAddProduct', component: () => import('@/views/pms/product/add.vue'), meta: { title: '添加商品' }, hidden: true },
       { path: 'update-product', name: 'pickUpdateProduct', component: () => import('@/views/pms/product/update.vue'), meta: { title: '编辑商品' }, hidden: true },
     ],

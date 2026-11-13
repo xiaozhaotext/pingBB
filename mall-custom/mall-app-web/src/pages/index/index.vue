@@ -20,11 +20,11 @@
         <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
         <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><text class="home-zone-title">消费区</text><text class="home-zone-caption">商品积分购买 · 兑换好物</text><text class="zone-arrow">→</text></view>
       </view>
-      <view class="home-product-heading"><view><text>自选区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
-      <view class="home-zone-status" v-if="pickLoading">正在加载自选区商品…</view>
+      <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
+      <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
       <view class="home-zone-status" v-else-if="pickError">商品加载失败<text @click="loadPick">，点击重试</text></view>
-      <view class="home-zone-status" v-else-if="!pickProducts.length">自选区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">自选区</text><text class="home-add-cart" @click.stop="addCart(item, 'PICK')">加入购物车</text></view></view></view></view>
+      <view class="home-zone-status" v-else-if="!pickProducts.length">暂无已发布的旅游活动。</view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in pickProducts" :key="item.id" @click="openPickProduct(item)"><image :src="productImageUrl(item.imageUrl)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.title}}</text><text class="home-product-sub">查看活动规则与旅游正品</text><view><text class="rebuy-label">自选区活动</text></view></view></view></view>
       <view class="home-product-heading"><view><text>复购区推荐商品</text><small>精选好物</small></view><text @click="goTab('/pages/zone/rebuy')">更多 →</text></view>
       <view class="home-zone-status" v-if="rebuyLoading">正在加载复购区商品…</view>
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
@@ -47,6 +47,7 @@ const goTab = (url: string) => url.startsWith('/pages/zone/') ? uni.navigateTo({
 const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
 
 import { ref, computed } from 'vue'
+import { getPickActivitiesAPI, type PickActivity } from '@/apis/pickActivity'
 import { getZoneProductsAPI, type ZoneCode, type ZoneProduct } from '@/apis/zone'
 import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import {
@@ -80,10 +81,10 @@ const loadAnnouncement = async () => {
 const openAnnouncement = () => {
   if (announcementId.value) uni.navigateTo({ url: `/pages/notice/detail?id=${announcementId.value}` })
 }
-const pickProducts=ref<ZoneProduct[]>([])
+const pickProducts=ref<PickActivity[]>([])
 const pickLoading=ref(false),pickError=ref(false)
-const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getZoneProductsAPI('PICK')).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
-const openPickProduct=(item:ZoneProduct)=>uni.navigateTo({url:`/pages/product/product?id=${item.id}&zone=PICK`})
+const loadPick=async()=>{pickLoading.value=true;pickError.value=false;try{pickProducts.value=((await getPickActivitiesAPI()).data||[]).slice(0,4)}catch{pickProducts.value=[];pickError.value=true}finally{pickLoading.value=false}}
+const openPickProduct=(item:PickActivity)=>uni.navigateTo({url:`/pages/product/product?activityId=${item.id}&zone=PICK`})
 const rebuyProducts=ref<ZoneProduct[]>([])
 const rebuyLoading=ref(false),rebuyError=ref(false)
 const loadRebuy=async()=>{rebuyLoading.value=true;rebuyError.value=false;try{rebuyProducts.value=((await getZoneProductsAPI('REBUY')).data||[]).slice(0,4)}catch{rebuyProducts.value=[];rebuyError.value=true}finally{rebuyLoading.value=false}}

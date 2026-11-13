@@ -20,7 +20,19 @@
     <!-- 轮播图本身需要顶到最上面，导航栏覆盖其上 -->
     <!-- 不需要占位，因为轮播图需要从顶部开始显示 -->
 
-    <view class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
+    <view v-if="activityId" class="travel-activity">
+      <view v-if="activityLoading" class="activity-state">活动加载中…</view>
+      <view v-else-if="activityError" class="activity-state" @click="loadActivity">{{ activityError }}，点击重试</view>
+      <template v-else-if="activity">
+        <image class="activity-banner" :src="productImageUrl(activity.imageUrl)" mode="widthFix" />
+        <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
+        <view class="activity-selection"><text class="activity-label">选择旅游正品</text>
+          <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
+          <view v-else class="activity-products"><button v-for="item in activity.products" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ item.name }}</button></view>
+        </view>
+      </template>
+    </view>
+    <view v-else class="product-travel-note"><text>智游美 · 沿途好物</text><text>把喜欢的生活，带在身边</text></view>
     <view v-if="detailLoading" class="product-load-state">正在加载商品详情…</view>
     <view v-else-if="detailError" class="product-load-state product-load-error" @click="loadData(requestedProductId)">{{ detailError }}，点击重试</view>
     <!-- 轮播图 -->
@@ -299,6 +311,7 @@
 <script setup lang="ts">
 const isSandboxDemo = import.meta.env.VITE_SANDBOX_MODE === 'true'
 import { productImageUrl } from '@/utils/productImage'
+import { getPickActivityAPI, type PickActivity } from '@/apis/pickActivity'
 import { displayedSkuPrice, promotionTips } from '@/utils/productPromotion'
 const fallbackPage=ref('/pages/index/index')
 // 来源专区：从专区页进入商品详情时带 zone 参数，加购/立即购买时按该专区归集
@@ -486,6 +499,38 @@ watch([specClass,attrClass,couponState],([spec,attr,coupon])=>{
 const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
 const requestedProductId = ref(0)
+const activityId = ref(0)
+const activity = ref<PickActivity>()
+const activityLoading = ref(false)
+const activityError = ref('')
+const switchingProduct = ref(false)
+async function loadActivity() {
+  if (activityLoading.value) return
+  activityLoading.value = true
+  activityError.value = ''
+  detailError.value = ''
+  product.value = {} as PmsProduct
+  try {
+    const result = await getPickActivityAPI(activityId.value)
+    activity.value = result.data
+    const products = result.data.products || []
+    const selected = products.find(item => item.id === requestedProductId.value) || products[0]
+    if (selected) {
+      requestedProductId.value = selected.id
+      await loadData(selected.id)
+    }
+  } catch { activityError.value = '活动不存在、已停用或加载失败' }
+  finally { activityLoading.value = false }
+}
+function selectActivityProduct(id: number) {
+  if (switchingProduct.value || id === requestedProductId.value || !activity.value?.products?.some(item => item.id === id)) return
+  // 切换时重建详情页，确保规格、收藏、库存和购买目标都属于新商品。
+  switchingProduct.value = true
+  uni.redirectTo({
+    url: `/pages/product/product?zone=PICK&activityId=${activityId.value}&id=${id}`,
+    fail: () => { switchingProduct.value = false; uni.showToast({ icon: 'none', title: '切换失败，请重试' }) },
+  })
+}
 const detailLoading = ref(false)
 const detailError = ref('')
 const brand = ref<PmsBrand>({} as PmsBrand)
@@ -579,6 +624,13 @@ const loadData = async (id: number) => {
         product.value.originalPrice = product.value.price
       }
 
+      // 重试加载时清空派生数据，避免图片和规格重复累积。
+      imgList.value = []
+      serviceList.value = []
+      specList.value = []
+      specChildList.value = []
+      specSelected.value = []
+      attrList.value = []
       initImgList()
       initServiceList()
       initSpecList(data)
@@ -625,7 +677,17 @@ onLoad((options) => {
   requestedProductId.value = id
   shareList.value = defaultShareList
   loadWatermark()
-  loadData(id)
+  if (options?.activityId !== undefined) {
+    const parsed = Number(options.activityId)
+    if (!Number.isSafeInteger(parsed) || parsed <= 0 || requestedZone !== 'PICK') {
+      detailError.value = '活动链接无效'
+      return
+    }
+    activityId.value = parsed
+    void loadActivity()
+  } else {
+    loadData(id)
+  }
 })
 
 // 商品图水印设置（后台可开关，失败时保持关闭，不影响详情展示）
@@ -2155,4 +2217,8 @@ page {
 <style scoped>
 .product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#173e49cc,#173e4933),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
 @media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
+</style>
+
+<style scoped>
+.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-banner{width:100%;display:block}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
 </style>

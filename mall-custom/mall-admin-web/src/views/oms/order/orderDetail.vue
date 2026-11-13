@@ -9,7 +9,6 @@ import type { OmsOrder, OmsOrderDetail, OmsReceiverInfoParam } from '@/types/ord
 import { formatDateTime } from '@/utils/datetime'
 import { productImageUrl } from '@/utils/productImage'
 import { pcaTextArr } from 'element-china-area-data'
-import http from '@/utils/http'
 
 // 获取路由对象
 const router = useRouter()
@@ -19,7 +18,6 @@ const route = useRoute()
 const id = ref<number>()
 // 订单详情数据
 const order = ref<OmsOrderDetail>({} as OmsOrderDetail)
-const orderGifts = ref<{ id: number; name: string; imageUrl: string }[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const amount = (value: unknown): string => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'
@@ -38,8 +36,6 @@ onMounted(async () => {
     id.value = Number(route.query.id)
     const res = await getOrderDetailByIdAPI(id.value!)
     order.value = res.data
-    const giftResult = await http.get(`/p0/gift-options/order/${id.value}`) as unknown as { data: typeof orderGifts.value }
-    orderGifts.value = giftResult.data || []
   } catch {
     loadError.value = '订单详情加载失败，请返回列表后重试'
   } finally { loading.value = false }
@@ -393,13 +389,6 @@ const showLogisticsDialog = () => {
   <div v-if="loading" class="detail-container">正在加载订单详情…</div>
   <div v-else-if="loadError" class="detail-container">{{ loadError }}</div>
   <div v-else-if="order.id" class="detail-container">
-    <el-card v-if="orderGifts.length" shadow="never" style="margin-bottom:15px">
-      <strong>本单赠品</strong>
-      <div v-for="gift in orderGifts" :key="gift.id" style="display:flex;align-items:center;gap:12px;margin-top:12px">
-        <img :src="gift.imageUrl" :alt="gift.name" style="width:64px;height:64px;object-fit:cover" />
-        <span>{{ gift.name }} · ¥0</span>
-      </div>
-    </el-card>
     <div>
       <el-steps :active="formatStepStatus(order.status)" finish-status="success" align-center>
         <el-step title="提交订单" :description="order.createTime ? formatDateTime(order.createTime) : ''"></el-step>

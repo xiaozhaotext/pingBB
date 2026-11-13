@@ -29,6 +29,4 @@ public class OrderParam {
     private Integer payType;
     @Schema(title = "被选中的购物车商品ID")
     private List<Long> cartIds;
-    @Schema(title = "每件3999元自选区路线对应的一件赠品；所选赠品编号")
-    private List<Long> giftOptionIds;
 }
