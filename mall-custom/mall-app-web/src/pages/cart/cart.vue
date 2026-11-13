@@ -71,9 +71,15 @@
           <view class="clear-btn" :class="{ show: allChecked }" @click="handleClearCart">清空</view>
         </view>
         <view class="total-box" @click="settlementExpanded = !settlementExpanded">
-          <text class="summary-amount">已选 {{ selectedCount }} 件</text>
-          <view class="detail-toggle" role="button" :aria-expanded="settlementExpanded" aria-label="展开或收起结算详情">
-            <text>结算明细</text><text class="detail-arrow" :class="{ expanded: settlementExpanded }">∨</text>
+          <view class="settlement-total" aria-label="已选商品合计结算金额">
+            <text class="settlement-total-label">合计</text>
+            <text class="settlement-total-value">¥{{ totalPrice.toFixed(2) }}</text>
+          </view>
+          <view class="summary-details">
+            <text class="summary-amount">已选 {{ selectedCount }} 件</text>
+            <view class="detail-toggle" role="button" :aria-expanded="settlementExpanded" aria-label="展开或收起结算详情">
+              <text>结算明细</text><text class="detail-arrow" :class="{ expanded: settlementExpanded }">∨</text>
+            </view>
           </view>
         </view>
         <view v-if="settlementExpanded" class="settlement-details">
@@ -519,10 +525,12 @@ const calcTotal = () => {
   .total-box {
     flex: 1;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12rpx;
     text-align: right;
     min-width: 0;
-    padding: 0 16rpx;
+    padding: 0 16rpx 0 56rpx;
 
     .price {
       font-size: 32rpx;
@@ -559,6 +567,10 @@ const calcTotal = () => {
 .zone-group-title{font-size:26rpx;font-weight:600;color:#303133}
 .zone-group-rule{font-size:22rpx;color:#909399}
 .summary-amount{font-size:26rpx;line-height:36rpx;color:#303133}
+.settlement-total{display:flex;flex-direction:column;min-width:0;text-align:left;line-height:32rpx}
+.settlement-total-label{font-size:22rpx;color:#707782}
+.settlement-total-value{font-size:30rpx;font-weight:600;color:#b84432;overflow-wrap:anywhere}
+.summary-details{flex-shrink:0}
 .detail-toggle{display:flex;justify-content:flex-end;align-items:center;gap:12rpx;font-size:24rpx;color:#707782;min-height:40rpx}
 .detail-arrow{display:inline-block;transition:transform .2s;font-size:30rpx}
 .detail-arrow.expanded{transform:rotate(180deg)}
