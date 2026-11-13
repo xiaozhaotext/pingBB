@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/p0/column-images")
@@ -26,8 +27,35 @@ public class ColumnImageController {
     private static final Set<String> SLOTS=Set.of("hero","pick","rebuy","consume","gift1","gift2","gift3","gift4");
     private final P0AdminAccess access;
     private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
     @Value("${mall.column-image-dir:/opt/mall-demo/column-images}") private String directory;
-    public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc){this.access=access;this.jdbc=jdbc;}
+    public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc,ObjectMapper mapper){this.access=access;this.jdbc=jdbc;this.mapper=mapper;}
+
+    @PutMapping("/captions/{slot}")
+    public CommonResult<Boolean> saveCaptions(Principal principal,@PathVariable String slot,@RequestBody List<Map<String,Object>> captions) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        if(!Set.of("hero","pick","rebuy","consume").contains(slot))throw new IllegalArgumentException("栏目位置无效");
+        int expected=slot.equals("pick")?3:2;
+        if(captions==null||captions.size()!=expected)throw new IllegalArgumentException("文字条目数量无效");
+        for(Map<String,Object> row:captions){
+            if(!(row.get("text") instanceof String text)||text.length()>100)throw new IllegalArgumentException("文字长度无效");
+            if(!(row.get("visible") instanceof Boolean)||!(row.get("bold") instanceof Boolean))throw new IllegalArgumentException("显示设置无效");
+            if(!(row.get("color") instanceof String color)||!color.matches("#[0-9a-fA-F]{6}"))throw new IllegalArgumentException("颜色无效");
+            for(String key:List.of("size","x","y")){
+                if(!(row.get(key) instanceof Number number))throw new IllegalArgumentException("位置或字号无效");
+                double value=number.doubleValue();
+                if(!Double.isFinite(value)||value<(key.equals("size")?10:0)||value>(key.equals("size")?72:90))throw new IllegalArgumentException("位置或字号超出范围");
+            }
+        }
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve(slot+"-captions.json"), temporary=Files.createTempFile(dir,slot+"-captions-", ".json");
+        try{
+            mapper.writeValue(temporary.toFile(),captions);
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }finally{Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','CAPTIONS',?)",principal.getName(),operator,slot);
+        return CommonResult.success(true);
+    }
 
     @GetMapping
     public CommonResult<Map<String,String>> list(Principal principal){
