@@ -29,6 +29,7 @@ class TriPoolServiceTest {
         jdbc.execute("CREATE TABLE ums_earnings(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT UNIQUE,total_earnings DECIMAL(18,2),available_earnings DECIMAL(18,2),frozen_earnings DECIMAL(18,2),withdrawn DECIMAL(18,2),version BIGINT)");
         jdbc.execute("CREATE TABLE ums_earnings_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount DECIMAL(18,2),balance_after DECIMAL(18,2),biz_id VARCHAR(100),idempotency_key VARCHAR(100) UNIQUE,remark VARCHAR(255))");
         jdbc.execute("CREATE TABLE sys_audit_log(id BIGINT AUTO_INCREMENT PRIMARY KEY,operator_name VARCHAR(100),operator_id BIGINT,module VARCHAR(50),action VARCHAR(100),target_id BIGINT,detail VARCHAR(2000))");
+        jdbc.execute("CREATE TABLE sys_config(config_key VARCHAR(100) PRIMARY KEY,config_value VARCHAR(100),config_group VARCHAR(50),remark VARCHAR(100))");
         jdbc.execute("CREATE TABLE tri_member_identity_log(member_id BIGINT,from_tier VARCHAR(16),to_tier VARCHAR(16),reason VARCHAR(200),operator_id BIGINT,operator_name VARCHAR(64))");
         jdbc.execute("CREATE TABLE test_points(member_id BIGINT,wallet_type INT,points BIGINT,idempotency_key VARCHAR(100) UNIQUE)");
         for(int i=1;i<=20;i++)jdbc.update("INSERT INTO ums_member(id,username) VALUES(?,?)",i,"test"+i);
@@ -62,6 +63,20 @@ class TriPoolServiceTest {
     void eq(String expected,BigDecimal actual){assertEquals(0,new BigDecimal(expected).compareTo(actual));}
     LocalDate yesterday(){return LocalDate.now(ZoneId.of("Asia/Shanghai")).minusDays(1);}
     void backdateFunds(){jdbc.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(yesterday().atTime(12,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant()));}
+    @Test void midnightCustomBudgetsShareByEligibilityAndDeductOneSharedCap() {
+        buy(1,null);buy(2,null);buy(3,null);
+        tx.executeWithoutResult(s->service.adjustIdentity(1,"COFOUNDER","MEMBER","测试联创分红预算",99,"admin"));
+        jdbc.update("INSERT INTO sys_config VALUES('tri.pool.daily.budget.partner','100.00','distribution','')");
+        jdbc.update("INSERT INTO sys_config VALUES('tri.pool.daily.budget.cofounder','100.00','distribution','')");
+        backdateFunds();
+        tx.execute(s->service.distributeDaily(yesterday()));
+        eq("99.99",amount("SELECT paid_total FROM tri_pool_batch WHERE pool_code='PARTNER'"));
+        eq("100.00",amount("SELECT paid_total FROM tri_pool_batch WHERE pool_code='COFOUNDER'"));
+        eq("100.00",amount("SELECT received FROM tri_pool_position WHERE member_id=1 AND pool_code='COFOUNDER'"));
+        eq("1066.67",(BigDecimal)service.memberSummary(1).get("totalRemaining"));
+        tx.execute(s->service.distributeDaily(yesterday()));
+        assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM tri_pool_batch",Integer.class));
+    }
 
     boolean repeat(long receipt,long buyer,Long parent) {
         return tx.execute(s->service.acceptPayment("ORDER:"+receipt,buyer,parent,TriPoolRules.PRICE,
