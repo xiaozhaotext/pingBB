@@ -52,13 +52,13 @@ public class ColumnImageController {
             try {
                 reader.setInput(input);
                 int width=reader.getWidth(0), height=reader.getHeight(0);
-                if(width<400 || height<160 || (long)width*height>30_000_000L)
-                    throw new IllegalArgumentException("图片尺寸无效，至少400×160且不超过3000万像素");
+                if(width<1 || height<1 || (long)width*height>30_000_000L)
+                    throw new IllegalArgumentException("图片尺寸无效，不得超过3000万像素");
                 source=reader.read(0);
             } finally { reader.dispose(); }
         }
-        if(source==null || source.getWidth()<400 || source.getHeight()<160 || (long)source.getWidth()*source.getHeight()>30_000_000L)
-            throw new IllegalArgumentException("图片格式或尺寸无效，至少400×160像素");
+        if(source==null || source.getWidth()<1 || source.getHeight()<1 || (long)source.getWidth()*source.getHeight()>30_000_000L)
+            throw new IllegalArgumentException("图片格式或尺寸无效，不得超过3000万像素");
         BufferedImage rgb=new BufferedImage(source.getWidth(),source.getHeight(),BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics=rgb.createGraphics();
         graphics.setColor(Color.WHITE);graphics.fillRect(0,0,rgb.getWidth(),rgb.getHeight());
