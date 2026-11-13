@@ -211,6 +211,8 @@ export type ZoneSettlement = {
 
 /** 创建订单请求参数（对应API文档 OrderParam） */
 export type OrderParam = {
+  /** 每件符合条件的3999元自选区商品各选择一件赠品 */
+  giftOptionIds?: number[]
   /** 支付方式：0->未支付；1->支付宝；2->微信 */
   payType: number
   /** 优惠券ID */

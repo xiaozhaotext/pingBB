@@ -44,6 +44,18 @@
       </view>
     </view>
 
+    <view v-if="giftUnits > 0 && giftOptions.length === 4" class="gift-section">
+      <view class="gift-title">购买自选区路线，赠品四选一</view>
+      <view class="gift-hint">每件3999元路线可选一件赠品 · 本单可选{{ giftUnits }}件，已选{{ giftOptionIds.length }}件</view>
+      <view class="gift-list">
+        <view v-for="gift in giftOptions" :key="gift.id" class="gift-row" :class="{ selected: giftCount(gift.id) > 0 }">
+          <image :src="productImageUrl(gift.imageUrl)" mode="aspectFill" />
+          <view class="gift-info"><text>{{ gift.name }}</text><text class="gift-price">赠品 ¥0</text></view>
+          <view class="gift-quantity"><text @click="removeGift(gift.id)">−</text><text>{{ giftCount(gift.id) }}</text><text @click="addGift(gift.id)">＋</text></view>
+        </view>
+      </view>
+    </view>
+
     <FullReductionPanel :offers="fullReductionOffers(cartPromotionItemList)" :cart-ids="cartIds" />
 
     <!-- 支付方式 -->
@@ -213,7 +225,8 @@ import { parseCartIds } from '@/utils/cartCheckout'
 import { formatOrderDeduction } from '@/utils/order-display'
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI, getOrderListAPI } from '@/apis/order'
+import { generateConfirmOrderAPI, generateOrderAPI, settlementPreviewAPI, getOrderListAPI, getGiftOptionsAPI } from '@/apis/order'
+import type { GiftOption } from '@/apis/order'
 import { chinaDateTime } from '@/utils/chinaTime'
 import type { CartPromotionItem, CalcAmount, ConfirmOrderResult, ZoneSettlement } from '@/types/order'
 import type { SmsCoupon } from '@/types/coupon'
@@ -232,6 +245,20 @@ const memberReceiveAddressList = ref<MemberReceiveAddress[]>([])
 const currentAddress = ref<MemberReceiveAddress>({} as MemberReceiveAddress)
 // 购物车促销商品列表
 const cartPromotionItemList = ref<CartPromotionItem[]>([])
+const giftOptions = ref<GiftOption[]>([])
+const giftOptionIds = ref<number[]>([])
+const giftUnits = computed(() => cartPromotionItemList.value
+  .filter(item => item.zoneCode === 'PICK' && Number(item.price) === 3999)
+  .reduce((total, item) => total + Number(item.quantity || 0), 0))
+const giftCount = (id: number) => giftOptionIds.value.filter(selected => selected === id).length
+const addGift = (id: number) => {
+  if (giftOptionIds.value.length >= giftUnits.value) { uni.showToast({ icon: 'none', title: `本单最多选择${giftUnits.value}件赠品` }); return }
+  giftOptionIds.value.push(id)
+}
+const removeGift = (id: number) => {
+  const index = giftOptionIds.value.indexOf(id)
+  if (index >= 0) giftOptionIds.value.splice(index, 1)
+}
 // 计算金额
 const calcAmount = ref<CalcAmount>({} as CalcAmount)
 // 当前选中的优惠券
@@ -324,6 +351,7 @@ const applyConfirmOrder = (data: ConfirmOrderResult) => {
     currentAddress.value = getDefaultAddress()
   }
   cartPromotionItemList.value = data.cartPromotionItemList || []
+  giftOptionIds.value = giftOptionIds.value.slice(0, giftUnits.value)
   if (couponList.value.length === 0) {
     for (const item of data.couponHistoryDetailList || []) {
       couponList.value.push(item.coupon)
@@ -374,6 +402,9 @@ onLoad((option) => {
   }
   cartIds.value = ids
   loadData()
+  getGiftOptionsAPI().then(res => { giftOptions.value = res.data || [] }).catch(() => {
+    uni.showToast({ icon: 'none', title: '赠品加载失败，请刷新页面' })
+  })
 })
 
 // ===== 事件处理方法 =====
@@ -424,6 +455,11 @@ const handleSubmit = async () => {
     uni.showToast({ icon: 'none', title: '请选择收货地址' })
     return
   }
+  if (giftUnits.value > 0 && giftOptions.value.length === 4 &&
+      (giftOptionIds.value.length !== giftUnits.value || giftOptionIds.value.some(id => !giftOptions.value.some(gift => gift.id === id)))) {
+    uni.showToast({ icon: 'none', title: `本单需选择${giftUnits.value}件赠品` })
+    return
+  }
   if (hasPickZone.value) {
     let pending = false
     try { pending = ((await getOrderListAPI({ status: 0, pageNum: 1, pageSize: 1 })).data?.list?.length || 0) > 0 }
@@ -440,6 +476,7 @@ const handleSubmit = async () => {
   }
   submitting.value = true
   const orderParam = {
+    giftOptionIds: giftUnits.value > 0 && giftOptions.value.length === 4 ? [...giftOptionIds.value] : [],
     payType: 0,
     couponId: undefined as number | undefined,
     cartIds: cartIds.value.map(Number),
@@ -1022,5 +1059,15 @@ page {
 .footer .price-content .pay-total{display:flex;align-items:center}
 .footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
 .footer .price-content .pay-warn{color:#e93b3d}
+.gift-section{margin:20rpx 24rpx;padding:24rpx;background:#fff;border-radius:18rpx}
+.gift-title{font-size:30rpx;font-weight:700;color:#283e35}
+.gift-hint{font-size:23rpx;color:#888;margin:8rpx 0 18rpx}
+.gift-list{margin-bottom:16rpx}
+.gift-row{display:flex;align-items:center;gap:16rpx;min-height:100rpx;padding:10rpx 14rpx;border:2rpx solid #eee;border-radius:12rpx;margin-bottom:10rpx;font-size:24rpx}
+.gift-row.selected{border-color:#d29a35;background:#fff9ee}
+.gift-row image{width:90rpx;height:80rpx;flex:none;border-radius:8rpx}
+.gift-info{display:flex;flex:1;min-width:0;flex-direction:column}
+.gift-price{color:#b58229;margin-top:6rpx}
+.gift-quantity{display:flex;align-items:center;gap:14rpx;flex:none;color:#af7b25;font-size:27rpx}.gift-quantity text:first-child,.gift-quantity text:last-child{display:grid;place-items:center;width:50rpx;height:50rpx;border:1rpx solid #d9bd8a;border-radius:50%}
 </style>
 
