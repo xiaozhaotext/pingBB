@@ -2,7 +2,7 @@
   <view class="zone-page">
     <DesktopHeader />
     <view class="zone-wrap">
-      <view class="zone-head">
+      <view class="zone-head" :class="{ 'zone-head-pick': props.zone === 'PICK' }">
         <view><text class="zone-kicker">智游美 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=0')">我的订单</text></view>
       </view>
@@ -117,5 +117,7 @@ onShow(() => { loadCategories(); load() })
 .zone-add-cart { padding: 4px 10px; border-radius: 14px; background: #285b40; color: #fff !important; font-size: 12px !important; }
 .zone-empty { padding: 70px 15px; background: #fff; border-radius: 14px; text-align: center; color: #718277; }
 .zone-empty text { display: block; margin-top: 10px; color: #287749; cursor: pointer; }
+.zone-head-pick { background: #bd4130 url('/static/festive-home/pick.jpg') center/cover no-repeat; min-height: 220px; }
+.zone-head-pick > view:first-child { visibility: hidden; }
 @media(max-width:800px) { .zone-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; } .zone-card image { height: 155px; } .zone-head { padding: 22px; align-items: start; flex-direction: column; } .zone-title { font-size: 26px; } .zone-wrap { padding: 12px 12px 85px; } }
 </style>

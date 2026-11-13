@@ -2,10 +2,9 @@
 import { ref, onMounted, watch, inject, type Ref } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { getProductCategoryListWithChildrenAPI } from '@/apis/productCate'
-import { getBrandListAPI } from '@/apis/brand'
 import SingleUpload from '@/components/Upload/singleUpload.vue'
 import type { PmsProductParam } from '@/types/product'
-import type { ElCascaderDataVo, ElSelectDataVo } from '@/types/common'
+import type { ElCascaderDataVo } from '@/types/common'
 
 // 定义属性
 const props = defineProps({
@@ -35,18 +34,10 @@ const getProductCateList = async () => {
     children: item.children?.map(it => ({ label: it.name, value: it.id! }))
   }))
 }
-// 选择器中的品牌数据
-const brandOptions = ref<ElSelectDataVo[]>([])
-// 获取品牌列表数据
-const getBrandList = async () => {
-  const res = await getBrandListAPI({ pageNum: 1, pageSize: 100 })
-  brandOptions.value = res.data.list.map(item => ({ label: item.name, value: item.id! }))
-}
 
 // 初始化数据
 onMounted(async () => {
   await getProductCateList()
-  await getBrandList()
   if (props.isEdit) {
     handleEditCreated()
   }
@@ -120,12 +111,6 @@ const handleNext = async () => {
   }
 }
 
-// 处理品牌变化
-const handleBrandChange = (val: number | '') => {
-  const findBrand = brandOptions.value.find(item => item.value === val)
-  compProductParam.value.brandName = findBrand?.label || ''
-  if (!findBrand) compProductParam.value.brandId = undefined
-}
 </script>
 
 <template>
@@ -142,11 +127,8 @@ const handleBrandChange = (val: number | '') => {
       <el-form-item label="副标题：" prop="subTitle">
         <el-input v-model="compProductParam.subTitle"></el-input>
       </el-form-item>
-      <el-form-item label="商品品牌：" prop="brandId">
-        <el-select v-model="compProductParam.brandId" clearable @change="handleBrandChange" placeholder="可不选品牌">
-          <el-option v-for="item in brandOptions" :key="item.value" :label="item.label" :value="item.value">
-          </el-option>
-        </el-select>
+      <el-form-item label="商品品牌：">
+        <el-input v-model="compProductParam.brandName" maxlength="64" clearable placeholder="自定义输入品牌（选填）" @input="compProductParam.brandId = undefined" />
       </el-form-item>
       <el-form-item label="商品介绍：">
         <el-input :autoSize="true" v-model="compProductParam.description" type="textarea"

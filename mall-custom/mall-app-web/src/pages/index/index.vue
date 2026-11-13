@@ -921,4 +921,5 @@ page {
 
 <style scoped>
 .home-add-cart{margin-left:auto;padding:4px 10px;border-radius:14px;background:#285b40;color:#fff !important;font-size:12px;line-height:1.5;white-space:nowrap}
+.travel-hero > text,.home-zone > text{display:none}
 </style>

@@ -9,6 +9,10 @@ const slots = [
   { key: 'pick', label: '自选区图片', hint: '首页入口与自选区顶部共用' },
   { key: 'rebuy', label: '复购区图片', hint: '首页入口与复购区顶部共用' },
   { key: 'consume', label: '消费区图片', hint: '首页入口与消费区顶部共用' },
+  { key: 'gift1', label: '旅游正品1介绍图', hint: '自选区旅游活动详情页展示' },
+  { key: 'gift2', label: '旅游正品2介绍图', hint: '自选区旅游活动详情页展示' },
+  { key: 'gift3', label: '旅游正品3介绍图', hint: '自选区旅游活动详情页展示' },
+  { key: 'gift4', label: '旅游正品4介绍图', hint: '自选区旅游活动详情页展示' },
 ]
 const urls = ref<Record<string, string>>({})
 const busy = ref('')

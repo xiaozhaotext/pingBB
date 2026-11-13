@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 @RestController
 @RequestMapping("/p0/column-images")
 public class ColumnImageController {
-    private static final Set<String> SLOTS=Set.of("hero","pick","rebuy","consume");
+    private static final Set<String> SLOTS=Set.of("hero","pick","rebuy","consume","gift1","gift2","gift3","gift4");
     private final P0AdminAccess access;
     private final JdbcTemplate jdbc;
     @Value("${mall.column-image-dir:/opt/mall-demo/column-images}") private String directory;
@@ -33,7 +33,7 @@ public class ColumnImageController {
     public CommonResult<Map<String,String>> list(Principal principal){
         access.requireAuthorized(principal);
         Map<String,String> result=new LinkedHashMap<>();
-        for(String slot:List.of("hero","pick","rebuy","consume"))
+        for(String slot:List.of("hero","pick","rebuy","consume","gift1","gift2","gift3","gift4"))
             result.put(slot,"/static/festive-home/"+slot+".jpg");
         return CommonResult.success(result);
     }
