@@ -21,6 +21,10 @@ export const constantRouterMap: RouteRecordExt[] = [
 ]
 
 export const asyncRouterMap: RouteRecordExt[] = [
+  { path: '/giftOptions', component: Layout, redirect: '/giftOptions/index', name: 'giftOptionsMgr',
+    meta: { title: '赠品商品', icon: 'product' },
+    children: [{ path: 'index', name: 'giftOptions', component: () => import('@/views/gift/GiftOptions.vue'), meta: { title: '赠品商品', icon: 'product' } }],
+  },
   // ===== 后台一级功能分组（对齐原图思维导图） =====
   {
     path: '/withdrawalSettings', component: Layout, name: 'withdrawalSettings',
@@ -145,6 +149,10 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'operations', alias: '/financeMgr/operations-pool', name: 'financeOperationsPool', component: () => import('@/views/finance/TriPools.vue'), meta: { title: '运营池', pool: 'OPERATIONS', icon: 'total-yesterday' } },
       ],
     },
+  { path: '/columnImages', component: Layout, redirect: '/columnImages/index', name: 'columnImagesMgr',
+    meta: { title: '栏目图片', icon: 'picture' },
+    children: [{ path: 'index', name: 'columnImages', component: () => import('@/views/column/ColumnImages.vue'), meta: { title: '栏目图片', icon: 'picture' } }],
+  },
     // 7 服务中心
   {
     path: '/serviceMgr', component: Layout, redirect: '/serviceMgr/account', name: 'serviceMgr', alwaysShow: true,

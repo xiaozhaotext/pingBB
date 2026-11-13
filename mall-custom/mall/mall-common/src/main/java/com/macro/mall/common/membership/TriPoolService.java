@@ -110,6 +110,17 @@ public class TriPoolService {
             // Late execution must not distribute contributions from the new business day.
             BigDecimal newFunds=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM tri_pool_ledger WHERE pool_code=? AND entry_type='FUND' AND created_at>=?",BigDecimal.class,pool.name(),cutoff);
             BigDecimal budget=balance(pool).subtract(newFunds).max(BigDecimal.ZERO);
+            // A configured amount is the total budget for this pool's midnight run,
+            // not an additional award on top of the automatic distribution.
+            if (pool != Pool.OPERATIONS) {
+                String setting="tri.pool.daily.budget."+pool.name().toLowerCase(Locale.ROOT);
+                var configured=jdbc.queryForList("SELECT config_value FROM sys_config WHERE config_key=?",String.class,setting);
+                if (!configured.isEmpty() && configured.get(0)!=null && !configured.get(0).isBlank()) {
+                    BigDecimal limit=new BigDecimal(configured.get(0)).setScale(2);
+                    if (limit.signum()<0) throw new IllegalStateException("每日分红预算不能为负数");
+                    budget=budget.min(limit);
+                }
+            }
             results.add(distribute(pool,key,null,budget));
         }
         audit("SYSTEM:daily",null,"DAILY_DISTRIBUTE",null,key+";pools=PARTNER,COFOUNDER,OPERATIONS");

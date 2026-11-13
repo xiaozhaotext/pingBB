@@ -23,8 +23,8 @@ public class ProductImageController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResult<Map<String, String>> upload(@RequestPart("file") MultipartFile file) throws IOException {
-        if (file.isEmpty() || file.getSize() > 10 * 1024 * 1024) {
-            throw new IllegalArgumentException("图片不能为空且不能超过10MB");
+        if (file.isEmpty() || file.getSize() > 100L * 1024 * 1024) {
+            throw new IllegalArgumentException("图片不能为空且不能超过100MB");
         }
         String type = file.getContentType();
         String extension;

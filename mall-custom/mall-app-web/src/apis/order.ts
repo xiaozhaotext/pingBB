@@ -12,6 +12,10 @@ import type { FullReductionOffer } from '@/types/order'
 export const getOrderFullReductionOffersAPI = (orderId: number) =>
   http<FullReductionOffer[]>({ method: 'GET', url: `/order/fullReduction/${orderId}` })
 
+export type GiftOption = { id: number; name: string; imageUrl: string }
+export const getGiftOptionsAPI = () =>
+  http<GiftOption[]>({ method: 'GET', url: '/order/giftOptions' })
+
 /** 生成确认单信息 */
 export const generateConfirmOrderAPI = (cartIds: number[]) => {
   return http<ConfirmOrderResult>({
@@ -128,10 +132,15 @@ export const wechatOrderPayJsapiAPI = (orderSn: string) =>
   http<Record<string, string>>({ method: 'POST', url: '/wechatPay/jsapi', params: { orderSn } })
 
 /** Server queries WeChat and idempotently confirms a verified payment when notifications are late. */
-export const getWechatOrderPaymentStatusAPI = (orderSn: string) =>
-  http<{ state: 'CONFIRMED' | 'PENDING' | 'CLOSED' | 'REVIEW'; canRetry: boolean }>({
-    method: 'POST', url: '/wechatPay/status', params: { orderSn },
+export const getWechatOrderPaymentStatusAPI = (orderSn: string) => {
+  let url = '/wechatPay/status'
+  // #ifdef MP-WEIXIN
+  url = '/wechatPay/mini/status'
+  // #endif
+  return http<{ state: 'CONFIRMED' | 'PENDING' | 'CLOSED' | 'REVIEW'; canRetry: boolean }>({
+    method: 'POST', url, params: { orderSn },
   })
+}
 
 /** 申请退货 */
 export const createReturnApplyAPI = (data: OmsOrderReturnApplyParam) => {

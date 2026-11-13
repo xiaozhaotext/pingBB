@@ -29,6 +29,12 @@ import java.util.Map;
 @Tag(name = "OmsPortalOrderController", description = "订单管理")
 @RequestMapping("/order")
 public class OmsPortalOrderController {
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate giftJdbc;
+    @GetMapping("/giftOptions")
+    @ResponseBody
+    public CommonResult<List<Map<String,Object>>> giftOptions() {
+        return CommonResult.success(giftJdbc.queryForList("SELECT id,name,image_url AS imageUrl FROM oms_gift_option WHERE enabled=1 ORDER BY sort_order,id LIMIT 4"));
+    }
     @Autowired
     private OmsPortalOrderService portalOrderService;
 

@@ -1,6 +1,7 @@
 <template>
   <view class="page">
     <view class="card"><text class="title">账户余额提现</text><text>可用余额 ¥ {{ balance }}</text><text class="hint">提交后扣减并冻结申请金额；后台拒绝时原额退回。确认人工打款后状态变为已打款。</text></view>
+    <view class="card"><text class="title">收益提现</text><text class="hint">分红和奖励计入收益账户，与消费余额分别记账。</text><button @click="openEarnings">我要提现收益</button></view>
     <view class="card">
       <text>真实姓名</text><input v-model="name" placeholder="请输入收款人真实姓名" />
       <text>收款方式</text><picker :range="channels" range-key="label" @change="selectChannel"><view class="picker">{{channels[channelIndex].label}}　⌄</view></picker>
@@ -23,6 +24,7 @@ const channels=[{label:'微信',value:'WECHAT'},{label:'支付宝',value:'ALIPAY
 const name=ref(''),account=ref(''),bankName=ref(''),bankBranch=ref(''),amount=ref(''),balance=ref('—'),error=ref(''),rows=ref<Row[]>([]),busy=ref(false),loaded=ref(false),channelIndex=ref(0)
 let requestKey=''
 const money=(value:number)=>(Number(value)/100).toFixed(2)
+const openEarnings=()=>uni.navigateTo({url:'/pages/member/earnings'})
 function selectChannel(event:any){channelIndex.value=Number(event.detail.value);account.value=''}
 async function load(){
   loaded.value=false
@@ -50,4 +52,4 @@ async function submit(){
   }catch(e:any){error.value=e?.data?.message||e?.message||'申请结果未确认，请按原信息重试'}finally{busy.value=false}
 }
 </script>
-<style scoped>.page{padding:24rpx;background:#f5f7f5;min-height:100vh}.card{background:#fff;border-radius:18rpx;padding:30rpx;margin-bottom:22rpx}.title{display:block;font-size:34rpx;font-weight:bold;color:#285b45;margin-bottom:18rpx}.hint{display:block;color:#687a75;font-size:24rpx;margin:18rpx 0}.error{color:#b42318;display:block;margin-top:16rpx}input,.picker{border:1px solid #ddd;border-radius:10rpx;padding:16rpx;margin:12rpx 0 24rpx;font-size:30rpx;height:auto;line-height:1.5;box-sizing:border-box}input :deep(.uni-input-input){font-size:30rpx;font-family:inherit;height:auto}input :deep(.uni-input-placeholder){font-size:30rpx}.primary{background:#285b45;color:#fff}.record{border-top:1px solid #eee;padding:20rpx 0}.record text{display:block;margin:8rpx 0}</style>
+<style scoped>.page{padding:24rpx;background:#fff9f1;min-height:100vh}.card{background:#fff;border-radius:18rpx;padding:30rpx;margin-bottom:22rpx}.title{display:block;font-size:34rpx;font-weight:bold;color:#285b45;margin-bottom:18rpx}.hint{display:block;color:#687a75;font-size:24rpx;margin:18rpx 0}.error{color:#b42318;display:block;margin-top:16rpx}input,.picker{display:block;box-sizing:border-box;width:100%;min-height:76rpx;border:1px solid #ddd;border-radius:10rpx;margin:12rpx 0 24rpx;font-size:28rpx;color:#2d2d2d}input{padding:0 20rpx;line-height:normal}.picker{padding:16rpx 20rpx}.primary{background:#285b45;color:#fff}.record{border-top:1px solid #eee;padding:20rpx 0}.record text{display:block;margin:8rpx 0}</style>

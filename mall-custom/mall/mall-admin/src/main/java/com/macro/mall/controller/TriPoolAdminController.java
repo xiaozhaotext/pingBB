@@ -47,6 +47,28 @@ public class TriPoolAdminController {
                 "membershipPrice",TriPoolRules.PRICE,
                 "memberCounts",jdbc.queryForMap("SELECT COUNT(CASE WHEN tier='PARTNER' THEN 1 END) AS partner,COUNT(CASE WHEN tier='COFOUNDER' THEN 1 END) AS cofounder FROM tri_member")));
     }
+    @GetMapping("/daily-budget")
+    public CommonResult<Map<String,String>> dailyBudget(Principal p) {
+        access.requireAuthorized(p);
+        Map<String,String> result=new HashMap<>();
+        jdbc.queryForList("SELECT config_key,config_value FROM sys_config WHERE config_key IN ('tri.pool.daily.budget.partner','tri.pool.daily.budget.cofounder')")
+                .forEach(row->result.put(String.valueOf(row.get("config_key")),String.valueOf(row.get("config_value"))));
+        return CommonResult.success(result);
+    }
+    public record DailyBudget(String pool,BigDecimal amount) { }
+    @PostMapping("/daily-budget")
+    @Transactional(rollbackFor=Exception.class)
+    public CommonResult<?> saveDailyBudget(Principal p,@RequestBody DailyBudget body) {
+        long operator=access.requirePlatformAdmin(p);
+        if (!"admin".equals(p.getName())) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,"仅admin可设置分红预算");
+        if (body==null || !("PARTNER".equals(body.pool()) || "COFOUNDER".equals(body.pool())) || body.amount()==null
+                || body.amount().signum()<0 || body.amount().scale()>2 || body.amount().compareTo(new BigDecimal("100000000.00"))>0)
+            throw new IllegalArgumentException("请输入有效的每日池总额，最多两位小数");
+        String key="tri.pool.daily.budget."+body.pool().toLowerCase(Locale.ROOT);
+        jdbc.update("INSERT INTO sys_config(config_key,config_value,config_group,remark) VALUES(?,?,'distribution','午夜分红池总预算') ON DUPLICATE KEY UPDATE config_value=VALUES(config_value)",key,body.amount().toPlainString());
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'tri_pool','DAILY_BUDGET',?)",p.getName(),operator,key+"="+body.amount().toPlainString());
+        return CommonResult.success(Map.of("pool",body.pool(),"amount",body.amount()));
+    }
     @GetMapping("/records")
     public CommonResult<List<Map<String,Object>>> records(Principal p,@RequestParam String pool,
                                                          @RequestParam(defaultValue="1")int page,
