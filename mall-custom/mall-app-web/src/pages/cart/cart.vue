@@ -312,7 +312,7 @@ type ZoneMeta = { label: string; rule: string; cash: boolean }
 const zoneMetaMap: Record<string, ZoneMeta> = {
   PICK: { label: '自选区', rule: '现金或余额购买', cash: true },
   REBUY: { label: '复购区', rule: '30%复购积分＋余款余额优先，差额外部支付', cash: true },
-  CONSUME: { label: '消费区', rule: '商品积分或余额/微信支付', cash: true },
+  CONSUME: { label: '消费区', rule: '仅商品积分支付', cash: false },
   NONE: { label: '普通商品', rule: '现金或余额购买', cash: true },
 }
 const zoneKeyOf = (item: CartItem) => {
@@ -344,13 +344,13 @@ const zoneTotals = computed(() =>
       )
       const amount = Number(sum.toFixed(2))
       const cash = zoneMetaMap[group.key].cash
-      return { key: group.key, label: group.label, cash, amount, text: cash ? `¥${amount}` : `${amount} 积分` }
+      return { key: group.key, label: group.label, cash, amount, text: cash ? `¥${amount}` : `商品积分结算（标价 ¥${amount}）` }
     })
     .filter((line): line is { key: string; label: string; cash: boolean; amount: number; text: string } => line !== null),
 )
 const hasCashZone = computed(() => zoneTotals.value.some((line) => line.cash))
 // 消费区按商品积分计价，其余专区按现金计价
-const priceLabel = (item: CartItem) => (zoneKeyOf(item) === 'CONSUME' ? `¥${item.price} 或商品积分` : `¥${item.price}`)
+const priceLabel = (item: CartItem) => (zoneKeyOf(item) === 'CONSUME' ? `商品积分支付 · 标价 ¥${item.price}` : `¥${item.price}`)
 // 计算商品总价
 const calcTotal = () => {
   const list = cartList.value

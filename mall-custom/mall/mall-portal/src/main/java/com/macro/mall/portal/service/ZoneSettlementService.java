@@ -215,7 +215,8 @@ public class ZoneSettlementService {
                                BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
         BigDecimal net = plan.getNetAmount();
         if (!useProductPoints) {
-            applyRebuyBalance(plan, net, useBalance, wallets.balance());
+            plan.setPayable(false);
+            plan.setBlockedReason("消费区仅支持商品积分支付");
             return;
         }
         if (net.signum() <= 0) {

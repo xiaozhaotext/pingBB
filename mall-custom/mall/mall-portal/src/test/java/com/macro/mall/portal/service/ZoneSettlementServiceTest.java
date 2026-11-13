@@ -44,29 +44,31 @@ class ZoneSettlementServiceTest {
     }
 
     @Test
-    void consumeCashUsesBalanceThenExternalPaymentWithoutSpendingPoints() {
+    void consumeRejectsCashChoiceEvenWhenBalanceIsAvailable() {
         ZoneSettlement settlement = service.settle(
                 List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO)), false, true, false, wallets(500, 0, "40.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
-        assertTrue(consume.isPayable());
+        assertFalse(consume.isPayable());
+        assertTrue(consume.getBlockedReason().contains("仅支持商品积分"));
         assertEquals(0, consume.getProductPoints());
-        assertAmount("40.00", consume.getBalanceAmount());
-        assertAmount("60.00", consume.getCashAmount());
-        assertAmount("60.00", settlement.getCashAmount());
+        assertAmount("0.00", consume.getBalanceAmount());
+        assertAmount("0.00", settlement.getCashAmount());
     }
 
     @Test
-    void mixedRebuyConsumeNeverSpendsTheSameBalanceTwice() {
+    void mixedRebuyConsumeKeepsRebuyCashAndConsumePointsSeparate() {
         ZoneSettlement settlement = service.settle(List.of(
                 new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO),
                 new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
-                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, false, wallets(0, 100, "90.00"));
-        assertAmount("70.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
-        assertAmount("20.00", plan(settlement, ZoneRules.CONSUME).getBalanceAmount());
-        assertAmount("80.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
-        assertAmount("90.00", settlement.getBalanceAmount());
+                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, true, wallets(100, 100, "40.00"));
+        assertAmount("40.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
+        assertAmount("0.00", plan(settlement, ZoneRules.CONSUME).getBalanceAmount());
+        assertAmount("0.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
+        assertEquals(100, plan(settlement, ZoneRules.CONSUME).getProductPoints());
+        assertAmount("40.00", settlement.getBalanceAmount());
+        assertAmount("30.00", settlement.getCashAmount());
     }
 
     @Test

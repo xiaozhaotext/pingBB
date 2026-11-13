@@ -85,17 +85,12 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区：商品积分或现金模式 -->
+        <!-- 消费区只接受商品积分，具体所需积分由后端结算结果决定。 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">使用商品积分<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}；关闭后可用余额或微信支付）</text></text>
-          <switch :checked="useProductPoints" @change="handleProductPointsToggle" />
-        </view>
-        <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME' && !useProductPoints && !hasPickZone && !hasRebuyZone">
-          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信支付）</text></text>
-          <switch :checked="useBalance" @change="handleBalanceToggle" />
+          <text class="cell-tit clamp">仅商品积分支付<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}）</text></text>
         </view>
         <view class="zone-plan-foot">
-          <text v-if="plan.zoneCode === 'CONSUME' && useProductPoints">本专区应付 {{ plan.productPoints }} 商品积分</text>
+          <text v-if="plan.zoneCode === 'CONSUME'">本专区应付 {{ plan.productPoints }} 商品积分</text>
           <text v-else>本专区现金应付 {{ money(plan.cashAmount) }}</text>
           <text v-if="num(plan.balanceAmount) > 0"> · 余额抵扣 {{ money(plan.balanceAmount) }}</text>
           <text v-if="num(plan.repurchasePointAmount) > 0"> · 复购积分抵扣 {{ money(plan.repurchasePointAmount) }}</text>
@@ -399,10 +394,6 @@ const handleBalanceToggle = async (event: any) => {
 // 复购区切换「复购积分 + 现金」模式
 const handleRepurchaseToggle = async (event: any) => {
   useRepurchasePoints.value = Boolean(event.detail.value)
-  await refreshSettlement()
-}
-const handleProductPointsToggle = async (event: any) => {
-  useProductPoints.value = Boolean(event.detail.value)
   await refreshSettlement()
 }
 
