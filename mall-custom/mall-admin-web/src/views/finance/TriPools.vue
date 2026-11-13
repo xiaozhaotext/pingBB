@@ -23,6 +23,8 @@ const recordPage = ref(1), ledgerPage = ref(1), memberPage = ref(1), busy = ref(
 let loadVersion = 0
 const operationsRequestId = ref('')
 const roster = ref({ memberId: undefined as number | undefined, shares: 1, enabled: true, reason: '' })
+const dailyBudget = ref<Record<string, string>>({})
+const budgetInput = ref('')
 const current = computed<Row>(() => data.value.pools?.find((p: Row) => p.code === pool.value) || {})
 const selectedDaily = computed<Row>(() => dailyRows.value.find(p => p.code === pool.value) || {})
 const routeNames: Record<string, string> = { PARTNER: 'financePartnerPool', COFOUNDER: 'financeCofounderPool', OPERATIONS: 'financeOperationsPool' }
@@ -37,6 +39,10 @@ async function load() {
     if (version !== loadVersion) return
     data.value = overview.data
     if (!data.value.enabled) { records.value = []; ledger.value = []; members.value = []; return }
+    const settings = await getP0<Record<string, string>>('tri-pools/daily-budget')
+    if (version !== loadVersion) return
+    dailyBudget.value = settings.data || {}
+    budgetInput.value = dailyBudget.value[`tri.pool.daily.budget.${selectedPool.toLowerCase()}`] || ''
     const responses = await Promise.all([
       getP0<Row[]>('tri-pools/records', { pool: selectedPool, page: recordPage.value, date: day }),
       getP0<Row[]>('tri-pools/ledger', { pool: selectedPool, page: ledgerPage.value, date: day }),
@@ -48,6 +54,18 @@ async function load() {
     dailyRows.value = (responses[3].data as Row).pools || []
   } catch { if (version === loadVersion) { error.value = '加载失败，请检查权限并重试'; dailyRows.value = []; records.value = []; ledger.value = [] } }
   finally { if (version === loadVersion) busy.value = false }
+}
+async function saveBudget() {
+  const value = budgetInput.value.trim()
+  if (!/^\d+(\.\d{1,2})?$/.test(value)) { ElMessage.warning('请输入非负金额，最多两位小数'); return }
+  await ElMessageBox.confirm(`确认将${names[pool.value]}每晚发放总额设置为 ¥${money(value)}？池余额不足时按实际余额发放，个人累计上限保持不变。`, '确认分红预算', { type: 'warning' })
+  busy.value = true
+  try {
+    await postP0('tri-pools/daily-budget', { pool: pool.value, amount: value })
+    ElMessage.success('已保存，下一次午夜结算生效')
+    await load()
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error('保存失败，请刷新后重试') }
+  finally { busy.value = false }
 }
 async function saveRoster() {
   if (!roster.value.memberId || roster.value.reason.trim().length < 5) { ElMessage.warning('请填写用户编号及至少5字调整依据'); return }
@@ -81,6 +99,7 @@ watch([pool, selectedDate], () => { recordPage.value = 1; ledgerPage.value = 1; 
     <template v-if="data.enabled">
       <section v-if="pool !== 'OPERATIONS'"><strong>{{ pool === 'PARTNER' ? '合伙人数量' : '联创数量' }}：{{ (pool === 'PARTNER' ? data.memberCounts?.partner : data.memberCounts?.cofounder) ?? '—' }} 人</strong></section>
       <div class="stats"><el-statistic title="池内余额（元）" :value="Number(current.balance || 0)" :precision="2" /><el-statistic title="累计入池（元）" :value="Number(current.total_in || 0)" :precision="2" /><el-statistic title="累计分配（元）" :value="Number(current.total_out || 0)" :precision="2" /></div>
+      <section v-if="pool !== 'OPERATIONS'"><h3>午夜自定义分红</h3><p class="day-note">输入本池每晚的发放总额。合伙人池由所有已付费会员按份额分配，联创池仅联创参与；池余额不足时按实际余额分配，个人累计封顶不变。尚未设置时沿用原有全池余额分配规则。</p><el-input v-model="budgetInput" style="width:180px" placeholder="每晚总额（元）" :disabled="busy" /><el-button type="primary" :disabled="busy" @click="saveBudget">保存预算</el-button></section>
       <section><h3>{{ selectedDate }} · 三池每日汇总</h3><p class="day-note">按北京时间00:00至次日00:00统计。期末结余为所选日期的历史余额；上方展示当前累计数据。</p>
         <el-table :data="dailyRows" empty-text="暂无日账数据" @row-click="openPool" class="daily-table"><el-table-column label="分红池"><template #default="{ row }"><el-link type="primary">{{ names[row.code] }}</el-link></template></el-table-column><el-table-column prop="opening" label="期初结余（元）" /><el-table-column prop="funded" label="当日入池（元）" /><el-table-column prop="distributed" label="当日发放（元）" /><el-table-column prop="closing" label="期末结余（元）" /><el-table-column prop="recipientCount" label="领取人数" /><el-table-column prop="awardCount" label="领取笔数" /><el-table-column prop="batchCount" label="发放批次" /></el-table>
       </section>
