@@ -46,6 +46,11 @@ public class ColumnImageController {
                 double value=number.doubleValue();
                 if(!Double.isFinite(value)||value<(key.equals("size")?10:0)||value>(key.equals("size")?72:90))throw new IllegalArgumentException("位置或字号超出范围");
             }
+            if(row.containsKey("font") && !Set.of("song","hei","kai","classic").contains(row.get("font")))throw new IllegalArgumentException("字体无效");
+            if(row.containsKey("effect") && !Set.of("shadow","glow","outline","none").contains(row.get("effect")))throw new IllegalArgumentException("文字效果无效");
+            if(row.containsKey("spacing")){
+                if(!(row.get("spacing") instanceof Number spacing)||!Double.isFinite(spacing.doubleValue())||spacing.doubleValue()<0||spacing.doubleValue()>12)throw new IllegalArgumentException("字距无效");
+            }
         }
         Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
         Path target=dir.resolve(slot+"-captions.json"), temporary=Files.createTempFile(dir,slot+"-captions-", ".json");
