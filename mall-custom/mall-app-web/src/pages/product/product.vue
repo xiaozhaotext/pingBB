@@ -24,7 +24,6 @@
       <view v-if="activityLoading" class="activity-state">活动加载中…</view>
       <view v-else-if="activityError" class="activity-state" @click="loadActivity">{{ activityError }}，点击重试</view>
       <template v-else-if="activity">
-        <image class="activity-banner" :src="productImageUrl(activity.imageUrl)" mode="widthFix" />
         <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
         <view class="activity-selection"><text class="activity-label">选择旅游正品</text>
           <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
@@ -2227,6 +2226,6 @@ page {
 </style>
 
 <style scoped>
-.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-banner{width:100%;display:block}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
+.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
 .activity-product-name{display:block;margin:24rpx 0 12rpx;font-size:30rpx;font-weight:600}.activity-product-image{display:block;width:100%;border-radius:12rpx}
 </style>
