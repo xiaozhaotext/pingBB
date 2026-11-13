@@ -13,8 +13,8 @@
         <picker :range="categoryNames" :value="categoryIndex" @change="selectCategory"><view class="zone-category">{{ categoryNames[categoryIndex] }} ⌄</view></picker>
         <text :class="{ active: sort === 'latest' }" @click="changeSort('latest')">综合</text>
         <text :class="{ active: sort === 'sale' }" @click="changeSort('sale')">销量</text>
-        <text :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">{{ isConsume ? '积分' : '价格' }}↑</text>
-        <text :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">{{ isConsume ? '积分' : '价格' }}↓</text>
+        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">{{ isConsume ? '积分' : '价格' }}↑</text>
+        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">{{ isConsume ? '积分' : '价格' }}↓</text>
       </view>
       <view v-if="loading" class="zone-empty">正在加载商品…</view>
       <view v-else-if="error" class="zone-empty">商品加载失败，请稍后重试。<text @click="load">重试</text></view>
@@ -22,7 +22,12 @@
       <view v-else class="zone-grid">
         <view v-for="item in products" :key="item.id" class="zone-card" @click="goPage('/pages/product/product?id=' + item.id + '&zone=' + props.zone)">
           <image :src="productImageUrl(item.pic)" mode="aspectFill" />
-          <view class="zone-card-content"><text class="zone-card-title">{{ item.name }}</text><text class="zone-card-sub">{{ item.subTitle }}</text><view class="zone-card-foot"><text>{{ priceText(item) }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view></view>
+          <view class="zone-card-content">
+            <text class="zone-card-title">{{ item.name }}</text>
+            <text class="zone-card-sub">{{ item.subTitle }}</text>
+            <view v-if="props.zone === 'PICK'" class="zone-card-tags"><text class="zone-product-tag">自选区</text></view>
+            <view v-else class="zone-card-foot"><text>{{ priceText(item) }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view>
+          </view>
         </view>
       </view>
     </view>
@@ -75,7 +80,7 @@ const isConsume = computed(() => props.zone === 'CONSUME')
 const zoneTip = computed(() => {
   if (props.zone === 'REBUY') return '复购区先用复购积分抵扣配置比例（默认 30%），余款优先使用账户余额，余额不足再通过外部支付。'
   if (props.zone === 'CONSUME') return '消费区可选商品积分全额购买，或用账户余额优先、余款微信支付；不使用复购积分。'
-  return '自选区路线统一售价3999元，可用现金或余额购买。游客首次单独购买一条路线后成为会员，获3999复购积分和3999消费积分。'
+  return '点击商品查看详情、价格与会员权益。'
 })
 const priceText = (item: ZoneProduct) => (isConsume.value ? `¥${item.price} 或商品积分` : `¥${item.price}`)
 onShow(() => { loadCategories(); load() })
@@ -104,6 +109,8 @@ onShow(() => { loadCategories(); load() })
 .zone-card-title,.zone-card-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zone-card-title { font-weight: 700; }
 .zone-card-sub { margin-top: 6px; font-size: 12px; color: #809087; }
+.zone-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 15px; }
+.zone-product-tag { padding: 4px 10px; border: 1px solid #ecd7bc; border-radius: 14px; background: #fff7e7; color: #946b3e; font-size: 12px; }
 .zone-card-foot { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
 .zone-card-foot text:first-child { color: #bb6540; font-weight: 800; font-size: 20px; }
 .zone-card-foot text:last-child { color: #87958c; font-size: 12px; }
