@@ -28,7 +28,7 @@
         <view class="activity-selection"><text class="activity-label">选择旅游正品</text>
           <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
           <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">旅游正品{{ index + 1 }}</button></view>
-          <text v-if="selectedActivityProduct" class="activity-product-name">{{ selectedActivityProduct.name }}</text>
+          <template v-if="selectedActivityProduct"><text class="activity-product-name">{{ selectedActivityProduct.name }}</text><image class="activity-product-image" :src="activityIntroImage" mode="widthFix" @error="activityIntroImageFailed = true" /></template>
         </view>
       </template>
     </view>
@@ -502,6 +502,11 @@ const requestedProductId = ref(0)
 const activityId = ref(0)
 const activity = ref<PickActivity>()
 const selectedActivityProduct = computed(() => activity.value?.products?.find(item => item.id === requestedProductId.value) || activity.value?.products?.[0])
+const activityIntroImageFailed = ref(false)
+const activityProductIndex = computed(() => Math.max(0, activity.value?.products?.findIndex(item => item.id === selectedActivityProduct.value?.id) || 0))
+const activityIntroImage = computed(() => activityIntroImageFailed.value
+  ? productImageUrl(selectedActivityProduct.value?.pic || '')
+  : `/static/festive-home/gift${Math.min(activityProductIndex.value + 1, 4)}.jpg`)
 const activityLoading = ref(false)
 const activityError = ref('')
 const switchingProduct = ref(false)
@@ -2222,5 +2227,5 @@ page {
 
 <style scoped>
 .travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
-.activity-product-name{display:block;margin:24rpx 0 12rpx;font-size:30rpx;font-weight:600}
+.activity-product-name{display:block;margin:24rpx 0 12rpx;font-size:30rpx;font-weight:600}.activity-product-image{display:block;width:100%;border-radius:12rpx}
 </style>
