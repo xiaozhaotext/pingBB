@@ -14,6 +14,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.Principal;
 import java.util.Set;
 import java.util.List;
@@ -57,6 +58,9 @@ public class ColumnImageController {
         try{
             mapper.writeValue(temporary.toFile(),captions);
             Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            // Nginx serves these public caption settings from the image directory.
+            if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
+                Files.setPosixFilePermissions(target,PosixFilePermissions.fromString("rw-r--r--"));
         }finally{Files.deleteIfExists(temporary);}
         jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','CAPTIONS',?)",principal.getName(),operator,slot);
         return CommonResult.success(true);
