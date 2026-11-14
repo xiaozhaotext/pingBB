@@ -1,17 +1,17 @@
 <template>
   <view class="app">
     <view class="card">
-      <text class="title">积分账户</text>
-      <view class="row"><text>商品积分</text><text class="v">{{ productBalance }}</text></view>
-      <view class="row"><text>复购积分</text><text class="v">{{ rebuyBalance }}</text></view>
+      <text class="title">智豆账户</text>
+      <view class="row"><text>商品智豆</text><text class="v">{{ productBalance }}</text></view>
+      <view class="row"><text>复购智豆</text><text class="v">{{ rebuyBalance }}</text></view>
     </view>
 
     <view class="card">
-      <text class="title">积分明细</text>
+      <text class="title">智豆明细</text>
       <view class="tabs">
         <text :class="['tab', tab === 0 ? 'active' : '']" @click="switchTab(0)">全部</text>
-        <text :class="['tab', tab === 1 ? 'active' : '']" @click="switchTab(1)">商品积分</text>
-        <text :class="['tab', tab === 2 ? 'active' : '']" @click="switchTab(2)">复购积分</text>
+        <text :class="['tab', tab === 1 ? 'active' : '']" @click="switchTab(1)">商品智豆</text>
+        <text :class="['tab', tab === 2 ? 'active' : '']" @click="switchTab(2)">复购智豆</text>
       </view>
       <view class="list" v-if="ledger.length">
         <view class="item" v-for="(l, i) in ledger" :key="i">
@@ -20,10 +20,10 @@
           <text class="sub">{{ chinaDateTime(l.createTime) }}</text>
         </view>
       </view>
-      <text class="tip" v-else>暂无积分明细</text>
+      <text class="tip" v-else>暂无智豆明细</text>
     </view>
 
-    <view class="card">积分来源：购买权益、复购区消费返还、直推奖励、每日分红。</view>
+    <view class="card">智豆来源：购买权益、复购区消费返还、直推奖励、每日分红。</view>
     <view v-if="loadError" class="card error">{{ loadError }}</view>
   </view>
 </template>
@@ -55,7 +55,7 @@ const loadLedger = async () => {
     ledger.value = r.data || []
   } catch (e) {
     ledger.value = []
-    loadError.value = '积分明细加载失败，请登录后重试。'
+    loadError.value = '智豆明细加载失败，请登录后重试。'
   }
 }
 
@@ -65,7 +65,7 @@ const switchTab = (t: number) => {
 }
 
 const pointsTypeText = (t: number) => {
-  return t === 1 ? '商品积分' : t === 2 ? '复购积分' : '积分'
+  return t === 1 ? '商品智豆' : t === 2 ? '复购智豆' : '智豆'
 }
 
 const typeText = (t: string) => {
@@ -77,7 +77,7 @@ const typeText = (t: string) => {
     adjust: '调整',
     dividend: '分红',
   }
-  return map[t] || t || '积分变动'
+  return map[t] || t || '智豆变动'
 }
 
 onLoad((options: any) => {

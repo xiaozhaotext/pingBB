@@ -32,6 +32,35 @@ public class ColumnImageController {
     @Value("${mall.column-image-dir:/opt/mall-demo/column-images}") private String directory;
     public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc,ObjectMapper mapper){this.access=access;this.jdbc=jdbc;this.mapper=mapper;}
 
+    @PutMapping("/tourism-labels/{index}")
+    public synchronized CommonResult<Boolean> saveTourismLabels(Principal principal, @PathVariable int index,
+                                                                  @RequestBody Map<String,String> body) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        if(index<1 || index>4)throw new IllegalArgumentException("旅游正品序号无效");
+        String name=body == null ? null : body.get("name");
+        if(name==null || name.isBlank() || !name.equals(name.trim()) || name.codePointCount(0,name.length())>12)
+            throw new IllegalArgumentException("名称请输入1至12个字，首尾不能有空格");
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve("tourism-label.json"), temporary=Files.createTempFile(dir,"tourism-label-", ".json");
+        try {
+            Map<?,?> previous=Files.isRegularFile(target)?mapper.readValue(target.toFile(),Map.class):Map.of();
+            String label=previous.get("label") instanceof String value && !value.isBlank()?value:"旅游正品";
+            List<String> names=new java.util.ArrayList<>();
+            Object previousNames=previous.get("names");
+            for(int i=0;i<4;i++){
+                Object saved=previousNames instanceof List<?> list && list.size()==4?list.get(i):null;
+                names.add(saved instanceof String text && !text.isBlank()?text:label+(i+1));
+            }
+            names.set(index-1,name);
+            mapper.writeValue(temporary.toFile(),Map.of("label",label,"names",names));
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
+                Files.setPosixFilePermissions(target,PosixFilePermissions.fromString("rw-r--r--"));
+        } finally {Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','TOURISM_LABELS',?)",principal.getName(),operator,index+":"+name);
+        return CommonResult.success(true);
+    }
+
     @PutMapping("/tourism-label")
     public CommonResult<Boolean> saveTourismLabel(Principal principal, @RequestBody Map<String,String> body) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
@@ -41,7 +70,10 @@ public class ColumnImageController {
         Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
         Path target=dir.resolve("tourism-label.json"), temporary=Files.createTempFile(dir,"tourism-label-", ".json");
         try {
-            mapper.writeValue(temporary.toFile(),Map.of("label",label));
+            Map<?,?> previous=Files.isRegularFile(target)?mapper.readValue(target.toFile(),Map.class):Map.of();
+            Object names=previous.get("names");
+            mapper.writeValue(temporary.toFile(),names instanceof List<?> list && list.size()==4
+                    ?Map.of("label",label,"names",list):Map.of("label",label));
             Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
                 Files.setPosixFilePermissions(target,PosixFilePermissions.fromString("rw-r--r--"));

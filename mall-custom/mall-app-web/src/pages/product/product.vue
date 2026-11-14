@@ -27,7 +27,7 @@
         <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
         <view class="activity-selection"><text class="activity-label">选择{{ tourismLabel }}</text>
           <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
-          <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ tourismLabel }}{{ index + 1 }}</button></view>
+          <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ tourismNames[index] }}</button></view>
           <text v-if="selectedActivityProduct" class="activity-product-name">{{ selectedActivityProduct.name }}</text>
         </view>
       </template>
@@ -501,12 +501,18 @@ const product = ref<PmsProduct>({} as PmsProduct)
 const requestedProductId = ref(0)
 const activityId = ref(0)
 const tourismLabel = ref('旅游正品')
+const tourismNames = ref(['旅游正品1', '旅游正品2', '旅游正品3', '旅游正品4'])
 const loadTourismLabel = async () => {
   try {
     const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache: 'no-store' })
     if (response.ok) {
-      const value = (await response.json())?.label
+      const data = await response.json()
+      const value = data?.label
       if (typeof value === 'string' && value.trim()) tourismLabel.value = value.trim()
+      tourismNames.value = [0, 1, 2, 3].map(index => {
+        const name = data?.names?.[index]
+        return typeof name === 'string' && name.trim() ? name.trim() : `${tourismLabel.value}${index + 1}`
+      })
     }
   } catch { /* Keep the built-in label when settings are unavailable. */ }
 }

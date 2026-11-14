@@ -15,24 +15,30 @@ const slots = [
   { key: 'gift4', label: '旅游正品4介绍图', hint: '自选区旅游活动详情页展示' },
 ]
 const urls = ref<Record<string, string>>({})
-const tourismLabel = ref('旅游正品')
+const tourismNames = ref(['旅游正品1', '旅游正品2', '旅游正品3', '旅游正品4'])
 const labelSaving = ref(false)
-const labelDialog = ref(false)
 async function loadTourismLabel() {
   try {
     const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache:'no-store' })
-    if (response.ok) tourismLabel.value = (await response.json()).label || '旅游正品'
+    if (response.ok) {
+      const data = await response.json()
+      if (Array.isArray(data.names) && data.names.length === 4) {
+        tourismNames.value = data.names.map((name: unknown, index: number) => typeof name === 'string' && name.trim() ? name : `旅游正品${index + 1}`)
+      } else {
+        const label = typeof data.label === 'string' && data.label.trim() ? data.label.trim() : '旅游正品'
+        tourismNames.value = [1, 2, 3, 4].map(index => `${label}${index}`)
+      }
+    }
   } catch { /* No saved label yet. */ }
 }
-async function saveTourismLabel() {
-  const label = tourismLabel.value.trim()
-  if (!label || [...label].length > 12) { ElMessage.warning('请输入1至12个字'); return }
+async function saveTourismName(index: number) {
+  const name = tourismNames.value[index]?.trim()
+  if (!name || [...name].length > 12) { ElMessage.warning('名称请输入1至12个字'); return }
   labelSaving.value = true
   try {
-    await http.put('/p0/column-images/tourism-label', { label })
-    tourismLabel.value = label
-    labelDialog.value = false
-    ElMessage.success('旅游活动商品名称已更新')
+    await http.put(`/p0/column-images/tourism-labels/${index + 1}`, { name })
+    tourismNames.value[index] = name
+    ElMessage.success(`旅游正品${index + 1}名称已更新`)
   } catch (error: any) { ElMessage.error(error?.response?.data?.message || error?.message || '保存失败') }
   finally { labelSaving.value = false }
 }
@@ -113,9 +119,7 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
-    <section class="tourism-label"><h3>旅游活动商品名称</h3><p>控制商品详情页“选择旅游正品”和四个选项中的名称。</p><div class="label-editor"><el-input v-model="tourismLabel" maxlength="12" show-word-limit /><el-button type="primary" :loading="labelSaving" @click="saveTourismLabel">保存名称</el-button></div></section>
-    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><el-button v-if="slot.key.startsWith('gift')" class="caption-button" @click="labelDialog = true">修改“{{ tourismLabel }}”名称</el-button></section></div>
-    <el-dialog v-model="labelDialog" title="修改旅游正品名称" width="min(460px, 94vw)"><p>四个旅游选项共用这个名称，保存后商品详情页会同步显示。</p><el-input v-model="tourismLabel" maxlength="12" show-word-limit /><template #footer><el-button @click="labelDialog = false">取消</el-button><el-button type="primary" :loading="labelSaving" @click="saveTourismLabel">保存名称</el-button></template></el-dialog>
+    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
       <div class="caption-preview" :style="{ backgroundImage: `url(${imageUrl(editing)})` }"><span v-for="(item, i) in captions" :key="i" :style="{ left:item.x+'%', top:item.y+'%', color:item.color, fontSize:item.size+'px', fontFamily:fonts[item.font || 'song'], letterSpacing:(item.spacing ?? 0)+'px', textShadow:effects[item.effect || 'shadow'], fontWeight:item.bold?'700':'400', display:item.visible?'block':'none' }">{{ item.text }}</span></div>
@@ -129,5 +133,6 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 .column-images{padding:24px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1100px}section{padding:20px;border:1px solid #e5e7eb;border-radius:12px;background:white;min-width:0}section p{color:#667085}img{display:block;width:100%;height:auto;max-height:420px;object-fit:contain;border-radius:8px}.upload{display:inline-block;margin-top:14px;padding:9px 18px;background:#a87b35;color:white;border-radius:6px;cursor:pointer}.upload input{display:none}@media(max-width:700px){.grid{grid-template-columns:1fr}}
 .caption-button{margin-left:12px}.caption-preview{height:190px;background-position:center;background-size:cover;position:relative;margin:14px 0;overflow:hidden}.caption-preview span{position:absolute;max-width:90%;line-height:1.2}fieldset{border:1px solid #ddd;margin:12px 0;padding:12px}fieldset label{display:inline-flex;gap:5px;align-items:center;margin:8px}
 .preset-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.preset-list .el-button{margin-left:0}
+.label-editor{display:flex;gap:8px;margin-top:12px;align-items:center}.label-editor .el-input{max-width:220px}
 .tourism-label{max-width:650px;margin:16px 0 20px}.label-editor{display:flex;gap:12px}.label-editor .el-input{max-width:300px}
 </style>
