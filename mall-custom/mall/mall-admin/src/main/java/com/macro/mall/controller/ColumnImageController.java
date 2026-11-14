@@ -33,7 +33,7 @@ public class ColumnImageController {
     public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc,ObjectMapper mapper){this.access=access;this.jdbc=jdbc;this.mapper=mapper;}
 
     @PutMapping("/tourism-labels/{index}")
-    public synchronized CommonResult<Boolean> saveTourismLabels(Principal principal, @PathVariable int index,
+    public synchronized CommonResult<Boolean> saveTourismLabels(Principal principal, @PathVariable("index") int index,
                                                                   @RequestBody Map<String,String> body) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
         if(index<1 || index>4)throw new IllegalArgumentException("旅游正品序号无效");
@@ -83,7 +83,7 @@ public class ColumnImageController {
     }
 
     @PutMapping("/captions/{slot}")
-    public CommonResult<Boolean> saveCaptions(Principal principal,@PathVariable String slot,@RequestBody List<Map<String,Object>> captions) throws IOException {
+    public CommonResult<Boolean> saveCaptions(Principal principal,@PathVariable("slot") String slot,@RequestBody List<Map<String,Object>> captions) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
         if(!Set.of("hero","pick","rebuy","consume").contains(slot))throw new IllegalArgumentException("栏目位置无效");
         int expected=slot.equals("pick")?3:2;
@@ -126,7 +126,7 @@ public class ColumnImageController {
     }
 
     @PostMapping("/{slot}")
-    public CommonResult<Map<String,String>> upload(Principal principal,@PathVariable String slot,@RequestPart("file") MultipartFile file) throws IOException {
+    public CommonResult<Map<String,String>> upload(Principal principal,@PathVariable("slot") String slot,@RequestPart("file") MultipartFile file) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
         if(!SLOTS.contains(slot))throw new IllegalArgumentException("栏目图片位置无效");
         BufferedImage rgb = readColumnImage(file);
