@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 按专区隔离计算购物车/订单结算金额。
  *
- * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区只用外部现金。
+ * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区可用余额及外部现金。
  * 混合下单时先按专区分别计算，再汇总出最终应付金额。
  */
 @Service
@@ -80,7 +80,7 @@ public class ZoneSettlementService {
      * 按专区计算结算明细。调用方按 payable 决定是否允许下单。
      *
      * @param useRepurchasePoints 复购区是否使用「复购积分 + 现金」模式（false 表示全现金）
-     * @param useBalance          自选区及复购区是否使用余额（充值本金）支付
+     * @param useBalance          各专区是否使用余额（充值本金）支付
      */
     public ZoneSettlement settle(List<Line> lines, boolean useRepurchasePoints, boolean useBalance,
                                  Wallets wallets) {
@@ -105,7 +105,7 @@ public class ZoneSettlementService {
             plan.setNetAmount(nonNegative(plan.getGrossAmount()
                     .subtract(plan.getPromotionAmount()).subtract(plan.getCouponAmount())));
         }
-        // 共享同一余额账户：自选区要求余额全额支付，先为其预留，再分配给复购区。
+        // 共享同一余额账户：先为自选区预留，再分配给复购区和消费区。
         ZoneSettlement.Plan pick = plans.get(ZoneRules.PICK);
         if (pick != null) settlePick(pick, useBalance, wallets);
         BigDecimal availableBalance = wallets.balance() == null ? BigDecimal.ZERO : nonNegative(wallets.balance());
@@ -124,7 +124,7 @@ public class ZoneSettlementService {
             switch (plan.getZoneCode()) {
                 case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
                 case ZoneRules.REBUY -> { /* 余额在自选区之后分配给复购区 */ }
-                case ZoneRules.CONSUME -> { /* 消费区不使用余额或积分 */ }
+                case ZoneRules.CONSUME -> { /* 消费区使用前两个专区扣款后的余额，不使用积分 */ }
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
             settlement.getPlans().add(plan);
@@ -176,14 +176,14 @@ public class ZoneSettlementService {
                              BigDecimal ratio, Wallets wallets) {
         BigDecimal net = plan.getNetAmount();
         if (!useRepurchasePoints) {
-            applyRebuyBalance(plan, net, useBalance, wallets.balance());
+            applyAvailableBalance(plan, net, useBalance, wallets.balance());
             return;
         }
         BigDecimal cap = net.multiply(ratio).setScale(2, RoundingMode.DOWN);
         long maxPoints = cap.setScale(0, RoundingMode.DOWN).longValueExact();
         if (maxPoints <= 0) {
             // Integer points cannot cover a fractional point. The remaining price is still payable.
-            applyRebuyBalance(plan, net, useBalance, wallets.balance());
+            applyAvailableBalance(plan, net, useBalance, wallets.balance());
             return;
         }
         if (wallets.repurchasePoints() < maxPoints) {
@@ -195,10 +195,10 @@ public class ZoneSettlementService {
         BigDecimal deduct = BigDecimal.valueOf(maxPoints);
         plan.setRepurchasePoints(maxPoints);
         plan.setRepurchasePointAmount(deduct);
-        applyRebuyBalance(plan, nonNegative(net.subtract(deduct)), useBalance, wallets.balance());
+        applyAvailableBalance(plan, nonNegative(net.subtract(deduct)), useBalance, wallets.balance());
     }
 
-    private void applyRebuyBalance(ZoneSettlement.Plan plan, BigDecimal remaining,
+    private void applyAvailableBalance(ZoneSettlement.Plan plan, BigDecimal remaining,
                                    boolean useBalance, BigDecimal availableBalance) {
         BigDecimal balance = useBalance && availableBalance != null
                 ? nonNegative(availableBalance).min(remaining) : BigDecimal.ZERO;
@@ -206,13 +206,12 @@ public class ZoneSettlementService {
         plan.setCashAmount(nonNegative(remaining.subtract(balance)));
     }
 
-    /** 消费区使用外部现金支付，不再消耗商品积分或账户余额。 */
+    /** 消费区可用账户余额，不足部分由外部支付；不消耗商品积分。 */
     private void settleConsume(ZoneSettlement.Plan plan, BigDecimal yuanPerPoint,
                                BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
         plan.setProductPoints(0);
         plan.setProductPointAmount(BigDecimal.ZERO);
-        plan.setBalanceAmount(BigDecimal.ZERO);
-        plan.setCashAmount(nonNegative(plan.getNetAmount()));
+        applyAvailableBalance(plan, plan.getNetAmount(), useBalance, wallets.balance());
     }
 
     private static BigDecimal nonNegative(BigDecimal value) {

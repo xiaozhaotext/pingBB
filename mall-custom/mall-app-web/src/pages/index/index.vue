@@ -16,9 +16,9 @@
       <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
-        <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><image class="column-photo" src="/static/festive-home/pick.jpg" mode="widthFix" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><image class="column-photo" src="/static/festive-home/rebuy.jpg" mode="widthFix" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><image class="column-photo" src="/static/festive-home/consume.jpg" mode="widthFix" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><image class="column-photo" src="/static/festive-home/pick.jpg" mode="aspectFill" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><image class="column-photo" src="/static/festive-home/rebuy.jpg" mode="aspectFill" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><image class="column-photo" src="/static/festive-home/consume.jpg" mode="aspectFill" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">余额或微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
       </view>
       <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
       <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
@@ -30,7 +30,7 @@
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
       <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item, 'REBUY')">加入购物车</text></view></view></view></view>
-      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>微信支付挑选好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
+      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>余额或微信支付挑选好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
       <view class="home-zone-status" v-if="consumeLoading">正在加载消费区商品…</view>
       <view class="home-zone-status" v-else-if="consumeError">商品加载失败<text @click="loadConsume">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!consumeProducts.length">消费区暂无已上架商品，请在后台专区管理中配置。</view>
@@ -924,5 +924,5 @@ page {
 .travel-hero > text,.home-zone > text{display:none}
 .travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden}
 .column-photo{display:block;width:100%;height:auto}
-@media(max-width:899px){.home-zones .rebuy-zone,.home-zones .consume-zone{grid-column:1/-1}}
+@media(max-width:899px){.home-zones{grid-template-columns:1fr}.home-zones .home-zone{grid-column:1/-1;aspect-ratio:1.84!important}.home-zones .column-photo{width:100%;height:100%;object-fit:cover}.home-zones .brand-zone .column-photo{object-position:left center}}
 </style>

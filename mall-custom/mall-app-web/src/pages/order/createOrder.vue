@@ -85,9 +85,10 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区按现金结算，不使用商品积分。 -->
+        <!-- 消费区可用余额，剩余金额微信支付，不使用商品积分。 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">微信支付<text class="cell-sub">（消费区不扣商品积分）</text></text>
+          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分微信支付；不扣商品积分）</text></text>
+          <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
         <view class="zone-plan-foot">
           <text>本专区现金应付 {{ money(plan.cashAmount) }}</text>
