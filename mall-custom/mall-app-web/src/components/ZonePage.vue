@@ -2,8 +2,8 @@
   <view class="zone-page">
     <DesktopHeader />
     <view class="zone-wrap">
-      <view class="zone-head zone-head-image">
-        <image class="zone-column-photo" :src="`/static/festive-home/${props.zone === 'PICK' ? 'pick' : props.zone === 'REBUY' ? 'rebuy' : 'consume'}.jpg`" mode="widthFix" />
+      <view class="zone-head" :class="{ 'zone-head-image': props.zone !== 'PICK' }">
+        <image v-if="props.zone !== 'PICK'" class="zone-column-photo" :src="`/static/festive-home/${props.zone === 'REBUY' ? 'rebuy' : 'consume'}.jpg`" mode="widthFix" />
         <view><text class="zone-kicker">智游美 · 商品专区</text><text class="zone-title">{{ title }}</text><text class="zone-description">{{ description }}</text></view>
         <view class="zone-actions"><text @click="goPage('/pages/cart/cart')">购物车</text><text @click="goPage('/pages/order/order?state=0')">我的订单</text></view>
       </view>

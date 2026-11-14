@@ -9,7 +9,8 @@
         <button class="btn" size="mini" @click="copyCode">复制</button>
       </view>
       <image v-if="qrImage" :src="qrImage" mode="aspectFit" style="width:240px;height:240px;display:block;margin:16px auto" />
-      <button v-if="detail?.shortLink" class="btn" @click="copyInviteLink">复制邀请链接</button>
+      <button v-if="inviteLink" class="btn" @click="copyInviteLink">复制邀请链接</button>
+      <text v-if="inviteLink" class="tip invite-link">{{ inviteLink }}</text>
       <text class="tip" v-if="detail">已邀请下级：{{ inviteeCount }} 人</text>
     </view>
 
@@ -42,6 +43,7 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import QRCode from 'qrcode'
+import { sandboxMode } from '@/utils/sandbox'
 import {
   getMyInviteCodeAPI,
   getInvitationDetailAPI,
@@ -53,8 +55,11 @@ import {
 const qrImage = ref('')
 const myCode = ref('')
 const detail = ref<any>(null)
+const inviteLink = ref('')
+const registrationLink = (code: string) =>
+  `${sandboxMode ? 'https://zhiyoumei.com.cn/sandbox' : 'https://zhiyoumei.com.cn'}/#/pages/public/register?inviteCode=${encodeURIComponent(code)}`
 const copyInviteLink = () => {
-  if (detail.value?.shortLink) uni.setClipboardData({ data: detail.value.shortLink })
+  if (inviteLink.value) uni.setClipboardData({ data: inviteLink.value })
 }
 const inviteeCount = ref(0)
 const bindCode = ref('')
@@ -81,9 +86,18 @@ const loadInviter = async () => {
 }
 
 const loadData = async () => {
+  qrImage.value = ''
+  inviteLink.value = ''
+  myCode.value = ''
+  detail.value = null
   await loadInviter()
   try { const r = await getMyInviteCodeAPI(); myCode.value = r.data || '' } catch (e) {}
-  try { const r = await getInvitationDetailAPI(); detail.value = r.data; if(r.data?.qrContent) qrImage.value = await QRCode.toDataURL(r.data.qrContent,{width:240,margin:2}) } catch (e) {}
+  try { const r = await getInvitationDetailAPI(); detail.value = r.data || null } catch (e) { detail.value = null }
+  const code = String(myCode.value || detail.value?.code || '').trim().toUpperCase()
+  if (code) {
+    inviteLink.value = registrationLink(code)
+    try { qrImage.value = await QRCode.toDataURL(inviteLink.value, { width: 240, margin: 2 }) } catch (e) {}
+  }
   try { const r = await getMyInviteesAPI(); invitees.value = r.data || []; inviteeCount.value = invitees.value.length } catch (e) { invitees.value = []; inviteeCount.value = 0 }
 }
 
@@ -132,6 +146,7 @@ onShow(loadData)
 .btn { background: #f4f4f5; color: #606266; }
 .btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
 .tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; }
+.invite-link { overflow-wrap: anywhere; font-size: 20rpx; }
 .bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #285b40; font-size: 26rpx; line-height: 1.6; }
 .bind-error { display: block; margin-top: 12rpx; color: #b42318; font-size: 26rpx; }
 .list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #303133; }

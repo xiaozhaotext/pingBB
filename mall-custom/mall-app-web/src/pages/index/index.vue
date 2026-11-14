@@ -924,5 +924,5 @@ page {
 .travel-hero > text,.home-zone > text{display:none}
 .travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden}
 .column-photo{display:block;width:100%;height:auto}
-@media(max-width:899px){.home-zones{grid-template-columns:1fr}.home-zones .home-zone{grid-column:1/-1;aspect-ratio:1.84!important}.home-zones .column-photo{width:100%;height:100%;object-fit:cover}.home-zones .brand-zone .column-photo{object-position:left center}}
+@media(max-width:899px){.home-zones{grid-template-columns:repeat(2,minmax(0,1fr))}.home-zones .brand-zone{grid-column:1/-1;aspect-ratio:2!important}.home-zones .rebuy-zone,.home-zones .consume-zone{grid-column:auto;aspect-ratio:1.84!important}.home-zones .column-photo{width:100%;height:100%;object-fit:cover}.home-zones .brand-zone .column-photo{object-position:left center}}
 </style>
