@@ -33,6 +33,9 @@ public class ZoneSettlement {
     @Schema(title = "最终现金应付金额")
     private BigDecimal cashAmount = BigDecimal.ZERO;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private final java.util.Map<Integer, BigDecimal> consumeLineCash = new java.util.HashMap<>();
+
     /** 每个专区的结算明细。 */
     @Getter
     @Setter
@@ -69,5 +72,6 @@ public class ZoneSettlement {
         private String blockedReason;
         @Schema(title = "商品件数")
         private int quantity;
+        private BigDecimal conversionAdjustment = BigDecimal.ZERO;
     }
 }

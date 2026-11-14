@@ -12,7 +12,21 @@
           <text v-for="(item, index) in advertiseList" :key="index" :class="{ active: index === swiperCurrent }"></text>
         </view>
       </view>
-      <view class="travel-hero"><image class="column-photo" src="/static/festive-home/hero.jpg" mode="widthFix" /><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
+      <view class="travel-hero">
+        <image class="column-photo" :src="heroImages[0]" mode="widthFix" @error="restoreHero" />
+        <swiper v-if="heroImages.length > 1" class="hero-carousel" circular autoplay :interval="4000"
+          :duration="500" :current="heroCurrent" @change="heroCurrent = $event.detail.current">
+          <swiper-item v-for="url in heroImages" :key="url">
+            <image class="hero-slide" :src="url" mode="aspectFit" />
+          </swiper-item>
+        </swiper>
+        <text class="travel-hero-title">山水有约，好物相伴</text>
+        <text class="travel-hero-sub">品质好物 · 悦享生活</text>
+      </view>
+      <view class="hero-pagination">
+        <text v-for="(url, index) in heroImages" :key="url"
+          :class="{ 'hero-active': heroImages.length > 1 && index === heroCurrent }" @click="heroCurrent = index" />
+      </view>
       <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
@@ -30,7 +44,7 @@
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
       <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item, 'REBUY')">加入购物车</text></view></view></view></view>
-      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>余额或微信支付挑选好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
+      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>智豆优先 · 挑选好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
       <view class="home-zone-status" v-if="consumeLoading">正在加载消费区商品…</view>
       <view class="home-zone-status" v-else-if="consumeError">商品加载失败<text @click="loadConsume">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!consumeProducts.length">消费区暂无已上架商品，请在后台专区管理中配置。</view>
@@ -160,7 +174,28 @@ const loadData = async () => { void loadBanner(); await Promise.all([loadPick(),
 onLoad(() => {
   loadData()
 })
-onShow(() => { void loadAnnouncement() })
+const originalHero = '/static/festive-home/hero.jpg'
+const heroImages = ref([originalHero])
+const heroCurrent = ref(0)
+function restoreHero() {
+  if (heroImages.value[0] !== originalHero) heroImages.value = [originalHero]
+}
+onShow(() => {
+  void loadAnnouncement()
+  // #ifdef H5
+  void fetch('/static/festive-home/hero-carousel.json', { cache: 'no-store' })
+    .then(response => response.ok ? response.json() : null)
+    .then((data: unknown) => {
+      const images = Array.isArray(data) ? data.filter((url): url is string =>
+        typeof url === 'string' && /^\/static\/festive-home\/hero-[a-z0-9-]+\.jpg$/.test(url)) : []
+      const next = images.length ? images : [originalHero]
+      if (next.join() !== heroImages.value.join()) {
+        heroCurrent.value = 0
+        heroImages.value = next
+      }
+    }).catch(() => {})
+  // #endif
+})
 
 // 下拉刷新时执行
 onPullDownRefresh(() => {
@@ -925,4 +960,10 @@ page {
 .travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden}
 .column-photo{display:block;width:100%;height:auto}
 @media(max-width:899px){.home-zones{grid-template-columns:repeat(2,minmax(0,1fr))}.home-zones .brand-zone{grid-column:1/-1;aspect-ratio:2!important}.home-zones .rebuy-zone,.home-zones .consume-zone{grid-column:auto;aspect-ratio:1.84!important}.home-zones .column-photo{width:100%;height:100%;object-fit:cover}.home-zones .brand-zone .column-photo{object-position:left center}}
+.travel-hero{position:relative}
+.hero-carousel{position:absolute;inset:0;width:100%;height:100%;background:#fff}
+.travel-hero > text{z-index:1}
+.hero-slide{display:block;width:100%;height:100%}
+.hero-pagination{gap:6px}
+.hero-pagination .hero-active{background:#b98d36}
 </style>

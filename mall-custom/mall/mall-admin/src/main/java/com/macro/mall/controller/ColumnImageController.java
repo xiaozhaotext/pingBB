@@ -129,6 +129,19 @@ public class ColumnImageController {
     public CommonResult<Map<String,String>> upload(Principal principal,@PathVariable String slot,@RequestPart("file") MultipartFile file) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
         if(!SLOTS.contains(slot))throw new IllegalArgumentException("栏目图片位置无效");
+        BufferedImage rgb = readColumnImage(file);
+        Path dir=Path.of(directory).toAbsolutePath().normalize();
+        Files.createDirectories(dir);
+        Path temporary=Files.createTempFile(dir,slot+"-", ".jpg");
+        try {
+            if(!ImageIO.write(rgb,"jpg",temporary.toFile()))throw new IOException("图片转换失败");
+            Files.move(temporary,dir.resolve(slot+".jpg"),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        } finally { Files.deleteIfExists(temporary); }
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','REPLACE',?)",principal.getName(),operator,slot);
+        return CommonResult.success(Map.of("url","/static/festive-home/"+slot+".jpg?v="+System.currentTimeMillis()));
+    }
+
+    private BufferedImage readColumnImage(MultipartFile file) throws IOException {
         if(file.isEmpty() || file.getSize()>100L*1024*1024)throw new IllegalArgumentException("请选择不超过100MB的图片");
         BufferedImage source;
         try (ImageInputStream input=ImageIO.createImageInputStream(file.getInputStream())) {
@@ -150,14 +163,62 @@ public class ColumnImageController {
         Graphics2D graphics=rgb.createGraphics();
         graphics.setColor(Color.WHITE);graphics.fillRect(0,0,rgb.getWidth(),rgb.getHeight());
         graphics.drawImage(source,0,0,null);graphics.dispose();
-        Path dir=Path.of(directory).toAbsolutePath().normalize();
-        Files.createDirectories(dir);
-        Path temporary=Files.createTempFile(dir,slot+"-", ".jpg");
-        try {
-            if(!ImageIO.write(rgb,"jpg",temporary.toFile()))throw new IOException("图片转换失败");
-            Files.move(temporary,dir.resolve(slot+".jpg"),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
-        } finally { Files.deleteIfExists(temporary); }
-        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','REPLACE',?)",principal.getName(),operator,slot);
-        return CommonResult.success(Map.of("url","/static/festive-home/"+slot+".jpg?v="+System.currentTimeMillis()));
+        return rgb;
     }
+
+    private static void makePublicFile(Path path) throws IOException {
+        if (Files.getFileStore(path).supportsFileAttributeView("posix")) {
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-r--r--"));
+        }
+    }
+
+    @PostMapping("/hero-carousel")
+    public synchronized CommonResult<List<String>> replaceHeroCarousel(Principal principal,
+            @RequestPart("files") List<MultipartFile> files) throws IOException {
+        long operator = access.requirePlatformAdmin(principal);
+        if (files.isEmpty() || files.size() > 8 || files.stream().mapToLong(MultipartFile::getSize).sum() > 8L * 1024 * 1024) {
+            throw new IllegalArgumentException("请选择1至8张图片，处理后总大小不得超过8MB");
+        }
+        Path dir = Path.of(directory).toAbsolutePath().normalize();
+        Files.createDirectories(dir);
+        String revision = java.util.UUID.randomUUID().toString();
+        List<String> urls = new java.util.ArrayList<>();
+        List<Path> written = new java.util.ArrayList<>();
+        Path manifest = Files.createTempFile(dir, "hero-carousel-", ".tmp");
+        boolean published = false;
+        try {
+            for (MultipartFile file : files) {
+                String name = "hero-" + revision + "-" + urls.size() + ".jpg";
+                Path target = dir.resolve(name);
+                written.add(target);
+                if (!ImageIO.write(readColumnImage(file), "jpg", target.toFile())) {
+                    throw new IOException("图片转换失败");
+                }
+                makePublicFile(target);
+                urls.add("/static/festive-home/" + name);
+            }
+            mapper.writeValue(manifest.toFile(), urls);
+            makePublicFile(manifest);
+            jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','REPLACE',?)",
+                    principal.getName(), operator, "hero-carousel:" + urls.size());
+            Files.move(manifest, dir.resolve("hero-carousel.json"), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            published = true;
+            // Keep recently replaced assets available to clients that already loaded a carousel.
+            try (var images = Files.newDirectoryStream(dir, "hero-*-*.jpg")) {
+                long cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000;
+                for (Path image : images) {
+                    if (!written.contains(image) && Files.getLastModifiedTime(image).toMillis() < cutoff) {
+                        Files.deleteIfExists(image);
+                    }
+                }
+            } catch (IOException ignored) {
+                // Asset cleanup can be retried on the next upload.
+            }
+            return CommonResult.success(urls);
+        } finally {
+            Files.deleteIfExists(manifest);
+            if (!published) for (Path image : written) Files.deleteIfExists(image);
+        }
+    }
+
 }

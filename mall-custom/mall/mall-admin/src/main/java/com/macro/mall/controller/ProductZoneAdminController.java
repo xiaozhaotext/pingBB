@@ -49,6 +49,7 @@ public class ProductZoneAdminController {
                 : "";
         return CommonResult.success(jdbc.queryForList(
                 "SELECT p.id,p.name,p.pic,p.price,p.publish_status AS publishStatus," +
+                "z.consume_points_per_yuan AS consumePointsPerYuan," +
                 "(t.product_id IS NOT NULL AND t.enabled=1) AS tourRoute," +
                 "(z.product_id IS NOT NULL) AS assigned,COALESCE(z.sort_order,0) AS sortOrder " +
                 ",CASE WHEN z.product_id IS NULL THEN '未加入当前专区' " +
@@ -61,6 +62,37 @@ public class ProductZoneAdminController {
                 "WHERE p.delete_status=0 AND (p.name LIKE ? OR p.product_sn LIKE ?) " +
                 "AND z.product_id IS NOT NULL " +
                 "ORDER BY (z.product_id IS NOT NULL) DESC,z.sort_order DESC,p.id DESC", zone,like,like));
+    }
+
+    public record ConsumeRate(List<Long> ids, boolean all, @NotNull @Min(1) @Max(1000000) Integer pointsPerYuan) {}
+
+    @PutMapping("/CONSUME/products/points-rate")
+    @Transactional(rollbackFor=Exception.class)
+    public CommonResult<Integer> updateConsumeRate(Principal principal, @Valid @RequestBody ConsumeRate body) {
+        long operator = access.requirePlatformAdmin(principal);
+        List<Long> ids = body.ids() == null ? List.of() : body.ids();
+        if (body.all() ? !ids.isEmpty() : ids.isEmpty() || ids.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择有效商品");
+        }
+        var parameters = new java.util.ArrayList<Object>();
+        String where = " WHERE z.zone_code='CONSUME' AND p.delete_status=0";
+        if (!body.all()) {
+            ids = ids.stream().distinct().sorted().toList();
+            where += " AND z.product_id IN (" + String.join(",", java.util.Collections.nCopies(ids.size(), "?")) + ")";
+            parameters.addAll(ids);
+        }
+        String tables = "pms_product_zone z JOIN pms_product p ON p.id=z.product_id";
+        var products = jdbc.queryForList("SELECT z.product_id FROM " + tables + where
+                + " ORDER BY z.product_id FOR UPDATE", Long.class, parameters.toArray());
+        if (!body.all() && products.size() != ids.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "所选商品已删除或不属于消费区，请刷新列表");
+        }
+        if (products.isEmpty()) return CommonResult.success(0);
+        parameters.add(0, body.pointsPerYuan());
+        jdbc.update("UPDATE " + tables + " SET z.consume_points_per_yuan=?" + where, parameters.toArray());
+        audit(operator, principal.getName(), "consume_points_rate", products.get(0),
+                "CONSUME 1:" + body.pointsPerYuan() + " count=" + products.size());
+        return CommonResult.success(products.size());
     }
 
     public record BatchPublish(List<Long> ids) {}
