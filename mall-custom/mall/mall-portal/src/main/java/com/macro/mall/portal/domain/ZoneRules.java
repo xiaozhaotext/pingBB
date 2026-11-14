@@ -7,7 +7,7 @@ package com.macro.mall.portal.domain;
  * <ul>
  *   <li>PICK 自选区：现金或余额（充值本金）购买，不能使用产品积分或复购积分。</li>
  *   <li>REBUY 复购区：复购积分（默认抵扣 30%）+ 余额和现金，不能使用商品积分。</li>
-     *   <li>CONSUME 消费区：仅支持外部现金支付；不使用积分或账户余额。</li>
+ *   <li>CONSUME 消费区：可用账户余额，不足部分走微信支付；不使用商品积分。</li>
  *   <li>空专区：商品未加入任何专区，按自选区规则结算，同样不能使用消费区/复购区积分。</li>
  * </ul>
  */
@@ -59,7 +59,7 @@ public final class ZoneRules {
         String normalized = normalize(zoneCode);
         return switch (normalized) {
             case REBUY -> "复购积分 + 余额或现金";
-            case CONSUME -> "微信支付";
+            case CONSUME -> "余额或微信支付";
             default -> "现金或余额购买";
         };
     }

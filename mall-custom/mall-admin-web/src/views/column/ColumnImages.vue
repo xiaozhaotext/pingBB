@@ -17,6 +17,7 @@ const slots = [
 const urls = ref<Record<string, string>>({})
 const tourismLabel = ref('旅游正品')
 const labelSaving = ref(false)
+const labelDialog = ref(false)
 async function loadTourismLabel() {
   try {
     const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache:'no-store' })
@@ -30,6 +31,7 @@ async function saveTourismLabel() {
   try {
     await http.put('/p0/column-images/tourism-label', { label })
     tourismLabel.value = label
+    labelDialog.value = false
     ElMessage.success('旅游活动商品名称已更新')
   } catch (error: any) { ElMessage.error(error?.response?.data?.message || error?.message || '保存失败') }
   finally { labelSaving.value = false }
@@ -45,7 +47,7 @@ const presets = [
   { name:'书法意境', font:'kai', color:'#fff9ed', spacing:4, effect:'outline', bold:false },
 ]
 function usePreset(item: Caption, preset: typeof presets[number]) { Object.assign(item, { font:preset.font, color:preset.color, spacing:preset.spacing, effect:preset.effect, bold:preset.bold }) }
-const defaults: Record<string,string[]> = { hero:['山水有约，好物相伴','品质好物 · 悦享生活'], pick:['精选品牌 · 品质之选','自选区','自选好物，发现心仪之选'], rebuy:['复购区','品质好物 · 再次心选'], consume:['消费区','商品积分购买 · 兑换好物'] }
+const defaults: Record<string,string[]> = { hero:['山水有约，好物相伴','品质好物 · 悦享生活'], pick:['精选品牌 · 品质之选','自选区','自选好物，发现心仪之选'], rebuy:['复购区','品质好物 · 再次心选'], consume:['消费区','余额或微信支付 · 挑选好物'] }
 const editing = ref('')
 const captions = ref<Caption[]>([])
 const saving = ref(false)
@@ -112,7 +114,8 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
     <section class="tourism-label"><h3>旅游活动商品名称</h3><p>控制商品详情页“选择旅游正品”和四个选项中的名称。</p><div class="label-editor"><el-input v-model="tourismLabel" maxlength="12" show-word-limit /><el-button type="primary" :loading="labelSaving" @click="saveTourismLabel">保存名称</el-button></div></section>
-    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button></section></div>
+    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><el-button v-if="slot.key.startsWith('gift')" class="caption-button" @click="labelDialog = true">修改“{{ tourismLabel }}”名称</el-button></section></div>
+    <el-dialog v-model="labelDialog" title="修改旅游正品名称" width="min(460px, 94vw)"><p>四个旅游选项共用这个名称，保存后商品详情页会同步显示。</p><el-input v-model="tourismLabel" maxlength="12" show-word-limit /><template #footer><el-button @click="labelDialog = false">取消</el-button><el-button type="primary" :loading="labelSaving" @click="saveTourismLabel">保存名称</el-button></template></el-dialog>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
       <div class="caption-preview" :style="{ backgroundImage: `url(${imageUrl(editing)})` }"><span v-for="(item, i) in captions" :key="i" :style="{ left:item.x+'%', top:item.y+'%', color:item.color, fontSize:item.size+'px', fontFamily:fonts[item.font || 'song'], letterSpacing:(item.spacing ?? 0)+'px', textShadow:effects[item.effect || 'shadow'], fontWeight:item.bold?'700':'400', display:item.visible?'block':'none' }">{{ item.text }}</span></div>

@@ -89,7 +89,7 @@
             <text class="zone-total-value" :class="{ points: !line.cash }">{{ line.text }}</text>
           </view>
           <view v-if="hasCashZone" class="zone-total-line"><text>现金类商品小计</text><text>¥{{ totalPrice.toFixed(2) }}</text></view>
-          <text class="zone-total-hint">自选区：现金或余额；复购区：复购积分抵扣后优先用余额，差额外部支付；消费区：微信支付。</text>
+          <text class="zone-total-hint">自选区：现金或余额；复购区：复购积分抵扣后优先用余额，差额外部支付；消费区：微信或账户余额支付，不扣商品积分。</text>
           <text class="zone-total-hint">此处为商品小计，实际抵扣和应付以确认订单页为准。</text>
         </view>
         <button type="primary" class="no-border confirm-btn" :disabled="checkoutNavigating" @click.stop="handleCreateOrder"
@@ -312,7 +312,7 @@ type ZoneMeta = { label: string; rule: string; cash: boolean }
 const zoneMetaMap: Record<string, ZoneMeta> = {
   PICK: { label: '自选区', rule: '现金或余额购买', cash: true },
   REBUY: { label: '复购区', rule: '30%复购积分＋余款余额优先，差额外部支付', cash: true },
-  CONSUME: { label: '消费区', rule: '微信支付', cash: true },
+  CONSUME: { label: '消费区', rule: '微信或账户余额支付', cash: true },
   NONE: { label: '普通商品', rule: '现金或余额购买', cash: true },
 }
 const zoneKeyOf = (item: CartItem) => {

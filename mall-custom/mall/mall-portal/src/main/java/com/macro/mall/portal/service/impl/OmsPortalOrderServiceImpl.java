@@ -100,10 +100,10 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     /**
      * 生成确认单：按专区隔离计算每个专区的结算方式与最终金额。
      *
-     * <p>自选区只能现金或余额（充值本金），复购区可用复购积分、余额及现金，消费区仅用外部现金，
+     * <p>自选区只能现金或余额（充值本金），复购区可用复购积分、余额及现金，消费区可用余额或外部现金，
      * 专区之间不允许串用；最终现金应付 = 各专区现金部分之和。
      *
-     * @param useBalance          自选区及复购区是否用余额（充值本金）支付
+     * @param useBalance          各专区是否用余额（充值本金）支付
      * @param useRepurchasePoints 复购区是否用「复购积分 + 现金」模式，false 表示复购区全现金
      */
     private ConfirmOrderResult buildConfirmOrder(List<Long> cartIds, Long couponId,
@@ -297,7 +297,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
             //对下单商品的优惠券进行处理
             handleCouponAmount(orderItemList, couponHistoryDetail);
         }
-        //按专区隔离结算：自选区现金/余额，复购区复购积分+余额/现金，消费区外部现金
+        //按专区隔离结算：自选区现金/余额，复购区复购积分+余额/现金，消费区余额/外部现金
         boolean useBalance = Boolean.TRUE.equals(orderParam.getUseBalance());
         boolean useRepurchasePoints = orderParam.getUseRepurchasePoints() != null
                 && orderParam.getUseRepurchasePoints() > 0;
