@@ -37,6 +37,10 @@ class ColumnImageControllerTest {
         Map<?, ?> saved = new ObjectMapper().readValue(Files.readString(directory.resolve("tourism-label.json")), Map.class);
         assertEquals("智游美", saved.get("label"));
         assertEquals(List.of("云南游", "海岛游", "智游美3", "智游美4"), saved.get("names"));
+        controller.saveTourismLabel(principal, Map.of("label", "旅行好礼"));
+        saved = new ObjectMapper().readValue(Files.readString(directory.resolve("tourism-label.json")), Map.class);
+        assertEquals("旅行好礼", saved.get("label"));
+        assertEquals(List.of("云南游", "海岛游", "智游美3", "智游美4"), saved.get("names"));
         assertThrows(IllegalArgumentException.class,
                 () -> controller.saveTourismLabels(principal, 5, Map.of("name", "无效")));
     }

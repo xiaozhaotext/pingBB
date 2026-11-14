@@ -15,6 +15,7 @@ const slots = [
   { key: 'gift4', label: '旅游正品4介绍图', hint: '自选区旅游活动详情页展示' },
 ]
 const urls = ref<Record<string, string>>({})
+const tourismLabel = ref('旅游正品')
 const tourismNames = ref(['旅游正品1', '旅游正品2', '旅游正品3', '旅游正品4'])
 const labelSaving = ref(false)
 async function loadTourismLabel() {
@@ -22,6 +23,7 @@ async function loadTourismLabel() {
     const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache:'no-store' })
     if (response.ok) {
       const data = await response.json()
+      if (typeof data.label === 'string' && data.label.trim()) tourismLabel.value = data.label.trim()
       if (Array.isArray(data.names) && data.names.length === 4) {
         tourismNames.value = data.names.map((name: unknown, index: number) => typeof name === 'string' && name.trim() ? name : `旅游正品${index + 1}`)
       } else {
@@ -30,6 +32,17 @@ async function loadTourismLabel() {
       }
     }
   } catch { /* No saved label yet. */ }
+}
+async function saveTourismLabel() {
+  const label = tourismLabel.value.trim()
+  if (!label || [...label].length > 12) { ElMessage.warning('标题请输入1至12个字'); return }
+  labelSaving.value = true
+  try {
+    await http.put('/p0/column-images/tourism-label', { label })
+    tourismLabel.value = label
+    ElMessage.success('活动选项标题已更新')
+  } catch (error: any) { ElMessage.error(error?.response?.data?.message || error?.message || '保存失败') }
+  finally { labelSaving.value = false }
 }
 async function saveTourismName(index: number) {
   const name = tourismNames.value[index]?.trim()
@@ -119,6 +132,7 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
+    <div class="tourism-label"><label for="tourism-selection-label">活动选项标题（前端显示为“选择＋标题”）</label><div class="label-editor"><el-input id="tourism-selection-label" v-model="tourismLabel" maxlength="12" show-word-limit aria-label="活动选项标题" /><el-button :loading="labelSaving" @click="saveTourismLabel">保存标题</el-button></div></div>
     <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
@@ -130,9 +144,8 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 </template>
 
 <style scoped>
-.column-images{padding:24px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1100px}section{padding:20px;border:1px solid #e5e7eb;border-radius:12px;background:white;min-width:0}section p{color:#667085}img{display:block;width:100%;height:auto;max-height:420px;object-fit:contain;border-radius:8px}.upload{display:inline-block;margin-top:14px;padding:9px 18px;background:#a87b35;color:white;border-radius:6px;cursor:pointer}.upload input{display:none}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.column-images{padding:24px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;max-width:1500px}section{padding:16px;border:1px solid #e5e7eb;border-radius:12px;background:white;min-width:0}section p{color:#667085}img{display:block;width:100%;height:auto;max-height:220px;object-fit:contain;border-radius:8px}.upload{display:inline-block;margin-top:14px;padding:9px 18px;background:#a87b35;color:white;border-radius:6px;cursor:pointer}.upload input{display:none}@media(max-width:1100px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.grid{grid-template-columns:1fr}}
 .caption-button{margin-left:12px}.caption-preview{height:190px;background-position:center;background-size:cover;position:relative;margin:14px 0;overflow:hidden}.caption-preview span{position:absolute;max-width:90%;line-height:1.2}fieldset{border:1px solid #ddd;margin:12px 0;padding:12px}fieldset label{display:inline-flex;gap:5px;align-items:center;margin:8px}
 .preset-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.preset-list .el-button{margin-left:0}
-.label-editor{display:flex;gap:8px;margin-top:12px;align-items:center}.label-editor .el-input{max-width:220px}
-.tourism-label{max-width:650px;margin:16px 0 20px}.label-editor{display:flex;gap:12px}.label-editor .el-input{max-width:300px}
+.tourism-label{max-width:650px;margin:16px 0 20px}.label-editor{display:flex;gap:8px;margin-top:12px;align-items:center}.label-editor .el-input{min-width:0;max-width:300px}.label-editor .el-button{flex-shrink:0}
 </style>
