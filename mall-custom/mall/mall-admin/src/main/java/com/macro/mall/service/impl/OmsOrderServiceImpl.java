@@ -120,7 +120,7 @@ public class OmsOrderServiceImpl implements OmsOrderService {
         }
     }
 
-    /** 发货参数校验：必须给出物流公司与单号，且同一订单不能在一批里重复出现。 */
+    /** 发货参数校验：自提无需物流单号，快递必须同时填写公司与单号。 */
     private List<Long> validateDelivery(List<OmsOrderDeliveryParam> deliveryParamList) {
         if (CollectionUtils.isEmpty(deliveryParamList)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择要发货的订单");
@@ -130,7 +130,12 @@ public class OmsOrderServiceImpl implements OmsOrderService {
             if (param.getOrderId() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "发货参数缺少订单编号");
             }
-            if (!StringUtils.hasText(param.getDeliveryCompany()) || !StringUtils.hasText(param.getDeliverySn())) {
+            if (!StringUtils.hasText(param.getDeliveryCompany())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择配送方式");
+            }
+            if ("自提".equals(param.getDeliveryCompany())) {
+                param.setDeliverySn("");
+            } else if (!StringUtils.hasText(param.getDeliverySn())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "发货必须同时填写物流公司和物流单号");
             }
             if (orderIds.contains(param.getOrderId())) {

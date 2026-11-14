@@ -19,6 +19,10 @@ const defaultLogisticsCompanies = ["顺丰快递", "圆通快递", "中通快递
 const list = ref<OmsOrder[]>([])
 // 物流公司选项
 const companyOptions = ref<string[]>(defaultLogisticsCompanies)
+const PICKUP = '自提'
+const changeDeliveryCompany = (order: OmsOrder) => {
+  if (order.deliveryCompany === PICKUP) order.deliverySn = ''
+}
 
 // 根据订单对象获取详细地址
 const fortmatAddress = (order: OmsOrder) => {
@@ -47,7 +51,7 @@ const confirm = async () => {
     })
     const deliveryParamList: OmsOrderDeliveryParam[] = list.value.map(item => ({
       orderId: item.id,
-      deliverySn: item.orderSn,
+      deliverySn: item.deliveryCompany === PICKUP ? '' : item.deliverySn,
       deliveryCompany: item.deliveryCompany
     }))
     await orderUpdateDeliveryAPI(deliveryParamList)
@@ -94,7 +98,8 @@ const confirm = async () => {
         </el-table-column>
         <el-table-column label="配送方式" width="200" align="center">
           <template #default="scope">
-            <el-select placeholder="请选择物流公司" v-model="scope.row.deliveryCompany">
+            <el-select placeholder="请选择配送方式" v-model="scope.row.deliveryCompany" @change="changeDeliveryCompany(scope.row)">
+              <el-option :label="PICKUP" :value="PICKUP" />
               <el-option v-for="item in companyOptions" :key="item" :label="item" :value="item">
               </el-option>
             </el-select>
@@ -102,7 +107,7 @@ const confirm = async () => {
         </el-table-column>
         <el-table-column label="物流单号" width="180" align="center">
           <template #default="scope">
-            <el-input v-model="scope.row.deliverySn"></el-input>
+            <el-input v-model="scope.row.deliverySn" :disabled="scope.row.deliveryCompany === PICKUP" :placeholder="scope.row.deliveryCompany === PICKUP ? '自提无需填写' : '请输入物流单号'"></el-input>
           </template>
         </el-table-column>
       </el-table>

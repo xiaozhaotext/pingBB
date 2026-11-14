@@ -85,6 +85,16 @@ class OmsOrderServiceImplTest {
     }
 
     @Test
+    void pickupShipsWithoutTrackingAndClearsStaleNumber() {
+        when(orderMapper.selectByExample(any())).thenReturn(List.of(order(7L, 1)));
+        when(orderDao.delivery(any())).thenReturn(1);
+        OmsOrderDeliveryParam param = deliveryParam(7L, "自提", "旧物流单号");
+        assertEquals(1, service.delivery(List.of(param)));
+        assertEquals("", param.getDeliverySn());
+        verify(orderOperateHistoryDao).insertList(any());
+    }
+
+    @Test
     void deliveryFailsWhenNothingWasShipped() {
         when(orderMapper.selectByExample(any())).thenReturn(List.of(order(7L, 1)));
         when(orderDao.delivery(any())).thenReturn(0);
