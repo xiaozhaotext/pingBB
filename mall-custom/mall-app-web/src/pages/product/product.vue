@@ -25,9 +25,9 @@
       <view v-else-if="activityError" class="activity-state" @click="loadActivity">{{ activityError }}，点击重试</view>
       <template v-else-if="activity">
         <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
-        <view class="activity-selection"><text class="activity-label">选择旅游正品</text>
+        <view class="activity-selection"><text class="activity-label">选择{{ tourismLabel }}</text>
           <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
-          <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">旅游正品{{ index + 1 }}</button></view>
+          <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ tourismLabel }}{{ index + 1 }}</button></view>
           <text v-if="selectedActivityProduct" class="activity-product-name">{{ selectedActivityProduct.name }}</text>
         </view>
       </template>
@@ -500,6 +500,16 @@ const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
 const requestedProductId = ref(0)
 const activityId = ref(0)
+const tourismLabel = ref('旅游正品')
+const loadTourismLabel = async () => {
+  try {
+    const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache: 'no-store' })
+    if (response.ok) {
+      const value = (await response.json())?.label
+      if (typeof value === 'string' && value.trim()) tourismLabel.value = value.trim()
+    }
+  } catch { /* Keep the built-in label when settings are unavailable. */ }
+}
 const activity = ref<PickActivity>()
 const selectedActivityProduct = computed(() => activity.value?.products?.find(item => item.id === requestedProductId.value) || activity.value?.products?.[0])
 const activityLoading = ref(false)
@@ -660,6 +670,7 @@ const loadData = async (id: number) => {
 // 页面显示时刷新主题（从设置页切换主题后返回本页即生效）
 onShow(() => {
   theme.value = getTheme()
+  void loadTourismLabel()
 })
 
 // 页面加载
@@ -2221,6 +2232,6 @@ page {
 </style>
 
 <style scoped>
-.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:flex;flex-wrap:wrap;gap:16rpx}.activity-option{margin:0;padding:12rpx 24rpx;border:1px solid #dce5df;border-radius:12rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
+.travel-activity{background:#f5f7f3;grid-column:1/-1;grid-row:2}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#56655d;font-size:28rpx}.activity-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16rpx}.activity-option{width:100%;min-width:0;min-height:76rpx;margin:0;padding:12rpx 16rpx;border:1px solid #dce5df;border-radius:20rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#285b40;color:#285b40;background:#edf5ef}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#67796d}
 .activity-product-name{display:block;margin:24rpx 0 12rpx;font-size:30rpx;font-weight:600}
 </style>

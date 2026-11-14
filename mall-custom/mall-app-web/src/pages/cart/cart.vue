@@ -89,7 +89,7 @@
             <text class="zone-total-value" :class="{ points: !line.cash }">{{ line.text }}</text>
           </view>
           <view v-if="hasCashZone" class="zone-total-line"><text>现金类商品小计</text><text>¥{{ totalPrice.toFixed(2) }}</text></view>
-          <text class="zone-total-hint">自选区：现金或余额；复购区：复购积分抵扣后优先用余额，差额外部支付；消费区：商品积分。</text>
+          <text class="zone-total-hint">自选区：现金或余额；复购区：复购积分抵扣后优先用余额，差额外部支付；消费区：微信支付。</text>
           <text class="zone-total-hint">此处为商品小计，实际抵扣和应付以确认订单页为准。</text>
         </view>
         <button type="primary" class="no-border confirm-btn" :disabled="checkoutNavigating" @click.stop="handleCreateOrder"
@@ -312,7 +312,7 @@ type ZoneMeta = { label: string; rule: string; cash: boolean }
 const zoneMetaMap: Record<string, ZoneMeta> = {
   PICK: { label: '自选区', rule: '现金或余额购买', cash: true },
   REBUY: { label: '复购区', rule: '30%复购积分＋余款余额优先，差额外部支付', cash: true },
-  CONSUME: { label: '消费区', rule: '仅商品积分支付', cash: false },
+  CONSUME: { label: '消费区', rule: '微信支付', cash: true },
   NONE: { label: '普通商品', rule: '现金或余额购买', cash: true },
 }
 const zoneKeyOf = (item: CartItem) => {
@@ -332,7 +332,7 @@ const zoneGroups = computed(() =>
     }))
     .filter((group) => group.items.length > 0),
 )
-// 已选商品的专区小计：消费区按商品积分展示，其余专区按现金展示
+// 已选商品的专区小计均以现金标价展示，实际应付以结算页为准。
 const zoneTotals = computed(() =>
   zoneGroups.value
     .map((group) => {
@@ -349,8 +349,7 @@ const zoneTotals = computed(() =>
     .filter((line): line is { key: string; label: string; cash: boolean; amount: number; text: string } => line !== null),
 )
 const hasCashZone = computed(() => zoneTotals.value.some((line) => line.cash))
-// 消费区按商品积分计价，其余专区按现金计价
-const priceLabel = (item: CartItem) => (zoneKeyOf(item) === 'CONSUME' ? `商品积分支付 · 标价 ¥${item.price}` : `¥${item.price}`)
+const priceLabel = (item: CartItem) => `¥${item.price}`
 // 计算商品总价
 const calcTotal = () => {
   const list = cartList.value
@@ -365,7 +364,7 @@ const calcTotal = () => {
     if (item.checked !== true) checked = false
   })
   allChecked.value = checked
-  // 现金应付只汇总现金专区，消费区的商品积分不折算成现金
+  // 所有专区均以现金标价汇总，优惠及复购积分抵扣在结算页计算。
   totalPrice.value = Number(
     zoneTotals.value.filter((line) => line.cash).reduce((acc, line) => acc + line.amount, 0).toFixed(2),
   )

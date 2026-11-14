@@ -20,6 +20,6 @@ public class SettlementPreviewParam {
     private Boolean useBalance;
     @Schema(title = "复购区是否使用「复购积分 + 现金」模式，不传表示全现金")
     private Boolean useRepurchasePoints;
-    @Schema(title = "消费区必须使用商品积分；false 会拒绝结算")
+    @Schema(title = "兼容旧版客户端；消费区不再使用商品积分")
     private Boolean useProductPoints;
 }

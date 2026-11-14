@@ -14,8 +14,8 @@
         <picker :range="categoryNames" :value="categoryIndex" @change="selectCategory"><view class="zone-category">{{ categoryNames[categoryIndex] }} ⌄</view></picker>
         <text :class="{ active: sort === 'latest' }" @click="changeSort('latest')">综合</text>
         <text :class="{ active: sort === 'sale' }" @click="changeSort('sale')">销量</text>
-        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">{{ isConsume ? '积分' : '价格' }}↑</text>
-        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">{{ isConsume ? '积分' : '价格' }}↓</text>
+        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_asc' }" @click="changeSort('price_asc')">价格↑</text>
+        <text v-if="props.zone !== 'PICK'" :class="{ active: sort === 'price_desc' }" @click="changeSort('price_desc')">价格↓</text>
       </view>
       <view v-if="loading" class="zone-empty">正在加载商品…</view>
       <view v-else-if="error" class="zone-empty">商品加载失败，请稍后重试。<text @click="load">重试</text></view>
@@ -77,13 +77,12 @@ const load = async () => {
   finally { loading.value = false }
 }
 const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id, props.zone) }
-const isConsume = computed(() => props.zone === 'CONSUME')
 const zoneTip = computed(() => {
   if (props.zone === 'REBUY') return '复购区先用复购积分抵扣配置比例（默认 30%），余款优先使用账户余额，余额不足再通过外部支付。'
-  if (props.zone === 'CONSUME') return '消费区可选商品积分全额购买，或用账户余额优先、余款微信支付；不使用复购积分。'
+  if (props.zone === 'CONSUME') return '消费区使用微信支付，不扣商品积分或账户余额。'
   return '点击商品查看详情、价格与会员权益。'
 })
-const priceText = (item: ZoneProduct) => (isConsume.value ? `¥${item.price} 或商品积分` : `¥${item.price}`)
+const priceText = (item: ZoneProduct) => `¥${item.price}`
 onShow(() => { loadCategories(); load() })
 </script>
 

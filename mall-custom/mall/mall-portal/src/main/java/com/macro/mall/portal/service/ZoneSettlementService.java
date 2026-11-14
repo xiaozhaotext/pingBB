@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 按专区隔离计算购物车/订单结算金额。
  *
- * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区只能用商品积分。
+ * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区只用外部现金。
  * 混合下单时先按专区分别计算，再汇总出最终应付金额。
  */
 @Service
@@ -123,7 +123,8 @@ public class ZoneSettlementService {
         for (ZoneSettlement.Plan plan : plans.values()) {
             switch (plan.getZoneCode()) {
                 case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
-                case ZoneRules.REBUY, ZoneRules.CONSUME -> { /* 余额按自选、复购、消费的顺序分配 */ }
+                case ZoneRules.REBUY -> { /* 余额在自选区之后分配给复购区 */ }
+                case ZoneRules.CONSUME -> { /* 消费区不使用余额或积分 */ }
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
             settlement.getPlans().add(plan);
@@ -205,57 +206,13 @@ public class ZoneSettlementService {
         plan.setCashAmount(nonNegative(remaining.subtract(balance)));
     }
 
-    /**
-     * 消费区：只用商品积分购买，现金应付为 0。
-     *
-     * <p>商品积分是整数余额，抵扣金额是两位小数金额，因此所需积分向上取整，
-     * 保证消费区商品全额由商品积分支付、不产生现金差额；积分不足时不允许下单。
-     */
+    /** 消费区使用外部现金支付，不再消耗商品积分或账户余额。 */
     private void settleConsume(ZoneSettlement.Plan plan, BigDecimal yuanPerPoint,
                                BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
-        BigDecimal net = plan.getNetAmount();
-        if (!useProductPoints) {
-            plan.setPayable(false);
-            plan.setBlockedReason("消费区仅支持商品积分支付");
-            return;
-        }
-        if (net.signum() <= 0) {
-            plan.setCashAmount(BigDecimal.ZERO);
-            return;
-        }
-        if (yuanPerPoint.signum() <= 0) {
-            plan.setPayable(false);
-            plan.setBlockedReason("产品积分抵扣比例配置无效，请联系管理员");
-            plan.setCashAmount(net);
-            return;
-        }
-        if (maxRatio.compareTo(BigDecimal.ONE) != 0) {
-            plan.setPayable(false);
-            plan.setBlockedReason("消费区仅支持100%商品积分，请管理员将商品积分抵扣上限设为100%");
-            return;
-        }
-        BigDecimal maxAmount = net;
-        long required = maxAmount.divide(yuanPerPoint, 0, RoundingMode.UP).longValueExact();
-        if (required <= 0) {
-            plan.setPayable(false);
-            plan.setBlockedReason("消费区商品积分抵扣额度不足，请联系管理员核对配置");
-            plan.setCashAmount(net);
-            return;
-        }
-        // 积分覆盖金额不超过本专区应收金额，避免超额抵扣
-        BigDecimal pointsAmount = BigDecimal.valueOf(required).multiply(yuanPerPoint)
-                .setScale(2, RoundingMode.DOWN).min(net);
-        if (wallets.productPoints() < required) {
-            plan.setPayable(false);
-            plan.setBlockedReason("产品积分不足，消费区需要 " + required + " 积分");
-            // 积分不足时不做任何抵扣，本专区不能下单，也不会退化成现金支付
-            plan.setProductPoints(required);
-            plan.setCashAmount(net);
-            return;
-        }
-        plan.setProductPoints(required);
-        plan.setProductPointAmount(pointsAmount);
-        plan.setCashAmount(nonNegative(net.subtract(pointsAmount)));
+        plan.setProductPoints(0);
+        plan.setProductPointAmount(BigDecimal.ZERO);
+        plan.setBalanceAmount(BigDecimal.ZERO);
+        plan.setCashAmount(nonNegative(plan.getNetAmount()));
     }
 
     private static BigDecimal nonNegative(BigDecimal value) {

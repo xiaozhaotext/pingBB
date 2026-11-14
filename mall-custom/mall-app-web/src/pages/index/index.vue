@@ -18,7 +18,7 @@
       <view class="home-zones">
         <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><image class="column-photo" src="/static/festive-home/pick.jpg" mode="widthFix" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
         <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><image class="column-photo" src="/static/festive-home/rebuy.jpg" mode="widthFix" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><image class="column-photo" src="/static/festive-home/consume.jpg" mode="widthFix" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">商品积分购买 · 兑换好物</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><image class="column-photo" src="/static/festive-home/consume.jpg" mode="widthFix" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
       </view>
       <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
       <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
@@ -30,11 +30,11 @@
       <view class="home-zone-status" v-else-if="rebuyError">商品加载失败<text @click="loadRebuy">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!rebuyProducts.length">复购区暂无已上架商品，请在后台专区管理中配置。</view>
       <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in rebuyProducts" :key="item.id" @click="openRebuyProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">复购区</text><text class="home-add-cart" @click.stop="addCart(item, 'REBUY')">加入购物车</text></view></view></view></view>
-      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>商品积分兑换好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
+      <view class="home-product-heading"><view><text>消费区推荐商品</text><small>微信支付挑选好物</small></view><text @click="goTab('/pages/zone/consume')">更多 →</text></view>
       <view class="home-zone-status" v-if="consumeLoading">正在加载消费区商品…</view>
       <view class="home-zone-status" v-else-if="consumeError">商品加载失败<text @click="loadConsume">，点击重试</text></view>
       <view class="home-zone-status" v-else-if="!consumeProducts.length">消费区暂无已上架商品，请在后台专区管理中配置。</view>
-      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in consumeProducts" :key="item.id" @click="openConsumeProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">{{item.price}} 商品积分</text><text class="rebuy-label">消费区</text><text class="home-add-cart" @click.stop="addCart(item, 'CONSUME')">加入购物车</text></view></view></view></view>
+      <view v-else class="home-rebuy-grid"><view class="home-rebuy-product" v-for="item in consumeProducts" :key="item.id" @click="openConsumeProduct(item)"><image :src="productImageUrl(item.pic)" mode="aspectFill"/><view class="home-product-copy"><text class="home-product-name">{{item.name}}</text><text class="home-product-sub">{{item.subTitle}}</text><view><text class="home-product-price">¥{{item.price}}</text><text class="rebuy-label">消费区</text><text class="home-add-cart" @click.stop="addCart(item, 'CONSUME')">加入购物车</text></view></view></view></view>
     </view>
   </view>
   <MainNavigation active="home" />
@@ -924,4 +924,5 @@ page {
 .travel-hero > text,.home-zone > text{display:none}
 .travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden}
 .column-photo{display:block;width:100%;height:auto}
+@media(max-width:899px){.home-zones .rebuy-zone,.home-zones .consume-zone{grid-column:1/-1}}
 </style>

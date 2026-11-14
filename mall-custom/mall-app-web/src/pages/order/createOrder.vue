@@ -85,13 +85,12 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区只接受商品积分，具体所需积分由后端结算结果决定。 -->
+        <!-- 消费区按现金结算，不使用商品积分。 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">仅商品积分支付<text class="cell-sub">（需 {{ plan.productPoints }} 积分，可用 {{ productPointsBalance }}）</text></text>
+          <text class="cell-tit clamp">微信支付<text class="cell-sub">（消费区不扣商品积分）</text></text>
         </view>
         <view class="zone-plan-foot">
-          <text v-if="plan.zoneCode === 'CONSUME'">本专区应付 {{ plan.productPoints }} 商品积分</text>
-          <text v-else>本专区现金应付 {{ money(plan.cashAmount) }}</text>
+          <text>本专区现金应付 {{ money(plan.cashAmount) }}</text>
           <text v-if="num(plan.balanceAmount) > 0"> · 余额抵扣 {{ money(plan.balanceAmount) }}</text>
           <text v-if="num(plan.repurchasePointAmount) > 0"> · 复购积分抵扣 {{ money(plan.repurchasePointAmount) }}</text>
         </view>
@@ -160,7 +159,6 @@
           <text v-if="!hasBlockedZone" class="price-tip">￥</text>
           <text class="price">{{ hasBlockedZone ? '待调整支付方式' : num(calcAmount.payAmount).toFixed(2) }}</text>
         </view>
-        <text class="pay-points" v-if="consumePoints > 0">消费区另需 {{ consumePoints }} 商品积分</text>
         <text class="pay-points pay-warn" v-if="hasBlockedZone">存在不可结算专区，请调整支付方式或移除后提交</text>
       </view>
       <text class="submit" @click="handleSubmit">{{ settlementPending ? '重新结算中…' : '提交订单' }}</text>
@@ -235,7 +233,7 @@ const currCoupon = ref<SmsCoupon | null>(null)
 const useBalance = ref(false)
 // 复购区默认使用积分抵扣；不足时用户可切换为全现金
 const useRepurchasePoints = ref(true)
-const useProductPoints = ref(true)
+const useProductPoints = ref(false)
 // 三个账户可用余额：商品积分、复购积分、余额
 const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
@@ -262,12 +260,6 @@ const hasPickZone = computed(() => zonePlans.value.some((plan) => plan.zoneCode 
 const hasRebuyZone = computed(() => zonePlans.value.some((plan) => plan.zoneCode === 'REBUY'))
 // 复购积分抵扣百分比
 const rebuyPercent = computed(() => Math.round((Number(rebuyPointsRatio.value) || 0) * 100))
-// 消费区需要支付的商品积分总数
-const consumePoints = computed(() =>
-  zonePlans.value
-    .filter((plan) => plan.zoneCode === 'CONSUME')
-    .reduce((acc, plan) => acc + (Number(plan.productPoints) || 0), 0),
-)
 // 是否存在不可结算的专区（如积分/余额不足）
 const hasBlockedZone = computed(() => zonePlans.value.some((plan) => !plan.payable))
 // 金额显示：空值补 0

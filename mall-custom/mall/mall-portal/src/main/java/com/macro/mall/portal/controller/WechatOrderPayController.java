@@ -134,12 +134,6 @@ public class WechatOrderPayController {
         if (order.getStatus() == null || order.getStatus() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "订单当前状态不可支付");
         }
-        Integer cashConsumeItems = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM oms_order_item WHERE order_id=? AND zone_code='CONSUME' AND real_amount>0",
-                Integer.class, order.getId());
-        if (cashConsumeItems != null && cashConsumeItems > 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "消费区仅支持商品积分支付，请重新下单");
-        }
         // Zone orders may have a genuine external balance after points and wallet deductions.
         // Keep the existing test-order restrictions for PICK membership and unassigned goods.
         Integer zoneItems = jdbc.queryForObject("SELECT COUNT(*) FROM oms_order_item WHERE order_id=? AND zone_code IN ('REBUY','CONSUME')",
