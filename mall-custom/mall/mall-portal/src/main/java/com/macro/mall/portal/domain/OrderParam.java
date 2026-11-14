@@ -21,7 +21,7 @@ public class OrderParam {
     private Integer useIntegration;
     @Schema(title = "使用的复购积分数（仅复购区商品，最高抵扣30%）")
     private Long useRepurchasePoints;
-    @Schema(title = "消费区必须使用商品积分；false 会拒绝结算")
+    @Schema(title = "兼容旧版客户端；消费区不再使用商品积分")
     private Boolean useProductPoints;
     @Schema(title = "自选区是否使用余额（充值本金）支付；余额与现金二选一")
     private Boolean useBalance;

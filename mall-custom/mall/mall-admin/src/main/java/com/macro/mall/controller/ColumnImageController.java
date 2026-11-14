@@ -32,6 +32,24 @@ public class ColumnImageController {
     @Value("${mall.column-image-dir:/opt/mall-demo/column-images}") private String directory;
     public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc,ObjectMapper mapper){this.access=access;this.jdbc=jdbc;this.mapper=mapper;}
 
+    @PutMapping("/tourism-label")
+    public CommonResult<Boolean> saveTourismLabel(Principal principal, @RequestBody Map<String,String> body) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        String label=body == null ? null : body.get("label");
+        if(label == null || label.isBlank() || label.codePointCount(0,label.length()) > 12 || !label.equals(label.trim()))
+            throw new IllegalArgumentException("名称请输入1至12个字，首尾不能有空格");
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve("tourism-label.json"), temporary=Files.createTempFile(dir,"tourism-label-", ".json");
+        try {
+            mapper.writeValue(temporary.toFile(),Map.of("label",label));
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
+                Files.setPosixFilePermissions(target,PosixFilePermissions.fromString("rw-r--r--"));
+        } finally {Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','TOURISM_LABEL',?)",principal.getName(),operator,label);
+        return CommonResult.success(true);
+    }
+
     @PutMapping("/captions/{slot}")
     public CommonResult<Boolean> saveCaptions(Principal principal,@PathVariable String slot,@RequestBody List<Map<String,Object>> captions) throws IOException {
         long operator=access.requirePlatformAdmin(principal);
