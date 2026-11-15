@@ -423,11 +423,6 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
         <el-table-column prop="price" label="价格" width="96" />
-        <el-table-column v-if="zone === 'CONSUME'" label="余额 : 智豆" width="130">
-          <template #default="{ row }">
-            <el-button link :disabled="batchBusy" @click="editConsumeRate(row)">1 : {{ row.consumePointsPerYuan ?? 100 }} · 修改</el-button>
-          </template>
-        </el-table-column>
         <el-table-column v-if="zone === 'PICK'" label="旅游路线" width="100">
           <template #default="{ row }"><el-tag :type="row.tourRoute ? 'success' : 'info'">{{ row.tourRoute ? '已标记' : '未标记' }}</el-tag></template>
         </el-table-column>
@@ -455,7 +450,16 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column label="操作" width="520" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
+            <el-dropdown v-if="zone === 'CONSUME'" trigger="click" @command="action => action === 'rate' ? editConsumeRate(row) : goEdit(row)">
+              <el-button link type="primary" :disabled="busy === row.id">修改</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="product">修改商品</el-dropdown-item>
+                  <el-dropdown-item command="rate">调整兑换比例</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button v-else link type="primary" :disabled="busy === row.id" @click="goEdit(row)">修改</el-button>
             <el-button v-if="isAssigned(row)" link type="primary" :disabled="busy === row.id" @click="saveSort(row)">保存排序</el-button>
             <el-button link type="primary" :disabled="busy === row.id" @click="togglePublish(row)">
               {{ row.publishStatus === 1 ? '下架' : '上架' }}

@@ -87,6 +87,7 @@ async function saveCaptions() {
   } catch (error: any) { ElMessage.error(error?.message || '保存失败') }
   finally { saving.value = false }
 }
+const heroManager = ref(false)
 const heroPhotos = ref<string[]>(["/static/festive-home/hero.jpg"])
 const refresh = async () => {
   urls.value = (await getP0<Record<string,string>>('column-images')).data || {}
@@ -178,7 +179,13 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
     <div class="tourism-label"><label for="tourism-selection-label">活动选项标题（前端显示为“选择＋标题”）</label><div class="label-editor"><el-input id="tourism-selection-label" v-model="tourismLabel" maxlength="12" show-word-limit aria-label="活动选项标题" /><el-button :loading="labelSaving" @click="saveTourismLabel">保存标题</el-button></div></div>
-    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><template v-if="slot.key === 'hero'"><div v-for="(url, index) in heroPhotos" :key="url"><img :src="url" :alt="`宣传图 ${index + 1}`" /><el-button type="danger" link :disabled="!!busy" @click="removeHero(url)">删除第 {{ index + 1 }} 张</el-button></div></template><img v-else :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : slot.key === 'hero' ? '添加图片' : '上传并替换' }}<input type="file" accept="image/*" :multiple="slot.key === 'hero'" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
+    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="slot.key === 'hero' ? '/static/festive-home/hero.jpg' : imageUrl(slot.key)" :alt="slot.label" /><button v-if="slot.key === 'hero'" class="upload" type="button" @click="heroManager = true">管理宣传图</button><label v-else class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
+    <el-dialog v-model="heroManager" title="管理首页宣传图" width="min(680px, 94vw)">
+      <div v-for="(url, index) in heroPhotos" :key="url"><img :src="url" :alt="`宣传图 ${index + 1}`" /><el-button type="danger" link :disabled="!!busy" @click="removeHero(url)">删除第 {{ index + 1 }} 张</el-button></div>
+      <label class="upload">{{ busy ? '处理中…' : '添加图片' }}
+        <input type="file" accept="image/*" multiple :disabled="!!busy" @change="choose('hero', $event)" />
+      </label>
+    </el-dialog>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
       <div class="caption-preview" :style="{ backgroundImage: `url(${imageUrl(editing)})` }"><span v-for="(item, i) in captions" :key="i" :style="{ left:item.x+'%', top:item.y+'%', color:item.color, fontSize:item.size+'px', fontFamily:fonts[item.font || 'song'], letterSpacing:(item.spacing ?? 0)+'px', textShadow:effects[item.effect || 'shadow'], fontWeight:item.bold?'700':'400', display:item.visible?'block':'none' }">{{ item.text }}</span></div>

@@ -12,9 +12,9 @@
           <text v-for="(item, index) in advertiseList" :key="index" :class="{ active: index === swiperCurrent }"></text>
         </view>
       </view>
-      <view v-if="heroImages.length" class="travel-hero">
-        <img class="column-photo" :src="heroImages[0]" alt="首页主宣传图" @error="restoreHero" />
-        <swiper v-if="heroImages.length > 1" class="hero-carousel" circular autoplay :interval="4000"
+      <view class="travel-hero">
+        <img class="column-photo" :src="originalHero" alt="首页主宣传图" />
+        <swiper v-if="heroImages.length > 1 || (heroImages.length === 1 && heroImages[0] !== originalHero)" class="hero-carousel" :circular="heroImages.length > 1" :autoplay="heroImages.length > 1" :interval="4000"
           :duration="500" :current="heroCurrent" @change="heroCurrent = $event.detail.current">
           <swiper-item v-for="url in heroImages" :key="url">
             <image class="hero-slide" :src="url" mode="aspectFit" />
@@ -23,10 +23,7 @@
         <text class="travel-hero-title">山水有约，好物相伴</text>
         <text class="travel-hero-sub">品质好物 · 悦享生活</text>
       </view>
-      <view v-if="heroImages.length" class="hero-pagination">
-        <text v-for="(url, index) in heroImages" :key="url"
-          :class="{ 'hero-active': heroImages.length > 1 && index === heroCurrent }" @click="heroCurrent = index" />
-      </view>
+      <view class="hero-pagination"><text></text></view>
       <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
@@ -177,9 +174,6 @@ onLoad(() => {
 const originalHero = '/static/festive-home/hero.jpg'
 const heroImages = ref([originalHero])
 const heroCurrent = ref(0)
-function restoreHero() {
-  if (heroImages.value[0] !== originalHero) heroImages.value = [originalHero]
-}
 onShow(() => {
   void loadAnnouncement()
   // #ifdef H5
@@ -964,6 +958,4 @@ page {
 .hero-carousel{position:absolute;inset:0;width:100%;height:100%;background:#fff}
 .travel-hero > text{z-index:1}
 .hero-slide{display:block;width:100%;height:100%}
-.hero-pagination{gap:6px}
-.hero-pagination .hero-active{background:#b98d36}
 </style>
