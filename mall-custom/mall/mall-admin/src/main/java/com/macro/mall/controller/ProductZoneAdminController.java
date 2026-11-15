@@ -34,9 +34,9 @@ public class ProductZoneAdminController {
     }
 
     @GetMapping("/{zone}/products")
-    public CommonResult<List<Map<String, Object>>> products(Principal principal, @PathVariable String zone,
-            @RequestParam(defaultValue="") String keyword,
-            @RequestParam(defaultValue="false") boolean assignedOnly) {
+    public CommonResult<List<Map<String, Object>>> products(Principal principal, @PathVariable("zone") String zone,
+            @RequestParam(name="keyword", defaultValue="") String keyword,
+            @RequestParam(name="assignedOnly", defaultValue="false") boolean assignedOnly) {
         access.requireAuthorized(principal);
         validateZone(zone);
         if (keyword.length() > 120) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜索词过长");
@@ -66,7 +66,7 @@ public class ProductZoneAdminController {
     public record BatchPublish(List<Long> ids) {}
     @PostMapping("/{zone}/products/publish")
     @Transactional(rollbackFor=Exception.class)
-    public CommonResult<?> publish(Principal principal,@PathVariable String zone,@RequestBody BatchPublish body) {
+    public CommonResult<?> publish(Principal principal,@PathVariable("zone") String zone,@RequestBody BatchPublish body) {
         long operator=access.requireAuthorized(principal);validateZone(zone);
         if(body.ids()==null || body.ids().isEmpty() || body.ids().stream().anyMatch(id->id==null || id<=0))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请选择有效商品");
@@ -90,7 +90,7 @@ public class ProductZoneAdminController {
 
     @PostMapping("/{zone}/products")
     @Transactional(rollbackFor=Exception.class)
-    public CommonResult<Void> assign(Principal principal, @PathVariable String zone,
+    public CommonResult<Void> assign(Principal principal, @PathVariable("zone") String zone,
             @Valid @RequestBody Assignment body) {
         long operator = access.requireAuthorized(principal);
         validateZone(zone);
@@ -124,7 +124,7 @@ public class ProductZoneAdminController {
 
     @DeleteMapping("/{zone}/products/{productId}")
     @Transactional(rollbackFor=Exception.class)
-    public CommonResult<Void> remove(Principal principal,@PathVariable String zone,@PathVariable long productId) {
+    public CommonResult<Void> remove(Principal principal,@PathVariable("zone") String zone,@PathVariable("productId") long productId) {
         long operator=access.requireAuthorized(principal);
         validateZone(zone);
         jdbc.queryForList("SELECT id FROM pms_product WHERE id=? FOR UPDATE",Long.class,productId);

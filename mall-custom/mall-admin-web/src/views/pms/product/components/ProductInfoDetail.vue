@@ -3,6 +3,7 @@ import { ref, onMounted, watch, inject, type Ref } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { getProductCategoryListWithChildrenAPI } from '@/apis/productCate'
 import SingleUpload from '@/components/Upload/singleUpload.vue'
+import Tinymce from '@/components/Tinymce/index.vue'
 import type { PmsProductParam } from '@/types/product'
 import type { ElCascaderDataVo } from '@/types/common'
 
@@ -133,6 +134,12 @@ const handleNext = async () => {
       <el-form-item label="商品介绍：">
         <el-input :autoSize="true" v-model="compProductParam.description" type="textarea"
           placeholder="请输入内容"></el-input>
+      </el-form-item>
+      <el-form-item label="图文详情：">
+        <div style="width: 100%">
+          <p style="margin: 0 0 8px; color: #667085">编辑后显示在客户端商品页的“图文详情”区域；第三步“移动端详情”也会同步显示。</p>
+          <tinymce :height="360" v-model="compProductParam.detailMobileHtml!" />
+        </div>
       </el-form-item>
       <el-form-item v-if="compProductParam.zoneCode === 'PICK'" label="商品图片：">
         <single-upload v-model="compProductParam.pic" />

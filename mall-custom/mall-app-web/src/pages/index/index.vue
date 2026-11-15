@@ -12,13 +12,13 @@
           <text v-for="(item, index) in advertiseList" :key="index" :class="{ active: index === swiperCurrent }"></text>
         </view>
       </view>
-      <view class="travel-hero"><image class="column-photo" src="/static/festive-home/hero.jpg" mode="widthFix" /><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
+      <view class="travel-hero"><img class="column-photo" src="/static/festive-home/hero.jpg" alt="首页主宣传图" /><text class="travel-hero-title">山水有约，好物相伴</text><text class="travel-hero-sub">品质好物 · 悦享生活</text></view><view class="hero-pagination"><text></text></view>
       <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
-        <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><image class="column-photo" src="/static/festive-home/pick.jpg" mode="aspectFill" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><image class="column-photo" src="/static/festive-home/rebuy.jpg" mode="aspectFill" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><image class="column-photo" src="/static/festive-home/consume.jpg" mode="aspectFill" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">余额或微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><img class="column-photo" src="/static/festive-home/pick.jpg" alt="自选区" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><img class="column-photo" src="/static/festive-home/rebuy.jpg" alt="复购区" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><img class="column-photo" src="/static/festive-home/consume.jpg" alt="消费区" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">余额或微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
       </view>
       <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
       <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
