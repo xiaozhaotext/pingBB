@@ -44,16 +44,30 @@ class ZoneSettlementServiceTest {
     }
 
     @Test
-    void consumeRejectsCashChoiceEvenWhenBalanceIsAvailable() {
+    void consumeUsesPointsBeforeBalanceRegardlessOfLegacyPreference() {
         ZoneSettlement settlement = service.settle(
-                List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
-                        BigDecimal.ZERO, BigDecimal.ZERO)), false, true, false, wallets(500, 0, "40.00"));
+                List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("150.00"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO, 50)), false, true, false, wallets(50, 500, "1.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
-        assertFalse(consume.isPayable());
-        assertTrue(consume.getBlockedReason().contains("仅支持商品积分"));
-        assertEquals(0, consume.getProductPoints());
-        assertAmount("0.00", consume.getBalanceAmount());
+        assertTrue(consume.isPayable());
+        assertEquals(50, consume.getProductPoints());
+        assertEquals(0, consume.getRepurchasePoints());
+        assertAmount("1.00", consume.getBalanceAmount());
+        assertAmount("1.00", consume.getCashAmount());
+    }
+
+    @Test
+    void mixedRateItemsUsePointsWhereTheyCoverTheMostBalance() {
+        ZoneSettlement settlement = service.settle(List.of(
+                new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO),
+                new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100"), 1,
+                        BigDecimal.ZERO, BigDecimal.ZERO, 50)),
+                false, true, wallets(100, 0, "5"));
+        assertAmount("1.00", settlement.getBalanceAmount());
         assertAmount("0.00", settlement.getCashAmount());
+        assertAmount("1.00", settlement.getConsumeLineCash().get(0));
+        assertAmount("0.00", settlement.getConsumeLineCash().get(1));
     }
 
     @Test
@@ -237,7 +251,7 @@ class ZoneSettlementServiceTest {
                 true, true, wallets(100, 9999, "500.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
         assertEquals(20, consume.getProductPoints());
-        assertAmount("19.90", consume.getProductPointAmount());
+        assertAmount("0.20", consume.getProductPointAmount());
         assertAmount("0.00", consume.getCashAmount());
         assertAmount("0.00", consume.getBalanceAmount());
         assertEquals(0, consume.getRepurchasePoints());
@@ -246,16 +260,16 @@ class ZoneSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("消费区商品积分不足：不允许下单")
-    void consumeZoneBlocksWithoutEnoughProductPoints() {
+    @DisplayName("消费区智豆不足时按默认比例折算差额")
+    void consumeZoneConvertsPointsShortfall() {
         ZoneSettlement settlement = service.settle(
                 List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("50.00"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO)),
                 false, false, wallets(10, 9999, "500.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
-        assertFalse(consume.isPayable());
-        assertAmount("50.00", consume.getCashAmount());
-        assertTrue(consume.getBlockedReason().contains("产品积分不足"));
+        assertTrue(consume.isPayable());
+        assertEquals(10, consume.getProductPoints());
+        assertAmount("0.40", consume.getCashAmount());
     }
 
     @Test
@@ -303,24 +317,8 @@ class ZoneSettlementServiceTest {
         ZoneSettlement.Plan pick = plan(settlement, ZoneRules.PICK);
         assertAmount("85.00", pick.getNetAmount());
         assertAmount("85.00", pick.getCashAmount());
-        assertAmount("20.00", plan(settlement, ZoneRules.CONSUME).getProductPointAmount());
+        assertAmount("0.20", plan(settlement, ZoneRules.CONSUME).getProductPointAmount());
         assertAmount("85.00", settlement.getCashAmount());
-    }
-
-    @Test
-    @DisplayName("存在不可结算专区时，汇总现金应付不包含该专区金额，避免展示无法支付的金额")
-    void blockedZoneIsExcludedFromSummaryCash() {
-        ZoneSettlement settlement = service.settle(
-                List.of(new ZoneSettlementService.Line(ZoneRules.PICK, new BigDecimal("100.00"), 1,
-                                BigDecimal.ZERO, BigDecimal.ZERO),
-                        new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("50.00"), 1,
-                                BigDecimal.ZERO, BigDecimal.ZERO)),
-                false, false, wallets(0, 0, "0.00"));
-        assertAmount("100.00", plan(settlement, ZoneRules.PICK).getCashAmount());
-        assertFalse(plan(settlement, ZoneRules.CONSUME).isPayable());
-        assertAmount("50.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
-        assertAmount("100.00", settlement.getCashAmount());
-        assertAmount("150.00", settlement.getTotalAmount());
     }
 
     @Test

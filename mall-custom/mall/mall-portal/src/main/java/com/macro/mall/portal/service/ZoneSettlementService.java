@@ -14,14 +14,17 @@ import java.util.Map;
 /**
  * 按专区隔离计算购物车/订单结算金额。
  *
- * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区可用余额及外部现金。
+ * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区优先使用商品积分，缺额按商品比例折算。
  * 混合下单时先按专区分别计算，再汇总出最终应付金额。
  */
 @Service
 public class ZoneSettlementService {
     /** 结算输入行：单价与「每件」的优惠金额。 */
     public record Line(String zoneCode, BigDecimal price, int quantity,
-                       BigDecimal promotionAmount, BigDecimal couponAmount) {
+                       BigDecimal promotionAmount, BigDecimal couponAmount, int consumePointsPerYuan) {
+        public Line(String zoneCode, BigDecimal price, int quantity, BigDecimal promotionAmount, BigDecimal couponAmount) {
+            this(zoneCode, price, quantity, promotionAmount, couponAmount, 100);
+        }
         BigDecimal lineGross() {
             return price.multiply(BigDecimal.valueOf(quantity));
         }
@@ -91,7 +94,6 @@ public class ZoneSettlementService {
                                   boolean useProductPoints, Wallets wallets) {
         BigDecimal ratio = rebuyPointsRatio();
         BigDecimal yuanPerPoint = productPointYuanPerPoint();
-        BigDecimal maxRatio = productPointMaxRatio();
         Map<String, ZoneSettlement.Plan> plans = new LinkedHashMap<>();
         for (Line line : lines) {
             ZoneSettlement.Plan plan = plans.computeIfAbsent(
@@ -115,16 +117,16 @@ public class ZoneSettlementService {
         ZoneSettlement.Plan rebuy = plans.get(ZoneRules.REBUY);
         if (rebuy != null) settleRebuy(rebuy, useRepurchasePoints, useBalance, ratio,
                 new Wallets(wallets.productPoints(), wallets.repurchasePoints(), availableBalance));
+        ZoneSettlement settlement = new ZoneSettlement();
         ZoneSettlement.Plan consume = plans.get(ZoneRules.CONSUME);
-        if (consume != null) settleConsume(consume, yuanPerPoint, maxRatio, useProductPoints, useBalance,
+        if (consume != null) settleConsume(consume, settlement.getConsumeLineCash(), lines, yuanPerPoint, useBalance,
                 new Wallets(wallets.productPoints(), wallets.repurchasePoints(),
                         nonNegative(availableBalance.subtract(rebuy == null ? BigDecimal.ZERO : rebuy.getBalanceAmount()))));
-        ZoneSettlement settlement = new ZoneSettlement();
         for (ZoneSettlement.Plan plan : plans.values()) {
             switch (plan.getZoneCode()) {
                 case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
                 case ZoneRules.REBUY -> { /* 余额在自选区之后分配给复购区 */ }
-                case ZoneRules.CONSUME -> { /* 消费区使用前两个专区扣款后的余额，不使用积分 */ }
+                case ZoneRules.CONSUME -> { /* 消费区差额使用前两个专区扣款后的余额 */ }
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
             settlement.getPlans().add(plan);
@@ -206,12 +208,32 @@ public class ZoneSettlementService {
         plan.setCashAmount(nonNegative(remaining.subtract(balance)));
     }
 
-    /** 消费区可用账户余额，不足部分由外部支付；不消耗商品积分。 */
-    private void settleConsume(ZoneSettlement.Plan plan, BigDecimal yuanPerPoint,
-                               BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
-        plan.setProductPoints(0);
-        plan.setProductPointAmount(BigDecimal.ZERO);
-        applyAvailableBalance(plan, plan.getNetAmount(), useBalance, wallets.balance());
+    private void settleConsume(ZoneSettlement.Plan plan, Map<Integer, BigDecimal> lineCash,
+                               List<Line> lines, BigDecimal yuanPerPoint,
+                               boolean useBalance, Wallets wallets) {
+        long pointsAvailable = Math.max(0, wallets.productPoints());
+        BigDecimal cashEquivalent = BigDecimal.ZERO;
+        BigDecimal remaining = BigDecimal.ZERO;
+        // Use points first where each point covers the most cash.
+        var consumeIndexes = java.util.stream.IntStream.range(0, lines.size()).boxed()
+                .filter(index -> ZoneRules.CONSUME.equals(lines.get(index).zoneCode()))
+                .sorted(java.util.Comparator.comparingInt(index -> lines.get(index).consumePointsPerYuan())).toList();
+        for (int index : consumeIndexes) {
+            Line line = lines.get(index);
+            BigDecimal net = nonNegative(line.lineGross().subtract(line.linePromotion()).subtract(line.lineCoupon()));
+            long required = net.divide(yuanPerPoint, 0, RoundingMode.CEILING).longValueExact();
+            long used = Math.min(required, pointsAvailable);
+            pointsAvailable -= used;
+            plan.setProductPoints(plan.getProductPoints() + used);
+            BigDecimal rate = BigDecimal.valueOf(line.consumePointsPerYuan());
+            cashEquivalent = cashEquivalent.add(BigDecimal.valueOf(required).divide(rate, 2, RoundingMode.CEILING));
+            BigDecimal cash = BigDecimal.valueOf(required - used).divide(rate, 2, RoundingMode.CEILING);
+            lineCash.put(index, cash);
+            remaining = remaining.add(cash);
+        }
+        plan.setProductPointAmount(cashEquivalent.subtract(remaining));
+        plan.setConversionAdjustment(plan.getNetAmount().subtract(cashEquivalent));
+        applyAvailableBalance(plan, remaining, useBalance, wallets.balance());
     }
 
     private static BigDecimal nonNegative(BigDecimal value) {

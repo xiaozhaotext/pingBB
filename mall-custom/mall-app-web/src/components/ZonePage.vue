@@ -79,7 +79,7 @@ const load = async () => {
 const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id, props.zone) }
 const zoneTip = computed(() => {
   if (props.zone === 'REBUY') return '复购区先用复购积分抵扣配置比例（默认 30%），余款优先使用账户余额，余额不足再通过外部支付。'
-  if (props.zone === 'CONSUME') return '消费区可用微信支付或账户余额，不扣商品积分。余额不足时，差额由微信支付。'
+  if (props.zone === 'CONSUME') return '消费区优先扣智豆，差额按商品兑换比例折算，可使用账户余额或微信支付。'
   return '点击商品查看详情、价格与会员权益。'
 })
 const priceText = (item: ZoneProduct) => `¥${item.price}`

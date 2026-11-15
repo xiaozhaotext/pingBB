@@ -85,12 +85,13 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区可用余额，剩余金额微信支付，不使用商品积分。 -->
+        <!-- 消费区按商品比例折算智豆缺额。 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分微信支付；不扣商品积分）</text></text>
+          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，智豆不足时按商品比例补差）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
         <view class="zone-plan-foot">
+          <text v-if="plan.zoneCode === 'CONSUME' && num(plan.productPoints) > 0">使用 {{ plan.productPoints }} 智豆 · </text>
           <text>本专区现金应付 {{ money(plan.cashAmount) }}</text>
           <text v-if="num(plan.balanceAmount) > 0"> · 余额抵扣 {{ money(plan.balanceAmount) }}</text>
           <text v-if="num(plan.repurchasePointAmount) > 0"> · 复购积分抵扣 {{ money(plan.repurchasePointAmount) }}</text>
@@ -136,8 +137,12 @@
         <text class="cell-tit clamp">复购积分抵扣（复购区）</text>
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.repurchasePointAmount) }}</text>
       </view>
+      <view class="yt-list-cell b-b" v-if="consumeConversionAdjustment !== 0">
+        <text class="cell-tit clamp">消费区兑换比例折算</text>
+        <text class="cell-tip">{{ consumeConversionAdjustment > 0 ? formatOrderDeduction(consumeConversionAdjustment) : '+' + money(-consumeConversionAdjustment) }}</text>
+      </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.productPointAmount) > 0">
-        <text class="cell-tit clamp">商品积分抵扣（消费区）</text>
+        <text class="cell-tit clamp">智豆抵扣（消费区）</text>
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.productPointAmount) }}</text>
       </view>
       <view class="yt-list-cell desc-cell">
@@ -234,7 +239,9 @@ const currCoupon = ref<SmsCoupon | null>(null)
 const useBalance = ref(false)
 // 复购区默认使用积分抵扣；不足时用户可切换为全现金
 const useRepurchasePoints = ref(true)
-const useProductPoints = ref(false)
+const useProductPoints = ref(true)
+const consumeConversionAdjustment = computed(() =>
+  num(zoneSettlement.value.plans?.find(plan => plan.zoneCode === 'CONSUME')?.conversionAdjustment))
 // 三个账户可用余额：商品积分、复购积分、余额
 const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
@@ -288,7 +295,7 @@ const refreshSettlement = async () => {
     if (!initialBalancePreferenceApplied) {
       initialBalancePreferenceApplied = true
       const plans = res.data.zoneSettlement.plans
-      if (plans.some((plan) => plan.zoneCode === 'REBUY') && !plans.some((plan) => plan.zoneCode === 'PICK')) {
+      if (plans.some((plan) => plan.zoneCode === 'REBUY' || plan.zoneCode === 'CONSUME') && !plans.some((plan) => plan.zoneCode === 'PICK')) {
         useBalance.value = true
         await refreshSettlement()
         return

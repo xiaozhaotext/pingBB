@@ -171,6 +171,7 @@ export type ZoneSettlementPlan = {
   netAmount: number
   /** 该专区使用的商品积分数（消费区） */
   productPoints: number
+  conversionAdjustment?: number
   /** 该专区商品积分抵扣金额（消费区） */
   productPointAmount: number
   /** 该专区使用的复购积分数（复购区） */
