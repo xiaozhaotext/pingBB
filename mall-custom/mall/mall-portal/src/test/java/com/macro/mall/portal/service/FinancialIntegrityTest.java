@@ -28,8 +28,10 @@ class FinancialIntegrityTest {
   j.execute("CREATE TABLE sys_config(config_key VARCHAR(100),config_value VARCHAR(100))");j.update("INSERT INTO sys_config VALUES('dividend.distribution.enabled','true')");
   j.execute("CREATE TABLE ums_earnings(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT UNIQUE,total_earnings DECIMAL(18,2),available_earnings DECIMAL(18,2),frozen_earnings DECIMAL(18,2),withdrawn DECIMAL(18,2),version BIGINT)");
   j.update("INSERT INTO ums_earnings VALUES(1,1,100,100,0,0,0),(2,2,0,0,0,0,0)");
-  j.execute("CREATE TABLE ums_withdraw_apply(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,idempotency_key VARCHAR(64),amount DECIMAL(18,2),fee_rate DECIMAL(10,6),fee_amount DECIMAL(18,2),actual_amount DECIMAL(18,2),status INT,simulate_flag INT,UNIQUE(member_id,idempotency_key))");
+  j.execute("CREATE TABLE ums_withdraw_apply(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,idempotency_key VARCHAR(64),amount DECIMAL(18,2),fee_rate DECIMAL(10,6),fee_amount DECIMAL(18,2),actual_amount DECIMAL(18,2),status INT,simulate_flag INT,audit_remark VARCHAR(255),audit_time TIMESTAMP,UNIQUE(member_id,idempotency_key))");
   j.execute("CREATE TABLE ums_earnings_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(50),amount DECIMAL(18,2),balance_after DECIMAL(18,2),biz_id VARCHAR(100),idempotency_key VARCHAR(100) UNIQUE,remark VARCHAR(255))");
+  j.execute("CREATE TABLE ums_recharge_account(member_id BIGINT PRIMARY KEY,balance_cents BIGINT)");
+  j.execute("CREATE TABLE ums_recharge_ledger(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,change_type VARCHAR(32),amount_cents BIGINT,balance_after_cents BIGINT,biz_id VARCHAR(64),idempotency_key VARCHAR(64) UNIQUE,remark VARCHAR(255))");
   j.execute("CREATE TABLE dividend_pool(id INT PRIMARY KEY,pool_balance DECIMAL(18,2),total_out DECIMAL(18,2))");j.update("INSERT INTO dividend_pool VALUES(1,0.05,0)");
   j.execute("CREATE TABLE ums_member_identity(member_id BIGINT,identity_type INT,status INT)");j.update("INSERT INTO ums_member_identity VALUES(1,1,1),(2,1,1)");
   j.execute("CREATE TABLE ums_member_recommend(inviter_id BIGINT)");
@@ -39,10 +41,14 @@ class FinancialIntegrityTest {
  @Test void concurrentRetriesFreezeExactlyOnce() throws Exception {
   var pool=Executors.newFixedThreadPool(8);try {
    var start=new CountDownLatch(1);var tasks=new java.util.ArrayList<Future<Long>>();
-   for(int i=0;i<8;i++)tasks.add(pool.submit(()->{start.await();return tx.execute(s->{var r=service.applyWithdraw(1L,new BigDecimal("10.00"),"withdraw-test-1");assertEquals(200,r.getCode());return r.getData().getId();});}));
+   for(int i=0;i<8;i++)tasks.add(pool.submit(()->{start.await();return tx.execute(s->{var r=service.applyWithdraw(1L,new BigDecimal("100.00"),"withdraw-test-1");assertEquals(200,r.getCode());return r.getData().getId();});}));
    start.countDown();Long id=tasks.get(0).get(20,TimeUnit.SECONDS);for(var t:tasks)assertEquals(id,t.get(20,TimeUnit.SECONDS));
    assertEquals(1,j.queryForObject("SELECT COUNT(*) FROM ums_withdraw_apply",Integer.class));
-   assertEquals(new BigDecimal("10.00"),j.queryForObject("SELECT frozen_earnings FROM ums_earnings WHERE member_id=1",BigDecimal.class));
+   assertEquals(new BigDecimal("0.00"),j.queryForObject("SELECT frozen_earnings FROM ums_earnings WHERE member_id=1",BigDecimal.class));
+   assertEquals(new BigDecimal("100.00"),j.queryForObject("SELECT withdrawn FROM ums_earnings WHERE member_id=1",BigDecimal.class));
+   assertEquals(10000L,j.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=1",Long.class));
+   assertEquals(1,j.queryForObject("SELECT COUNT(*) FROM ums_recharge_ledger",Integer.class));
+   assertEquals(new BigDecimal("0.00"),j.queryForObject("SELECT fee_amount FROM ums_withdraw_apply WHERE id=?",BigDecimal.class,id));
    assertNotEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("11"),"withdraw-test-1")).getCode());
   }finally{pool.shutdownNow();}
  }

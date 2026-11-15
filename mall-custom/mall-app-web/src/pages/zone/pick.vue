@@ -2,7 +2,6 @@
   <view class="activities-page">
     <DesktopHeader />
     <view class="activities-wrap">
-      <view class="activities-heading"><image src="/static/festive-home/pick.jpg" mode="widthFix" /></view>
       <view v-if="loading" class="empty">活动加载中…</view>
       <view v-else-if="error" class="empty" @click="load">活动加载失败，点击重试</view>
       <view v-else-if="!activities.length" class="empty">暂无已发布的旅游活动</view>

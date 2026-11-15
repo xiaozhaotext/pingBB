@@ -1,7 +1,6 @@
 <template>
   <view class="app">
-    <view v-if="sandbox" class="mock-banner">沙盒演示：分红和奖励先计入可提现收益；提现后扣减收益，按扣除手续费后的实到金额转入消费余额，不发生真实打款。</view>
-    <view v-else class="mock-banner">提现申请经后台人工审核，当前仅记账流转，暂未接入真实代付打款。</view>
+    <view class="mock-banner">佣金提现申请成功后全额转入账户消费余额，无手续费，无需审核。</view>
     <view class="card"><text class="title">可下单账户余额：¥ {{spendableBalance}}</text></view>
 
     <view class="card" v-if="account">
@@ -32,14 +31,14 @@
       <text class="title">申请提现</text>
       <input class="input" v-model="withdrawAmount" placeholder="输入100、200、300等整百金额" type="number" />
       <text class="hint">每次至少提现100元，且金额须为100元的整数倍。</text>
-      <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">{{sandbox?'沙盒提现到消费余额':'申请提现'}}</button>
+      <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">提现到消费余额</button>
     </view>
 
     <view class="card">
       <text class="title">提现申请列表</text>
       <view class="list" v-if="withdraws.length">
         <view class="item" v-for="(w, i) in withdraws" :key="i">
-          <text>金额：{{ w.amount }} 手续费：{{ w.feeAmount }} 实到：{{ w.actualAmount }}</text>
+          <text>金额：{{ w.amount }} 实到：{{ w.actualAmount }}</text>
           <text class="sub">状态：{{ statusText(w.status) }}</text>
         </view>
       </view>
@@ -51,7 +50,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { getMemberInfoAPI, getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI, getRechargeAccountAPI, getWithdrawalOptionsAPI } from '@/apis/member'
-import { sandboxMode } from '@/utils/sandbox'
 import { chinaDateTime } from '@/utils/chinaTime'
 import { onShow } from '@dcloudio/uni-app'
 
@@ -72,8 +70,7 @@ const loadData = async () => {
   try {
     const options=(await getWithdrawalOptionsAPI()).data
     sandbox.value=options.sandbox
-    modeReady.value=Boolean(sandboxMode)===sandbox.value
-    if(!modeReady.value) loadError.value='提现环境与页面不匹配，请打开正确的应用入口'
+    modeReady.value=true
     spendableBalance.value=(await getRechargeAccountAPI()).data.balance
   } catch { modeReady.value=false;spendableBalance.value='—';loadError.value='消费余额或提现环境加载失败，请重试' }
   try {
@@ -112,7 +109,7 @@ const handleWithdraw = async () => {
     await applyWithdrawAPI(pending)
     uni.removeStorageSync(withdrawalStorageKey)
     withdrawAmount.value = ''
-    uni.showToast({ title: sandbox.value?'已转入消费余额':'已提交提现申请', icon: 'success' })
+    uni.showToast({ title: '已转入消费余额', icon: 'success' })
     await loadData()
   } catch (e: any) {
     // An HTTP/network timeout may have happened after commit: retain the same request key.

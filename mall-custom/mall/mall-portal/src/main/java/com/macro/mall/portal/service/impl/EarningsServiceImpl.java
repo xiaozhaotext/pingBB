@@ -20,8 +20,7 @@ import java.util.List;
 
 /**
  * 收益与提现：事务一致 + 幂等 + 乐观锁 + 防负余额。
- * 提现手续费率从 sys_config(withdraw.fee_rate) 读取，默认 0.6%。
- * 真实资金打款需在商户支付配置完成后接入（见 WithdrawController）。
+ * 佣金提现不收手续费；申请成功即全额转入消费余额。
  */
 @Service
 public class EarningsServiceImpl implements EarningsService {
@@ -145,9 +144,9 @@ public class EarningsServiceImpl implements EarningsService {
             e.setFrozenEarnings(e.getFrozenEarnings().add(amount));
             int rows = earningsMapper.updateWithVersion(e);
             if (rows > 0) {
-                BigDecimal rate = feeRate();
-                BigDecimal fee = amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
-                BigDecimal actual = amount.subtract(fee).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal rate = BigDecimal.ZERO;
+                BigDecimal fee = BigDecimal.ZERO;
+                BigDecimal actual = amount.setScale(2, RoundingMode.HALF_UP);
                 UmsWithdrawApply a = new UmsWithdrawApply();
                 a.setMemberId(memberId);
                 a.setIdempotencyKey(idempotencyKey);
@@ -155,11 +154,25 @@ public class EarningsServiceImpl implements EarningsService {
                 a.setFeeRate(rate);
                 a.setFeeAmount(fee);
                 a.setActualAmount(actual);
-                a.setStatus(0);
+                a.setStatus(3);
                 // 标记为「模拟提现单」：当前未接入真实打款通道，
                 // 后台审核接口据此放行；接入真实代付后再改为 0。
                 a.setSimulateFlag(1);
                 withdrawMapper.insert(a);
+                long cents = amount.movePointRight(2).longValueExact();
+                jdbc.update("INSERT INTO ums_recharge_account(member_id,balance_cents) VALUES(?,0) ON DUPLICATE KEY UPDATE member_id=member_id", memberId);
+                long balance = jdbc.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=? FOR UPDATE", Long.class, memberId);
+                String key = "commission-withdraw:" + a.getId();
+                long next = Math.addExact(balance, cents);
+                jdbc.update("UPDATE ums_recharge_account SET balance_cents=? WHERE member_id=?", next, memberId);
+                jdbc.update("INSERT INTO ums_recharge_ledger(member_id,change_type,amount_cents,balance_after_cents,biz_id,idempotency_key,remark) VALUES(?,'commission_withdraw',?,?,?,?,?)",
+                        memberId, cents, next, "WITHDRAW:" + a.getId(), key, "佣金全额转入消费余额");
+                int completed = jdbc.update("UPDATE ums_earnings SET frozen_earnings=frozen_earnings-?,withdrawn=withdrawn+?,version=version+1 WHERE member_id=? AND frozen_earnings>=?",
+                        amount, amount, memberId, amount);
+                if (completed != 1) throw new IllegalStateException("佣金账户结算失败");
+                jdbc.update("UPDATE ums_withdraw_apply SET audit_remark='佣金自动转入消费余额',audit_time=CURRENT_TIMESTAMP WHERE id=?", a.getId());
+                jdbc.update("INSERT INTO ums_earnings_ledger(member_id,change_type,amount,balance_after,biz_id,idempotency_key,remark) SELECT member_id,'withdraw_done',?,available_earnings,?,?,? FROM ums_earnings WHERE member_id=?",
+                        amount.negate(), "WITHDRAW:" + a.getId(), key, "佣金全额转入消费余额", memberId);
                 return CommonResult.success(withdrawMapper.selectById(a.getId()));
             }
         }

@@ -14,8 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 提现（模拟）- 消费者端申请 / 后台审核处理
- * 注意：所有提现均为模拟状态流转，无真实打款。
+ * 佣金提现转入消费余额，不触发外部打款。
  */
 @RestController
 @Tag(name = "WithdrawController", description = "提现申请与审核(模拟)")
@@ -35,7 +34,7 @@ public class WithdrawController {
         return CommonResult.success(Map.of("sandbox",sandboxWallet.enabled()));
     }
 
-    @Operation(summary = "申请提现(模拟)：扣减可提现并冻结，生成待审核单")
+    @Operation(summary = "佣金提现：申请成功后全额转入消费余额")
     @PostMapping("/apply")
     public CommonResult<UmsWithdrawApply> apply(@RequestBody Map<String, Object> body) {
         Long memberId = memberService.getCurrentMember().getId();
@@ -43,10 +42,6 @@ public class WithdrawController {
         try { amount = new BigDecimal(String.valueOf(body.get("amount"))); }
         catch (NumberFormatException ex) { return CommonResult.validateFailed("请输入有效的提现金额"); }
         String idempotencyKey = String.valueOf(body.get("idempotencyKey"));
-        if (sandboxWallet.enabled()) {
-            try { return sandboxWallet.withdraw(memberId,amount,idempotencyKey); }
-            catch (IllegalArgumentException ex) { return CommonResult.validateFailed(ex.getMessage()); }
-        }
         return earningsService.applyWithdraw(memberId, amount, idempotencyKey);
     }
 
