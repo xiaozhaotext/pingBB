@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '@/utils/http'
 import { getP0 } from '@/apis/p0'
@@ -88,6 +88,11 @@ async function saveCaptions() {
   finally { saving.value = false }
 }
 const heroPhotos = ref<string[]>(["/static/festive-home/hero.jpg"])
+const heroIndex = ref(0)
+const heroPreviewIndex = computed(() => Math.min(heroIndex.value, Math.max(0, heroPhotos.value.length - 1)))
+function stepHero(direction: number) {
+  heroIndex.value = heroPreviewIndex.value + direction
+}
 const refresh = async () => {
   urls.value = (await getP0<Record<string,string>>('column-images')).data || {}
   try {
@@ -178,7 +183,17 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
     <div class="tourism-label"><label for="tourism-selection-label">活动选项标题（前端显示为“选择＋标题”）</label><div class="label-editor"><el-input id="tourism-selection-label" v-model="tourismLabel" maxlength="12" show-word-limit aria-label="活动选项标题" /><el-button :loading="labelSaving" @click="saveTourismLabel">保存标题</el-button></div></div>
-    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><template v-if="slot.key === 'hero'"><div v-for="(url, index) in heroPhotos" :key="url"><img :src="url" :alt="`宣传图 ${index + 1}`" /><el-button type="danger" link :disabled="!!busy" @click="removeHero(url)">删除第 {{ index + 1 }} 张</el-button></div></template><img v-else :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : slot.key === 'hero' ? '添加图片' : '上传并替换' }}<input type="file" accept="image/*" :multiple="slot.key === 'hero'" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
+    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><template v-if="slot.key === 'hero'">
+      <div v-if="heroPhotos.length" class="hero-preview">
+        <img :src="heroPhotos[heroPreviewIndex]" :alt="`宣传图 ${heroPreviewIndex + 1}`" />
+        <div class="hero-preview-actions">
+          <button type="button" aria-label="上一张" :disabled="heroPreviewIndex === 0" @click="stepHero(-1)">‹</button>
+          <span>{{ heroPreviewIndex + 1 }} / {{ heroPhotos.length }}</span>
+          <button type="button" aria-label="下一张" :disabled="heroPreviewIndex + 1 === heroPhotos.length" @click="stepHero(1)">›</button>
+          <el-button type="danger" link :disabled="!!busy" @click="removeHero(heroPhotos[heroPreviewIndex])">删除当前图片</el-button>
+        </div>
+      </div>
+    </template><img v-else :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : slot.key === 'hero' ? '添加图片' : '上传并替换' }}<input type="file" accept="image/*" :multiple="slot.key === 'hero'" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
       <div class="caption-preview" :style="{ backgroundImage: `url(${imageUrl(editing)})` }"><span v-for="(item, i) in captions" :key="i" :style="{ left:item.x+'%', top:item.y+'%', color:item.color, fontSize:item.size+'px', fontFamily:fonts[item.font || 'song'], letterSpacing:(item.spacing ?? 0)+'px', textShadow:effects[item.effect || 'shadow'], fontWeight:item.bold?'700':'400', display:item.visible?'block':'none' }">{{ item.text }}</span></div>
@@ -193,4 +208,8 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 .caption-button{margin-left:12px}.caption-preview{height:190px;background-position:center;background-size:cover;position:relative;margin:14px 0;overflow:hidden}.caption-preview span{position:absolute;max-width:90%;line-height:1.2}fieldset{border:1px solid #ddd;margin:12px 0;padding:12px}fieldset label{display:inline-flex;gap:5px;align-items:center;margin:8px}
 .preset-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.preset-list .el-button{margin-left:0}
 .tourism-label{max-width:650px;margin:16px 0 20px}.label-editor{display:flex;gap:8px;margin-top:12px;align-items:center}.label-editor .el-input{min-width:0;max-width:300px}.label-editor .el-button{flex-shrink:0}
+.hero-preview img{height:clamp(120px,14vw,220px);object-fit:contain}
+.hero-preview-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.hero-preview-actions > button:not(.el-button){padding:2px 9px;border:1px solid #ddd;border-radius:4px;background:white}
+.hero-preview-actions > button:disabled{opacity:.45}
 </style>
