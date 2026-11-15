@@ -85,10 +85,9 @@
           <text class="cell-tit clamp">优先使用余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，不足部分走微信/支付宝）</text></text>
           <switch :checked="useBalance" @change="handleBalanceToggle" />
         </view>
-        <!-- 消费区按商品比例折算智豆缺额。 -->
         <view class="yt-list-cell b-b" v-if="plan.zoneCode === 'CONSUME'">
-          <text class="cell-tit clamp">优先使用账户余额<text class="cell-sub">（可用 {{ money(rechargeBalance) }}，智豆不足时按商品比例补差）</text></text>
-          <switch :checked="useBalance" @change="handleBalanceToggle" />
+          <text class="cell-tit clamp">{{ useProductPoints ? '智豆支付' : '余额支付' }}</text>
+          <switch :checked="useProductPoints" @change="changeConsumePayment" />
         </view>
         <view class="zone-plan-foot">
           <text v-if="plan.zoneCode === 'CONSUME' && num(plan.productPoints) > 0">使用 {{ plan.productPoints }} 智豆 · </text>
@@ -136,10 +135,6 @@
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.repurchasePointAmount) > 0">
         <text class="cell-tit clamp">复购积分抵扣（复购区）</text>
         <text class="cell-tip red">{{ formatOrderDeduction(zoneSettlement.repurchasePointAmount) }}</text>
-      </view>
-      <view class="yt-list-cell b-b" v-if="consumeConversionAdjustment !== 0">
-        <text class="cell-tit clamp">消费区兑换比例折算</text>
-        <text class="cell-tip">{{ consumeConversionAdjustment > 0 ? formatOrderDeduction(consumeConversionAdjustment) : '+' + money(-consumeConversionAdjustment) }}</text>
       </view>
       <view class="yt-list-cell b-b" v-if="num(zoneSettlement.productPointAmount) > 0">
         <text class="cell-tit clamp">智豆抵扣（消费区）</text>
@@ -240,9 +235,10 @@ const useBalance = ref(false)
 // 复购区默认使用积分抵扣；不足时用户可切换为全现金
 const useRepurchasePoints = ref(true)
 const useProductPoints = ref(true)
-const consumeConversionAdjustment = computed(() =>
-  num(zoneSettlement.value.plans?.find(plan => plan.zoneCode === 'CONSUME')?.conversionAdjustment))
-// 三个账户可用余额：商品积分、复购积分、余额
+const changeConsumePayment = (event: { detail: { value: boolean } }) => {
+  useProductPoints.value = event.detail.value
+  void refreshSettlement()
+}
 const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
 const rechargeBalance = ref(0)

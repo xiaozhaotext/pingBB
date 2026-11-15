@@ -31,7 +31,7 @@ const router = useRouter()
 const ZONES = {
   pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区只销售3999元旅游路线；游客购买一条并支付成功后升级会员。' },
   rebuyProduct: { code: 'REBUY', label: '复购区', prefix: 'rebuy', rule: '复购区商品按 30% 复购积分抵扣，剩余 70% 优先使用账户余额；余额不足的差额走微信或支付宝支付。不能使用商品积分。' },
-  consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区优先使用智豆，缺少的智豆按商品兑换比例折算。' },
+  consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区可选智豆或余额全额支付，智豆数量按商品标价乘倍率计算。' },
 } as const
 const currentZone = computed(() => ZONES[route.name as keyof typeof ZONES] ?? ZONES.pickProduct)
 const zone = computed(() => currentZone.value.code)
@@ -279,7 +279,7 @@ async function editConsumeRate(row?: ZoneProduct, all = false) {
   const scope = all ? '消费区全部商品（含已上架）' : row ? row.name : `选中的 ${ids.length} 件商品`
   let value: string
   try {
-    ({ value } = await ElMessageBox.prompt(`调整「${scope}」的兑换比例。请输入 1 元余额可兑换的智豆数。`, '余额兑换比例', {
+    ({ value } = await ElMessageBox.prompt(`调整「${scope}」的兑换比例。请输入商品标价计算智豆所用的倍率。`, '余额兑换比例', {
       inputValue: String(row?.consumePointsPerYuan ?? 100),
       inputPattern: /^(?:[1-9][0-9]{0,5}|1000000)$/,
       inputErrorMessage: '请输入 1 至 1000000 的整数',
