@@ -94,12 +94,12 @@ function stepHero(direction: number) {
   heroIndex.value = heroPreviewIndex.value + direction
 }
 const refresh = async () => {
-  urls.value = (await getP0<Record<string,string>>('column-images')).data || {}
   try {
     const response = await fetch('/static/festive-home/hero-carousel.json', { cache: 'no-store' })
     const data = response.ok && response.headers.get('content-type')?.includes('json') ? await response.json() : null
     heroPhotos.value = Array.isArray(data) ? data : ["/static/festive-home/hero.jpg"]
   } catch { /* Retain the previous preview on a network error. */ }
+  urls.value = (await getP0<Record<string,string>>('column-images')).data || {}
 }
 const imageUrl = (key: string) => key === 'hero' && heroPhotos.value.length ? heroPhotos.value[0] : `${urls.value[key] || ''}?v=${Date.now()}`
 async function asJpeg(file: File, maxSide?: number): Promise<Blob> {
