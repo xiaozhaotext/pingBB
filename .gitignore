@@ -59,3 +59,8 @@ credentials.json
 Thumbs.db
 .idea/
 .vscode/
+
+# 本地订单预览及其示例数据不提交
+/mall-custom/qa/order-status-preview.cjs
+/mall-custom/qa/order-status.browser.cjs
+/mall-custom/qa/order-status-results/

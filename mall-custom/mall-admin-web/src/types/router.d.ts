@@ -2,6 +2,8 @@ import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 
 /** vue-router路由扩展 */
 export type RouteRecordExt = RouteRecordRaw & {
+  /** 派生页面沿用已有菜单权限 */
+  permissionMenu?: string
   /** 前端隐藏 */
   hidden?: boolean
   /** 前端排序 */

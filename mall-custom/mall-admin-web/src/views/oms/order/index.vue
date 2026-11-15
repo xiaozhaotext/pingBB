@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { formatMoney } from '@/utils/adminDisplay'
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { collectOrderExport, createOrderExport, downloadOrderExport } from '@/utils/orderExport'
+import type { OrderExportFormat } from '@/utils/orderExport'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
@@ -10,6 +12,12 @@ import LogisticsDialog from '@/views/oms/order/components/logisticsDialog.vue'
 import { formatDateTime } from '@/utils/datetime'
 import type { OmsOrder, OrderQueryParam } from '@/types/order'
 import { useOrderStore } from '@/stores/order'
+
+// 专页复用原有订单列表，仅固定状态并添加导出入口。
+const props = defineProps<{ fixedStatus?: 1 | 2 | 3 }>()
+const pageTitle = computed(() => ({ 1: '待发货', 2: '已发货', 3: '已完成' }[props.fixedStatus || 1]))
+const exportLoading = ref(false)
+const appliedQuery = ref<OrderQueryParam | null>(null)
 
 // 获取路由对象
 const router = useRouter()
@@ -38,6 +46,8 @@ const getList = async () => {
   const query = { ...listQuery.value }
   listLoading.value = true
   list.value = []
+  multipleSelection.value = []
+  appliedQuery.value = null
   returnApplies.value = []
   total.value = 0
   try {
@@ -49,8 +59,10 @@ const getList = async () => {
       return
     }
     const statusByTab: Record<string, number> = { 'pending-delivery': 1, 'pending-receipt': 2, completed: 3 }
-    const response = await getOrderListAPI({ ...query, status: statusByTab[status] })
+    const requestQuery = { ...query, status: props.fixedStatus ?? statusByTab[status] }
+    const response = await getOrderListAPI(requestQuery)
     if (version !== listRequestVersion) return
+    appliedQuery.value = requestQuery
     list.value = response.data.list
     total.value = response.data.total
   } catch (error) {
@@ -67,10 +79,7 @@ const selectStatus = (status: string | number) => {
   getList()
 }
 
-// 组件挂载后初始化列表信息
-onMounted(() => {
-  getList()
-})
+
 
 // 表格中被选中的行
 const multipleSelection = ref<OmsOrder[]>([])
@@ -160,7 +169,7 @@ const formatStatus = (value: number) => {
   if (value === 1) {
     return '待发货'
   } else if (value === 2) {
-    return '待收货'
+    return props.fixedStatus === 2 ? '已发货' : '待收货'
   } else if (value === 3) {
     return '已完成'
   } else if (value === 4) {
@@ -175,6 +184,7 @@ const formatStatus = (value: number) => {
 // 处理重置搜索
 const handleResetSearch = () => {
   listQuery.value = { pageNum: 1, pageSize: 10 }
+  if (props.fixedStatus) getList()
 }
 
 // 处理搜索列表
@@ -304,11 +314,39 @@ const deleteOrderFn = async (ids: number[]) => {
   })
   getList()
 }
+// 页面切换时清空筛选和选中项，旧请求不能覆盖新页面的数据。
+watch(() => props.fixedStatus, status => {
+  listQuery.value = { pageNum: 1, pageSize: 10 }
+  activeStatus.value = status === 2 ? 'pending-receipt' : status === 3 ? 'completed' : 'pending-delivery'
+  operateType.value = undefined
+  getList()
+}, { immediate: true })
+onBeforeUnmount(() => { listRequestVersion++ })
+
+async function handleExport(format: OrderExportFormat) {
+  if (exportLoading.value || listLoading.value || !appliedQuery.value) return
+  const version = listRequestVersion
+  const title = pageTitle.value
+  const query = { ...appliedQuery.value }
+  exportLoading.value = true
+  try {
+    const rows = await collectOrderExport(query, () => version === listRequestVersion)
+    if (!rows.length) { ElMessage.info('当前筛选条件下暂无订单'); return }
+    const blob = await createOrderExport(rows, format)
+    if (version !== listRequestVersion) throw new Error('页面或筛选条件已变化，请重新导出')
+    downloadOrderExport(blob, title, format)
+    ElMessage.success(`已导出 ${rows.length} 条订单`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '导出失败，请重试')
+  } finally {
+    exportLoading.value = false
+  }
+}
 </script>
 
 <template>
   <div class="app-container">
-    <el-tabs :model-value="activeStatus" class="status-tabs" @tab-change="selectStatus">
+    <el-tabs v-if="!fixedStatus" :model-value="activeStatus" class="status-tabs" @tab-change="selectStatus">
       <el-tab-pane label="待发货" name="pending-delivery" />
       <el-tab-pane label="待收货" name="pending-receipt" />
       <el-tab-pane label="已完成" name="completed" />
@@ -336,7 +374,7 @@ const deleteOrderFn = async (ids: number[]) => {
             <el-input v-model="listQuery.receiverKeyword" class="input-width" placeholder="收货人姓名/手机号码"></el-input>
           </el-form-item>
           <el-form-item label="提交时间：">
-            <el-date-picker class="input-width" v-model="listQuery.createTime" value-format="yyyy-MM-dd" type="date"
+            <el-date-picker class="input-width" v-model="listQuery.createTime" value-format="YYYY-MM-DD" type="date"
               placeholder="请选择时间">
             </el-date-picker>
           </el-form-item>
@@ -359,12 +397,22 @@ const deleteOrderFn = async (ids: number[]) => {
       <el-icon class="el-icon-middle">
         <Tickets />
       </el-icon>
-      <span>数据列表</span>
+      <span>{{ fixedStatus ? `${pageTitle}订单` : '数据列表' }}</span>
+      <el-dropdown v-if="fixedStatus" style="float: right" :disabled="listLoading || exportLoading || !total" @command="handleExport">
+        <el-button type="primary" :loading="exportLoading" :disabled="listLoading || !total">导出表格</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="csv">导出 CSV 文件</el-dropdown-item>
+            <el-dropdown-item command="xlsx">导出 Excel 文件</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </el-card>
     <div v-if="activeStatus !== 'after-sales'" class="table-container">
       <el-table ref="orderTable" :data="list" style="width: 100%;" @selection-change="handleSelectionChange"
         v-loading="listLoading" border>
         <el-table-column type="selection" width="60" align="center"></el-table-column>
+        <el-table-column v-if="fixedStatus" label="订单状态" width="120" align="center"><template #default="scope">{{ formatStatus(scope.row.status) }}</template></el-table-column>
         <el-table-column label="编号" width="80" align="center">
           <template #default="scope">{{ scope.row.id }}</template>
         </el-table-column>
@@ -374,9 +422,11 @@ const deleteOrderFn = async (ids: number[]) => {
         <el-table-column label="提交时间" width="180" align="center">
           <template #default="scope">{{ formatDateTime(scope.row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="用户账号" align="center">
+        <el-table-column label="用户账号" :min-width="fixedStatus ? 140 : undefined" align="center">
           <template #default="scope">{{ scope.row.memberUsername }}</template>
         </el-table-column>
+        <el-table-column v-if="fixedStatus" prop="receiverName" label="收货人" width="120" align="center" />
+        <el-table-column v-if="fixedStatus" prop="receiverPhone" label="手机号码" width="150" align="center" />
         <el-table-column label="商品原价" width="120" align="center">
           <template #default="scope">￥{{ formatMoney(scope.row.totalAmount) }}</template>
         </el-table-column>
@@ -392,10 +442,10 @@ const deleteOrderFn = async (ids: number[]) => {
         <el-table-column label="订单来源" width="120" align="center">
           <template #default="scope">{{ formatSourceType(scope.row.sourceType) }}</template>
         </el-table-column>
-        <el-table-column label="订单状态" width="120" align="center">
+        <el-table-column v-if="!fixedStatus" label="订单状态" width="120" align="center">
           <template #default="scope">{{ formatStatus(scope.row.status) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="200" align="center" :fixed="fixedStatus ? 'right' : undefined">
           <template #default="scope">
             <el-button size="small" @click="handleViewOrder(scope.$index, scope.row)">查看订单</el-button>
             <el-button size="small" @click="handleCloseOrder(scope.$index, scope.row)"

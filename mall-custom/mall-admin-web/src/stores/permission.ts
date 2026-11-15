@@ -27,6 +27,11 @@ function hasPermission(menus: UmsMenu[], route: RouteRecordExt) {
       }
       return true
     } else {
+      // 状态专页继承订单筛选权限，不向无订单权限的用户开放。
+      if (route.permissionMenu) {
+        const source = getMenu(route.permissionMenu, menus)
+        return source != null && source.hidden !== 1
+      }
       route.sort = 0
       if (route.hidden !== undefined && route.hidden === true) {
         route.sort = -1
