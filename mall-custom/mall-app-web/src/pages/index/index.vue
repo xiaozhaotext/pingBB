@@ -12,7 +12,7 @@
           <text v-for="(item, index) in advertiseList" :key="index" :class="{ active: index === swiperCurrent }"></text>
         </view>
       </view>
-      <view class="travel-hero">
+      <view v-if="heroImages.length" class="travel-hero">
         <img class="column-photo" :src="heroImages[0]" alt="首页主宣传图" @error="restoreHero" />
         <swiper v-if="heroImages.length > 1" class="hero-carousel" circular autoplay :interval="4000"
           :duration="500" :current="heroCurrent" @change="heroCurrent = $event.detail.current">
@@ -23,7 +23,7 @@
         <text class="travel-hero-title">山水有约，好物相伴</text>
         <text class="travel-hero-sub">品质好物 · 悦享生活</text>
       </view>
-      <view class="hero-pagination">
+      <view v-if="heroImages.length" class="hero-pagination">
         <text v-for="(url, index) in heroImages" :key="url"
           :class="{ 'hero-active': heroImages.length > 1 && index === heroCurrent }" @click="heroCurrent = index" />
       </view>
@@ -187,8 +187,8 @@ onShow(() => {
     .then(response => response.ok ? response.json() : null)
     .then((data: unknown) => {
       const images = Array.isArray(data) ? data.filter((url): url is string =>
-        typeof url === 'string' && /^\/static\/festive-home\/hero-[a-z0-9-]+\.jpg$/.test(url)) : []
-      const next = images.length ? images : [originalHero]
+        typeof url === 'string' && (url === originalHero || /^\/static\/festive-home\/hero-[a-z0-9-]+\.jpg$/.test(url))) : []
+      const next = Array.isArray(data) ? images : [originalHero]
       if (next.join() !== heroImages.value.join()) {
         heroCurrent.value = 0
         heroImages.value = next

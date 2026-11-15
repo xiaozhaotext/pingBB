@@ -5,7 +5,7 @@ import http from '@/utils/http'
 import { getP0 } from '@/apis/p0'
 
 const slots = [
-  { key: 'hero', label: '首页主宣传图', hint: '最多上传 8 张，选择顺序即播放顺序，新上传将替换整组' },
+  { key: 'hero', label: '首页主宣传图', hint: '最多保留 8 张，新增图片按上传顺序追加，可单独删除' },
   { key: 'pick', label: '自选区图片', hint: '首页入口与自选区顶部共用' },
   { key: 'rebuy', label: '复购区图片', hint: '首页入口与复购区顶部共用' },
   { key: 'consume', label: '消费区图片', hint: '首页入口与消费区顶部共用' },
@@ -87,13 +87,13 @@ async function saveCaptions() {
   } catch (error: any) { ElMessage.error(error?.message || '保存失败') }
   finally { saving.value = false }
 }
-const heroPhotos = ref<string[]>([])
+const heroPhotos = ref<string[]>(["/static/festive-home/hero.jpg"])
 const refresh = async () => {
   urls.value = (await getP0<Record<string,string>>('column-images')).data || {}
   try {
     const response = await fetch('/static/festive-home/hero-carousel.json', { cache: 'no-store' })
-    const data = response.ok && response.headers.get('content-type')?.includes('json') ? await response.json() : []
-    heroPhotos.value = Array.isArray(data) ? data : []
+    const data = response.ok && response.headers.get('content-type')?.includes('json') ? await response.json() : null
+    heroPhotos.value = Array.isArray(data) ? data : ["/static/festive-home/hero.jpg"]
   } catch { /* Retain the previous preview on a network error. */ }
 }
 const imageUrl = (key: string) => key === 'hero' && heroPhotos.value.length ? heroPhotos.value[0] : `${urls.value[key] || ''}?v=${Date.now()}`
@@ -115,6 +115,15 @@ async function asJpeg(file: File, maxSide?: number): Promise<Blob> {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片转换失败')), 'image/jpeg', 0.92))
   } finally { bitmap.close() }
 }
+async function removeHero(url: string) {
+  try { await ElMessageBox.confirm('从首页轮播中删除这张图片？', '删除宣传图') }
+  catch { return }
+  busy.value = 'hero'
+  try {
+    const result = await http<string[]>({ url: '/p0/column-images/hero-carousel', method: 'delete', params: { url } })
+    heroPhotos.value = result.data
+  } finally { busy.value = '' }
+}
 async function uploadHero(files: File[]) {
   if (files.length > 8 || files.some(file => file.size > 100 * 1024 * 1024)) {
     ElMessage.warning('最多选择 8 张图片，单张原图不能超过 100MB')
@@ -123,7 +132,7 @@ async function uploadHero(files: File[]) {
   busy.value = 'hero'
   try {
     try {
-      await ElMessageBox.confirm(`用所选的 ${files.length} 张图片替换当前首页宣传图？`, '确认替换')
+      await ElMessageBox.confirm(`添加所选的 ${files.length} 张图片？`, '确认添加')
     } catch { return }
     const form = new FormData()
     let totalSize = 0
@@ -169,7 +178,7 @@ onMounted(() => { void refresh(); void loadTourismLabel() })
 <template>
   <div class="column-images"><h2>栏目图片</h2><p>上传后替换正式站对应的宣传图，页面会按图片原始比例完整展示。支持常见图片格式，系统会转换为 JPG；不超过 100MB、3000 万像素。</p>
     <div class="tourism-label"><label for="tourism-selection-label">活动选项标题（前端显示为“选择＋标题”）</label><div class="label-editor"><el-input id="tourism-selection-label" v-model="tourismLabel" maxlength="12" show-word-limit aria-label="活动选项标题" /><el-button :loading="labelSaving" @click="saveTourismLabel">保存标题</el-button></div></div>
-    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><img :src="imageUrl(slot.key)" :alt="slot.label" /><img v-for="url in slot.key === 'hero' ? heroPhotos.slice(1) : []" :key="url" :src="url" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : '上传并替换' }}<input type="file" accept="image/*" :multiple="slot.key === 'hero'" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
+    <div class="grid"><section v-for="slot in slots" :key="slot.key"><h3>{{ slot.label }}</h3><p>{{ slot.hint }}</p><template v-if="slot.key === 'hero'"><div v-for="(url, index) in heroPhotos" :key="url"><img :src="url" :alt="`宣传图 ${index + 1}`" /><el-button type="danger" link :disabled="!!busy" @click="removeHero(url)">删除第 {{ index + 1 }} 张</el-button></div></template><img v-else :src="imageUrl(slot.key)" :alt="slot.label" /><label class="upload">{{ busy === slot.key ? '上传中…' : slot.key === 'hero' ? '添加图片' : '上传并替换' }}<input type="file" accept="image/*" :multiple="slot.key === 'hero'" :disabled="!!busy" @change="choose(slot.key, $event)" /></label><el-button v-if="defaults[slot.key]" class="caption-button" @click="editCaptions(slot.key)">编辑叠加文字</el-button><div v-if="slot.key.startsWith('gift')" class="label-editor"><el-input v-model="tourismNames[Number(slot.key.slice(-1)) - 1]" maxlength="12" show-word-limit :aria-label="`${slot.label}名称`" /><el-button :loading="labelSaving" @click="saveTourismName(Number(slot.key.slice(-1)) - 1)">保存名称</el-button></div></section></div>
     <el-dialog :model-value="!!editing" title="编辑叠加文字" width="min(680px, 94vw)" @update:model-value="value => { if (!value) editing = '' }">
       <p>图片自带文字时，可以关闭对应的叠加文字。位置按图片宽高百分比计算。</p>
       <div class="caption-preview" :style="{ backgroundImage: `url(${imageUrl(editing)})` }"><span v-for="(item, i) in captions" :key="i" :style="{ left:item.x+'%', top:item.y+'%', color:item.color, fontSize:item.size+'px', fontFamily:fonts[item.font || 'song'], letterSpacing:(item.spacing ?? 0)+'px', textShadow:effects[item.effect || 'shadow'], fontWeight:item.bold?'700':'400', display:item.visible?'block':'none' }">{{ item.text }}</span></div>

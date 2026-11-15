@@ -173,7 +173,7 @@ public class ColumnImageController {
     }
 
     @PostMapping("/hero-carousel")
-    public synchronized CommonResult<List<String>> replaceHeroCarousel(Principal principal,
+    public synchronized CommonResult<List<String>> appendHeroCarousel(Principal principal,
             @RequestPart("files") List<MultipartFile> files) throws IOException {
         long operator = access.requirePlatformAdmin(principal);
         if (files.isEmpty() || files.size() > 8 || files.stream().mapToLong(MultipartFile::getSize).sum() > 8L * 1024 * 1024) {
@@ -182,7 +182,8 @@ public class ColumnImageController {
         Path dir = Path.of(directory).toAbsolutePath().normalize();
         Files.createDirectories(dir);
         String revision = java.util.UUID.randomUUID().toString();
-        List<String> urls = new java.util.ArrayList<>();
+        List<String> urls = readHeroCarousel(dir);
+        if (urls.size() + files.size() > 8) throw new IllegalArgumentException("首页宣传图最多保留8张");
         List<Path> written = new java.util.ArrayList<>();
         Path manifest = Files.createTempFile(dir, "hero-carousel-", ".tmp");
         boolean published = false;
@@ -200,14 +201,14 @@ public class ColumnImageController {
             mapper.writeValue(manifest.toFile(), urls);
             makePublicFile(manifest);
             jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','REPLACE',?)",
-                    principal.getName(), operator, "hero-carousel:" + urls.size());
+                    principal.getName(), operator, "hero-carousel:add:" + files.size());
             Files.move(manifest, dir.resolve("hero-carousel.json"), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             published = true;
             // Keep recently replaced assets available to clients that already loaded a carousel.
             try (var images = Files.newDirectoryStream(dir, "hero-*-*.jpg")) {
                 long cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000;
                 for (Path image : images) {
-                    if (!written.contains(image) && Files.getLastModifiedTime(image).toMillis() < cutoff) {
+                    if (!urls.contains("/static/festive-home/" + image.getFileName()) && Files.getLastModifiedTime(image).toMillis() < cutoff) {
                         Files.deleteIfExists(image);
                     }
                 }
@@ -221,4 +222,29 @@ public class ColumnImageController {
         }
     }
 
+    private List<String> readHeroCarousel(Path dir) throws IOException {
+        Path file = dir.resolve("hero-carousel.json");
+        if (!Files.exists(file)) return new java.util.ArrayList<>(List.of("/static/festive-home/hero.jpg"));
+        return mapper.readValue(file.toFile(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+    }
+
+    @DeleteMapping("/hero-carousel")
+    public synchronized CommonResult<List<String>> removeHeroImage(Principal principal,
+            @RequestParam("url") String url) throws IOException {
+        long operator = access.requirePlatformAdmin(principal);
+        Path dir = Path.of(directory).toAbsolutePath().normalize();
+        List<String> urls = readHeroCarousel(dir);
+        if (!urls.remove(url)) throw new IllegalArgumentException("图片已移除，请刷新列表");
+        Path temporary = Files.createTempFile(dir, "hero-carousel-", ".tmp");
+        try {
+            mapper.writeValue(temporary.toFile(), urls);
+            makePublicFile(temporary);
+            jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'column_image','REMOVE',?)",
+                    principal.getName(), operator, url);
+            Files.move(temporary, dir.resolve("hero-carousel.json"), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return CommonResult.success(urls);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
 }
