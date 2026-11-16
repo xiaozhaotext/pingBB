@@ -35,7 +35,9 @@ public class ProductZoneController {
             throw new ApiException("搜索词过长");
         }
         StringBuilder sql = new StringBuilder(
-                "SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.sale,p.product_category_id AS productCategoryId "
+                "SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.sale,p.product_category_id AS productCategoryId"
+                        + ("CONSUME".equals(zone) ? ",CEIL(p.price*z.consume_points_per_yuan) AS requiredProductPoints" : "")
+                        + " "
                         + "FROM pms_product_zone z JOIN pms_product p ON p.id=z.product_id "
                         + "WHERE z.zone_code=? AND p.publish_status=1 AND p.delete_status=0 "
                         + "AND (p.brand_id IS NULL OR p.brand_id=0 OR NOT EXISTS "

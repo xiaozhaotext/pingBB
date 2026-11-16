@@ -219,10 +219,6 @@ export const asyncRouterMap: RouteRecordExt[] = [
         { path: 'roles/resource', name: 'serviceRoleAllocResource', component: () => import('@/views/ums/role/allocResource.vue'), hidden: true, meta: { title: '分配接口资源' } },
         { path: 'login-log', name: 'serviceLoginLog', component: () => import('@/views/p0/LoginLog.vue'), meta: { title: '登录日志', icon: 'document' } },
       ] },
-      { path: 'database', name: 'systemDatabaseManagement', component: RouterView, redirect: '/systemSettings/database/tables', meta: { title: '数据库管理', icon: 'table' }, children: [
-        { path: 'tables', name: 'serviceDatabase', component: () => import('@/views/p0/Database.vue'), meta: { title: '数据库备份', icon: 'table', section: 'tables' } },
-        { path: 'backups', name: 'systemDatabaseBackups', component: () => import('@/views/p0/Database.vue'), meta: { title: '查看备份', icon: 'document', section: 'backups' } },
-      ] },
     ],
   },
 
@@ -510,7 +506,6 @@ export const asyncRouterMap: RouteRecordExt[] = [
       { path: 'area-library', name: 'p0AreaLibrary', component: () => import('@/views/p0/AreaLibrary.vue'), meta: { title: '省市区街道地址库' } },
       { path: 'message-records', name: 'p0MessageRecord', component: () => import('@/views/p0/MessageRecords.vue'), meta: { title: '发送记录' } },
       { path: 'visit-statistics', name: 'p0VisitStatistics', component: () => import('@/views/p0/VisitStatistics.vue'), meta: { title: '访问统计' } },
-      { path: 'database', name: 'p0Database', component: () => import('@/views/p0/Database.vue'), meta: { title: '数据库管理' } },
     ],
   },
   {

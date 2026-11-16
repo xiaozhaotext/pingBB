@@ -43,6 +43,7 @@ let returnTimer: ReturnType<typeof setTimeout> | undefined
 const showConfirmed = () => {
   if (leaving) return
   confirmed.value = true
+  uni.showToast({ icon: 'success', title: '支付成功' })
   payText.value = '支付成功，订单已确认'
   resultMessage.value = '无需再次付款，2秒后自动返回商城。'
   returnTimer = setTimeout(() => { if (!leaving) uni.switchTab({ url: '/pages/index/index' }) }, 2000)

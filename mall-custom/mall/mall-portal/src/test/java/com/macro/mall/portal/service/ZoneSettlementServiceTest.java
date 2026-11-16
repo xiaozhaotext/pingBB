@@ -22,7 +22,7 @@ class ZoneSettlementServiceTest {
     private final JdbcTemplate jdbc = new JdbcTemplate() {
         @Override
         public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
-            return null; // No sys_config row: use documented settlement defaults.
+            return null; // 配置缺失时使用线上结算默认值。
         }
     };
     private final ZoneSettlementService service = new ZoneSettlementService(jdbc);
@@ -44,13 +44,13 @@ class ZoneSettlementServiceTest {
     }
 
     @Test
-    void consumeRejectsCashChoiceEvenWhenBalanceIsAvailable() {
+    void consumeBlocksWhenBalanceCannotCoverFullPrice() {
         ZoneSettlement settlement = service.settle(
                 List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO)), false, true, false, wallets(500, 0, "40.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
         assertFalse(consume.isPayable());
-        assertTrue(consume.getBlockedReason().contains("仅支持商品积分"));
+        assertTrue(consume.getBlockedReason().contains("余额不足"));
         assertEquals(0, consume.getProductPoints());
         assertAmount("0.00", consume.getBalanceAmount());
         assertAmount("0.00", settlement.getCashAmount());
@@ -62,11 +62,11 @@ class ZoneSettlementServiceTest {
                 new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("100.00"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO),
                 new ZoneSettlementService.Line(ZoneRules.REBUY, new BigDecimal("100.00"), 1,
-                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, true, wallets(100, 100, "40.00"));
+                        BigDecimal.ZERO, BigDecimal.ZERO)), true, true, true, wallets(10000, 100, "40.00"));
         assertAmount("40.00", plan(settlement, ZoneRules.REBUY).getBalanceAmount());
         assertAmount("0.00", plan(settlement, ZoneRules.CONSUME).getBalanceAmount());
         assertAmount("0.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
-        assertEquals(100, plan(settlement, ZoneRules.CONSUME).getProductPoints());
+        assertEquals(10000, plan(settlement, ZoneRules.CONSUME).getProductPoints());
         assertAmount("40.00", settlement.getBalanceAmount());
         assertAmount("10.00", settlement.getCashAmount());
     }
@@ -234,9 +234,9 @@ class ZoneSettlementServiceTest {
         ZoneSettlement settlement = service.settle(
                 List.of(new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("19.90"), 1,
                         BigDecimal.ZERO, BigDecimal.ZERO)),
-                true, true, wallets(100, 9999, "500.00"));
+                true, true, wallets(1990, 9999, "500.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
-        assertEquals(20, consume.getProductPoints());
+        assertEquals(1990, consume.getProductPoints());
         assertAmount("19.90", consume.getProductPointAmount());
         assertAmount("0.00", consume.getCashAmount());
         assertAmount("0.00", consume.getBalanceAmount());
@@ -254,8 +254,8 @@ class ZoneSettlementServiceTest {
                 false, false, wallets(10, 9999, "500.00"));
         ZoneSettlement.Plan consume = plan(settlement, ZoneRules.CONSUME);
         assertFalse(consume.isPayable());
-        assertAmount("50.00", consume.getCashAmount());
-        assertTrue(consume.getBlockedReason().contains("产品积分不足"));
+        assertAmount("0.00", consume.getCashAmount());
+        assertTrue(consume.getBlockedReason().contains("智豆不足"));
     }
 
     @Test
@@ -268,7 +268,7 @@ class ZoneSettlementServiceTest {
                                 BigDecimal.ZERO, BigDecimal.ZERO),
                         new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("30.00"), 1,
                                 BigDecimal.ZERO, BigDecimal.ZERO)),
-                true, false, wallets(50, 50, "0.00"));
+                true, false, wallets(3000, 50, "0.00"));
         assertEquals(3, settlement.getPlans().size());
         assertAmount("50.00", plan(settlement, ZoneRules.PICK).getCashAmount());
         assertAmount("50.00", plan(settlement, ZoneRules.REBUY).getCashAmount());
@@ -299,7 +299,7 @@ class ZoneSettlementServiceTest {
                                 new BigDecimal("10.00"), new BigDecimal("5.00")),
                         new ZoneSettlementService.Line(ZoneRules.CONSUME, new BigDecimal("20.00"), 1,
                                 BigDecimal.ZERO, BigDecimal.ZERO)),
-                false, false, wallets(20, 0, "0.00"));
+                false, false, wallets(2000, 0, "0.00"));
         ZoneSettlement.Plan pick = plan(settlement, ZoneRules.PICK);
         assertAmount("85.00", pick.getNetAmount());
         assertAmount("85.00", pick.getCashAmount());
@@ -318,7 +318,7 @@ class ZoneSettlementServiceTest {
                 false, false, wallets(0, 0, "0.00"));
         assertAmount("100.00", plan(settlement, ZoneRules.PICK).getCashAmount());
         assertFalse(plan(settlement, ZoneRules.CONSUME).isPayable());
-        assertAmount("50.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
+        assertAmount("0.00", plan(settlement, ZoneRules.CONSUME).getCashAmount());
         assertAmount("100.00", settlement.getCashAmount());
         assertAmount("150.00", settlement.getTotalAmount());
     }
@@ -334,8 +334,8 @@ class ZoneSettlementServiceTest {
                 true, true, wallets(0, 9999, "10.00"));
         assertFalse(plan(settlement, ZoneRules.PICK).isPayable());
         assertTrue(plan(settlement, ZoneRules.REBUY).isPayable());
-        assertAmount("60.00", settlement.getCashAmount());
+        assertAmount("40.00", settlement.getCashAmount());
         assertAmount("10.00", settlement.getBalanceAmount());
-        assertAmount("30.00", settlement.getRepurchasePointAmount());
+        assertAmount("50.00", settlement.getRepurchasePointAmount());
     }
 }

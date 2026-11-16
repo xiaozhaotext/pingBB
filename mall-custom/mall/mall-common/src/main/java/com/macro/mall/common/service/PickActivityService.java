@@ -20,6 +20,8 @@ public class PickActivityService {
                            boolean enabled, int sortOrder, List<Long> productIds) {}
 
     private static final String FIELDS = "id,title,image_url AS imageUrl,rules,enabled,sort_order AS sortOrder";
+    // 商城端沿用线上开放状态字段，管理端保持原有返回结构。
+    private static final String PUBLIC_FIELDS = "id,title,image_url AS imageUrl,rules,enabled,is_open AS isOpen,sort_order AS sortOrder";
     private static final String ELIGIBLE = " z.zone_code='PICK' AND p.delete_status=0 AND p.publish_status=1"
             + " AND p.price=3999.00"
             + " AND (p.brand_id IS NULL OR p.brand_id=0 OR NOT EXISTS"
@@ -29,15 +31,18 @@ public class PickActivityService {
             + " AND NOT EXISTS (SELECT 1 FROM pms_sku_stock s WHERE s.product_id=p.id AND (s.price IS NULL OR s.price<>3999.00))";
 
     public List<Map<String, Object>> list(boolean publicView) {
-        return jdbc.queryForList("SELECT " + FIELDS + " FROM pms_pick_activity"
+        return jdbc.queryForList("SELECT " + (publicView ? PUBLIC_FIELDS : FIELDS) + " FROM pms_pick_activity"
                 + (publicView ? " WHERE enabled=1" : "") + " ORDER BY sort_order DESC,id ASC");
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> detail(long id, boolean publicView) {
-        var rows = jdbc.queryForList("SELECT " + FIELDS + " FROM pms_pick_activity WHERE id=?"
+        var rows = jdbc.queryForList("SELECT " + (publicView ? PUBLIC_FIELDS : FIELDS) + " FROM pms_pick_activity WHERE id=?"
                 + (publicView ? " AND enabled=1" : ""), id);
         if (rows.isEmpty()) throw new ApiException("活动不存在或已停用");
+        if (publicView && ((Number) rows.get(0).get("isOpen")).intValue() == 0) {
+            throw new ApiException("活动暂未开放");
+        }
         Map<String, Object> result = new LinkedHashMap<>(rows.get(0));
         var products = jdbc.queryForList("SELECT p.id,p.name,p.pic,p.sub_title AS subTitle,p.price,p.publish_status AS publishStatus "
                 + "FROM pms_pick_activity_product ap JOIN pms_product p ON p.id=ap.product_id "
@@ -45,6 +50,13 @@ public class PickActivityService {
                 + (publicView ? " AND" + ELIGIBLE : "") + " ORDER BY ap.sort_order ASC,p.id ASC", id);
         result.put("products", products);
         return result;
+    }
+
+    /** 保留线上已有的活动开放状态更新逻辑。 */
+    public void setOpen(long id, boolean open) {
+        if (jdbc.update("UPDATE pms_pick_activity SET is_open=? WHERE id=?", open ? 1 : 0, id) == 0) {
+            throw new ApiException("活动不存在");
+        }
     }
 
     public List<Map<String, Object>> candidates(String keyword) {

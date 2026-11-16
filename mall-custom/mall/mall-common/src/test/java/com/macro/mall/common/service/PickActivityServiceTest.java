@@ -27,6 +27,7 @@ class PickActivityServiceTest {
         // 直接执行本次交付迁移，验证可重复执行且无需赠品数据表。
         String migration = Files.readString(Path.of("../../deploy/migrations/20261113_pick_activities.sql"));
         for (int run = 0; run < 2; run++) for (String sql : migration.split(";")) if (!sql.isBlank()) jdbc.execute(sql);
+        jdbc.execute("ALTER TABLE pms_pick_activity ADD COLUMN is_open TINYINT NOT NULL DEFAULT 1");
         jdbc.execute("CREATE TABLE pms_product(id BIGINT PRIMARY KEY,name VARCHAR(100),pic VARCHAR(100),sub_title VARCHAR(100),price DECIMAL(10,2),brand_id BIGINT,publish_status INT,delete_status INT)");
         jdbc.execute("CREATE TABLE pms_product_zone(product_id BIGINT PRIMARY KEY,zone_code VARCHAR(20))");
         jdbc.execute("CREATE TABLE pms_brand(id BIGINT PRIMARY KEY,show_status INT)");
@@ -61,6 +62,17 @@ class PickActivityServiceTest {
         service.save(config(id, true, List.of(2L,3L)));
         assertEquals(List.of(2L,3L), ids(id, true));
         assertEquals(1, service.list(true).size());
+    }
+
+    @Test void closedActivityRemainsListedButOnlyAdminCanReadItsDetail() {
+        long id = service.save(config(null, true, List.of(1L)));
+        service.setOpen(id, false);
+        assertEquals(0, ((Number) service.list(true).get(0).get("isOpen")).intValue());
+        assertFalse(service.list(false).get(0).containsKey("isOpen"));
+        assertEquals("活动暂未开放", assertThrows(ApiException.class, () -> service.detail(id, true)).getMessage());
+        assertEquals(List.of(1L), ids(id, false));
+        service.setOpen(id, true);
+        assertEquals(List.of(1L), ids(id, true));
     }
 
     @Test void disabledActivitiesAreNotPublicButRemainEditable() {

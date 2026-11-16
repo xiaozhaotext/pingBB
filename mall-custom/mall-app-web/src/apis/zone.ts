@@ -1,6 +1,7 @@
 import { http } from '@/utils/http'
 
 export interface ZoneProduct {
+  requiredProductPoints?: number
   id: number
   name: string
   pic: string

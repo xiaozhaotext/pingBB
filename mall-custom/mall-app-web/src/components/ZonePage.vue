@@ -27,7 +27,7 @@
             <text class="zone-card-title">{{ item.name }}</text>
             <text class="zone-card-sub">{{ item.subTitle }}</text>
             <view v-if="props.zone === 'PICK'" class="zone-card-tags"><text class="zone-product-tag">自选区</text></view>
-            <view v-else class="zone-card-foot"><text>{{ priceText(item) }}</text><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view>
+            <view v-else class="zone-card-foot"><view class="zone-card-price"><text>{{ priceText(item) }}</text><text v-if="props.zone === 'CONSUME' && item.requiredProductPoints != null" class="zone-card-points">{{ item.requiredProductPoints }} 智豆</text></view><text>已售 {{ item.sale || 0 }}</text><text class="zone-add-cart" @click.stop="addCart(item)">加入购物车</text></view>
           </view>
         </view>
       </view>
@@ -79,7 +79,7 @@ const load = async () => {
 const addCart = (item: ZoneProduct) => { addFirstAvailableSkuToCart(item.id, props.zone) }
 const zoneTip = computed(() => {
   if (props.zone === 'REBUY') return '复购区先用复购积分抵扣配置比例（默认 50%），余款优先使用账户余额，余额不足再通过外部支付。'
-  if (props.zone === 'CONSUME') return '消费区可用微信支付或账户余额，不扣商品积分。余额不足时，差额由微信支付。'
+  if (props.zone === 'CONSUME') return '消费区可用智豆或账户余额全额支付。'
   return '点击商品查看详情、价格与会员权益。'
 })
 const priceText = (item: ZoneProduct) => `¥${item.price}`

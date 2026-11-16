@@ -21,6 +21,7 @@ interface ZoneProduct {
   assigned: boolean | number
   tourRoute: boolean | number
   sortOrder: number
+  consumePointsPerYuan?: number
   displayReason: string
 }
 
@@ -30,7 +31,7 @@ const router = useRouter()
 const ZONES = {
   pickProduct: { code: 'PICK', label: '自选区', prefix: 'pick', rule: '自选区只销售3999元旅游路线；游客购买一条并支付成功后升级会员。' },
   rebuyProduct: { code: 'REBUY', label: '复购区', prefix: 'rebuy', rule: '复购区商品按 50% 复购积分抵扣，剩余 50% 优先使用账户余额；余额不足的差额走微信或支付宝支付。不能使用商品积分。' },
-  consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区商品只能用商品积分购买，不能使用复购积分、余额或现金。' },
+  consumeProduct: { code: 'CONSUME', label: '消费区', prefix: 'consume', rule: '消费区优先使用智豆，缺少的智豆按商品兑换比例折算。' },
 } as const
 const currentZone = computed(() => ZONES[route.name as keyof typeof ZONES] ?? ZONES.pickProduct)
 const zone = computed(() => currentZone.value.code)
@@ -272,6 +273,28 @@ async function deleteProduct(row: ZoneProduct) {
     await load()
   } finally { busy.value = null }
 }
+async function editConsumeRate(row?: ZoneProduct, all = false) {
+  const ids = all ? [] : row ? [row.id] : selectedRows.value.map(item => item.id)
+  if (zone.value !== 'CONSUME' || (!all && ids.length === 0)) return
+  const scope = all ? '消费区全部商品（含已上架）' : row ? row.name : `选中的 ${ids.length} 件商品`
+  let value: string
+  try {
+    ({ value } = await ElMessageBox.prompt(`调整「${scope}」的兑换比例。请输入 1 元余额可兑换的智豆数。`, '余额兑换比例', {
+      inputValue: String(row?.consumePointsPerYuan ?? 100),
+      inputPattern: /^(?:[1-9][0-9]{0,5}|1000000)$/,
+      inputErrorMessage: '请输入 1 至 1000000 的整数',
+      confirmButtonText: '保存比例',
+    }))
+  } catch { return }
+  if (zone.value !== 'CONSUME') return
+  batchBusy.value = true
+  try {
+    const result = await http<number>({ url: '/p0/zones/CONSUME/products/points-rate', method: 'put',
+      data: { ids, all, pointsPerYuan: Number(value) } })
+    ElMessage.success(`已设置 ${result.data} 件商品的兑换比例`)
+    if (zone.value === 'CONSUME') await load()
+  } finally { batchBusy.value = false }
+}
 async function batchPublish() {
   const pending = selectedRows.value.filter(row => row.publishStatus !== 1)
   if (!pending.length) return ElMessage.info('所选商品已上架')
@@ -373,6 +396,10 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         <el-button :disabled="batchBusy" @click="selectAllUnpublished">全选全部商品</el-button>
         <span>仅自动勾选本专区未上架商品，已上架商品可手动选择；跨页保留勾选。</span>
         <el-button :disabled="batchBusy || !selectedRows.length" @click="clearBatchSelection">取消全选</el-button>
+        <template v-if="zone === 'CONSUME'">
+          <el-button :disabled="batchBusy || !selectedRows.length" @click="editConsumeRate()">调整所选比例</el-button>
+          <el-button :disabled="batchBusy" @click="editConsumeRate(undefined, true)">调整全区比例</el-button>
+        </template>
         <span>已选 {{ selectedRows.length }} 件</span>
         <el-button :disabled="!selectedRows.some(row => row.publishStatus !== 1) || batchBusy" :loading="batchBusy" @click="batchPublish">批量上架</el-button>
         <el-button type="danger" :disabled="!selectedRows.length || batchBusy" :loading="batchBusy" @click="batchDelete">批量删除</el-button>
@@ -396,6 +423,11 @@ async function setFlag(row: ZoneProduct, kind: 'new' | 'recommend') {
         </el-table-column>
         <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
         <el-table-column prop="price" label="价格" width="96" />
+        <el-table-column v-if="zone === 'CONSUME'" label="余额 : 智豆" width="130">
+          <template #default="{ row }">
+            <el-button link :disabled="batchBusy" @click="editConsumeRate(row)">1 : {{ row.consumePointsPerYuan ?? 100 }} · 修改</el-button>
+          </template>
+        </el-table-column>
         <el-table-column v-if="zone === 'PICK'" label="旅游路线" width="100">
           <template #default="{ row }"><el-tag :type="row.tourRoute ? 'success' : 'info'">{{ row.tourRoute ? '已标记' : '未标记' }}</el-tag></template>
         </el-table-column>
