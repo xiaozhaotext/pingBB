@@ -154,13 +154,16 @@
 
     <!-- 底部 -->
     <view class="footer">
-      <view class="price-content">
-        <view class="pay-total">
-          <text>{{ hasBlockedZone ? '结算状态' : '现金应付' }}</text>
-          <text v-if="!hasBlockedZone" class="price-tip">￥</text>
-          <text class="price">{{ hasBlockedZone ? '待调整支付方式' : num(calcAmount.payAmount).toFixed(2) }}</text>
+      <view class="price-content" :class="{ 'has-checkout-alert': hasBlockedZone }">
+        <view v-if="hasBlockedZone" class="checkout-alert">
+          <text class="checkout-alert-title">暂不可结算</text>
+          <text class="checkout-alert-help">请按上方提示调整支付方式</text>
         </view>
-        <text class="pay-points pay-warn" v-if="hasBlockedZone">存在不可结算专区，请调整支付方式或移除后提交</text>
+        <view v-else class="pay-total">
+          <text>现金应付</text>
+          <text class="price-tip">￥</text>
+          <text class="price">{{ num(calcAmount.payAmount).toFixed(2) }}</text>
+        </view>
       </view>
       <text class="submit" @click="handleSubmit">{{ settlementPending ? '重新结算中…' : '提交订单' }}</text>
     </view>
@@ -1006,5 +1009,10 @@ page {
 .footer .price-content .pay-total{display:flex;align-items:center}
 .footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
 .footer .price-content .pay-warn{color:#e93b3d}
+.footer .price-content.has-checkout-alert{flex:1;min-width:0;padding-right:12rpx}
+.footer .checkout-alert{display:flex;flex-direction:column;justify-content:center;gap:4rpx;min-height:66rpx;padding-left:16rpx;border-left:5rpx solid #d56c5b;line-height:1.25}
+.footer .checkout-alert-title{font-size:27rpx;font-weight:600;color:#394344}
+.footer .checkout-alert-help{font-size:21rpx;color:#b35c4e;white-space:normal}
+.footer .submit{flex-shrink:0}
 </style>
 
