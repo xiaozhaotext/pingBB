@@ -40,9 +40,10 @@ export const registerAPI = (data: RegisterParam) => {
 /** 获取验证码 */
 export const getAuthCodeAPI = (telephone: string) => {
   return http({
-    method: 'GET',
+    method: 'POST',
     url: '/sso/getAuthCode',
-    params: { telephone },
+    header: { 'content-type': 'application/x-www-form-urlencoded;charset=utf-8' },
+    data: { telephone },
   })
 }
 

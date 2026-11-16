@@ -42,6 +42,7 @@ class SmsSendServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        properties.setProvider("ALIYUN");
         ReflectionTestUtils.setField(service, "properties", properties);
     }
 
@@ -55,11 +56,11 @@ class SmsSendServiceImplTest {
     }
 
     @Test
-    void disabledChannelIsSkippedAndAllowsTestEcho() {
+    void disabledChannelFailsWithoutEcho() {
         SmsSendResult result = service.sendCode("13800000000", "123456");
-        assertEquals("SKIPPED", result.status());
+        assertEquals("FAILED", result.status());
         assertFalse(result.sent());
-        assertTrue(result.codeEchoAllowed());
+        assertFalse(result.codeEchoAllowed());
     }
 
     @Test
@@ -96,11 +97,11 @@ class SmsSendServiceImplTest {
     }
 
     @Test
-    void aliyunDevEchoFlagIsHonoured() {
+    void legacyDevEchoFlagCannotExposeCode() {
         enableAliyun();
         properties.setDevReturnCode(true);
         service.getResponse = "{\"Code\":\"OK\"}";
-        assertTrue(service.sendCode("13800000000", "123456").codeEchoAllowed());
+        assertFalse(service.sendCode("13800000000", "123456").codeEchoAllowed());
     }
 
     @Test
@@ -152,6 +153,6 @@ class SmsSendServiceImplTest {
         assertTrue(result.sent());
         assertEquals("13800000000", service.lastForm.get("mobile"));
         assertEquals("654321", service.lastForm.get("text"));
-        assertNull(result.errorCode());
+        assertEquals("Ok", result.errorCode());
     }
 }
