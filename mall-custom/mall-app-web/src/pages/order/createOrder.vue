@@ -243,7 +243,7 @@ const productPointsBalance = ref(0)
 const repurchasePointsBalance = ref(0)
 const rechargeBalance = ref(0)
 // 复购积分抵扣比例
-const rebuyPointsRatio = ref(0.5)
+const rebuyPointsRatio = ref(0.3)
 // 按专区隔离的结算明细
 const zoneSettlement = ref<ZoneSettlement>({ plans: [] } as unknown as ZoneSettlement)
 // 购物车ID列表
@@ -325,7 +325,7 @@ const applyConfirmOrder = (data: ConfirmOrderResult) => {
   productPointsBalance.value = num(data.productPointsBalance)
   repurchasePointsBalance.value = num(data.repurchasePointsBalance)
   rechargeBalance.value = num(data.rechargeBalance)
-  rebuyPointsRatio.value = num(data.rebuyPointsRatio) || 0.5
+  rebuyPointsRatio.value = num(data.rebuyPointsRatio) || 0.3
 }
 
 // 设置当前地址（供 address.vue 调用）

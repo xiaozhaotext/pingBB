@@ -45,7 +45,7 @@ public class DividendDistributionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int distributeDaily(LocalDate statDate) {
-        if (membershipV2Enabled) return 0; // 新分红池由周结任务统一结算，不再走旧版日分红任务。
+        if (membershipV2Enabled) return 0; // New pools settle through TriPoolDailyScheduler, never through the legacy job.
         // No config or consumer request can enable cash posting before business/compliance review.
         if (!payoutEnabled || !distributionApproved()) throw new IllegalStateException("每日分红发放未启用");
         BigDecimal poolBalance = jdbc.queryForObject(

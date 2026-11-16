@@ -311,7 +311,7 @@ const handleCreateOrder = () => {
 type ZoneMeta = { label: string; rule: string; cash: boolean }
 const zoneMetaMap: Record<string, ZoneMeta> = {
   PICK: { label: '自选区', rule: '现金或余额购买', cash: true },
-  REBUY: { label: '复购区', rule: '50%复购积分＋余款余额优先，差额外部支付', cash: true },
+  REBUY: { label: '复购区', rule: '30%复购积分＋余款余额优先，差额外部支付', cash: true },
   CONSUME: { label: '消费区', rule: '微信或账户余额支付', cash: true },
   NONE: { label: '普通商品', rule: '现金或余额购买', cash: true },
 }

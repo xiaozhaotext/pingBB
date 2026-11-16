@@ -23,7 +23,7 @@ const recordPage = ref(1), ledgerPage = ref(1), memberPage = ref(1), busy = ref(
 let loadVersion = 0
 const operationsRequestId = ref('')
 const roster = ref({ memberId: undefined as number | undefined, shares: 1, enabled: true, reason: '' })
-const weeklyBudget = ref<Record<string, string>>({})
+const dailyBudget = ref<Record<string, string>>({})
 const budgetInput = ref('')
 const current = computed<Row>(() => data.value.pools?.find((p: Row) => p.code === pool.value) || {})
 const selectedDaily = computed<Row>(() => dailyRows.value.find(p => p.code === pool.value) || {})
@@ -39,10 +39,10 @@ async function load() {
     if (version !== loadVersion) return
     data.value = overview.data
     if (!data.value.enabled) { records.value = []; ledger.value = []; members.value = []; return }
-    const settings = await getP0<Record<string, string>>('tri-pools/weekly-budget')
+    const settings = await getP0<Record<string, string>>('tri-pools/daily-budget')
     if (version !== loadVersion) return
-    weeklyBudget.value = settings.data || {}
-    budgetInput.value = weeklyBudget.value[`tri.pool.weekly.budget.${selectedPool.toLowerCase()}`] || ''
+    dailyBudget.value = settings.data || {}
+    budgetInput.value = dailyBudget.value[`tri.pool.daily.budget.${selectedPool.toLowerCase()}`] || ''
     const responses = await Promise.all([
       getP0<Row[]>('tri-pools/records', { pool: selectedPool, page: recordPage.value, date: day }),
       getP0<Row[]>('tri-pools/ledger', { pool: selectedPool, page: ledgerPage.value, date: day }),
@@ -58,11 +58,11 @@ async function load() {
 async function saveBudget() {
   const value = budgetInput.value.trim()
   if (!/^\d+(\.\d{1,2})?$/.test(value)) { ElMessage.warning('请输入非负金额，最多两位小数'); return }
-  await ElMessageBox.confirm(`确认将${names[pool.value]}每周发放总额设置为 ¥${money(value)}？池余额不足时按实际余额发放，个人累计上限保持不变。`, '确认分红预算', { type: 'warning' })
+  await ElMessageBox.confirm(`确认将${names[pool.value]}每晚发放总额设置为 ¥${money(value)}？池余额不足时按实际余额发放，个人累计上限保持不变。`, '确认分红预算', { type: 'warning' })
   busy.value = true
   try {
-    await postP0('tri-pools/weekly-budget', { pool: pool.value, amount: value })
-    ElMessage.success('已保存，下一次周一00:00结算生效')
+    await postP0('tri-pools/daily-budget', { pool: pool.value, amount: value })
+    ElMessage.success('已保存，下一次午夜结算生效')
     await load()
   } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error('保存失败，请刷新后重试') }
   finally { busy.value = false }
@@ -99,11 +99,11 @@ watch([pool, selectedDate], () => { recordPage.value = 1; ledgerPage.value = 1; 
     <template v-if="data.enabled">
       <section v-if="pool !== 'OPERATIONS'"><strong>{{ pool === 'PARTNER' ? '合伙人数量' : '联创数量' }}：{{ (pool === 'PARTNER' ? data.memberCounts?.partner : data.memberCounts?.cofounder) ?? '—' }} 人</strong></section>
       <div class="stats"><el-statistic title="池内余额（元）" :value="Number(current.balance || 0)" :precision="2" /><el-statistic title="累计入池（元）" :value="Number(current.total_in || 0)" :precision="2" /><el-statistic title="累计分配（元）" :value="Number(current.total_out || 0)" :precision="2" /></div>
-      <section v-if="pool !== 'OPERATIONS'"><h3>每周自定义分红</h3><p class="day-note">输入本池每周的发放总额。合伙人池由所有已付费会员按份额分配，联创池仅联创参与；池余额不足时按实际余额分配，个人累计封顶不变。周预算独立于旧日预算；未设置或设为0时暂停本池自动发放。</p><el-input v-model="budgetInput" style="width:180px" placeholder="每周总额（元）" :disabled="busy" /><el-button type="primary" :disabled="busy" @click="saveBudget">保存预算</el-button></section>
+      <section v-if="pool !== 'OPERATIONS'"><h3>午夜自定义分红</h3><p class="day-note">输入本池每晚的发放总额。合伙人池由所有已付费会员按份额分配，联创池仅联创参与；池余额不足时按实际余额分配，个人累计封顶不变。尚未设置时沿用原有全池余额分配规则。</p><el-input v-model="budgetInput" style="width:180px" placeholder="每晚总额（元）" :disabled="busy" /><el-button type="primary" :disabled="busy" @click="saveBudget">保存预算</el-button></section>
       <section><h3>{{ selectedDate }} · 三池每日汇总</h3><p class="day-note">按北京时间00:00至次日00:00统计。期末结余为所选日期的历史余额；上方展示当前累计数据。</p>
         <el-table :data="dailyRows" empty-text="暂无日账数据" @row-click="openPool" class="daily-table"><el-table-column label="分红池"><template #default="{ row }"><el-link type="primary">{{ names[row.code] }}</el-link></template></el-table-column><el-table-column prop="opening" label="期初结余（元）" /><el-table-column prop="funded" label="当日入池（元）" /><el-table-column prop="distributed" label="当日发放（元）" /><el-table-column prop="closing" label="期末结余（元）" /><el-table-column prop="recipientCount" label="领取人数" /><el-table-column prop="awardCount" label="领取笔数" /><el-table-column prop="batchCount" label="发放批次" /></el-table>
       </section>
-      <el-alert :title="`每笔3999元会员支付入池${pool === 'PARTNER' ? 500 : 200}元，北京时间每周一00:00结算上一自然周，按${pool === 'OPERATIONS' ? '后台启用的运营份额' : '有效总份数'}自动分配。零头及封顶剩余留池。`" :closable="false" type="info" />
+      <el-alert :title="`每笔3999元会员支付入池${pool === 'PARTNER' ? 500 : 200}元，北京时间每天00:00结算前一天，按${pool === 'OPERATIONS' ? '后台启用的运营份额' : '有效总份数'}自动分配。零头及封顶剩余留池。`" :closable="false" type="info" />
       <el-alert v-if="pool === 'PARTNER'" title="累计上限：有效直邀0/1/2人为1200/2400/3600元；每满3人增加8000元（4000×已满档数×2），档内每人另加1200元。满3/6/9/12人为8000/16000/24000/32000元。同一会员多次购买按份累计，本人每增购1份增加1份分红权益及1200元上限。已领金额持续累计。" :closable="false" type="info" />
       <el-alert v-if="pool === 'COFOUNDER'" title="联创池仅联创会员参与，按本人购买份数参与分红；本人每增购1份，两池共用总上限增加1200元，联创池阶梯上限与合伙人池一致。两池共用阶梯总上限，合计已领扣减总额度。本人1份且直邀9份时共用总上限24000元，两池均显示24000元阶梯总上限，剩余额度扣除两池累计已领合计。" :closable="false" type="info" />
       <section v-if="pool === 'OPERATIONS'">

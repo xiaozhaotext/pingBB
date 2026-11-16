@@ -223,7 +223,7 @@ export type OrderParam = {
   useIntegration: number
   /** 自选区是否使用余额（充值本金）支付；余额与现金二选一 */
   useBalance?: boolean
-  /** 复购区是否使用「50%复购积分 + 50%现金」模式；大于 0 表示启用 */
+  /** 复购区是否使用「30%复购积分 + 70%现金」模式；大于 0 表示启用 */
   useRepurchasePoints?: number
   /** 消费区必须使用商品积分；false 会被后端拒绝 */
   useProductPoints?: boolean

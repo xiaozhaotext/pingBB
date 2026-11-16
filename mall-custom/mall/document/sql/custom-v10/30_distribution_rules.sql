@@ -15,7 +15,7 @@ INSERT INTO sys_config(config_key, config_value, config_group, remark) VALUES
   ('membership.referral.cofounder.repurchase_points','10000','distribution','联创直推赠送复购积分'),
   ('share.order.bonus.enabled','0','distribution','普通商品分享下单奖励开关(0关闭/1开启，规则未确认前关闭)'),
   ('share.order.bonus','200.00','distribution','分享每单奖励(元)'),
-  ('rebuy.points.ratio','0.50','distribution','复购区积分抵扣比例(0-1)，其余为现金'),
+  ('rebuy.points.ratio','0.30','distribution','复购区积分抵扣比例(0-1)，其余为现金'),
   ('withdraw.fee_rate','0.006','distribution','提现手续费率(0-1)'),
   ('withdraw.min_amount','1.00','distribution','单笔提现最低金额(元)')
 ON DUPLICATE KEY UPDATE

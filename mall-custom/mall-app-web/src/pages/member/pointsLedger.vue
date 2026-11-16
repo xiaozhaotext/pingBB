@@ -23,7 +23,7 @@
       <text class="tip" v-else>暂无智豆明细</text>
     </view>
 
-    <view class="card">智豆来源：购买权益、复购区消费返还、直推奖励、每周分红。</view>
+    <view class="card">智豆来源：购买权益、复购区消费返还、直推奖励、每日分红。</view>
     <view v-if="loadError" class="card error">{{ loadError }}</view>
   </view>
 </template>

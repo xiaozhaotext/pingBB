@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.DayOfWeek;
 import java.time.ZoneId;
 import java.sql.Timestamp;
 import java.util.*;
@@ -95,38 +94,36 @@ public class TriPoolService {
         audit(name,operator,"MANUAL_IDENTITY",memberId,"from="+before+";to="+target+";reason="+reason.trim());
     }
 
-    /** 按北京时间已结束的自然周结算，以周日日期作为唯一批次标识。 */
+    /** Settle the completed Beijing calendar day; payment only funds the pools. */
     @Transactional(rollbackFor=Exception.class)
-    public List<Map<String,Object>> distributeWeekly(LocalDate statDate) {
+    public List<Map<String,Object>> distributeDaily(LocalDate statDate) {
         requireEnabled();
-        if (statDate == null || statDate.getDayOfWeek() != DayOfWeek.SUNDAY || !statDate.isBefore(LocalDate.now(ZoneId.of("Asia/Shanghai"))))
-            throw new IllegalArgumentException("只能结算已结束的北京时间自然周，请传入周日日期");
+        if (statDate == null || !statDate.isBefore(LocalDate.now(ZoneId.of("Asia/Shanghai"))))
+            throw new IllegalArgumentException("只能结算已结束的北京时间日期");
         lockPools();
-        String key="WEEKLY:"+statDate;
+        String key="DAILY:"+statDate;
         Timestamp cutoff=Timestamp.from(statDate.plusDays(1).atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant());
         var results=new ArrayList<Map<String,Object>>();
         for (Pool pool:Pool.values()) {
             var previous=jdbc.queryForList("SELECT * FROM tri_pool_batch WHERE pool_code=? AND source_key=? FOR UPDATE",pool.name(),key);
             if (!previous.isEmpty()) { results.add(previous.get(0)); continue; }
-            // 延迟执行时，不分配本周新入池的资金。
+            // Late execution must not distribute contributions from the new business day.
             BigDecimal newFunds=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM tri_pool_ledger WHERE pool_code=? AND entry_type='FUND' AND created_at>=?",BigDecimal.class,pool.name(),cutoff);
             BigDecimal budget=balance(pool).subtract(newFunds).max(BigDecimal.ZERO);
-            // 周预算独立配置，不继承日预算，也不额外叠加发放。
+            // A configured amount is the total budget for this pool's midnight run,
+            // not an additional award on top of the automatic distribution.
             if (pool != Pool.OPERATIONS) {
-                String setting="tri.pool.weekly.budget."+pool.name().toLowerCase(Locale.ROOT);
+                String setting="tri.pool.daily.budget."+pool.name().toLowerCase(Locale.ROOT);
                 var configured=jdbc.queryForList("SELECT config_value FROM sys_config WHERE config_key=?",String.class,setting);
                 if (!configured.isEmpty() && configured.get(0)!=null && !configured.get(0).isBlank()) {
                     BigDecimal limit=new BigDecimal(configured.get(0)).setScale(2);
-                    if (limit.signum()<0) throw new IllegalStateException("每周分红预算不能为负数");
+                    if (limit.signum()<0) throw new IllegalStateException("每日分红预算不能为负数");
                     budget=budget.min(limit);
-                } else {
-                    // 未配置周预算时暂停该池自动发放，避免沿用旧日预算或全额发放。
-                    budget=BigDecimal.ZERO;
                 }
             }
             results.add(distribute(pool,key,null,budget));
         }
-        audit("SYSTEM:weekly",null,"WEEKLY_DISTRIBUTE",null,key+";pools=PARTNER,COFOUNDER,OPERATIONS");
+        audit("SYSTEM:daily",null,"DAILY_DISTRIBUTE",null,key+";pools=PARTNER,COFOUNDER,OPERATIONS");
         return results;
     }
 
