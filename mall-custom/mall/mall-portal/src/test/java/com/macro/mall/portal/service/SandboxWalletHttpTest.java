@@ -99,11 +99,12 @@ class SandboxWalletHttpTest {
   j.execute("CREATE TABLE oms_payment_confirmation(order_id BIGINT UNIQUE,channel_code VARCHAR(32),channel_trade_no VARCHAR(100),paid_amount DECIMAL(18,2),currency_code VARCHAR(3))");
  }
  void fundAndSettle(){
+  j.update("INSERT INTO sys_config(config_key,config_value) VALUES('tri.pool.weekly.budget.partner','100000000'),('tri.pool.weekly.budget.cofounder','100000000')");
   pools.acceptPayment("MEMBERSHIP:1",1L,null,TriPoolRules.PRICE,(m,t,p,k)->{});
   assertEquals(0,j.queryForObject("SELECT COUNT(*) FROM tri_pool_distribution",Integer.class));
-  var zone=java.time.ZoneId.of("Asia/Shanghai");var date=java.time.LocalDate.now(zone).minusDays(1);
+  var zone=java.time.ZoneId.of("Asia/Shanghai");var date=java.time.LocalDate.now(zone).with(java.time.temporal.TemporalAdjusters.previous(java.time.DayOfWeek.SUNDAY));
   j.update("UPDATE tri_pool_ledger SET created_at=? WHERE entry_type='FUND'",java.sql.Timestamp.from(date.atTime(12,0).atZone(zone).toInstant()));
-  pools.distributeDaily(date);pools.distributeDaily(date);
+  pools.distributeWeekly(date);pools.distributeWeekly(date);
  }
  Map post(String path,Object body){return http.postForObject(path,body,Map.class);}
  Map data(Map r){assertEquals(200,r.get("code"),String.valueOf(r));return (Map)r.get("data");}

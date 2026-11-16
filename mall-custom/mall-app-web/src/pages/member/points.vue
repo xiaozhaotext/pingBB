@@ -73,7 +73,7 @@ const typeText = (t: string) => {
     adjust: '后台调整',
     freeze: '冻结积分',
     unfreeze: '解冻积分',
-    dividend: '每日分红',
+    dividend: '分红收益',
     cofounder_grant: '联创赠送',
     partner_grant: '合伙人赠送',
   }

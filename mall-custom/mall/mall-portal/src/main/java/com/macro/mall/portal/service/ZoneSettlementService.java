@@ -45,9 +45,9 @@ public class ZoneSettlementService {
         this.jdbc = jdbc;
     }
 
-    /** 复购区复购积分抵扣比例，来自后台配置 rebuy.points.ratio（默认 30%）。 */
+    /** 复购区复购积分抵扣比例，来自后台配置 rebuy.points.ratio（默认 50%）。 */
     public BigDecimal rebuyPointsRatio() {
-        return configuredDecimal("rebuy.points.ratio", new BigDecimal("0.30"), true);
+        return configuredDecimal("rebuy.points.ratio", new BigDecimal("0.50"), true);
     }
 
     /** 每 1 商品积分抵扣的金额（元），来自后台配置 product.points.yuan_per_point。 */
