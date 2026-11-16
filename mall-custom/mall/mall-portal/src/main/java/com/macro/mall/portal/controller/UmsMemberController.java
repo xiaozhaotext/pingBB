@@ -2,8 +2,6 @@ package com.macro.mall.portal.controller;
 
 import com.macro.mall.common.api.CommonResult;
 import com.macro.mall.model.UmsMember;
-import com.macro.mall.portal.component.MessageRecorder;
-import com.macro.mall.portal.service.SmsSendService;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.InviteRegistrationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,9 +39,7 @@ public class UmsMemberController {
     @Autowired
     private InviteRegistrationService inviteRegistrationService;
     @Autowired
-    private MessageRecorder messageRecorder;
-    @Autowired
-    private SmsSendService smsSendService;
+    private com.macro.mall.portal.service.SmsVerificationService verification;
 
     @Operation(summary = "会员注册")
     @RequestMapping(value = "/register", method = RequestMethod.POST)
@@ -111,20 +107,24 @@ public class UmsMemberController {
     }
 
     @Operation(summary = "获取验证码")
-    @RequestMapping(value = "/getAuthCode", method = RequestMethod.GET)
+    @RequestMapping(value = "/getAuthCode", method = {RequestMethod.GET, RequestMethod.POST})
     @ResponseBody
-    public CommonResult getAuthCode(@RequestParam String telephone) {
-        String authCode = memberService.generateAuthCode(telephone);
-        SmsSendService.SmsSendResult result = smsSendService.sendCode(telephone, authCode);
-        messageRecorder.record("SMS", telephone, "登录/注册验证码", "AUTH_CODE", telephone,
-                result.status(), result.errorMessage());
-        if (!result.sent() && "FAILED".equals(result.status())) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "短信发送失败，请稍后重试");
+    public CommonResult getAuthCode(@RequestParam String telephone, HttpServletRequest request) {
+        try {
+            Map<String, Object> result = verification.send(telephone, request);
+            return CommonResult.success(result, Boolean.TRUE.equals(result.get("sandboxTest")) ? "沙箱测试请求已受理" : "验证码已发送");
+        } catch (ResponseStatusException error) {
+            throw error;
+        } catch (RuntimeException error) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "验证码暂时无法发送，请稍后重试");
         }
-        // 通道未启用时仅在接口返回（仅测试）；通道启用后默认不回显，避免生产泄露验证码。
-        Object data = result.codeEchoAllowed() ? authCode : null;
-        String message = result.sent() ? "验证码已发送" : "未配置短信通道，验证码仅在接口返回（仅测试）";
-        return CommonResult.success(data, message);
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(ResponseStatusException.class)
+    public org.springframework.http.ResponseEntity<CommonResult<Void>> verificationError(ResponseStatusException error) {
+        CommonResult<Void> result = CommonResult.failed(error.getReason());
+        result.setCode(error.getStatusCode().value());
+        return org.springframework.http.ResponseEntity.status(error.getStatusCode()).body(result);
     }
 
     @Operation(summary = "会员修改密码")

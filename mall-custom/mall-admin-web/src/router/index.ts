@@ -192,7 +192,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
           { path: 'upload', name: 'systemUpload', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '上传设置', icon: 'form', section: 'upload' } },
           { path: 'backend-directory', name: 'systemBackendDirectory', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '后台目录', icon: 'form', section: 'upload' } },
           { path: 'ip-filter', name: 'systemIpFilter', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: 'IP 过滤设置', icon: 'form', section: 'ip_access' } },
-          { path: 'sms', name: 'systemSms', component: () => import('@/views/p0/P0Workbench.vue'), meta: { title: '短信设置', icon: 'form', section: 'p0SmsSettings' } },
+          { path: 'sms', name: 'systemSms', component: () => import('@/views/p0/SmsSettings.vue'), meta: { title: '短信设置', icon: 'form', section: 'p0SmsSettings' } },
           { path: 'wechat', name: 'systemWechat', component: () => import('@/views/p0/SystemSettings.vue'), meta: { title: '微信设置', icon: 'form', section: 'miniapp' } },
         ] },
         { path: 'images', name: 'systemImages', component: () => import('@/views/p0/ImageManager.vue'), meta: { title: '图片管理', icon: 'eye' } },

@@ -8,8 +8,7 @@
     <view class="wrapper">
       <view class="left-top-sign">REGISTER</view>
       <view class="welcome">注册账号！</view>
-      <view class="registration-note">{{ sandboxMode ? '当前是沙盒演示环境；验证码以页面返回为准。' : '请输入手机号获取验证码。' }}</view>
-      <view v-if="demoCode" class="registration-note">本次演示验证码：{{ demoCode }}</view>
+      <view class="registration-note">请输入手机号接收验证码，验证码90秒内有效。</view>
       <view v-if="registrationError" class="registration-error" role="alert">{{ registrationError }}</view>
       <view class="input-content">
         <view class="input-item">
@@ -84,7 +83,6 @@
 import { ref } from 'vue'
 import { registerAPI, getAuthCodeAPI } from '@/apis/member'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { sandboxMode } from '@/utils/sandbox'
 import type { RegisterParam } from '@/types/member'
 
 // ===== 页面数据 =====
@@ -115,7 +113,6 @@ onLoad((options) => {
 // 注册加载状态
 const registering = ref(false)
 const sendingCode = ref(false)
-const demoCode = ref('')
 const registrationError = ref('')
 function errorMessage(error: unknown): string {
   const value=error as {data?:{message?:string};errMsg?:string;message?:string}
@@ -149,14 +146,11 @@ const handleGetAuthCode = async () => {
   }
 
   sendingCode.value = true
-  demoCode.value = ''
   try {
     const res = await getAuthCodeAPI(formData.value.telephone)
-    // 模拟验证码展示：弹出5秒toast让用户获取验证码
-    demoCode.value = /^\d{6}$/.test(String(res.data)) ? String(res.data) : ''
     registrationError.value = ''
     uni.showToast({
-      title: demoCode.value ? `验证码：${demoCode.value}` : res.message || '验证码已发送',
+      title: res.message || '验证码已发送，请查收短信',
       icon: 'none',
       duration: 5000,
     })

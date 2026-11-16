@@ -6,8 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 短信通道配置（阿里云短信 / 通用HTTP短信）。
- * 凭证由部署环境注入；通道未启用时验证码仅在接口返回（仅测试），不会伪造"已发送"。
+ * 短信通道配置。腾讯云凭证由独立服务器环境配置注入。
  */
 @Getter
 @Setter
@@ -16,8 +15,8 @@ import org.springframework.stereotype.Component;
 public class SmsProperties {
     /** 是否启用真实短信发送 */
     private boolean enabled = false;
-    /** 服务商：ALIYUN 或 HTTP */
-    private String provider = "ALIYUN";
+    /** 服务商：TENCENT / ALIYUN / HTTP */
+    private String provider = "TENCENT";
     /** 短信签名，例如：智美游 */
     private String signName;
     /** 阿里云短信模板编号，模板变量名必须是 code */

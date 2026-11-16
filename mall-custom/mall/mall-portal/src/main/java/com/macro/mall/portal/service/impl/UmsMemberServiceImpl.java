@@ -85,6 +85,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void register(String username, String password, String telephone, String authCode) {
         if (username == null || username.isBlank() || username.length()>64 || telephone == null
                 || !telephone.matches("1[3-9][0-9]{9}") || password == null || password.length()<8
@@ -93,7 +94,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
         }
         //验证验证码
         if(!verifyAuthCode(authCode,telephone)){
-            Asserts.fail("验证码错误");
+            Asserts.fail("验证码错误、已过期或已使用，请重新获取");
         }
         //查询是否已有该用户
         UmsMemberExample example = new UmsMemberExample();
@@ -117,6 +118,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
         if (!CollectionUtils.isEmpty(memberLevelList)) {
             umsMember.setMemberLevelId(memberLevelList.get(0).getId());
         }
+        if (!memberCacheService.claimAuthCode(telephone, authCode)) Asserts.fail("验证码已过期或已使用，请重新获取");
         memberMapper.insert(umsMember);
         // 注册通知：写入消息记录，后台“发送记录/消息中心”可查（短信/推送渠道未接入时不外发）。
         try {
@@ -124,17 +126,17 @@ public class UmsMemberServiceImpl implements UmsMemberService {
                     "SELECT id FROM ums_member WHERE username=? ORDER BY id DESC LIMIT 1", Long.class, username);
             jdbcTemplate.update("INSERT INTO sys_message_record(channel,target,content,biz_type,biz_id,status,create_time) "
                             + "VALUES(?,?,?,?,?,?,NOW())",
-                    "notice", telephone, "新会员注册：" + username + "（ID " + memberId + "）",
+                    "notice", com.macro.mall.common.util.SmsPrivacy.maskPhone(telephone), "新会员注册：" + com.macro.mall.common.util.SmsPrivacy.safeMessage(username, telephone, null) + "（ID " + memberId + "）",
                     "member_register", memberId, "success");
         } catch (Exception e) {
-            LOGGER.warn("注册通知写入失败：{}", e.getMessage());
+            LOGGER.warn("注册通知写入失败：{}", com.macro.mall.common.util.SmsPrivacy.safeMessage(e.getMessage(), telephone, null));
         }
         umsMember.setPassword(null);
     }
 
     @Override
     public String generateAuthCode(String telephone) {
-        // 此处使用模拟生成验证码逻辑，真实环境应接入短信服务，可使用SMS4J来实现
+        // 生成待发送验证码，发送渠道确认后才允许用于账号校验。
         StringBuilder sb = new StringBuilder();
         java.security.SecureRandom random = new java.security.SecureRandom();
         for(int i=0;i<6;i++){
@@ -145,6 +147,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void updatePassword(String telephone, String password, String authCode) {
         UmsMemberExample example = new UmsMemberExample();
         example.createCriteria().andPhoneEqualTo(telephone);
@@ -154,10 +157,11 @@ public class UmsMemberServiceImpl implements UmsMemberService {
         }
         //验证验证码
         if(!verifyAuthCode(authCode,telephone)){
-            Asserts.fail("验证码错误");
+            Asserts.fail("验证码错误、已过期或已使用，请重新获取");
         }
         UmsMember umsMember = memberList.get(0);
         umsMember.setPassword(passwordEncoder.encode(password));
+        if (!memberCacheService.claimAuthCode(telephone, authCode)) Asserts.fail("验证码已过期或已使用，请重新获取");
         memberMapper.updateByPrimaryKeySelective(umsMember);
         memberCacheService.delMember(umsMember.getId());
     }
@@ -233,7 +237,7 @@ public class UmsMemberServiceImpl implements UmsMemberService {
 
     //对输入的验证码进行校验
     private boolean verifyAuthCode(String authCode, String telephone){
-        if(StrUtil.isEmpty(authCode)){
+        if(authCode == null || !authCode.matches("[0-9]{6}")){
             return false;
         }
         String realAuthCode = memberCacheService.getAuthCode(telephone);

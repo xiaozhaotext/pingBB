@@ -168,7 +168,7 @@ public class SystemOpsService {
         pageArgs.add(size);
         pageArgs.add((num - 1) * size);
         List<Map<String, Object>> list = jdbc.queryForList(
-                "SELECT id,channel,target,content,biz_type,biz_id,status,error_msg,create_time FROM sys_message_record"
+                "SELECT id,channel,CASE WHEN channel='SMS' AND target REGEXP '^1[3-9][0-9]{9}$' THEN CONCAT(LEFT(target,3),'****',RIGHT(target,4)) ELSE target END AS target,content,biz_type,biz_id,status,error_msg,provider,provider_code,provider_message,request_id,serial_no,create_time FROM sys_message_record"
                         + where + " ORDER BY id DESC LIMIT ? OFFSET ?", pageArgs.toArray());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("pageNum", num);

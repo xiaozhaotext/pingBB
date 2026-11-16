@@ -31,4 +31,10 @@ public interface UmsMemberCacheService {
      * 获取验证码
      */
     String getAuthCode(String telephone);
+
+    boolean approveAuthCode(String telephone, String code, boolean sent);
+
+    void invalidateAuthCode(String telephone, String code);
+
+    boolean claimAuthCode(String telephone, String code);
 }

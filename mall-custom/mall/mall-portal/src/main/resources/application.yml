@@ -73,8 +73,8 @@ mall:
       notify-url: ${MALL_WECHAT_NOTIFY_URL:}
       return-url: ${MALL_WECHAT_RETURN_URL:}
   sms:
-    enabled: ${MALL_SMS_ENABLED:false} # 未配置短信服务商前保持关闭，验证码仅在接口返回（仅测试）
-    provider: ${MALL_SMS_PROVIDER:ALIYUN} # ALIYUN 或 HTTP
+    enabled: ${MALL_SMS_ENABLED:false} # 由服务器环境启用真实短信
+    provider: ${MALL_SMS_PROVIDER:TENCENT} # TENCENT / ALIYUN / HTTP
     sign-name: ${MALL_SMS_SIGN_NAME:}
     template-code: ${MALL_SMS_TEMPLATE_CODE:}
     access-key-id: ${MALL_SMS_ACCESS_KEY_ID:}

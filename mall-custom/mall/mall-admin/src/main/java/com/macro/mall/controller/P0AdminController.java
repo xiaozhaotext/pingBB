@@ -613,6 +613,7 @@ public class P0AdminController {
     public CommonResult<Void> updateSetting(Principal principal, @RequestBody Map<String, Object> body) {
         long operatorId = access.requireAuthorized(principal);
         String key = requiredText(body, "key", 5, 64);
+        if (key.startsWith("sms.")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "短信参数由服务器环境配置管理，请在短信设置中查看生效状态");
         String value = body.get("value") == null ? "" : String.valueOf(body.get("value")).trim();
         // Sensitive keys: submitting the masked display value (containing ****) means "keep existing".
         if (isSensitiveKey(key) && value.contains("****")) {

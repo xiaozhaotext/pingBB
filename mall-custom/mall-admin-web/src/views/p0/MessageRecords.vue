@@ -83,6 +83,11 @@ onMounted(load)
         <el-table-column prop="biz_type" label="业务类型" width="120" />
         <el-table-column label="状态" width="110"><template #default="scope"><el-tag :type="scope.row.status === 'SENT' ? 'success' : scope.row.status === 'FAILED' ? 'danger' : 'info'" size="small">{{ statusText[String(scope.row.status)] || String(scope.row.status) }}</el-tag></template></el-table-column>
         <el-table-column prop="error_msg" label="失败原因" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="provider" label="短信服务商" width="120" />
+        <el-table-column prop="provider_code" label="服务商返回码" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="provider_message" label="服务商结果说明" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="request_id" label="请求编号" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="serial_no" label="短信流水号" min-width="180" show-overflow-tooltip />
         <el-table-column label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(String(row.create_time || '')) }}</template></el-table-column>
       </el-table>
       <el-pagination

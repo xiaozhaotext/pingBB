@@ -8,6 +8,7 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import com.macro.mall.portal.config.SmsProperties;
 import com.macro.mall.portal.service.SmsSendService;
+import com.macro.mall.portal.service.TencentSmsSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,11 +36,14 @@ public class SmsSendServiceImpl implements SmsSendService {
 
     @Autowired
     private SmsProperties properties;
+    @Autowired
+    private TencentSmsSender tencent;
 
     @Override
     public SmsSendResult sendCode(String telephone, String code) {
+        if ("TENCENT".equalsIgnoreCase(properties.getProvider())) return tencent.send(telephone, code);
         if (!properties.isEnabled()) {
-            return SmsSendResult.skipped(properties.getProvider(), "未配置短信通道，验证码仅在接口返回");
+            return SmsSendResult.failed(properties.getProvider(), "SMS_DISABLED", "短信通道未启用");
         }
         if (StrUtil.isBlank(telephone) || !telephone.matches("^1\\d{10}$")) {
             return SmsSendResult.failed(properties.getProvider(), "INVALID_PHONE", "手机号格式不正确");
@@ -57,8 +61,8 @@ public class SmsSendServiceImpl implements SmsSendService {
             }
             return SmsSendResult.failed(provider, "UNKNOWN_PROVIDER", "不支持的短信服务商：" + provider);
         } catch (Exception e) {
-            log.error("短信发送异常，手机号：{}，服务商：{}", telephone, provider, e);
-            return SmsSendResult.failed(provider, "SMS_EXCEPTION", e.getMessage());
+            log.error("短信发送异常，手机号：{}，服务商：{}，异常：{}", com.macro.mall.common.util.SmsPrivacy.maskPhone(telephone), provider, e.getClass().getSimpleName());
+            return SmsSendResult.failed(provider, "SMS_EXCEPTION", "短信服务请求异常");
         }
     }
 
