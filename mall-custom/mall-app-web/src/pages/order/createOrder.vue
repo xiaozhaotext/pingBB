@@ -157,7 +157,7 @@
       <view class="price-content" :class="{ 'has-checkout-alert': hasBlockedZone }">
         <view v-if="hasBlockedZone" class="checkout-alert">
           <text class="checkout-alert-title">暂不可结算</text>
-          <text class="checkout-alert-help">请按上方提示调整支付方式</text>
+          <text class="checkout-alert-help">请按提示调整支付方式</text>
         </view>
         <view v-else class="pay-total">
           <text>现金应付</text>
@@ -1010,9 +1010,9 @@ page {
 .footer .price-content .pay-points{display:block;font-size:20rpx;color:#909399;line-height:28rpx}
 .footer .price-content .pay-warn{color:#e93b3d}
 .footer .price-content.has-checkout-alert{flex:1;min-width:0;padding-right:12rpx}
-.footer .checkout-alert{display:flex;flex-direction:column;justify-content:center;gap:4rpx;min-height:66rpx;padding-left:16rpx;border-left:5rpx solid #d56c5b;line-height:1.25}
-.footer .checkout-alert-title{font-size:27rpx;font-weight:600;color:#394344}
-.footer .checkout-alert-help{font-size:21rpx;color:#b35c4e;white-space:normal}
+.footer .checkout-alert{display:flex;flex-direction:column;justify-content:center;gap:2rpx;min-height:72rpx;padding:6rpx 12rpx;border-left:4rpx solid #d56c5b;border-radius:8rpx;background:#fff7f5;line-height:1.25;box-sizing:border-box}
+.footer .checkout-alert-title{font-size:24rpx;font-weight:600;color:#394344}
+.footer .checkout-alert-help{font-size:22rpx;color:#a95246;white-space:normal}
 .footer .submit{flex-shrink:0}
 </style>
 
