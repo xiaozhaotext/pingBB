@@ -99,7 +99,7 @@ public class SmsVerificationService {
         String providerCode = SmsPrivacy.safeMessage(result.errorCode(), phone, code);
         LOGGER.info("SMS target={} provider={} status={} code={} message={} requestId={}", SmsPrivacy.maskPhone(phone), result.provider(), result.status(), providerCode, message, result.requestId());
         jdbc.update("INSERT INTO sys_message_record(channel,target,content,biz_type,biz_id,status,error_msg,provider,provider_code,provider_message,request_id,serial_no) VALUES('SMS',?,'账号验证码','AUTH_CODE',?,?,?,?,?,?,?,?)",
-                SmsPrivacy.maskPhone(phone), UUID.randomUUID().toString(), result.status(), result.sent() ? null : message,
+                SmsPrivacy.maskPhone(phone), UUID.randomUUID().toString(), result.status(), result.sent() ? null : message == null ? null : message.substring(0, Math.min(255, message.length())),
                 result.provider(), providerCode, message, result.requestId(), result.serialNo());
     }
 
