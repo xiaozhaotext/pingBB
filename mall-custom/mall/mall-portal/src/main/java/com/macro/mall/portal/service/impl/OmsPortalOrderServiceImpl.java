@@ -211,6 +211,16 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
     private List<ZoneSettlementService.Line> settlementLines(List<CartPromotionItem> cartPromotionItemList,
                                                              List<OmsOrderItem> couponItemList) {
         List<ZoneSettlementService.Line> lines = new ArrayList<>();
+        List<Long> consumeIds = cartPromotionItemList.stream()
+                .filter(item -> ZoneRules.CONSUME.equals(ZoneRules.settlementZone(item.getZoneCode())))
+                .map(CartPromotionItem::getProductId).distinct().toList();
+        Map<Long, Integer> consumeRates = new HashMap<>();
+        if (!consumeIds.isEmpty()) {
+            String placeholders = String.join(",", Collections.nCopies(consumeIds.size(), "?"));
+            jdbcTemplate.query("SELECT product_id,consume_points_per_yuan FROM pms_product_zone "
+                            + "WHERE zone_code='CONSUME' AND product_id IN (" + placeholders + ")",
+                    rs -> { consumeRates.put(rs.getLong(1), rs.getInt(2)); }, consumeIds.toArray());
+        }
         for (int index = 0; index < cartPromotionItemList.size(); index++) {
             CartPromotionItem cartPromotionItem = cartPromotionItemList.get(index);
             BigDecimal couponAmount = couponItemList == null ? BigDecimal.ZERO
@@ -220,7 +230,7 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
                     zeroIfNull(cartPromotionItem.getPrice()),
                     cartPromotionItem.getQuantity() == null ? 0 : cartPromotionItem.getQuantity(),
                     zeroIfNull(cartPromotionItem.getReduceAmount()),
-                    couponAmount));
+                    couponAmount, consumeRates.getOrDefault(cartPromotionItem.getProductId(), 100)));
         }
         return lines;
     }
@@ -318,7 +328,8 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
         lockStock(cartPromotionItemList);
         //根据商品合计、运费、活动优惠、优惠券、积分计算应付金额
         OmsOrder order = new OmsOrder();
-        order.setDiscountAmount(new BigDecimal(0));
+        order.setDiscountAmount(settlement.getPlans().stream().map(ZoneSettlement.Plan::getConversionAdjustment)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
         order.setTotalAmount(settlement.getTotalAmount());
         order.setFreightAmount(new BigDecimal(0));
         order.setPromotionAmount(settlement.getPromotionAmount());
@@ -788,8 +799,13 @@ public class OmsPortalOrderServiceImpl implements OmsPortalOrderService {
      * 都记入 order_item.integration_amount，最终金额以专区结算结果为准。
      */
     private void allocateZoneDeduction(List<OmsOrderItem> orderItemList, ZoneSettlement settlement) {
+        settlement.getConsumeLineCash().forEach((index, cash) -> {
+            OmsOrderItem item = orderItemList.get(index);
+            BigDecimal perUnitCash = cash.divide(BigDecimal.valueOf(item.getProductQuantity()), 2, RoundingMode.HALF_UP);
+            item.setIntegrationAmount(unitNetAmount(item).subtract(perUnitCash));
+        });
         for (ZoneSettlement.Plan plan : settlement.getPlans()) {
-            BigDecimal deduction = plan.getProductPointAmount().add(plan.getRepurchasePointAmount());
+            BigDecimal deduction = plan.getRepurchasePointAmount();
             if (deduction.signum() <= 0) {
                 continue;
             }

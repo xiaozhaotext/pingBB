@@ -42,15 +42,15 @@ class RebuyFiftySettlementTest {
         money("100", cash.getCashAmount());
         money("0", cash.getRepurchasePointAmount());
     }
-    @Test void mixedCartUsesBalanceOnceAndPreservesCurrentConsumeCashRule() {
+    @Test void mixedCartUsesBalanceOnceAndPreservesLiveConsumePointsRule() {
         var result = service("0.50").settle(List.of(line(ZoneRules.PICK, "80"),
                 line(ZoneRules.REBUY, "100"), line(ZoneRules.CONSUME, "30")), true, true,
                 new ZoneSettlementService.Wallets(9999, 50, new BigDecimal("100")));
         money("210", result.getTotalAmount());
         money("100", result.getBalanceAmount());
         money("50", result.getRepurchasePointAmount());
-        money("60", result.getCashAmount());
-        money("0", result.getProductPointAmount());
+        money("30", result.getCashAmount());
+        money("30", result.getProductPointAmount());
     }
     @Test void fractionalPointsRemainCashAndWholePointBoundaryIsTwoYuan() {
         var service = service("0.50");

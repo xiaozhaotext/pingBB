@@ -14,14 +14,17 @@ import java.util.Map;
 /**
  * 按专区隔离计算购物车/订单结算金额。
  *
- * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区可用余额及外部现金。
+ * <p>专区之间不能串用积分：自选区只能现金或余额，复购区可用复购积分、余额及现金，消费区使用全额商品积分或全额余额。
  * 混合下单时先按专区分别计算，再汇总出最终应付金额。
  */
 @Service
 public class ZoneSettlementService {
     /** 结算输入行：单价与「每件」的优惠金额。 */
     public record Line(String zoneCode, BigDecimal price, int quantity,
-                       BigDecimal promotionAmount, BigDecimal couponAmount) {
+                       BigDecimal promotionAmount, BigDecimal couponAmount, int consumePointsPerYuan) {
+        public Line(String zoneCode, BigDecimal price, int quantity, BigDecimal promotionAmount, BigDecimal couponAmount) {
+            this(zoneCode, price, quantity, promotionAmount, couponAmount, 100);
+        }
         BigDecimal lineGross() {
             return price.multiply(BigDecimal.valueOf(quantity));
         }
@@ -90,8 +93,6 @@ public class ZoneSettlementService {
     public ZoneSettlement settle(List<Line> lines, boolean useRepurchasePoints, boolean useBalance,
                                   boolean useProductPoints, Wallets wallets) {
         BigDecimal ratio = rebuyPointsRatio();
-        BigDecimal yuanPerPoint = productPointYuanPerPoint();
-        BigDecimal maxRatio = productPointMaxRatio();
         Map<String, ZoneSettlement.Plan> plans = new LinkedHashMap<>();
         for (Line line : lines) {
             ZoneSettlement.Plan plan = plans.computeIfAbsent(
@@ -115,16 +116,16 @@ public class ZoneSettlementService {
         ZoneSettlement.Plan rebuy = plans.get(ZoneRules.REBUY);
         if (rebuy != null) settleRebuy(rebuy, useRepurchasePoints, useBalance, ratio,
                 new Wallets(wallets.productPoints(), wallets.repurchasePoints(), availableBalance));
+        ZoneSettlement settlement = new ZoneSettlement();
         ZoneSettlement.Plan consume = plans.get(ZoneRules.CONSUME);
-        if (consume != null) settleConsume(consume, yuanPerPoint, maxRatio, useProductPoints, useBalance,
+        if (consume != null) settleConsume(consume, settlement.getConsumeLineCash(), lines, useProductPoints,
                 new Wallets(wallets.productPoints(), wallets.repurchasePoints(),
                         nonNegative(availableBalance.subtract(rebuy == null ? BigDecimal.ZERO : rebuy.getBalanceAmount()))));
-        ZoneSettlement settlement = new ZoneSettlement();
         for (ZoneSettlement.Plan plan : plans.values()) {
             switch (plan.getZoneCode()) {
                 case ZoneRules.PICK -> { /* 已先结算以避免混合订单重复使用余额 */ }
                 case ZoneRules.REBUY -> { /* 余额在自选区之后分配给复购区 */ }
-                case ZoneRules.CONSUME -> { /* 消费区使用前两个专区扣款后的余额，不使用积分 */ }
+                case ZoneRules.CONSUME -> { /* 消费区余额支付使用前两个专区扣款后的可用余额 */ }
                 default -> throw new IllegalStateException("未知结算专区：" + plan.getZoneCode());
             }
             settlement.getPlans().add(plan);
@@ -206,12 +207,38 @@ public class ZoneSettlementService {
         plan.setCashAmount(nonNegative(remaining.subtract(balance)));
     }
 
-    /** 消费区可用账户余额，不足部分由外部支付；不消耗商品积分。 */
-    private void settleConsume(ZoneSettlement.Plan plan, BigDecimal yuanPerPoint,
-                               BigDecimal maxRatio, boolean useProductPoints, boolean useBalance, Wallets wallets) {
-        plan.setProductPoints(0);
-        plan.setProductPointAmount(BigDecimal.ZERO);
-        applyAvailableBalance(plan, plan.getNetAmount(), useBalance, wallets.balance());
+    private void settleConsume(ZoneSettlement.Plan plan, Map<Integer, BigDecimal> lineCash,
+                               List<Line> lines, boolean useProductPoints, Wallets wallets) {
+        BigDecimal price = plan.getGrossAmount();
+        plan.setPromotionAmount(BigDecimal.ZERO);
+        plan.setCouponAmount(BigDecimal.ZERO);
+        plan.setNetAmount(price);
+        if (!useProductPoints) {
+            if (wallets.balance() == null || wallets.balance().compareTo(price) < 0) {
+                plan.setPayable(false);
+                plan.setBlockedReason("余额不足，请切换智豆支付");
+            } else {
+                plan.setBalanceAmount(price);
+            }
+            return;
+        }
+
+        long required = 0;
+        for (int index = 0; index < lines.size(); index++) {
+            Line line = lines.get(index);
+            if (!ZoneRules.CONSUME.equals(line.zoneCode())) continue;
+            required = Math.addExact(required, line.lineGross()
+                    .multiply(BigDecimal.valueOf(line.consumePointsPerYuan()))
+                    .setScale(0, RoundingMode.CEILING).longValueExact());
+            lineCash.put(index, BigDecimal.ZERO);
+        }
+        plan.setProductPoints(required);
+        if (wallets.productPoints() < required) {
+            plan.setPayable(false);
+            plan.setBlockedReason("智豆不足，请切换余额支付");
+            return;
+        }
+        plan.setProductPointAmount(price);
     }
 
     private static BigDecimal nonNegative(BigDecimal value) {
