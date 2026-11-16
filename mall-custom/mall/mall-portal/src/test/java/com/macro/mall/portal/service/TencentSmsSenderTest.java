@@ -31,7 +31,11 @@ class TencentSmsSenderTest {
                 try {
                     var payload = json.readTree(body);
                     assertEquals("123456", payload.at("/TemplateParamSet/0").asText());
-                    assertEquals("1.5", payload.at("/TemplateParamSet/1").asText());
+                    assertEquals("1", payload.at("/TemplateParamSet/1").asText());
+                    for (var parameter : payload.path("TemplateParamSet")) {
+                        assertTrue(parameter.asText().matches("[0-9]{1,6}"),
+                                "Tencent verification template parameters must contain digits only");
+                    }
                     assertEquals("+8613800000000", payload.at("/PhoneNumberSet/0").asText());
                     assertEquals("2021-01-11", headers.get("X-TC-Version"));
                     assertEquals("SendSms", headers.get("X-TC-Action"));

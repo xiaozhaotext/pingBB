@@ -10,8 +10,6 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -44,8 +42,10 @@ public class TencentSmsSender {
             payload.put("SmsSdkAppId", config.getSdkAppId());
             payload.put("SignName", config.getSignName());
             payload.put("TemplateId", config.getTemplateId());
-            payload.put("TemplateParamSet", List.of(code, BigDecimal.valueOf(lifetimeSeconds)
-                    .divide(BigDecimal.valueOf(60), 2, RoundingMode.DOWN).stripTrailingZeros().toPlainString()));
+            // Tencent verification templates only accept numeric digits in parameters.
+            // Round down the notice to whole minutes while retaining the Redis deadline.
+            String noticeMinutes = String.valueOf(Math.max(1, lifetimeSeconds / 60));
+            payload.put("TemplateParamSet", List.of(code, noticeMinutes));
             payload.put("PhoneNumberSet", List.of("+86" + phone));
             String body = json.writeValueAsString(payload);
             long timestamp = Instant.now().getEpochSecond();
