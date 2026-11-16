@@ -19,7 +19,7 @@ public class OrderParam {
     private Long couponId;
     @Schema(title = "使用的积分数")
     private Integer useIntegration;
-    @Schema(title = "使用的复购积分数（仅复购区商品，最高抵扣30%）")
+    @Schema(title = "使用的复购积分数（仅复购区商品，最高抵扣50%）")
     private Long useRepurchasePoints;
     @Schema(title = "兼容旧版客户端；消费区不再使用商品积分")
     private Boolean useProductPoints;

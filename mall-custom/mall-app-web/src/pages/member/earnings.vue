@@ -24,7 +24,7 @@
       <text class="error" v-else @click="loadData">{{ ledgerError }}，点击重试</text>
     </view>
 
-    <view class="card">收益来源：直属会员购买权益的直推奖励、每日分红、分享下单奖励。</view>
+    <view class="card">收益来源：直属会员购买权益的直推奖励、每周分红、分享下单奖励。</view>
     <view v-if="loadError" class="card error">{{ loadError }}</view>
 
     <view class="card">
@@ -126,7 +126,7 @@ const typeText = (t: string) => {
   const map: Record<string, string> = {
     referral_reward: '直推奖励',
     monthly_reward: '人工审核月奖励',
-    dividend: '每日分红',
+    dividend: '分红收益',
     share_bonus: '分享下单奖励',
     simulate_reward: '后台发放',
     withdraw_reject: '提现退回',

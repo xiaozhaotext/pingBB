@@ -2,7 +2,7 @@
 --
 -- 规则：
 --   PICK    自选区：现金或余额（充值本金）购买，不使用任何积分
---   REBUY   复购区：30% 复购积分 + 70% 现金（比例取 sys_config rebuy.points.ratio）
+--   REBUY   复购区：50% 复购积分 + 50% 现金（比例取 sys_config rebuy.points.ratio）
 --   CONSUME 消费区：商品积分购买（比例取 sys_config product.points.*）
 --   zone_code 为空表示商品未分配专区，按自选区规则结算，不会越界使用消费区/复购区积分。
 --
