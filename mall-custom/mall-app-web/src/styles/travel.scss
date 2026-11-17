@@ -38,6 +38,7 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
 .uni-tabbar { border-top: 1px solid #e7dcc7 !important; background: #fffdf8 !important; }
 .zone-head { background: linear-gradient(90deg,#203c36c9,#203c3625), url('/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
 .zone-card { border-radius: 18px !important; box-shadow: 0 7px 22px #806f4b0a; }
+/* #ifdef H5 */
 @media(min-width:900px) {
   body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #f7f3eb !important; }
   .desktop-topline { background: #365d50 !important; }
@@ -47,10 +48,13 @@ page, body, .zone-page { background: #f7f3eb; color: #30483e; }
   .desktop-hero-title { font-weight: 700 !important; }
   .desktop-product { border-radius: 18px !important; border: 1px solid #eee5d6; }
 }
+/* #endif */
 
 .mobile-home .carousel-section, .mobile-home .cate-section { display: none !important; }
 .travel-hero-title { max-width: none; font-size: 42rpx; }
+/* #ifdef H5 */
 body:has(.travel-intro) .uni-page-head { display: none !important; }
+/* #endif */
 .mobile-home .price { color: #a57932 !important; font-weight: 600; }
 
 /* 真实旅行摄影，覆盖原插画主题。 */

@@ -6,6 +6,7 @@ function page({wechat=true,states=[{state:'CONFIRMED',canRetry:false}],orderStat
  const callbacks={},storage=new Map(),redirects=[],timers=[],calls={jsapi:0,status:0,h5:0,mock:0}
  const file=successPage?'paySuccess.vue':'pay.vue'
  let source=fs.readFileSync(path.join(__dirname,'../src/pages/money',file),'utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
+ source=source.replace(/\/\/ #ifdef MP-WEIXIN[\s\S]*?\/\/ #endif/g,'')
  source=source.replace(/import\.meta\.env\.VITE_USE_WECHAT_PAY/g,'"true"').replace(/import\.meta\.env\.VITE_USE_ALIPAY/g,'"false"').replace(/import\.meta\.env\.VITE_USE_MOCK_PAYMENT/g,'"false"').replace(/import\.meta\.env\.VITE_API_BASE_URL/g,'"/portal"')
  const api={getOrderDetailAPI:async()=>({data:{id:11,orderSn:'SN11',status:orderStatus,payAmount:10,...order}}),
   getWechatOrderPaymentStatusAPI:async()=>{calls.status++;const state=states[Math.min(calls.status-1,states.length-1)];if(state instanceof Error)throw state;return {data:state}},

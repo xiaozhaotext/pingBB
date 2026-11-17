@@ -9,5 +9,10 @@ export function productImageUrl(pic?: string | null): string {
     return window.location.origin + value
     // #endif
   }
+  // #ifdef MP-WEIXIN
+  if (value.startsWith('/oss/') || value.startsWith('/product-images/') || value.startsWith('/column-images/')) {
+    return 'https://zhiyoumei.com.cn' + value
+  }
+  // #endif
   return value
 }

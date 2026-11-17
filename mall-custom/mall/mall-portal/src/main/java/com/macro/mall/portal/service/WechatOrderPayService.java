@@ -12,6 +12,12 @@ public interface WechatOrderPayService {
     /** JSAPI 调起支付所需的签名参数 */
     Map<String, String> prepayJsapi(String outTradeNo, BigDecimal amount, String description, String openId);
 
+    Map<String, String> prepayMiniProgram(String outTradeNo, BigDecimal amount, String description, String openId);
+
+    VerifiedPayment verifyMiniNotify(String rawBody, String serial, String nonce, String signature, String timestamp);
+
+    PaymentQuery queryMiniPayment(String outTradeNo);
+
     /** H5 支付跳转链接 */
     Map<String, String> prepayH5(String outTradeNo, BigDecimal amount, String description, String clientIp);
 
