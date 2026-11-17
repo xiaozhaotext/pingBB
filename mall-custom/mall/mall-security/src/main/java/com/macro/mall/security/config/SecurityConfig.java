@@ -45,6 +45,7 @@ public class SecurityConfig {
             registry.requestMatchers(HttpMethod.OPTIONS).permitAll();
             // Private product actions stay authenticated even if a deployment retains the legacy /product/** whitelist.
             registry.requestMatchers("/product/comment/pending", "/product/comment/create").authenticated();
+            registry.requestMatchers("/sso/profile/nickname").authenticated();
             // Every signed-in administrator needs these endpoints before role-specific permissions load.
             registry.requestMatchers("/admin/info", "/admin/logout").authenticated();
             //不需要保护的资源路径允许访问
