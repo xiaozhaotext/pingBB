@@ -1,6 +1,7 @@
 package com.macro.mall.portal.service.impl;
 
 import com.macro.mall.portal.config.OrderWechatPayProperties;
+import com.macro.mall.portal.config.WechatMiniProgramProperties;
 import com.macro.mall.portal.config.WechatSdkConfigFactory;
 import com.macro.mall.portal.service.WechatOrderPayService;
 import com.wechat.pay.java.core.Config;
@@ -37,16 +38,29 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     @Autowired
     private OrderWechatPayProperties properties;
 
+    @Autowired
+    private WechatMiniProgramProperties miniProperties;
+
     private volatile Config wechatConfig;
 
     @Override
     public PaymentQuery queryPayment(String outTradeNo) {
+        return queryForApp(outTradeNo, requireReady().getAppId());
+    }
+
+    @Override
+    public PaymentQuery queryMiniPayment(String outTradeNo) {
+        requireMiniReady();
+        return queryForApp(outTradeNo, miniProperties.getAppId());
+    }
+
+    private PaymentQuery queryForApp(String outTradeNo, String appId) {
         OrderWechatPayProperties config = requireReady();
         Transaction transaction = queryTransaction(outTradeNo);
         if (transaction == null || transaction.getTradeState() == null
                 || !outTradeNo.equals(transaction.getOutTradeNo())
                 || !config.getMerchantId().equals(transaction.getMchid())
-                || !config.getAppId().equals(transaction.getAppid())) {
+                || !appId.equals(transaction.getAppid())) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "微信查单结果校验失败");
         }
         if (transaction.getTradeState() != Transaction.TradeStateEnum.SUCCESS) {
@@ -108,6 +122,19 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
 
     @Override
     public Map<String, String> prepayJsapi(String outTradeNo, BigDecimal amount, String description, String openId) {
+        return prepayJsapiForApp(outTradeNo, amount, description, openId,
+                requireReady().getAppId(), requireReady().getNotifyUrl(), "WECHAT_JSAPI");
+    }
+
+    @Override
+    public Map<String, String> prepayMiniProgram(String outTradeNo, BigDecimal amount, String description, String openId) {
+        requireMiniReady();
+        return prepayJsapiForApp(outTradeNo, amount, description, openId,
+                miniProperties.getAppId(), miniProperties.getNotifyUrl(), "WECHAT_MINIPROGRAM");
+    }
+
+    private Map<String, String> prepayJsapiForApp(String outTradeNo, BigDecimal amount, String description,
+                                                 String openId, String appId, String notifyUrl, String type) {
         OrderWechatPayProperties config = requireReady();
         if (!StringUtils.hasText(openId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少 openId");
@@ -115,11 +142,11 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
         requirePositiveAmount(amount);
         com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest request =
                 new com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest();
-        request.setAppid(config.getAppId());
+        request.setAppid(appId);
         request.setMchid(config.getMerchantId());
         request.setDescription(description);
         request.setOutTradeNo(outTradeNo);
-        request.setNotifyUrl(config.getNotifyUrl());
+        request.setNotifyUrl(notifyUrl);
         com.wechat.pay.java.service.payments.jsapi.model.Amount payAmount =
                 new com.wechat.pay.java.service.payments.jsapi.model.Amount();
         payAmount.setTotal(amount.movePointRight(2).intValueExact());
@@ -128,10 +155,12 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
         Payer payer = new Payer();
         payer.setOpenid(openId);
         request.setPayer(payer);
-        PrepayWithRequestPaymentResponse response = new JsapiServiceExtension.Builder()
-                .config(wechatConfig()).build().prepayWithRequestPayment(request);
+        PrepayWithRequestPaymentResponse response = sendJsapiPrepay(request);
+        if (!appId.equals(response.getAppId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "微信预支付应用校验失败");
+        }
         Map<String, String> values = new LinkedHashMap<>();
-        values.put("type", "WECHAT_JSAPI");
+        values.put("type", type);
         values.put("appId", response.getAppId());
         values.put("timeStamp", response.getTimeStamp());
         values.put("nonceStr", response.getNonceStr());
@@ -145,16 +174,26 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     @Override
     public VerifiedPayment verifyNotify(String rawBody, String serial, String nonce,
                                         String signature, String timestamp) {
+        return verifyForApp(rawBody, serial, nonce, signature, timestamp, requireReady().getAppId());
+    }
+
+    @Override
+    public VerifiedPayment verifyMiniNotify(String rawBody, String serial, String nonce, String signature, String timestamp) {
+        requireMiniReady();
+        return verifyForApp(rawBody, serial, nonce, signature, timestamp, miniProperties.getAppId());
+    }
+
+    private VerifiedPayment verifyForApp(String rawBody, String serial, String nonce, String signature,
+                                          String timestamp, String appId) {
         OrderWechatPayProperties config = requireReady();
         try {
             RequestParam param = new RequestParam.Builder()
                     .body(rawBody).serialNumber(serial).nonce(nonce)
                     .signature(signature).timestamp(timestamp).build();
-            Transaction transaction = new NotificationParser((NotificationConfig) wechatConfig())
-                    .parse(param, Transaction.class);
+            Transaction transaction = parseNotification(param);
             if (transaction.getTradeState() != Transaction.TradeStateEnum.SUCCESS
                     || !config.getMerchantId().equals(transaction.getMchid())
-                    || !config.getAppId().equals(transaction.getAppid())
+                    || !appId.equals(transaction.getAppid())
                     || transaction.getAmount() == null
                     || !"CNY".equals(transaction.getAmount().getCurrency())
                     || transaction.getAmount().getTotal() == null
@@ -170,6 +209,23 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
         } catch (RuntimeException ex) {
             log.error("微信支付通知验签失败", ex);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "支付通知校验失败");
+        }
+    }
+
+    protected PrepayWithRequestPaymentResponse sendJsapiPrepay(
+            com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest request) {
+        return new JsapiServiceExtension.Builder().config(wechatConfig()).build().prepayWithRequestPayment(request);
+    }
+
+    protected Transaction parseNotification(RequestParam param) {
+        return new NotificationParser((NotificationConfig) wechatConfig()).parse(param, Transaction.class);
+    }
+
+    private void requireMiniReady() {
+        requireReady();
+        if (!miniProperties.isEnabled() || !StringUtils.hasText(miniProperties.getAppId())
+                || !StringUtils.hasText(miniProperties.getNotifyUrl()) || !miniProperties.getNotifyUrl().startsWith("https://")) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "小程序微信支付尚未配置");
         }
     }
 
