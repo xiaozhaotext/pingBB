@@ -7,8 +7,8 @@
       <text>收款方式</text><picker :range="channels" range-key="label" @change="selectChannel"><view class="picker">{{channels[channelIndex].label}}　⌄</view></picker>
       <template v-if="channelIndex===2"><text>开户银行</text><input v-model="bankName" placeholder="例如中国工商银行" /><text>收款支行</text><input v-model="bankBranch" placeholder="请输入开户支行" /></template>
       <text>收款账户</text><input v-model="account" :placeholder="channelIndex===2?'请输入银行卡号':channelIndex===0?'请输入微信收款账号':'请输入支付宝收款账号'" />
-      <text>提现金额（元）</text><input v-model="amount" type="number" placeholder="100、200、300等整百金额" />
-      <text class="hint">每次至少100元，只能提100元的整数倍。实际手续费以申请时后台设置为准。</text>
+      <text>提现金额（元）</text><input v-model="amount" type="number" placeholder="请输入提现金额" />
+      <text class="hint">实际手续费以申请时后台设置为准。</text>
       <button class="primary" :disabled="busy" @click="submit">提交提现申请</button><text v-if="error" class="error">{{error}}</text>
     </view>
     <view class="card"><text class="title">提现记录</text><view v-for="item in rows" :key="item.id" class="record"><text>申请 ¥{{money(item.gross_cents)}}　手续费 ¥{{money(item.fee_cents)}}　实际打款 ¥{{money(item.net_cents)}}</text><text>{{item.channel==='BANK'?'银行卡':item.channel==='ALIPAY'?'支付宝':'微信'}} · {{item.status==='PAID'?'已人工打款':item.status==='REJECTED'?'已拒绝并退回':'待后台处理'}}</text></view><text v-if="!rows.length" class="hint">暂无提现记录</text></view>
