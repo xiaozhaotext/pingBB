@@ -29,7 +29,7 @@
 
     <view class="card">
       <text class="title">申请提现</text>
-      <input class="input" v-model="withdrawAmount" placeholder="输入100、200、300等整百金额" type="number" />
+      <input class="input" v-model="withdrawAmount" placeholder="请输入提现金额" type="number" />
       <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">提现到消费余额</button>
     </view>
 
