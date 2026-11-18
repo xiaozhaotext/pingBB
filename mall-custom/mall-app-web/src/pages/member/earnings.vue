@@ -30,7 +30,6 @@
     <view class="card">
       <text class="title">申请提现</text>
       <input class="input" v-model="withdrawAmount" placeholder="输入100、200、300等整百金额" type="number" />
-      <text class="hint">每次至少提现100元，且金额须为100元的整数倍。</text>
       <button class="btn-primary" :disabled="withdrawing || !modeReady" @click="handleWithdraw">提现到消费余额</button>
     </view>
 
