@@ -69,7 +69,7 @@
     {
       "path": "pages/member/walletWithdraw",
       "style": {
-        "navigationBarTitleText": "余额提现"
+        "navigationBarTitleText": "提现"
       }
     },
     {
@@ -380,7 +380,7 @@
     {
       "path": "pages/member/earnings",
       "style": {
-        "navigationBarTitleText": "收益与提现"
+        "navigationBarTitleText": "提现"
       }
     },
     {
