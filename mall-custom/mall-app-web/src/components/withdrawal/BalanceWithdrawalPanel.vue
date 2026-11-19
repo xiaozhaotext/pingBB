@@ -1,13 +1,22 @@
 <template>
   <view class="page">
-    <view class="card"><text class="title">账户余额提现</text><text>可用余额 ¥ {{ balance }}</text><text class="hint">提交后扣减并冻结申请金额；后台拒绝时原额退回。确认人工打款后状态变为已打款。</text></view>
+    <view class="card"><text class="title">账户余额提现</text><text>可用余额 ¥ {{ balance }}</text></view>
+    <view class="card withdrawal-rules">
+      <text class="title">提现规则说明</text>
+      <text class="withdrawal-rule">1. 可提现额度：账户可用余额即为可提现额度。单笔最低提现 100 元，提现金额须为 100 的整数倍，且不得超过账户可用余额；可用余额不足 100 元时暂不能申请。</text>
+      <text class="withdrawal-rule">2. 每日提现次数：每日不限申请次数，每笔申请单独审核；已提交申请冻结的金额不计入可用余额。</text>
+      <text class="withdrawal-rule">3. 提现时间：每日 24 小时均可提交申请；平台在工作日 9:00–18:00 处理，非工作时间及法定节假日提交的顺延至下一个工作日。</text>
+      <text class="withdrawal-rule">4. 审核与到账时间：提交后 1 个工作日内完成审核；审核通过后 1–3 个工作日内人工打款至用户填写的微信收款账户，法定节假日顺延。本提现为人工审核、人工打款，非即时到账。</text>
+      <text class="withdrawal-rule">5. 手续费：按提现金额的 0.6% 收取，从提现金额中扣除。实际到账 = 提现金额 − 手续费，例如提现 100 元，手续费 0.60 元，实际到账 99.40 元。</text>
+      <text class="withdrawal-rule">6. 冻结与退回：提交后申请金额将被冻结；审核未通过或打款失败的，冻结金额原额退回可用余额，不扣手续费。</text>
+      <text class="withdrawal-rule">7. 收款信息：请确保真实姓名与微信收款账户实名一致，信息填写错误导致打款失败的，金额原额退回后请更正后重新申请。</text>
+    </view>
     <view class="card">
       <text>真实姓名</text><input v-model="name" placeholder="请输入收款人真实姓名" />
       <text>收款方式</text><picker :range="channels" range-key="label" @change="selectChannel"><view class="picker">{{channels[channelIndex].label}}　⌄</view></picker>
       <template v-if="channelIndex===2"><text>开户银行</text><input v-model="bankName" placeholder="例如中国工商银行" /><text>收款支行</text><input v-model="bankBranch" placeholder="请输入开户支行" /></template>
       <text>收款账户</text><input v-model="account" :placeholder="channelIndex===2?'请输入银行卡号':channelIndex===0?'请输入微信收款账号':'请输入支付宝收款账号'" />
       <text>提现金额（元）</text><input v-model="amount" type="number" placeholder="请输入提现金额" />
-      <text class="hint">实际手续费以申请时后台设置为准。</text>
       <button class="primary" :disabled="busy || refreshing" @click="submit">提交提现申请</button><text v-if="error" class="error">{{error}}</text>
     </view>
     <view class="card"><text class="title">提现记录</text><view v-for="item in rows" :key="item.id" class="record"><text>申请 ¥{{money(item.gross_cents)}}　手续费 ¥{{money(item.fee_cents)}}　实际打款 ¥{{money(item.net_cents)}}</text><text>{{item.channel==='BANK'?'银行卡':item.channel==='ALIPAY'?'支付宝':'微信'}} · {{item.status==='PAID'?'已人工打款':item.status==='REJECTED'?'已拒绝并退回':'待后台处理'}}</text></view><text v-if="!rows.length" class="hint">暂无提现记录</text></view>
@@ -61,4 +70,5 @@ async function submit(){
   }catch(e:any){error.value=e?.data?.message||e?.message||'申请结果未确认，请按原信息重试'}finally{busy.value=false}
 }
 </script>
-<style scoped>.page{padding:0;background:#fff9f1}.card{background:#fff;border-radius:18rpx;padding:30rpx;margin-bottom:22rpx}.title{display:block;font-size:34rpx;font-weight:bold;color:#285b45;margin-bottom:18rpx}.hint{display:block;color:#687a75;font-size:24rpx;margin:18rpx 0}.error{color:#b42318;display:block;margin-top:16rpx}input,.picker{display:block;box-sizing:border-box;width:100%;min-height:76rpx;border:1px solid #ddd;border-radius:10rpx;margin:12rpx 0 24rpx;font-size:28rpx;color:#2d2d2d}input{padding:0 20rpx;line-height:normal}.picker{padding:16rpx 20rpx}.primary{background:#285b45;color:#fff}.record{border-top:1px solid #eee;padding:20rpx 0}.record text{display:block;margin:8rpx 0}</style>
+<style scoped>.page{padding:0;background:#fff9f1}.card{background:#fff;border-radius:18rpx;padding:30rpx;margin-bottom:22rpx}.title{display:block;font-size:34rpx;font-weight:bold;color:#285b45;margin-bottom:18rpx}.hint{display:block;color:#687a75;font-size:24rpx;margin:18rpx 0}.error{color:#b42318;display:block;margin-top:16rpx}input,.picker{display:block;box-sizing:border-box;width:100%;min-height:76rpx;border:1px solid #ddd;border-radius:10rpx;margin:12rpx 0 24rpx;font-size:28rpx;color:#2d2d2d}input{padding:0 20rpx;line-height:normal}.picker{padding:16rpx 20rpx}.primary{background:#285b45;color:#fff}.record{border-top:1px solid #eee;padding:20rpx 0}.record text{display:block;margin:8rpx 0}.withdrawal-rules{color:#2d2d2d}.withdrawal-rule{display:block;font-size:32rpx;line-height:1.8;margin:16rpx 0;word-break:break-word}
+</style>
