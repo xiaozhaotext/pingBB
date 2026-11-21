@@ -31,7 +31,9 @@
       <text class="title">我的下级列表</text>
       <view class="list" v-if="invitees.length">
         <view class="item" v-for="(it, i) in invitees" :key="i">
-          <text>会员ID：{{ it.memberId }}</text>
+          <text>会员 ID：{{ it.memberId }}</text>
+          <text class="sub">姓名：{{ it.inviteeName || '未设置' }}</text>
+          <text class="sub">手机号：{{ it.inviteePhone || '未填写' }}</text>
         </view>
       </view>
       <text class="tip" v-else>暂无下级</text>

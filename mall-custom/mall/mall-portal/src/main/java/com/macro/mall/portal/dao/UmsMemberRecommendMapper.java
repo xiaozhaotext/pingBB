@@ -19,7 +19,9 @@ public interface UmsMemberRecommendMapper {
     @Select("SELECT * FROM ums_member_recommend WHERE member_id=#{memberId} LIMIT 1")
     UmsMemberRecommend selectByMember(@Param("memberId") Long memberId);
 
-    @Select("SELECT * FROM ums_member_recommend WHERE inviter_id=#{inviterId}")
+    @Select("SELECT r.*, COALESCE(NULLIF(TRIM(m.nickname), ''), NULLIF(TRIM(m.username), '')) AS invitee_name, " +
+            "m.phone AS invitee_phone FROM ums_member_recommend r " +
+            "LEFT JOIN ums_member m ON m.id = r.member_id WHERE r.inviter_id=#{inviterId} ORDER BY r.id")
     List<UmsMemberRecommend> selectByInviter(@Param("inviterId") Long inviterId);
 
     // 沿推荐链向上查找某 memberId 是否在 inviter 的祖先链中（防循环）
