@@ -1,0 +1,1 @@
+"use strict";const t=require("../utils/http.js");exports.createReadHistoryAPI=e=>t.http({method:"POST",url:"/member/readHistory/create",data:e}),exports.fetchReadHistoryListAPI=e=>t.http({method:"GET",url:"/member/readHistory/list",params:e});

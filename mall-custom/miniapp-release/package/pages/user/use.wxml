@@ -1,0 +1,1 @@
+<view class="redirect data-v-df73a605"><text class="data-v-df73a605">{{a}}</text><button wx:if="{{b}}" class="data-v-df73a605" bindtap="{{c}}">打开我的账户</button></view>

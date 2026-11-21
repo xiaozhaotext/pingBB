@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "复购区",
+  "usingComponents": {
+    "main-navigation": "../../components/MainNavigation",
+    "zone-page": "../../components/ZonePage"
+  }
+}

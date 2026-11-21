@@ -1,0 +1,13 @@
+"use strict";
+const t = require("../utils/http.js");
+const FOOD_RE = /陈皮|柑普|普茶|茶叶|茶饮|食品|饮料|饮品|酒水|白酒|红酒|啤酒|零食|生鲜|粮油|米面|保健|滋补|食材|冲调|咖啡|果汁|蜂蜜|坚果|糕点|水果|乳品|调味|矿泉水|饮用水|纯净水/;
+const TEA_EXEMPT = /茶具|茶壶|茶杯|茶器|茶盘|茶道/;
+const isFoodCate = n => { if (!n) return !1; const s = String(n); return FOOD_RE.test(s) || (/茶/.test(s) && !TEA_EXEMPT.test(s)); };
+const cleanCateTree = n => { if (Array.isArray(n)) return n.filter(x => !(x && "object" == typeof x && isFoodCate(x.name || x.categoryName))).map(cleanCateTree); if (n && "object" == typeof n) for (const k of Object.keys(n)) if (Array.isArray(n[k])) n[k] = cleanCateTree(n[k]); return n; };
+exports.isFoodCate = isFoodCate;
+exports.cleanCateTree = cleanCateTree;
+exports.getHomeContentAPI = () => t.http({ method: "GET", url: "/home/content" });
+exports.getHotProductListAPI = e => t.http({ method: "GET", url: "/home/hotProductList", data: e });
+exports.getNewProductListAPI = e => t.http({ method: "GET", url: "/home/newProductList", data: e });
+exports.getProductCateListAPI = async e => { const r = await t.http({ method: "GET", url: `/home/productCateList/${e}` }); if (r && Array.isArray(r.data)) r.data = r.data.filter(x => !(x && isFoodCate(x.name || x.categoryName))); return r; };
+exports.getSiteInfoAPI = () => t.http({ method: "GET", url: "/home/siteInfo" });

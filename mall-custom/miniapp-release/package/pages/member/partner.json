@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "合伙人",
+  "usingComponents": {
+    "membership-v2-benefits": "../../components/MembershipV2Benefits"
+  }
+}

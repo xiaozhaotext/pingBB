@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "支付订单",
+  "usingComponents": {
+    "full-reduction-panel": "../../components/FullReductionPanel"
+  }
+}
