@@ -1,0 +1,1 @@
+"use strict";const e=require("./date.js");exports.chinaDateTime=function(t){if(null==t||""===t)return"—";const a=t instanceof Date?t:new Date(t);return Number.isNaN(a.getTime())?"—":e.formatDate(a,"yyyy-MM-dd hh:mm","Asia/Shanghai")};

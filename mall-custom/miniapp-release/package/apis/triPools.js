@@ -1,0 +1,1 @@
+"use strict";const e=require("../utils/http.js");exports.getTriPoolRecordsAPI=t=>e.http({method:"GET",url:"/member/tri-pools/records",params:{page:t}}),exports.getTriPoolsAPI=()=>e.http({method:"GET",url:"/member/tri-pools"}),exports.poolNames={PARTNER:"合伙人池",COFOUNDER:"联创池",OPERATIONS:"运营池"},exports.tierNames={VISITOR:"游客",MEMBER:"会员",PARTNER:"合伙人",COFOUNDER:"联创"};

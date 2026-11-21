@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "联创",
+  "usingComponents": {
+    "membership-v2-benefits": "../../components/MembershipV2Benefits"
+  }
+}

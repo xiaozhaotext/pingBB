@@ -1,0 +1,1 @@
+"use strict";const t=require("../utils/http.js");exports.getPickActivitiesAPI=()=>t.http({method:"GET",url:"/product/pickActivity"}),exports.getPickActivityAPI=i=>t.http({method:"GET",url:`/product/pickActivity/${i}`});

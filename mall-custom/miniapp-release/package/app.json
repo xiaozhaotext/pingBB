@@ -1,0 +1,96 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/member/contact",
+    "pages/member/travel",
+    "pages/member/benefits",
+    "pages/member/recharge",
+    "pages/member/walletWithdraw",
+    "pages/category/category",
+    "pages/zone/pick",
+    "pages/zone/rebuy",
+    "pages/cart/cart",
+    "pages/user/user",
+    "pages/public/login",
+    "pages/public/register",
+    "pages/public/privacy",
+    "pages/set/set",
+    "pages/user/profile",
+    "pages/product/list",
+    "pages/product/search",
+    "pages/product/product",
+    "pages/product/hotProductList",
+    "pages/product/newProductList",
+    "pages/brand/list",
+    "pages/brand/brandDetail",
+    "pages/address/address",
+    "pages/address/addressManage",
+    "pages/order/createOrder",
+    "pages/order/order",
+    "pages/order/orderDetail",
+    "pages/order/comment",
+    "pages/order/returnApply",
+    "pages/money/pay",
+    "pages/money/paySuccess",
+    "pages/coupon/couponList",
+    "pages/notice/notice",
+    "pages/notice/detail",
+    "pages/consultation/consultation",
+    "pages/user/readHistory",
+    "pages/user/brandAttention",
+    "pages/user/productCollection",
+    "pages/member/center",
+    "pages/member/invitation",
+    "pages/member/membership",
+    "pages/member/partner",
+    "pages/member/cofounder",
+    "pages/member/earnings",
+    "pages/member/pointsLedger",
+    "pages/zone/consume",
+    "pages/member/dividend",
+    "pages/member/points",
+    "pages/support/privacy",
+    "pages/user/use",
+    "pages/product/fullReduction",
+    "pages/member/promotion"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "智游美",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#f8f8f8"
+  },
+  "tabBar": {
+    "color": "#C0C4CC",
+    "selectedColor": "#167a80",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "static/tab-home.png",
+        "selectedIconPath": "static/tab-home-current.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/cart/cart",
+        "iconPath": "static/tab-cart.png",
+        "selectedIconPath": "static/tab-cart-current.png",
+        "text": "购物车"
+      },
+      {
+        "pagePath": "pages/member/promotion",
+        "iconPath": "static/tab-cate.png",
+        "selectedIconPath": "static/tab-cate-current.png",
+        "text": "分销"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "iconPath": "static/tab-my.png",
+        "selectedIconPath": "static/tab-my-current.png",
+        "text": "我的"
+      }
+    ]
+  },
+  "usingComponents": {}
+}

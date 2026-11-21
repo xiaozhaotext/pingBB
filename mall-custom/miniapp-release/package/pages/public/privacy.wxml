@@ -1,0 +1,1 @@
+<view class="privacy data-v-f97cee0e"><view class="title data-v-f97cee0e">{{a}}</view><view wx:if="{{b}}" class="meta data-v-f97cee0e">{{c}}</view><view class="body data-v-f97cee0e"><text class="text data-v-f97cee0e">{{d}}</text></view></view>

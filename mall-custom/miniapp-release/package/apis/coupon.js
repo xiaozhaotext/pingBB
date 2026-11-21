@@ -1,0 +1,1 @@
+"use strict";const t=require("../utils/http.js");exports.addMemberCouponAPI=e=>t.http({method:"POST",url:`/member/coupon/add/${e}`}),exports.getMemberCouponListAPI=e=>t.http({method:"GET",url:"/member/coupon/list",params:{useStatus:e}}),exports.getProductCouponListAPI=e=>t.http({method:"GET",url:`/member/coupon/listByProduct/${e}`});

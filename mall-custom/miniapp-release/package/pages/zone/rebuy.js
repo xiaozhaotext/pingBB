@@ -1,0 +1,1 @@
+"use strict";const e=require("../../common/vendor.js");Math||(o+n)();const n=()=>"../../components/MainNavigation.js",o=()=>"../../components/ZonePage.js",t=e.defineComponent({__name:"rebuy",setup:n=>(n,o)=>({a:e.p({zone:"REBUY",title:"复购区",description:"复购专区商品，50%复购积分抵扣，余款优先用余额、不足部分外部支付"}),b:e.p({active:"rebuy"})})});wx.createPage(t);

@@ -1,0 +1,1 @@
+"use strict";const e=require("../../common/vendor.js");Math||(o+n)();const n=()=>"../../components/MainNavigation.js",o=()=>"../../components/ZonePage.js",t=e.defineComponent({__name:"consume",setup:n=>(n,o)=>({a:e.p({zone:"CONSUME",title:"消费区",description:"消费专区商品，可用微信或账户余额支付"}),b:e.p({active:"consume"})})});wx.createPage(t);

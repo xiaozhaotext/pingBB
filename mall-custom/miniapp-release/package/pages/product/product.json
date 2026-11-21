@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "商品详情",
+  "usingComponents": {
+    "desktop-header": "../../components/DesktopHeader",
+    "watermark-overlay": "../../components/WatermarkOverlay"
+  }
+}

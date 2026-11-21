@@ -1,0 +1,1 @@
+"use strict";const e=require("../../common/vendor.js");Math||s();const s=()=>"../../components/MembershipV2Benefits.js",t=e.defineComponent({__name:"membership",setup:e=>(e,s)=>({})}),n=e._export_sfc(t,[["__scopeId","data-v-06b390e3"]]);wx.createPage(n);

@@ -43,6 +43,7 @@ const routes = computed(() => {
     take('serviceDesktop'),
     take('memberMgr'),
     ...group('sidebarProducts', '商品管理', 'product', ['pick', 'rebuy', 'consume', 'columnImagesMgr']),
+    take('miniappMgr'),
     take('orderMgr'),
     ...group('sidebarFinance', '财务管理', 'total-today', ['financeMgr', 'spendableWalletMgr', 'walletWithdrawal', 'withdrawalSettings', 'dividendPoolMgr']),
     take('sms'),
