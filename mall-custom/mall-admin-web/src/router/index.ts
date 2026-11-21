@@ -153,12 +153,12 @@ export const asyncRouterMap: RouteRecordExt[] = [
     children: [{ path: 'index', name: 'columnImages', component: () => import('@/views/column/ColumnImages.vue'), meta: { title: '栏目图片', icon: 'picture' } }],
   },
   { path: '/miniapp', component: Layout, redirect: '/miniapp/home', name: 'miniappMgr', alwaysShow: true,
-    meta: { title: '小程序管理', icon: 'picture' },
+    meta: { title: '小程序管理', icon: 'miniapp' },
     children: [
       { path: 'home', name: 'miniappHome', component: () => import('@/views/miniapp/HomeSettings.vue'), meta: { title: '首页文字', icon: 'form' } },
       { path: 'sections', name: 'miniappSections', component: () => import('@/views/miniapp/SectionSettings.vue'), meta: { title: '板块显示', icon: 'product-list' } },
       { path: 'links', name: 'miniappLinks', component: () => import('@/views/miniapp/LinkSettings.vue'), meta: { title: '首页跳转', icon: 'form' } },
-      { path: 'images', name: 'miniappImages', component: () => import('@/views/column/ColumnImages.vue'), meta: { title: '栏目图片', icon: 'picture' } },
+      { path: 'images', name: 'miniappImages', component: () => import('@/views/column/ColumnImages.vue'), meta: { title: '栏目图片', icon: 'miniapp' } },
     ],
   },
     // 7 服务中心
@@ -607,4 +607,5 @@ const router = createRouter({
 })
 
 export default router
+
 
