@@ -10,11 +10,11 @@
       <view v-else class="choices"><button :disabled="busy || !!current || !availableChannels.includes('WECHAT')" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button v-if="!miniProgram" :disabled="busy || !!current || !availableChannels.includes('ALIPAY')" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
       <button class="primary" :disabled="busy || !loaded || !!current || !supported" @click="create">确认充值</button>
       <text v-if="!supported" class="hint">请在手机浏览器打开商城完成充值。</text>
-      <view v-if="current" class="pending"><text>订单 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '已到账' : '待支付 / 到账确认中' }}</text><text v-if="current.channel === 'WECHAT' && current.orderNo.length > 32" class="error">这笔旧订单号不符合微信支付要求，未扣款。请返回充值列表重新创建订单。</text><button v-if="current.status !== 'PAID' && !(current.channel === 'WECHAT' && current.orderNo.length > 32)" :disabled="busy" @click="pay">继续支付同一订单</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="clearCurrent">返回充值列表</button></view>
+      <view v-if="current" class="pending"><text>充值申请 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '充值成功 / 已到账' : '待支付 / 尚未确认到账' }}</text><text v-if="current.channel === 'WECHAT' && current.orderNo.length > 32" class="error">这笔旧订单号不符合微信支付要求，未扣款。请取消后重新创建充值申请。</text><button v-if="current.status === 'PENDING' && !(current.channel === 'WECHAT' && current.orderNo.length > 32)" :disabled="busy" @click="pay">继续支付同一订单</button><button v-if="current.status === 'PENDING'" :disabled="busy" @click="cancelPayment">取消支付</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="clearCurrent">返回充值列表</button></view>
       <text v-if="error" class="error">{{ error }}</text>
       <text class="hint">支付跳转或返回页面不代表到账，请以订单“已到账”为准。付款后请勿另建订单重复支付。</text>
     </view>
-    <view class="card"><text class="title">最近50笔充值</text><button :disabled="busy" @click="refresh">刷新余额和记录</button><view v-for="o in orders" :key="o.orderNo" class="record" @click="select(o)"><text>¥ {{ o.amount }} · {{ o.channel === 'MOCK' ? '沙盒模拟' : o.channel === 'WECHAT' ? '微信' : '支付宝' }}</text><text>{{ o.status === 'PAID' ? '已到账' : '待支付 / 待确认，点击查看' }}</text><text class="hint">{{ o.orderNo }}</text></view><text v-if="loaded && !orders.length" class="hint">暂无充值记录</text></view>
+    <view class="card"><text class="title">最近50笔成功充值</text><button :disabled="busy" @click="refresh">刷新余额和记录</button><view v-for="o in orders" :key="o.orderNo" class="record" @click="select(o)"><text>¥ {{ o.amount }} · {{ o.channel === 'MOCK' ? '沙盒模拟' : o.channel === 'WECHAT' ? '微信' : '支付宝' }}</text><text>充值成功 / 已到账</text><text class="hint">{{ o.orderNo }}</text></view><text v-if="loaded && !orders.length" class="hint">暂无成功充值记录</text></view>
     <view class="card"><text class="title">最近50笔余额变动</text><view v-for="(item,i) in movements" :key="i" class="record"><text>{{item.remark}}　{{(Number(item.amount_cents)/100).toFixed(2)}} 元</text><text class="hint">变动后 ¥ {{(Number(item.balance_after_cents)/100).toFixed(2)}} · {{chinaDateTime(item.create_time)}}</text></view><text v-if="loaded && !movements.length" class="hint">暂无余额变动</text></view>
   </view>
 </template>
@@ -63,7 +63,7 @@ async function refresh() {
     if (storageKey && storageKey!==nextKey) current.value=null
     storageKey=nextKey
     movements.value=ledger.data || []
-    balance.value=a.data.balance; orders.value=h.data; loaded.value=true
+    balance.value=a.data.balance; orders.value=(h.data || []).filter(o=>o.status==='PAID'); loaded.value=true
     const pending=uni.getStorageSync(storageKey)
     if(!current.value && pending && typeof pending.amount==='string' && amountCents(pending.amount)!==null
       && (sandbox.value?['MOCK']:['WECHAT','ALIPAY']).includes(pending.channel) && /^[A-Za-z0-9-]{16,64}$/.test(pending.requestId)) {
@@ -73,8 +73,9 @@ async function refresh() {
     if (current.value) current.value=orders.value.find(o=>o.orderNo===current.value?.orderNo) || (await api<Order>('/orders/'+current.value.orderNo)).data
     if (!current.value) {
       const active=uni.getStorageSync(storageKey+'-active')
-      current.value=orders.value.find(o=>o.orderNo===active) || null
+      current.value=orders.value.find(o=>o.orderNo===active) || (active ? (await api<Order>('/orders/'+active)).data : null)
     }
+    if (current.value?.status==='CANCELLED') clearCurrent()
     if (current.value && legacyWechatOrder(current.value)) {
       clearCurrent()
       error.value='原充值订单号不符合微信支付要求，已退出旧单。请重新确认金额并创建新订单。'
@@ -99,6 +100,19 @@ function select(o:Order) {
   current.value=o;amount.value=o.amount;channel.value=o.channel
 }
 function clearCurrent() {current.value=null;error.value='';uni.removeStorageSync(storageKey+'-active');uni.removeStorageSync(storageKey);uni.removeStorageSync(storageKey+'-oauth-resume')}
+async function cancelPayment() {
+  if(busy.value || current.value?.status!=='PENDING') return
+  busy.value=true
+  try {
+    const confirmed=await new Promise<boolean>(resolve=>uni.showModal({title:'取消支付',content:'确定取消本次充值？未付款不会增加余额；如果微信已实际扣款，请以核实后的到账结果为准。',success:r=>resolve(r.confirm===true),fail:()=>resolve(false)}))
+    if(!confirmed)return
+    const result=(await http<Order>({url:'/member/recharge/orders/'+current.value.orderNo+'/cancel',method:'POST',params:{mini:miniProgram}})).data
+    if(result.status==='PAID') {current.value=result;await refresh();uni.showToast({title:'该笔充值已到账，不能取消',icon:'none'});return}
+    if(result.status!=='CANCELLED')throw new Error('取消结果尚未确认，请查询原充值记录')
+    clearCurrent();await refresh();uni.showToast({title:'已取消本次充值',icon:'none'})
+  }catch(e:any){error.value=e?.data?.message||e?.message||'取消结果未确认，请刷新后重试'}
+  finally{busy.value=false}
+}
 async function create() {
   if(busy.value) return
   if(!loaded.value || !modeReady.value) {error.value='账户尚未加载或充值环境不匹配，请刷新后重试';return}

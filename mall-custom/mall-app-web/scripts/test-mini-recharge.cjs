@@ -19,21 +19,22 @@ test('native recharge exchanges login code and invokes wx payment with backend s
  assert.equal(calls[0].url,'/member/wechat-mini/login');assert.equal(calls[1].url,'/member/recharge/orders/RC1/mini-pay')
  assert.equal(calls[1].data.paymentTicket,'ticket');assert.equal(calls[2].package,signed.package);assert.equal(calls[2].paySign,signed.paySign)
 })
-function recharge(cancel=false){
+function recharge(cancel=false, alreadyPaid=false){
  const calls=[],storage=new Map();let paid=false
  const http=async o=>{calls.push(o);const u=o.url
   if(u.endsWith('/mini-payment-options'))return {data:{sandbox:false,channels:['WECHAT']}}
   if(u.endsWith('/account'))return {data:{balance:paid?'12.35':'0.00'}}
   if(u.endsWith('/mini-orders'))return {data:{orderNo:'RC1',amount:'12.35',channel:'WECHAT',status:'PENDING'}}
+  if(u.endsWith('/cancel')){paid=alreadyPaid;return {data:{orderNo:'RC1',amount:'12.35',channel:'WECHAT',status:paid?'PAID':'CANCELLED'}}}
   if(u.endsWith('/mini-status')){paid=true;return {data:{orderNo:'RC1',amount:'12.35',channel:'WECHAT',status:'PAID'}}}
   if(u.endsWith('/orders'))return {data:[]}
   if(u.endsWith('/orders/RC1'))return {data:{orderNo:'RC1',amount:'12.35',channel:'WECHAT',status:paid?'PAID':'PENDING'}}
   if(u.endsWith('/ledger'))return {data:[]}
   return {data:{}}
  }
- const uni={getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),showModal:o=>calls.push(o)}
+ const uni={getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),showToast:o=>calls.push(o),showModal:o=>{calls.push(o);if(o.title==='取消支付')o.success({confirm:true})}}
  const source=parse(fs.readFileSync(path.join(root,'pages/member/recharge.vue'),'utf8')).descriptor.scriptSetup.content
- const page=run(source,{vue:require('vue'),'@dcloudio/uni-app':{onShow(){}},'@/utils/chinaTime':{},'@/utils/http':{http},'@/apis/member':{getMemberInfoAPI:async()=>({data:{id:1}})},'@/utils/sandbox':{sandboxMode:false},'@/utils/wechatPay':{isWechatBrowser:()=>false,prepareMiniProgramRechargePayment:async no=>{calls.push({nativeOrder:no});return signed},requestMiniProgramPayment:async p=>{calls.push({nativePayment:p});if(cancel)throw Error('requestPayment:fail cancel')}}},uni,'\nmodule.exports={refresh,create,pay,amount,current,balance,error}')
+ const page=run(source,{vue:require('vue'),'@dcloudio/uni-app':{onShow(){}},'@/utils/chinaTime':{},'@/utils/http':{http},'@/apis/member':{getMemberInfoAPI:async()=>({data:{id:1}})},'@/utils/sandbox':{sandboxMode:false},'@/utils/wechatPay':{isWechatBrowser:()=>false,prepareMiniProgramRechargePayment:async no=>{calls.push({nativeOrder:no});return signed},requestMiniProgramPayment:async p=>{calls.push({nativePayment:p});if(cancel)throw Error('requestPayment:fail cancel')}}},uni,'\nmodule.exports={refresh,create,pay,cancelPayment,amount,current,balance,error}')
  return {...page,calls,storage}
 }
 test('recharge page opens native payment and confirms balance with the backend',async()=>{
@@ -45,4 +46,14 @@ test('cancelled native checkout keeps pending order and does not credit the wall
  const p=recharge(true);await p.refresh();p.amount.value='12.35';await p.create()
  assert.equal(p.current.value.status,'PENDING');assert.equal(p.balance.value,'0.00');assert.match(p.error.value,/cancel/)
  assert(!p.calls.some(o=>o.url?.endsWith('/mini-status')))
+})
+test('user can cancel unpaid recharge and start a different recharge',async()=>{
+ const p=recharge(true);await p.refresh();p.amount.value='12.35';await p.create();await p.cancelPayment()
+ assert.equal(p.current.value,null);assert.equal(p.balance.value,'0.00');assert.equal(p.storage.size,0)
+ assert(p.calls.some(o=>o.url?.endsWith('/cancel')))
+ p.amount.value='25.00';await p.create();assert.equal(p.calls.filter(o=>o.url?.endsWith('/mini-orders')).length,2)
+})
+test('server-confirmed paid recharge is retained when user tries to cancel',async()=>{
+ const p=recharge(true,true);await p.refresh();p.amount.value='12.35';await p.create();await p.cancelPayment()
+ assert.equal(p.current.value.status,'PAID');assert.equal(p.balance.value,'12.35')
 })

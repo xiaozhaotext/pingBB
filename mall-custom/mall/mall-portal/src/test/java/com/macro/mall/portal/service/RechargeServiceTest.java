@@ -25,6 +25,21 @@ class RechargeServiceTest {
         service=new RechargeService(jdbc,new RechargeProperties());
     }
     void order(String no,long cents) {jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,1,?,?,'WECHAT')",no,no,cents);}
+    @Test void cancelledRechargeIsNotSuccessfulAndLateVerifiedPaymentCreditsExactlyOnce() {
+        order("RC-CANCEL",1235);
+        assertTrue(service.history(1).isEmpty());
+        assertThrows(IllegalArgumentException.class,()->tx.execute(s->service.cancel(2,"RC-CANCEL")));
+        assertEquals("CANCELLED",tx.execute(s->service.cancel(1,"RC-CANCEL")).get("status"));
+        assertEquals("CANCELLED",tx.execute(s->service.cancel(1,"RC-CANCEL")).get("status"));
+        assertEquals("0.00",service.account(1).get("balance"));
+        assertTrue(service.history(1).isEmpty());
+        assertThrows(IllegalArgumentException.class,()->service.pay(1,"RC-CANCEL","127.0.0.1","H5"));
+        post("RC-CANCEL","WX-LATE-CANCEL","12.35");post("RC-CANCEL","WX-LATE-CANCEL","12.35");
+        assertEquals("12.35",service.account(1).get("balance"));
+        assertEquals(1,service.history(1).size());
+        assertEquals("PAID",tx.execute(s->service.cancel(1,"RC-CANCEL")).get("status"));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_ledger",Integer.class));
+    }
     @Test void newRechargeOrderFitsWechatMerchantOrderLimit() {
         org.springframework.test.util.ReflectionTestUtils.setField(service,"sandboxEnabled",true);
         String no=(String)service.create(1,"100.00","MOCK","recharge-length-test-01").get("orderNo");

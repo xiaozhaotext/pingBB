@@ -83,8 +83,17 @@ public class RechargeService {
         return view(rows.get(0));
     }
     public List<Map<String,Object>> history(long member) {
-        return jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? ORDER BY created_at DESC,order_no DESC LIMIT 50", member)
+        return jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? AND status='PAID' ORDER BY created_at DESC,order_no DESC LIMIT 50", member)
                 .stream().map(this::view).toList();
+    }
+    /** Abandon a local payment attempt. A later verified payment must still be credited. */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String,Object> cancel(long member, String no) {
+        var rows=jdbc.queryForList("SELECT * FROM ums_recharge_order WHERE member_id=? AND order_no=? FOR UPDATE",member,no);
+        if(rows.isEmpty()) throw new IllegalArgumentException("充值申请不存在或无权操作");
+        if("PENDING".equals(rows.get(0).get("status")))
+            jdbc.update("UPDATE ums_recharge_order SET status='CANCELLED' WHERE member_id=? AND order_no=? AND status='PENDING'",member,no);
+        return order(member,no);
     }
     public Map<String,Object> account(long member) {
         List<Long> values = jdbc.query("SELECT balance_cents FROM ums_recharge_account WHERE member_id=?", (rs,n)->rs.getLong(1), member);
@@ -171,7 +180,7 @@ public class RechargeService {
     }
     public Map<String,String> pay(long member, String no, String ip, String mode) {
         Map<String,Object> row = order(member,no);
-        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");
+        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("充值申请已取消或已到账，请刷新记录");
         String channel = (String)row.get("channel");
         requireChannel(channel);
         if ("MOCK".equals(channel)) return Map.of("type", "SANDBOX_RECHARGE", "orderNo", no);
@@ -187,7 +196,7 @@ public class RechargeService {
     /** Mini-program payment uses the existing signed WeChat callback and recharge ledger. */
     public Map<String,String> payMini(long member, String no, String openId, WechatOrderPayService wechatPay) {
         Map<String,Object> row=order(member,no);
-        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");
+        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("充值申请已取消或已到账，请刷新记录");
         if (!"WECHAT".equals(row.get("channel"))) throw new IllegalArgumentException("该订单不是微信充值订单");
         if (sandboxEnabled || !wechatPay.miniAvailable()) throw new IllegalArgumentException("小程序微信充值尚未开通");
         if (no.length()>32) throw new IllegalArgumentException("旧充值订单号不符合微信支付要求，请重新创建订单");
@@ -201,6 +210,7 @@ public class RechargeService {
         if (rows.isEmpty()) throw new IllegalArgumentException("充值订单不存在或无权访问");
         var row = rows.get(0);
         if (!"MOCK".equals(row.get("channel"))) throw new IllegalArgumentException("真实支付订单不能模拟到账");
+        if ("CANCELLED".equals(row.get("status"))) throw new IllegalArgumentException("充值申请已取消");
         if (!"PAID".equals(row.get("status"))) {
             long value = ((Number)row.get("amount_cents")).longValue();
             accept(new MembershipPaymentGateway.VerifiedPayment(no, "SANDBOX-"+no, "MOCK", BigDecimal.valueOf(value,2)));
@@ -234,7 +244,7 @@ public class RechargeService {
             if (!payment.transactionId().equals(row.get("transaction_id"))) throw new IllegalArgumentException("重复支付交易号不符");
             return;
         }
-        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单状态异常");
+        if (!List.of("PENDING","CANCELLED").contains(row.get("status"))) throw new IllegalArgumentException("订单状态异常");
         long member = ((Number)row.get("member_id")).longValue();
         jdbc.update("INSERT INTO ums_recharge_account(member_id,balance_cents) VALUES(?,0) ON DUPLICATE KEY UPDATE member_id=member_id",member);
         long balance = jdbc.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=? FOR UPDATE",Long.class,member);
