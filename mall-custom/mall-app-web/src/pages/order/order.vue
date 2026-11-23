@@ -176,6 +176,9 @@ const formatAfterSaleStatus = (status: number): string => {
 // 加载退款/售后申请
 const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
   loadingType.value = 'loading'
+  // 兜底：8 秒后若仍停在 loading 且请求未失效，强制复位，避免永久转圈
+  const guardRevision = revision
+  setTimeout(() => { if (guardRevision === loadRevision && loadingType.value === 'loading') loadingType.value = 'more' }, 8000)
   if (type === 'refresh') {
     searchParam.value.pageNum = 1
   } else {
@@ -187,7 +190,7 @@ const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
       method: 'GET',
       data: { pageNum: searchParam.value.pageNum, pageSize: 10 },
     })
-    if (revision !== loadRevision) return
+    if (revision !== loadRevision) { loadingType.value = 'more'; return }
     const list = res.data?.list ?? []
     afterSaleList.value = type === 'refresh' ? list : afterSaleList.value.concat(list)
     if (list.length === 0 && type === 'add') {
@@ -197,7 +200,7 @@ const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
       loadingType.value = 'more'
     }
   } catch (e) {
-    if (revision !== loadRevision) return
+    if (revision !== loadRevision) { loadingType.value = 'more'; return }
     console.error('加载退款/售后失败', e)
     uni.showToast({ title: '售后列表加载失败，请重试', icon: 'none' })
     if (type === 'add') searchParam.value.pageNum--
@@ -229,10 +232,13 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
 
   searchParam.value.status = navItem.state
   loadingType.value = 'loading'
+  // 兜底：8 秒后若仍停在 loading 且请求未失效，强制复位，避免永久转圈
+  const guardRevision = revision
+  setTimeout(() => { if (guardRevision === loadRevision && loadingType.value === 'loading') loadingType.value = 'more' }, 8000)
 
   try {
     const res = await getOrderListAPI({ ...searchParam.value })
-    if (revision !== loadRevision) return
+    if (revision !== loadRevision) { loadingType.value = 'more'; return }
     const list = res.data.list
     if (type === 'refresh') {
       orderList.value = list
@@ -247,7 +253,7 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
       }
     }
   } catch (e) {
-    if (revision !== loadRevision) return
+    if (revision !== loadRevision) { loadingType.value = 'more'; return }
     console.error('加载订单列表失败', e)
     uni.showToast({ title: '订单列表加载失败，请重试', icon: 'none' })
     if (type === 'add') searchParam.value.pageNum--
