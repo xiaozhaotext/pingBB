@@ -26,11 +26,119 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @RequestMapping("/p0/column-images")
 public class ColumnImageController {
     private static final Set<String> SLOTS=Set.of("hero","pick","rebuy","consume","gift1","gift2","gift3","gift4");
+    private static final Set<String> HOME_COPY_KEYS=Set.of(
+            "brand","searchHint","cartEntry","heroTitle","heroSub","announcementLabel","announcementMore",
+            "quickCategoryTitle","quickCategorySub","quickCartTitle","quickCartSub",
+            "pickHeading","pickHeadingSub","rebuyHeading","rebuyHeadingSub",
+            "consumeHeading","consumeHeadingSub","more","pickItemSub","pickBadge","rebuyBadge","consumeBadge","addCart");
+    private static final Set<String> HOME_LINK_KEYS=Set.of("brand","topCart","quickCategory","quickCart","pick","rebuy","consume");
+    private static final Set<String> HOME_LINK_PATHS=Set.of("/pages/index/index","/pages/category/category","/pages/cart/cart",
+            "/pages/zone/pick","/pages/zone/rebuy","/pages/zone/consume","/pages/notice/notice");
     private final P0AdminAccess access;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     @Value("${mall.column-image-dir:/opt/mall-demo/column-images}") private String directory;
     public ColumnImageController(P0AdminAccess access,JdbcTemplate jdbc,ObjectMapper mapper){this.access=access;this.jdbc=jdbc;this.mapper=mapper;}
+
+    @GetMapping("/mini-home-copy")
+    public CommonResult<Map<String,String>> homeCopy(Principal principal) throws IOException {
+        access.requireAuthorized(principal);
+        Path file=Path.of(directory).toAbsolutePath().normalize().resolve("home-copy.json");
+        if(!Files.isRegularFile(file))return CommonResult.success(Map.of());
+        Map<?,?> saved=mapper.readValue(file.toFile(),Map.class);
+        Map<String,String> result=new LinkedHashMap<>();
+        for(String key:HOME_COPY_KEYS){
+            Object value=saved.get(key);
+            if(value instanceof String text)result.put(key,text);
+        }
+        return CommonResult.success(result);
+    }
+
+    @PutMapping("/mini-home-copy")
+    public synchronized CommonResult<Boolean> saveHomeCopy(Principal principal,@RequestBody Map<String,String> copy) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        if(copy==null||!HOME_COPY_KEYS.containsAll(copy.keySet()))throw new IllegalArgumentException("首页文案字段无效");
+        for(Map.Entry<String,String> entry:copy.entrySet()){
+            String value=entry.getValue();
+            if(value==null||value.isBlank()||!value.equals(value.trim())||value.codePointCount(0,value.length())>80
+                    ||value.chars().anyMatch(ch->ch<32))throw new IllegalArgumentException("首页文案须为1至80字，首尾不能有空格");
+        }
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve("home-copy.json"),temporary=Files.createTempFile(dir,"home-copy-",".json");
+        try{
+            mapper.writeValue(temporary.toFile(),copy);
+            makePublicFile(temporary);
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }finally{Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'miniapp','HOME_COPY',?)",
+                principal.getName(),operator,"fields="+copy.size());
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/mini-home-layout")
+    public CommonResult<Map<String,Object>> homeLayout(Principal principal) throws IOException {
+        access.requireAuthorized(principal);
+        Path file=Path.of(directory).toAbsolutePath().normalize().resolve("home-layout.json");
+        if(!Files.isRegularFile(file))return CommonResult.success(Map.of());
+        Map<?,?> saved=mapper.readValue(file.toFile(),Map.class);
+        Map<String,Object> result=new LinkedHashMap<>();
+        for(String key:List.of("showHero","showAnnouncement","showQuickLinks","showPick","showRebuy","showConsume"))
+            if(saved.get(key) instanceof Boolean value)result.put(key,value);
+        if(saved.get("zoneOrder") instanceof List<?> order)result.put("zoneOrder",order);
+        return CommonResult.success(result);
+    }
+
+    @PutMapping("/mini-home-layout")
+    public synchronized CommonResult<Boolean> saveHomeLayout(Principal principal,@RequestBody Map<String,Object> layout) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        Set<String> keys=Set.of("showHero","showAnnouncement","showQuickLinks","showPick","showRebuy","showConsume","zoneOrder");
+        if(layout==null||!layout.keySet().equals(keys))throw new IllegalArgumentException("首页板块设置不完整");
+        for(String key:keys)if(!key.equals("zoneOrder")&&!(layout.get(key) instanceof Boolean))
+            throw new IllegalArgumentException("板块显示设置无效");
+        Object order=layout.get("zoneOrder");
+        if(!(order instanceof List<?> list)||list.size()!=3||list.stream().anyMatch(item->!(item instanceof String))
+                ||!Set.copyOf(list).equals(Set.of("pick","rebuy","consume")))
+            throw new IllegalArgumentException("专区顺序无效");
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve("home-layout.json"),temporary=Files.createTempFile(dir,"home-layout-",".json");
+        try{
+            mapper.writeValue(temporary.toFile(),layout);
+            makePublicFile(temporary);
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }finally{Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'miniapp','HOME_LAYOUT',?)",
+                principal.getName(),operator,"updated");
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/mini-home-links")
+    public CommonResult<Map<String,String>> homeLinks(Principal principal) throws IOException {
+        access.requireAuthorized(principal);
+        Path file=Path.of(directory).toAbsolutePath().normalize().resolve("home-links.json");
+        if(!Files.isRegularFile(file))return CommonResult.success(Map.of());
+        Map<?,?> saved=mapper.readValue(file.toFile(),Map.class);
+        Map<String,String> result=new LinkedHashMap<>();
+        for(String key:HOME_LINK_KEYS)if(saved.get(key) instanceof String value&&HOME_LINK_PATHS.contains(value))result.put(key,value);
+        return CommonResult.success(result);
+    }
+
+    @PutMapping("/mini-home-links")
+    public synchronized CommonResult<Boolean> saveHomeLinks(Principal principal,@RequestBody Map<String,String> links) throws IOException {
+        long operator=access.requirePlatformAdmin(principal);
+        if(links==null||!links.keySet().equals(HOME_LINK_KEYS)
+                ||links.values().stream().anyMatch(value->value==null||!HOME_LINK_PATHS.contains(value)))
+            throw new IllegalArgumentException("首页跳转设置无效");
+        Path dir=Path.of(directory).toAbsolutePath().normalize();Files.createDirectories(dir);
+        Path target=dir.resolve("home-links.json"),temporary=Files.createTempFile(dir,"home-links-",".json");
+        try{
+            mapper.writeValue(temporary.toFile(),links);
+            makePublicFile(temporary);
+            Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }finally{Files.deleteIfExists(temporary);}
+        jdbc.update("INSERT INTO sys_audit_log(operator_name,operator_id,module,action,detail) VALUES(?,?,'miniapp','HOME_LINKS',?)",
+                principal.getName(),operator,"updated");
+        return CommonResult.success(true);
+    }
 
     @PutMapping("/tourism-labels/{index}")
     public synchronized CommonResult<Boolean> saveTourismLabels(Principal principal, @PathVariable("index") int index,

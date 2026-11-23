@@ -102,7 +102,7 @@ public class SystemSettingService {
         keys.put("product.points.yuan_per_point", new KeySpec(GROUP_DISTRIBUTION, "每产品积分抵扣金额(元)", false, SystemSettingService::validatePositiveDecimal));
         keys.put("product.points.max_ratio", new KeySpec(GROUP_DISTRIBUTION, "产品积分单笔最高抵扣比例(0-1)", false, SystemSettingService::validateRatio));
         keys.put("withdraw.fee_rate", new KeySpec(GROUP_DISTRIBUTION, "提现手续费率(0-1)", false, SystemSettingService::validateRatio));
-        keys.put("withdraw.min_amount", new KeySpec(GROUP_DISTRIBUTION, "单笔提现最低金额(元)", false, SystemSettingService::validateNonNegativeDecimal));
+        keys.put("withdraw.threshold_rule", new KeySpec(GROUP_DISTRIBUTION, "统一提现门槛", false, SystemSettingService::validateWithdrawalRule));
         keys.put("sms.provider", new KeySpec(GROUP_SMS, "短信服务商（aliyun/tencent，空=未配置）", false, SystemSettingService::validateSmsProvider));
         keys.put("sms.access_key", new KeySpec(GROUP_SMS, "短信服务商 AccessKey", false, SystemSettingService::validatePlain));
         keys.put("sms.access_secret", new KeySpec(GROUP_SMS, "短信服务商 AccessSecret", true, SystemSettingService::validatePlain));
@@ -112,6 +112,14 @@ public class SystemSettingService {
     }
 
     private final JdbcTemplate jdbc;
+    private static void validateWithdrawalRule(String value) {
+        if ("HUNDRED".equals(value) || "NONE".equals(value)) return;
+        if (value.matches("CUSTOM:(?:0|[1-9][0-9]{0,4})(?:\\.[0-9]{1,2})?")) {
+            java.math.BigDecimal amount = new java.math.BigDecimal(value.substring(7));
+            if (amount.signum() > 0 && amount.compareTo(new java.math.BigDecimal("50000")) <= 0) return;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择有效的提现门槛，自定义最低金额为0.01至50000元，最多两位小数");
+    }
     private final RedisConnectionFactory redisConnectionFactory;
 
     @Value("${redis.database:mall}")

@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 class WechatMiniGatewayTest {
     final Transaction transaction=mock(Transaction.class,RETURNS_DEEP_STUBS);
     PrepayRequest sent;
+    OrderWechatPayProperties merchant;
     final WechatOrderPayServiceImpl service=new WechatOrderPayServiceImpl() {
         @Override protected PrepayWithRequestPaymentResponse sendJsapiPrepay(PrepayRequest request) {
             sent=request;
@@ -26,6 +27,7 @@ class WechatMiniGatewayTest {
     };
     @BeforeEach void setup() throws Exception {
         var config=new OrderWechatPayProperties();config.setEnabled(true);config.setAppId("wx-public");config.setMerchantId("1752296458");config.setMerchantSerialNumber("SERIAL");config.setApiV3Key("test");config.setPrivateKeyPath(Files.createTempFile("merchant-test", ".pem").toString());config.setNotifyUrl("https://example.com/notify");
+        merchant=config;
         var mini=new WechatMiniProgramProperties();mini.setEnabled(true);mini.setAppId("wx734dae9c5f5285b6");mini.setNotifyUrl("https://example.com/mini/notify");
         ReflectionTestUtils.setField(service,"properties",config);ReflectionTestUtils.setField(service,"miniProperties",mini);
         when(transaction.getTradeState()).thenReturn(Transaction.TradeStateEnum.SUCCESS);when(transaction.getAppid()).thenReturn(mini.getAppId());when(transaction.getMchid()).thenReturn(config.getMerchantId());when(transaction.getOutTradeNo()).thenReturn("MP-ORDER");when(transaction.getTransactionId()).thenReturn("WX-TX");when(transaction.getAmount().getCurrency()).thenReturn("CNY");when(transaction.getAmount().getTotal()).thenReturn(50);
@@ -33,6 +35,14 @@ class WechatMiniGatewayTest {
     @Test void miniPrepayUsesMiniAppIdNativePayerCallbackAndExactCents() {
         var result=service.prepayMiniProgram("MP-ORDER",new BigDecimal("0.50"),"order","mini-openid");
         assertEquals("wx734dae9c5f5285b6",sent.getAppid());assertEquals("1752296458",sent.getMchid());assertEquals("mini-openid",sent.getPayer().getOpenid());assertEquals(50,sent.getAmount().getTotal());assertEquals("https://example.com/mini/notify",sent.getNotifyUrl());assertEquals("WECHAT_MINIPROGRAM",result.get("type"));
+    }
+    @Test void miniPaymentWorksWhileOrdinaryWebPaymentRemainsDisabled() {
+        merchant.setEnabled(false);merchant.setAppId(null);merchant.setNotifyUrl(null);
+        assertTrue(service.miniAvailable());
+        assertEquals("WECHAT_MINIPROGRAM",service.prepayMiniProgram("MP-ORDER",new BigDecimal("0.50"),"order","mini-openid").get("type"));
+        assertEquals(new BigDecimal("0.50"),service.queryMiniPayment("MP-ORDER").payment().amount());
+        assertEquals(new BigDecimal("0.50"),service.verifyMiniNotify("{}","s","n","sig","1").amount());
+        assertThrows(ResponseStatusException.class,()->service.prepayH5("SN1",new BigDecimal("0.50"),"order","127.0.0.1"));
     }
     @Test void callbacksAndSignedQueriesRejectAnotherAppOrMerchant() {
         assertEquals(new BigDecimal("0.50"),service.verifyMiniNotify("{}","s","n","sig","1").amount());

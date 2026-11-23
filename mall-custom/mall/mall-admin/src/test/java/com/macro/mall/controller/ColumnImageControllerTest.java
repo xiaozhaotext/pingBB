@@ -22,6 +22,41 @@ class ColumnImageControllerTest {
     @TempDir Path directory;
 
     @Test
+    void miniHomeSettingsRejectInvalidValuesAndKeepPreviousPublish() throws Exception {
+        P0AdminAccess access = mock(P0AdminAccess.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        Principal principal = () -> "admin";
+        when(access.requirePlatformAdmin(principal)).thenReturn(1L);
+        ColumnImageController controller = new ColumnImageController(access, jdbc, new ObjectMapper());
+        ReflectionTestUtils.setField(controller, "directory", directory.toString());
+
+        controller.saveHomeCopy(principal, Map.of("brand", "旅行商城"));
+        assertEquals("旅行商城", controller.homeCopy(principal).getData().get("brand"));
+        assertThrows(IllegalArgumentException.class,
+                () -> controller.saveHomeCopy(principal, Map.of("brand", "  ")));
+        assertEquals("旅行商城", controller.homeCopy(principal).getData().get("brand"));
+
+        Map<String,Object> layout = Map.of("showHero", true, "showAnnouncement", true,
+                "showQuickLinks", true, "showPick", true, "showRebuy", true,
+                "showConsume", false, "zoneOrder", List.of("rebuy", "consume", "pick"));
+        controller.saveHomeLayout(principal, layout);
+        assertEquals(false, controller.homeLayout(principal).getData().get("showConsume"));
+        Map<String,Object> invalid = new java.util.HashMap<>(layout);
+        invalid.put("zoneOrder", List.of("pick", "pick", "consume"));
+        assertThrows(IllegalArgumentException.class, () -> controller.saveHomeLayout(principal, invalid));
+        assertEquals(List.of("rebuy", "consume", "pick"), controller.homeLayout(principal).getData().get("zoneOrder"));
+
+        Map<String,String> links = Map.of("brand", "/pages/index/index", "topCart", "/pages/cart/cart",
+                "quickCategory", "/pages/category/category", "quickCart", "/pages/cart/cart",
+                "pick", "/pages/zone/pick", "rebuy", "/pages/zone/rebuy", "consume", "/pages/zone/consume");
+        controller.saveHomeLinks(principal, links);
+        Map<String,String> unsafe = new java.util.HashMap<>(links);
+        unsafe.put("pick", "https://other.example");
+        assertThrows(IllegalArgumentException.class, () -> controller.saveHomeLinks(principal, unsafe));
+        assertEquals("/pages/zone/pick", controller.homeLinks(principal).getData().get("pick"));
+    }
+
+    @Test
     void eachTourismNameIsSavedWithoutChangingTheOthers() throws Exception {
         P0AdminAccess access = mock(P0AdminAccess.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);

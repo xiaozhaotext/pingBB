@@ -13,7 +13,12 @@
         </view>
       </view>
       <view v-if="heroImages.length" class="travel-hero">
+        <!-- #ifdef H5 -->
         <img class="column-photo" :src="heroImages[0]" alt="首页主宣传图" @error="restoreHero" />
+        <!-- #endif -->
+        <!-- #ifdef MP-WEIXIN -->
+        <image class="column-photo native-hero" :src="heroImages[0]" mode="widthFix" @error="restoreHero" />
+        <!-- #endif -->
         <swiper v-if="heroImages.length > 1" class="hero-carousel" circular autoplay :interval="4000"
           :duration="500" :current="heroCurrent" @change="heroCurrent = $event.detail.current">
           <swiper-item v-for="url in heroImages" :key="url">
@@ -30,9 +35,9 @@
       <view class="home-announcement" @click="openAnnouncement"><text class="announcement-label">公告</text><text class="announcement-copy">{{ announcement }}</text><text v-if="announcementId">查看 ›</text></view>
       <view class="home-quick-links"><view @click="goPage('/pages/category/category')"><text>商品分类</text><small>按品类找好物 →</small></view><view @click="goPage('/pages/cart/cart')"><text>购物车</text><small>查看已选商品 →</small></view></view>
       <view class="home-zones">
-        <view class="home-zone brand-zone" @click="goTab('/pages/zone/pick')"><img class="column-photo" src="/static/festive-home/pick.jpg" alt="自选区" /><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone rebuy-zone" @click="goTab('/pages/zone/rebuy')"><img class="column-photo" src="/static/festive-home/rebuy.jpg" alt="复购区" /><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text></view>
-        <view class="home-zone consume-zone" @click="goTab('/pages/zone/consume')"><img class="column-photo" src="/static/festive-home/consume.jpg" alt="消费区" /><text class="home-zone-title">消费区</text><text class="home-zone-caption">余额或微信支付 · 挑选好物</text><text class="zone-arrow">→</text></view>
+        <view class="home-zone brand-zone" :style="miniHome ? 'height:' + miniLayout.pickHeight + 'px' : ''" @click="goTab('/pages/zone/pick')"><!-- #ifdef H5 --><img class="column-photo" src="/static/festive-home/pick.jpg" alt="自选区" /><!-- #endif --><!-- #ifdef MP-WEIXIN --><image class="column-photo" src="https://zhiyoumei.com.cn/static/festive-home/pick.jpg" mode="aspectFill" /><!-- #endif --><!-- #ifdef H5 --><text class="zone-eyebrow">精选品牌 · 品质之选</text><text class="home-zone-title">自选区</text><text class="home-zone-caption">自选好物，发现心仪之选</text><text class="zone-arrow">→</text><!-- #endif --><!-- #ifdef MP-WEIXIN --><text v-for="(caption,index) in miniCaptions.pick" :key="index" class="native-column-caption" :style="caption.style">{{caption.text}}</text><!-- #endif --></view>
+        <view class="home-zone rebuy-zone" :style="miniHome ? 'height:' + miniLayout.rowHeight + 'px' : ''" @click="goTab('/pages/zone/rebuy')"><!-- #ifdef H5 --><img class="column-photo" src="/static/festive-home/rebuy.jpg" alt="复购区" /><!-- #endif --><!-- #ifdef MP-WEIXIN --><image class="column-photo" src="https://zhiyoumei.com.cn/static/festive-home/rebuy.jpg" mode="aspectFill" /><!-- #endif --><!-- #ifdef H5 --><text class="home-zone-title">复购区</text><text class="home-zone-caption">品质好物 · 再次心选</text><text class="zone-arrow">→</text><!-- #endif --><!-- #ifdef MP-WEIXIN --><text v-for="(caption,index) in miniCaptions.rebuy" :key="index" class="native-column-caption" :style="caption.style">{{caption.text}}</text><!-- #endif --></view>
+        <view class="home-zone consume-zone" :style="miniHome ? 'height:' + miniLayout.rowHeight + 'px' : ''" @click="goTab('/pages/zone/consume')"><!-- #ifdef H5 --><img class="column-photo" src="/static/festive-home/consume.jpg" alt="消费区" /><!-- #endif --><!-- #ifdef MP-WEIXIN --><image class="column-photo" src="https://zhiyoumei.com.cn/static/festive-home/consume.jpg" mode="aspectFill" /><!-- #endif --><!-- #ifdef H5 --><text class="home-zone-title">消费区</text><text class="home-zone-caption">余额或微信支付 · 挑选好物</text><text class="zone-arrow">→</text><!-- #endif --><!-- #ifdef MP-WEIXIN --><text v-for="(caption,index) in miniCaptions.consume" :key="index" class="native-column-caption" :style="caption.style">{{caption.text}}</text><!-- #endif --></view>
       </view>
       <view class="home-product-heading"><view><text>自选区旅游活动</text><small>精选好物</small></view><text @click="goTab('/pages/zone/pick')">更多 →</text></view>
       <view class="home-zone-status" v-if="pickLoading">正在加载旅游活动…</view>
@@ -56,6 +61,13 @@
 
 <script setup lang="ts">
 import MainNavigation from '@/components/MainNavigation.vue'
+import * as miniPresentation from '@/utils/miniHomePresentation.js'
+let miniHome=false
+// #ifdef MP-WEIXIN
+miniHome=true
+// #endif
+const miniCaptions=ref<Record<string, {text:string;style:string}[]>>(miniPresentation.fallbackCaptions() as Record<string, {text:string;style:string}[]>)
+const miniLayout=ref({pickHeight:160,rowHeight:90})
 import { productImageUrl } from '@/utils/productImage'
 const goTab = (url: string) => url.startsWith('/pages/zone/') ? uni.navigateTo({ url }) : uni.switchTab({ url })
 const goPage = (url: string) => url === '/pages/cart/cart' ? uni.switchTab({ url }) : uni.navigateTo({ url })
@@ -182,6 +194,13 @@ function restoreHero() {
 }
 onShow(() => {
   void loadAnnouncement()
+  // #ifdef MP-WEIXIN
+  miniLayout.value=miniPresentation.layout()
+  void miniPresentation.load(false).then((data:{captions:Record<string,{text:string;style:string}[]>;images:string[]})=>{
+    miniCaptions.value=data.captions
+    if(heroImages.value.join()!==data.images.join()){heroCurrent.value=0;heroImages.value=data.images}
+  })
+  // #endif
   // #ifdef H5
   void fetch('/static/festive-home/hero-carousel.json', { cache: 'no-store' })
     .then(response => response.ok ? response.json() : null)
@@ -966,4 +985,10 @@ page {
 .hero-slide{display:block;width:100%;height:100%}
 .hero-pagination{gap:6px}
 .hero-pagination .hero-active{background:#b98d36}
+</style>
+
+<style scoped>
+/* #ifdef MP-WEIXIN */
+.home-zones{display:flex;flex-wrap:wrap;justify-content:space-between;gap:9px}.home-zone.brand-zone{width:100%}.home-zone.rebuy-zone,.home-zone.consume-zone{width:calc(50% - 5px)}.home-zone{display:block;flex:none;box-sizing:border-box;aspect-ratio:auto!important}.home-zones .column-photo{display:block;width:100%;height:100%}.native-hero{display:block;width:100%;height:auto}.travel-hero>text.native-column-caption,.home-zone>text.native-column-caption{display:block!important;position:absolute;z-index:3;line-height:1.2;pointer-events:none;margin:0}.hero-carousel{height:100%}
+/* #endif */
 </style>

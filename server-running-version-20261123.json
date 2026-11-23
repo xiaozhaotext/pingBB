@@ -1,0 +1,27 @@
+{
+  "snapshotDate": "2026-11-23",
+  "components": {
+    "storefront": "/opt/mall-demo/releases/pool-balances-20261121/storefront",
+    "admin": "/opt/mall-demo/releases/miniapp-management-20261121/admin-icon",
+    "portal": "/opt/mall-demo/releases/mini-recharge-ready-20261123/mall-portal.jar",
+    "adminBackend": "/opt/mall-demo/releases/miniapp-management-20261121/mall-admin.jar"
+  },
+  "sha256": {
+    "mall-custom/mall/mall-portal/target/mall-portal-1.0-SNAPSHOT.jar": "d13e62d60b5743ea5451e8dd268c9868f293d6c0766afa5ac8d2fe546be03c24",
+    "mall-custom/mall/mall-admin/target/mall-admin-1.0-SNAPSHOT.jar": "063007eabe7db4d1352099e29b12f243e06d6766c4eb7ec0b4b38117318de8fc",
+    "/opt/mall-demo/storefront/index.html": "7f785a9e1402cd3b5299e2544f382b375c1da036b5f26833bb72eef96c9b18f8",
+    "/opt/mall-demo/admin/index.html": "85518605522da532ad49c5199e17c493b7b4a7db690ef2bb6ce63866f0a8fe89"
+  },
+  "sourceStatus": {
+    "portal": "Corresponding build source; built JAR matches live SHA256",
+    "adminBackend": "Corresponding build source; built JAR matches live SHA256",
+    "storefront": "Server-retained source-base.zip plus exact live dist; later compiled-only edits may not be in retained Vue source",
+    "admin": "Server-retained baseline Vue source plus exact live dist; newer miniapp-management Vue source not retained on server"
+  },
+  "excluded": [
+    "production environment files",
+    "private keys",
+    "database data",
+    "node_modules"
+  ]
+}

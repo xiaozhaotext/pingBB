@@ -27,11 +27,13 @@ public class WithdrawController {
     private UmsMemberService memberService;
     @Autowired
     private com.macro.mall.portal.service.SandboxWalletService sandboxWallet;
+    @Autowired
+    private com.macro.mall.portal.service.WithdrawalPolicy withdrawalPolicy;
 
     @GetMapping("/options")
     public CommonResult<?> options() {
         memberService.getCurrentMember();
-        return CommonResult.success(Map.of("sandbox",sandboxWallet.enabled()));
+        return CommonResult.success(Map.of("sandbox",sandboxWallet.enabled(), "policy", withdrawalPolicy.options()));
     }
 
     @Operation(summary = "佣金提现：申请成功后全额转入消费余额")

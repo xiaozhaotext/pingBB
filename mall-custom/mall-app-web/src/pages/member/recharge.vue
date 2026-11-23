@@ -7,7 +7,7 @@
       <input v-model="amount" type="digit" :maxlength="8" placeholder="0.01 – 50000.00" :disabled="busy || !!current" />
       <text class="hint">充多少到账多少，无赠送、无手续费。金额最多保留两位小数。</text>
       <view v-if="sandbox && sandboxMode" class="hint">支付方式：沙盒模拟充值</view>
-      <view v-else class="choices"><button :disabled="busy || !!current || !availableChannels.includes('WECHAT')" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button :disabled="busy || !!current || !availableChannels.includes('ALIPAY')" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
+      <view v-else class="choices"><button :disabled="busy || !!current || !availableChannels.includes('WECHAT')" @click="channel = 'WECHAT'" :class="{ active: channel === 'WECHAT' }">微信支付</button><button v-if="!miniProgram" :disabled="busy || !!current || !availableChannels.includes('ALIPAY')" @click="channel = 'ALIPAY'" :class="{ active: channel === 'ALIPAY' }">支付宝</button></view>
       <button class="primary" :disabled="busy || !loaded || !!current || !supported" @click="create">确认充值</button>
       <text v-if="!supported" class="hint">请在手机浏览器打开商城完成充值。</text>
       <view v-if="current" class="pending"><text>订单 {{ current.orderNo }}</text><text>应付 ¥ {{ current.amount }} · {{ current.status === 'PAID' ? '已到账' : '待支付 / 到账确认中' }}</text><text v-if="current.channel === 'WECHAT' && current.orderNo.length > 32" class="error">这笔旧订单号不符合微信支付要求，未扣款。请返回充值列表重新创建订单。</text><button v-if="current.status !== 'PAID' && !(current.channel === 'WECHAT' && current.orderNo.length > 32)" :disabled="busy" @click="pay">继续支付同一订单</button><button :disabled="busy" @click="refresh">我已支付，查询到账</button><button :disabled="busy" @click="clearCurrent">返回充值列表</button></view>
@@ -25,7 +25,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { http } from '@/utils/http'
 import { getMemberInfoAPI } from '@/apis/member'
 import { sandboxMode } from '@/utils/sandbox'
-import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser } from '@/utils/wechatPay'
+import { ensureWechatOauth, invokeWechatJsapi, isWechatBrowser, prepareMiniProgramRechargePayment, requestMiniProgramPayment } from '@/utils/wechatPay'
 type Order = {orderNo:string; amount:string; channel:string; status:string}
 const balance=ref('—'),amount=ref('100.00'),channel=ref('WECHAT'),error=ref('')
 const busy=ref(false),loaded=ref(false),orders=ref<Order[]>([]),current=ref<Order|null>(null)
@@ -33,8 +33,13 @@ const sandbox=ref(false),modeReady=ref(false)
 const movements=ref<any[]>([])
 const availableChannels=ref<string[]>([])
 let storageKey='',supported=false
+let miniProgram=false
 // #ifdef H5
 supported=true
+// #endif
+// #ifdef MP-WEIXIN
+supported=true
+miniProgram=true
 // #endif
 const api=<T,>(url:string,method:'GET'|'POST'='GET',data?:any)=>http<T>({url:'/member/recharge'+url,method,data})
 function openWithdrawal(){uni.navigateTo({url:'/pages/member/walletWithdraw'})}
@@ -49,7 +54,7 @@ async function refresh() {
   modeReady.value=false
   try {
     const member=await getMemberInfoAPI()
-    const [a,h,options,ledger]=await Promise.all([api<{balance:string}>('/account'),api<Order[]>('/orders'),api<{sandbox:boolean;channels:string[]}>('/payment-options'),api<any[]>('/ledger')])
+    const [a,h,options,ledger]=await Promise.all([api<{balance:string}>('/account'),api<Order[]>('/orders'),api<{sandbox:boolean;channels:string[]}>(miniProgram?'/mini-payment-options':'/payment-options'),api<any[]>('/ledger')])
     sandbox.value=options.data?.sandbox===true
     availableChannels.value=options.data?.channels || []
     modeReady.value=Boolean(sandboxMode)===sandbox.value
@@ -73,6 +78,10 @@ async function refresh() {
     if (current.value && legacyWechatOrder(current.value)) {
       clearCurrent()
       error.value='原充值订单号不符合微信支付要求，已退出旧单。请重新确认金额并创建新订单。'
+    }
+    if (miniProgram && !sandbox.value && current.value?.channel === 'WECHAT' && current.value.status === 'PENDING' && !legacyWechatOrder(current.value)) {
+      current.value = (await api<Order>('/orders/'+current.value.orderNo+'/mini-status','POST')).data
+      balance.value=(await api<{balance:string}>('/account')).data.balance
     }
     if (current.value?.status==='PAID') uni.removeStorageSync(storageKey)
   } catch(e:any) {loaded.value=false;modeReady.value=false;balance.value='—';orders.value=[];current.value=null;error.value=e?.data?.message || e?.message || '请登录并重试，账户数据加载失败'}
@@ -103,7 +112,7 @@ async function create() {
       error.value='上一笔请求结果尚未确认，请使用原金额和渠道重试，或刷新充值记录查看原订单';return
     }
     if(!pending) {pending={amount:amount.value,channel:channel.value,requestId:'RC'+Date.now()+Math.random().toString(36).slice(2,15)};uni.setStorageSync(storageKey,pending)}
-    current.value=(await api<Order>('/orders','POST',pending)).data
+    current.value=(await api<Order>(miniProgram?'/mini-orders':'/orders','POST',pending)).data
     uni.removeStorageSync(storageKey)
     uni.setStorageSync(storageKey+'-active',current.value.orderNo)
   } catch(e:any) {
@@ -117,6 +126,22 @@ async function pay() {
   if(busy.value || !current.value) return
   busy.value=true;error.value=''
   try {
+    // #ifdef MP-WEIXIN
+    if (miniProgram && !sandbox.value) {
+      if (current.value.channel !== 'WECHAT') throw new Error('小程序充值请使用微信支付')
+      const no=current.value.orderNo
+      const payment=await prepareMiniProgramRechargePayment(no)
+      await requestMiniProgramPayment(payment)
+      for (let attempt=0;attempt<4;attempt++) {
+        current.value=(await api<Order>('/orders/'+no+'/mini-status','POST')).data
+        if (current.value.status==='PAID') break
+        await new Promise(resolve=>setTimeout(resolve,1000))
+      }
+      await refresh()
+      uni.showModal({title:'充值结果',content:current.value?.status==='PAID'?'充值已到账，账户余额已更新':'支付结果正在确认，请稍后点击查询到账，不要重复支付',showCancel:false})
+      return
+    }
+    // #endif
     const jsapi=current.value.channel==='WECHAT' && isWechatBrowser()
     if (jsapi) {
       uni.setStorageSync(storageKey+'-oauth-resume',true)
