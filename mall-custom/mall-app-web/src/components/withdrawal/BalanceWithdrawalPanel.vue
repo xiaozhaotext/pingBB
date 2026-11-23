@@ -3,10 +3,10 @@
     <view class="card"><text class="title">账户余额提现</text><text>可用余额 ¥ {{ balance }}</text></view>
     <view class="card withdrawal-rules">
       <text class="title">提现规则说明</text>
-      <text class="withdrawal-rule">2. 每日提现次数：每日不限申请次数，每笔申请单独审核；已提交申请冻结的金额不计入可用余额。</text>
-      <text class="withdrawal-rule">5. 手续费：按提现金额的 {{ feePercent }}% 收取，从提现金额中扣除。实际到账 = 提现金额 − 手续费，以提交申请时的费率为准。</text>
-      <text class="withdrawal-rule">6. 冻结与退回：提交后申请金额将被冻结；审核未通过或打款失败的，冻结金额原额退回可用余额，不扣手续费。</text>
-      <text class="withdrawal-rule">7. 收款信息：请确保真实姓名与微信收款账户实名一致，信息填写错误导致打款失败的，金额原额退回后请更正后重新申请。</text>
+      <text class="withdrawal-rule">1. 每日提现次数：每日不限申请次数，每笔申请单独审核；已提交申请冻结的金额不计入可用余额。</text>
+      <text class="withdrawal-rule">2. 手续费：按提现金额的 {{ feePercent }}% 收取，从提现金额中扣除。实际到账 = 提现金额 − 手续费，以提交申请时的费率为准。</text>
+      <text class="withdrawal-rule">3. 冻结与退回：提交后申请金额将被冻结；审核未通过或打款失败的，冻结金额原额退回可用余额，不扣手续费。</text>
+      <text class="withdrawal-rule">4. 收款信息：请确保真实姓名与微信收款账户实名一致，信息填写错误导致打款失败的，金额原额退回后请更正后重新申请。</text>
     </view>
     <view class="card">
       <text>真实姓名</text><input v-model="name" placeholder="请输入收款人真实姓名" />

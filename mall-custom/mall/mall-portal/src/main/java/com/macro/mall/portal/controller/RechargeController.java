@@ -7,6 +7,7 @@ import com.macro.mall.portal.service.WalletWithdrawalService;
 import com.macro.mall.portal.service.UmsMemberService;
 import com.macro.mall.portal.service.WechatMiniProgramService;
 import com.macro.mall.portal.service.WechatOrderPayService;
+import com.macro.mall.portal.service.MembershipPaymentGateway;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -56,6 +57,25 @@ public class RechargeController {
     public CommonResult<?> history() { return result(()->service.history(member())); }
     @GetMapping("/orders/{no}")
     public CommonResult<?> order(@PathVariable String no) { return result(()->service.order(member(),no)); }
+    @PostMapping("/orders/{no}/cancel")
+    public CommonResult<?> cancel(@PathVariable String no,@RequestParam(defaultValue="false") boolean mini) {
+        return result(()->{
+            long member=member();
+            var order=service.order(member,no);
+            if ("PENDING".equals(order.get("status")) && !service.sandboxEnabled()) {
+                // Query first, but never discard a valid late callback if the provider is unavailable.
+                try {
+                    MembershipPaymentGateway.VerifiedPayment payment=null;
+                    if(mini && "WECHAT".equals(order.get("channel"))) {
+                        var query=wechatPay.queryMiniPayment(no);
+                        if(query.payment()!=null) payment=new MembershipPaymentGateway.VerifiedPayment(no,query.payment().transactionId(),"WECHAT",query.payment().amount());
+                    } else payment=service.gateway().query(no,(String)order.get("channel"));
+                    if(payment!=null) service.accept(payment);
+                } catch (Exception ex) { log.warn("Recharge cancellation payment lookup unavailable ({})",ex.getClass().getSimpleName()); }
+            }
+            return service.cancel(member,no);
+        });
+    }
     @PostMapping("/orders")
     public CommonResult<?> create(@RequestBody CreateRequest request) {
         return result(()->service.create(member(),request.amount(),request.channel(),request.requestId()));
