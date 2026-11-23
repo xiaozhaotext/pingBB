@@ -8,11 +8,11 @@
       <view v-for="pool in info.pools" :key="pool.code" class="quota-pool">
         <view class="quota-pool-heading"><text>{{ poolNames[pool.code] }}</text><text>{{ pool.eligible ? pool.shares + '份' : '未获得资格' }}</text></view>
         <view class="quota-progress"><view :style="{ width: progress(pool) + '%' }" /></view>
-        <view class="quota-pool-detail"><text>已领 ¥{{ money(pool.received) }} / {{ money(pool.cap) }}</text><text>池余额 {{ poolBalance(pool.code) }}</text></view>
+        <view class="quota-pool-detail"><text>已领 ¥{{ money(pool.received) }} / {{ money(pool.cap) }}</text><text v-if="info.poolBalances?.[pool.code] != null">¥{{ money(info.poolBalances[pool.code]) }}</text></view>
       </view>
     </view>
     <view v-if="info?.tier === 'VISITOR'" class="quota-note" @click="buy">购买会员后获得分红额度，查看会员权益 ›</view>
-    <view v-else class="quota-note">上方剩余额度是个人累计可领上限；下方池余额是各分红池当前资金，实际到账以分红明细为准。</view>
+    <view v-else class="quota-note">合伙人池与联创池共用累计上限；剩余额度＝总上限－两池累计已领。实际到账以分红明细为准。</view>
   </view>
 </template>
 <script setup lang="ts">
@@ -23,10 +23,6 @@ const props = defineProps<{ active: boolean }>()
 const member = useMemberStore(), info = ref<TriSummary | null>(null), loading = ref(false), failed = ref(false), updated = ref('')
 let timer: ReturnType<typeof setInterval> | undefined, generation = 0
 const money = (value: unknown) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const poolBalance = (code: string) => {
-  const value = info.value?.poolBalances?.[code]
-  return value == null ? '—' : `¥${money(value)}`
-}
 const total = (key: 'cap' | 'received' | 'remaining') => {
   if (!info.value?.enabled) return '—'
   const value = info.value[key === 'cap' ? 'totalCap' : key === 'received' ? 'totalReceived' : 'totalRemaining']

@@ -55,7 +55,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     }
 
     private PaymentQuery queryForApp(String outTradeNo, String appId) {
-        OrderWechatPayProperties config = requireReady();
+        OrderWechatPayProperties config = requireMerchantReady();
         Transaction transaction = queryTransaction(outTradeNo);
         if (transaction == null || transaction.getTradeState() == null
                 || !outTradeNo.equals(transaction.getOutTradeNo())
@@ -79,7 +79,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     /** SDK verifies the response signature before this transaction reaches the application. */
     protected Transaction queryTransaction(String outTradeNo) {
         var request = new com.wechat.pay.java.service.payments.h5.model.QueryOrderByOutTradeNoRequest();
-        request.setMchid(requireReady().getMerchantId());
+        request.setMchid(requireMerchantReady().getMerchantId());
         request.setOutTradeNo(outTradeNo);
         return new H5Service.Builder().config(wechatConfig()).build().queryOrderByOutTradeNo(request);
     }
@@ -133,9 +133,15 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
                 miniProperties.getAppId(), miniProperties.getNotifyUrl(), "WECHAT_MINIPROGRAM");
     }
 
+    @Override
+    public boolean miniAvailable() {
+        try { requireMiniReady(); return true; }
+        catch (ResponseStatusException exception) { return false; }
+    }
+
     private Map<String, String> prepayJsapiForApp(String outTradeNo, BigDecimal amount, String description,
                                                  String openId, String appId, String notifyUrl, String type) {
-        OrderWechatPayProperties config = requireReady();
+        OrderWechatPayProperties config = requireMerchantReady();
         if (!StringUtils.hasText(openId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少 openId");
         }
@@ -185,7 +191,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
 
     private VerifiedPayment verifyForApp(String rawBody, String serial, String nonce, String signature,
                                           String timestamp, String appId) {
-        OrderWechatPayProperties config = requireReady();
+        OrderWechatPayProperties config = requireMerchantReady();
         try {
             RequestParam param = new RequestParam.Builder()
                     .body(rawBody).serialNumber(serial).nonce(nonce)
@@ -222,7 +228,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
     }
 
     private void requireMiniReady() {
-        requireReady();
+        requireMerchantReady();
         if (!miniProperties.isEnabled() || !StringUtils.hasText(miniProperties.getAppId())
                 || !StringUtils.hasText(miniProperties.getNotifyUrl()) || !miniProperties.getNotifyUrl().startsWith("https://")) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "小程序微信支付尚未配置");
@@ -237,10 +243,16 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
 
     private OrderWechatPayProperties requireReady() {
         if (!properties.isEnabled() || !StringUtils.hasText(properties.getAppId())
-                || !StringUtils.hasText(properties.getMerchantId())
+                || !StringUtils.hasText(properties.getNotifyUrl())) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "微信支付渠道尚未启用");
+        }
+        return requireMerchantReady();
+    }
+
+    private OrderWechatPayProperties requireMerchantReady() {
+        if (!StringUtils.hasText(properties.getMerchantId())
                 || !StringUtils.hasText(properties.getMerchantSerialNumber())
                 || !StringUtils.hasText(properties.getApiV3Key())
-                || !StringUtils.hasText(properties.getNotifyUrl())
                 || !fileExists(properties.getPrivateKeyPath())
                 || !WechatSdkConfigFactory.validMode(properties.getVerificationMode(),
                         properties.getPublicKeyId(), properties.getPublicKeyPath())) {
@@ -256,7 +268,7 @@ public class WechatOrderPayServiceImpl implements WechatOrderPayService {
         }
         synchronized (this) {
             if (wechatConfig == null) {
-                OrderWechatPayProperties p = requireReady();
+                OrderWechatPayProperties p = requireMerchantReady();
                 wechatConfig = WechatSdkConfigFactory.create(p.getVerificationMode(),
                         p.getMerchantId(), p.getPrivateKeyPath(), p.getMerchantSerialNumber(),
                         p.getApiV3Key(), p.getPublicKeyId(), p.getPublicKeyPath());

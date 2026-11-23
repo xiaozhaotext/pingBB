@@ -30,6 +30,10 @@ public class RechargeService {
         }
         return Map.of("sandbox", sandboxEnabled, "channels", channels);
     }
+    public Map<String,Object> miniPaymentOptions(WechatOrderPayService wechatPay) {
+        return Map.of("sandbox", sandboxEnabled,
+                "channels", sandboxEnabled ? List.of("MOCK") : wechatPay.miniAvailable() ? List.of("WECHAT") : List.of());
+    }
     private void requireChannel(String channel) {
         if ("MOCK".equals(channel)) {
             if (!sandboxEnabled) throw new IllegalArgumentException("沙盒充值未启用");
@@ -48,10 +52,23 @@ public class RechargeService {
     private static String money(long cents) { return BigDecimal.valueOf(cents, 2).toPlainString(); }
     @Transactional(rollbackFor = Exception.class)
     public Map<String,Object> create(long member, String amount, String channel, String requestId) {
+        requireChannel(channel);
+        return createOrder(member,amount,channel,requestId);
+    }
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String,Object> createMini(long member, String amount, String channel, String requestId,
+                                          WechatOrderPayService wechatPay) {
+        if (sandboxEnabled) {
+            if (!"MOCK".equals(channel)) throw new IllegalArgumentException("沙盒环境请使用模拟充值");
+        } else if (!"WECHAT".equals(channel) || !wechatPay.miniAvailable()) {
+            throw new IllegalArgumentException("小程序微信充值尚未开通");
+        }
+        return createOrder(member,amount,channel,requestId);
+    }
+    private Map<String,Object> createOrder(long member, String amount, String channel, String requestId) {
         long value = cents(amount);
         if (requestId == null || !requestId.matches("[A-Za-z0-9-]{16,64}"))
             throw new IllegalArgumentException("充值请求编号无效");
-        requireChannel(channel);
         String no = "RC" + UUID.randomUUID().toString().replace("-", "").substring(0, 30);
         jdbc.update("INSERT INTO ums_recharge_order(order_no,member_id,request_id,amount_cents,channel) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE order_no=order_no",
                 no, member, requestId, value, channel);
@@ -166,6 +183,15 @@ public class RechargeService {
         String openId = jsapi ? wechatOauth.openId(member, "RECHARGE") : null;
         return gateway.start(no,"RECHARGE",new BigDecimal((String)row.get("amount")),channel,
                 jsapi ? "WECHAT_JSAPI" : "WECHAT".equals(channel) ? "WECHAT_H5" : "ALIPAY_WAP",openId,ip);
+    }
+    /** Mini-program payment uses the existing signed WeChat callback and recharge ledger. */
+    public Map<String,String> payMini(long member, String no, String openId, WechatOrderPayService wechatPay) {
+        Map<String,Object> row=order(member,no);
+        if (!"PENDING".equals(row.get("status"))) throw new IllegalArgumentException("订单已到账，请勿重复付款");
+        if (!"WECHAT".equals(row.get("channel"))) throw new IllegalArgumentException("该订单不是微信充值订单");
+        if (sandboxEnabled || !wechatPay.miniAvailable()) throw new IllegalArgumentException("小程序微信充值尚未开通");
+        if (no.length()>32) throw new IllegalArgumentException("旧充值订单号不符合微信支付要求，请重新创建订单");
+        return wechatPay.prepayMiniProgram(no,new BigDecimal((String)row.get("amount")),"账户充值 "+no,openId);
     }
     /** Only the explicit sandbox channel may use a server-generated mock receipt. */
     @Transactional(rollbackFor = Exception.class)

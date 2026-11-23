@@ -5,13 +5,18 @@ import { getP0, postP0 } from '@/apis/p0'
 
 const rate = ref('0.006')
 const savedRate = ref('0.006')
+const thresholdMode = ref('HUNDRED')
+const minimum = ref('100')
+function selectThreshold(event: Event) { thresholdMode.value = (event.target as HTMLSelectElement).value }
+const savedThreshold = ref('HUNDRED')
+const thresholdValue = computed(() => thresholdMode.value === 'CUSTOM' ? 'CUSTOM:' + minimum.value.trim() : thresholdMode.value)
 const saving = ref(false)
 const percent = computed(() => {
   const value = Number(rate.value || 0)
   return Number.isFinite(value) ? Number((value * 100).toFixed(4)) : 0
 })
 const savedPercent = computed(() => Number((Number(savedRate.value || 0) * 100).toFixed(4)))
-const dirty = computed(() => rate.value.trim() !== savedRate.value)
+const dirty = computed(() => rate.value.trim() !== savedRate.value || thresholdValue.value !== savedThreshold.value)
 
 const previewAmounts = [100, 500, 1000, 5000]
 const previewRows = computed(() => previewAmounts.map(amount => {
@@ -32,6 +37,9 @@ async function load() {
   const value = field?.config_value || '0.006'
   rate.value = value
   savedRate.value = value
+  savedThreshold.value = response.data?.groups?.distribution?.find(item => item.config_key === 'withdraw.threshold_rule')?.config_value || 'HUNDRED'
+  thresholdMode.value = savedThreshold.value.startsWith('CUSTOM:') ? 'CUSTOM' : savedThreshold.value
+  minimum.value = thresholdMode.value === 'CUSTOM' ? savedThreshold.value.substring(7) : '100'
 }
 
 async function save() {
@@ -41,8 +49,12 @@ async function save() {
   }
   saving.value = true
   try {
+    if (thresholdMode.value === 'CUSTOM' && (!/^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$/.test(minimum.value.trim()) || Number(minimum.value) <= 0 || Number(minimum.value) > 50000)) {
+      return ElMessage.warning('自定义最低金额为0.01至50000元，最多两位小数')
+    }
+    await postP0('system-settings', { key: 'withdraw.threshold_rule', value: thresholdValue.value })
     await postP0('system-settings', { key: 'withdraw.fee_rate', value })
-    ElMessage.success('提现手续费率已保存，新提交的提现申请按下单时的费率计算')
+    ElMessage.success('提现费率与门槛已保存，两种提现方式共用门槛')
     await load()
   } finally {
     saving.value = false
@@ -61,16 +73,25 @@ onMounted(load)
         <strong class="value">{{ savedPercent }}%</strong>
         <span class="hint">（{{ savedRate }}）</span>
       </div>
-      <p class="tip">该费率同时作用于「账户余额提现」与「佣金提现」。已提交的申请按提交时的费率保留，调整后只影响新提交的申请。</p>
+      <p class="tip">费率适用于账户余额提现；收益转入消费余额仍无手续费。提现门槛由两种方式共用。已提交的申请保留原费率，调整只影响新申请。</p>
     </el-card>
 
     <el-card shadow="never" class="block">
       <el-form label-position="top">
-        <el-form-item label="手续费率（小数）">
+        <div class="setting-row"><el-form-item label="手续费率（小数）">
           <el-input v-model="rate" placeholder="例如 0.006" style="max-width:320px">
             <template #append>{{ percent }}%</template>
           </el-input>
         </el-form-item>
+        <el-form-item label="提现门槛（提现到余额 / 余额提现共用）">
+          <select :value="thresholdMode" class="threshold-select" :disabled="saving" @change="selectThreshold">
+            <option value="HUNDRED">100的倍数</option>
+            <option value="NONE">无门槛</option>
+            <option value="CUSTOM">自定义最低金额</option>
+          </select>
+          <el-input v-if="thresholdMode === 'CUSTOM'" v-model="minimum" placeholder="最低提现金额，最多两位小数" style="width:260px;margin-top:12px"><template #append>元</template></el-input>
+        </el-form-item></div>
+        <p class="tip">无门槛允许从0.01元提现；自定义仅限制最低金额，不要求100元的倍数。单笔金额上限为50000元。新规则同步网页与小程序，已提交申请不受影响。</p>
         <div class="presets">
           <span class="label">快捷选择：</span>
           <el-button v-for="item in presets" :key="item.value" size="small" @click="rate = item.value">{{ item.label }}</el-button>
@@ -89,7 +110,7 @@ onMounted(load)
       </el-table>
       <div class="actions">
         <el-button type="primary" :loading="saving" :disabled="!dirty" @click="save">保存设置</el-button>
-        <el-button v-if="dirty" @click="rate = savedRate">撤销修改</el-button>
+        <el-button v-if="dirty" @click="load">撤销修改</el-button>
       </div>
     </el-card>
   </main>
@@ -108,4 +129,6 @@ onMounted(load)
 .presets { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; }
 .presets .label { color: #667b7b; }
 .actions { margin-top: 16px; }
+.setting-row { display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start }.setting-row .el-form-item{flex:1;min-width:260px}
+.threshold-select{width:260px;height:34px;border:1px solid #dcdfe6;border-radius:4px;padding:0 10px;background:white;color:#606266}
 </style>

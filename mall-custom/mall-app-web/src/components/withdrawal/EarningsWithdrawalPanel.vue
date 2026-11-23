@@ -13,7 +13,7 @@
 
     <view class="card">
       <text class="title">申请提现</text>
-      <input class="input" v-model="withdrawAmount" placeholder="请输入提现金额" type="number" />
+      <input class="input" v-model="withdrawAmount" placeholder="请输入提现金额" type="digit" />
       <button class="btn-primary" :disabled="withdrawing || refreshing || !modeReady" @click="handleWithdraw">提现到消费余额</button>
     </view>
 
@@ -51,6 +51,7 @@
 import { ref } from 'vue'
 import { getMemberInfoAPI, getEarningsAccountAPI, applyWithdrawAPI, getWithdrawListAPI, getEarningsLedgerAPI, getRechargeAccountAPI, getWithdrawalOptionsAPI } from '@/apis/member'
 import { chinaDateTime } from '@/utils/chinaTime'
+import { withdrawalError, showWithdrawalError, type WithdrawalPolicy } from '@/utils/withdrawalPolicy'
 import { onMounted } from 'vue'
 
 const account = ref<any>(null)
@@ -60,6 +61,7 @@ const withdrawAmount = ref('')
 const loadError = ref('')
 const ledgerError = ref('')
 const withdrawing = ref(false)
+const policy = ref<WithdrawalPolicy | null>(null)
 const sandbox=ref(false),spendableBalance=ref('—'),modeReady=ref(false)
 let withdrawalStorageKey = ''
 
@@ -70,6 +72,8 @@ const loadData = async () => {
   try {
     const options=(await getWithdrawalOptionsAPI()).data
     sandbox.value=options.sandbox
+    if (!options.policy) throw new Error('提现规则未加载')
+    policy.value=options.policy
     modeReady.value=true
     spendableBalance.value=(await getRechargeAccountAPI()).data.balance
   } catch { modeReady.value=false;spendableBalance.value='—';loadError.value='消费余额或提现环境加载失败，请重试' }
@@ -91,9 +95,9 @@ const handleWithdraw = async () => {
   if (withdrawing.value || refreshing.value) return
   if(!modeReady.value) {uni.showToast({title:'提现环境尚未加载，请刷新后重试',icon:'none'});return}
   const input = withdrawAmount.value.trim()
-  if (!/^\d+$/.test(input) || Number(input) < 100 || Number(input) % 100 !== 0) {
-    uni.showToast({ title: '提现金额只能是100元的整数倍', icon: 'none' }); return
-  }
+  if (!policy.value) return
+  const invalid = withdrawalError(input, policy.value)
+  if (invalid) { showWithdrawalError(invalid); return }
   withdrawing.value = true
   try {
     const member = await getMemberInfoAPI()
@@ -114,7 +118,7 @@ const handleWithdraw = async () => {
   } catch (e: any) {
     // An HTTP/network timeout may have happened after commit: retain the same request key.
     if (e?.data?.code === 404 && withdrawalStorageKey) uni.removeStorageSync(withdrawalStorageKey)
-    uni.showToast({ title: e?.data?.message || e?.message || '提现结果待确认，请按原金额重试', icon: 'none' })
+    showWithdrawalError(e?.data?.message || e?.message || '提现结果待确认，请按原金额重试')
   } finally { withdrawing.value = false }
 }
 

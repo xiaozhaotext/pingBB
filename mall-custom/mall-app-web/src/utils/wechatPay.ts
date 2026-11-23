@@ -49,7 +49,7 @@ export interface MiniProgramPayment {
 }
 
 /** wx.login's short-lived code goes to the backend; only signed payment parameters return. */
-export async function prepareMiniProgramPayment(orderSn: string): Promise<MiniProgramPayment> {
+async function prepareMiniPayment(orderSn: string, recharge: boolean): Promise<MiniProgramPayment> {
   const code = await new Promise<string>((resolve, reject) => {
     uni.login({
       provider: 'weixin',
@@ -66,8 +66,8 @@ export async function prepareMiniProgramPayment(orderSn: string): Promise<MiniPr
   }
   // #endif
   const result = await http<MiniProgramPayment>({
-    method: 'POST', url: '/wechatPay/mini',
-    data: { orderSn, paymentTicket: authorization.data.paymentTicket },
+    method: 'POST', url: recharge ? '/member/recharge/orders/' + encodeURIComponent(orderSn) + '/mini-pay' : '/wechatPay/mini',
+    data: recharge ? { paymentTicket: authorization.data.paymentTicket } : { orderSn, paymentTicket: authorization.data.paymentTicket },
   })
   const payment = result.data
   if (payment.type !== 'WECHAT_MINIPROGRAM' || payment.appId !== authorization.data.appId
@@ -77,6 +77,9 @@ export async function prepareMiniProgramPayment(orderSn: string): Promise<MiniPr
   }
   return payment
 }
+
+export const prepareMiniProgramPayment = (orderSn: string) => prepareMiniPayment(orderSn, false)
+export const prepareMiniProgramRechargePayment = (orderNo: string) => prepareMiniPayment(orderNo, true)
 
 export function requestMiniProgramPayment(payment: MiniProgramPayment): Promise<void> {
   return new Promise((resolve, reject) => {

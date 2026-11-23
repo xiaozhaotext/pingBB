@@ -8,6 +8,8 @@ import com.macro.mall.portal.service.WechatOrderPayService;
 import com.macro.mall.portal.service.WechatWebOauthService;
 import com.macro.mall.portal.service.WechatMiniProgramService;
 import com.macro.mall.portal.service.WechatMiniPaymentService;
+import com.macro.mall.portal.service.RechargeService;
+import com.macro.mall.portal.service.MembershipPaymentGateway;
 import org.springframework.http.ResponseEntity;
 import com.macro.mall.portal.service.impl.OrderWechatPayHandler;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -53,6 +55,8 @@ public class WechatOrderPayController {
     private WechatMiniProgramService miniProgram;
     @Autowired
     private WechatMiniPaymentService miniPayments;
+    @Autowired
+    private RechargeService rechargeService;
 
     @Value("${mall.payment.wechat.enabled:false}")
     private boolean paymentEnabled;
@@ -100,6 +104,11 @@ public class WechatOrderPayController {
             @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
             @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp) {
         var verified = wechatOrderPayService.verifyMiniNotify(rawBody, serial, nonce, signature, timestamp);
+        if (verified.outTradeNo().startsWith("RC")) {
+            rechargeService.accept(new MembershipPaymentGateway.VerifiedPayment(
+                    verified.outTradeNo(),verified.transactionId(),"WECHAT",verified.amount()));
+            return ResponseEntity.noContent().build();
+        }
         String result = orderWechatPayHandler.handle(miniPayments.originalPayment(verified));
         if (!"success".equals(result)) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "支付通知尚未处理完成，请重试");

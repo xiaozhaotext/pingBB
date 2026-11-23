@@ -7,12 +7,12 @@ const { parse } = require('@vue/compiler-sfc')
 
 function page(initialStorage = {}, sandboxMode = false) {
   const store = new Map(Object.entries(initialStorage)), calls = [], redirects = []
-  let handler = async ({ url }) => ({ data: url.endsWith('/account') ? { balance: '100.10' } : [] })
-  const source = parse(fs.readFileSync(require('node:path').join(__dirname, '../src/pages/member/recharge.vue'), 'utf8')).descriptor.scriptSetup.content
+  let handler = async ({ url }) => ({ data: url.endsWith('/account') ? { balance: '100.10' } : url.endsWith('/payment-options') ? {sandbox:sandboxMode,channels:sandboxMode?['MOCK']:['WECHAT','ALIPAY']} : [] })
+  const source = parse(fs.readFileSync(require('node:path').join(__dirname, '../src/pages/member/recharge.vue'), 'utf8')).descriptor.scriptSetup.content.replace(/\/\/ #ifdef MP-WEIXIN\r?\n([\s\S]*?)\/\/ #endif/g,'')
   const code = ts.transpileModule(source + '\nmodule.exports={refresh,create,pay,select,amount,channel,balance,orders,current,error,busy,loaded}', { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   const context = {
     module: { exports: {} }, exports: {},
-    require: name => name === 'vue' ? require('vue') : name === '@dcloudio/uni-app' ? { onShow() {} } : name === '@/utils/sandbox' ? {sandboxMode} : name === '@/utils/http' ? { http: async options => { calls.push(options); return handler(options) } } : { getMemberInfoAPI: async () => ({ data: { id: 1 } }) },
+    require: name => name === 'vue' ? require('vue') : name === '@dcloudio/uni-app' ? { onShow() {} } : name === '@/utils/wechatPay' ? {isWechatBrowser:()=>false} : name === '@/utils/sandbox' ? {sandboxMode} : name === '@/utils/http' ? { http: async options => { calls.push(options); return handler(options) } } : { getMemberInfoAPI: async () => ({ data: { id: 1 } }) },
     uni: { getStorageSync: key => store.get(key), setStorageSync: (key, value) => store.set(key, value), removeStorageSync: key => store.delete(key) },
     window: { location: { assign: url => redirects.push(url) } }, console,
   }

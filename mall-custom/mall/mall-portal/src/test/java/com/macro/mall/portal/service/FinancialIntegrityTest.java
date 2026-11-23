@@ -56,6 +56,38 @@ class FinancialIntegrityTest {
   for(BigDecimal a:new BigDecimal[]{null,new BigDecimal("1.001"),BigDecimal.ZERO,new BigDecimal("-1")})assertNotEquals(200,tx.execute(s->service.applyWithdraw(1L,a,"withdraw-test-2")).getCode());
   assertEquals(0,j.queryForObject("SELECT COUNT(*) FROM ums_withdraw_apply",Integer.class));
  }
+ @Test void bothWithdrawalRoutesFollowLiveThresholdAndKeepReplayStable() {
+  j.execute("CREATE TABLE ums_wallet_withdrawal(id BIGINT AUTO_INCREMENT PRIMARY KEY,member_id BIGINT,request_id VARCHAR(64),gross_cents BIGINT,fee_cents BIGINT,net_cents BIGINT,fee_rate DECIMAL(10,6),recipient_name VARCHAR(80),channel VARCHAR(20),bank_name VARCHAR(120),bank_branch VARCHAR(160),recipient_account VARCHAR(160),status VARCHAR(20) DEFAULT 'PENDING',decision_note VARCHAR(200),payout_reference VARCHAR(100),created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,decided_at TIMESTAMP,UNIQUE(member_id,request_id))");
+  j.update("INSERT INTO ums_recharge_account VALUES(1,10000)");
+  var wallet=new WalletWithdrawalService(j);
+  var request=new WalletWithdrawalService.Request("12.35","wallet-policy-test-01","测试用户","WECHAT",null,null,"test-account");
+  assertThrows(IllegalArgumentException.class,()->tx.execute(s->wallet.apply(1,request)));
+  assertNotEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("12.35"),"earnings-policy-test-01")).getCode());
+  j.update("INSERT INTO sys_config VALUES('withdraw.threshold_rule','CUSTOM:12.34')");
+  assertNotEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("12.33"),"earnings-policy-test-01")).getCode());
+  assertEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("12.35"),"earnings-policy-test-01")).getCode());
+  var applied=tx.execute(s->wallet.apply(1,request));
+  assertEquals(7L,((Number)applied.get("fee_cents")).longValue());
+  assertEquals(1228L,((Number)applied.get("net_cents")).longValue());
+  assertEquals(10000L,j.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=1",Long.class));
+  j.update("UPDATE sys_config SET config_value='HUNDRED' WHERE config_key='withdraw.threshold_rule'");
+  assertEquals(applied.get("id"),tx.execute(s->wallet.apply(1,request)).get("id"));
+  assertEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("12.35"),"earnings-policy-test-01")).getCode());
+  assertEquals(1,j.queryForObject("SELECT COUNT(*) FROM ums_wallet_withdrawal",Integer.class));
+  j.update("UPDATE sys_config SET config_value='NONE' WHERE config_key='withdraw.threshold_rule'");
+  assertEquals(200,tx.execute(s->service.applyWithdraw(1L,new BigDecimal("0.01"),"earnings-policy-test-02")).getCode());
+  var penny=new WalletWithdrawalService.Request("0.01","wallet-policy-test-02","测试用户","WECHAT",null,null,"test-account");
+  tx.execute(s->wallet.apply(1,penny));
+  assertEquals(10000L,j.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=1",Long.class));
+ }
+ @Test void invalidThresholdFailsClosedAndHundredRuleRejectsNonMultiples() {
+  var policy=new WithdrawalPolicy(j);
+  assertNotNull(policy.current().violation(new BigDecimal("101")));
+  assertNull(policy.current().violation(new BigDecimal("100.00")));
+  assertNotNull(policy.current().violation(new BigDecimal("50000.01")));
+  j.update("INSERT INTO sys_config VALUES('withdraw.threshold_rule','CUSTOM:0')");
+  assertThrows(IllegalArgumentException.class,policy::current);
+ }
  @Test void fiveCentsCannotPaySixCents(){
   assertEquals(2,tx.execute(s->dividends.distributeDaily(LocalDate.of(2026,10,15))).intValue());
   assertEquals(new BigDecimal("0.04"),j.queryForObject("SELECT SUM(dividend_amount) FROM member_dividend_ledger",BigDecimal.class));

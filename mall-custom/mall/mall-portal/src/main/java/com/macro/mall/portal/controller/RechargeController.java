@@ -5,6 +5,8 @@ import com.macro.mall.portal.domain.MembershipPaymentException;
 import com.macro.mall.portal.service.RechargeService;
 import com.macro.mall.portal.service.WalletWithdrawalService;
 import com.macro.mall.portal.service.UmsMemberService;
+import com.macro.mall.portal.service.WechatMiniProgramService;
+import com.macro.mall.portal.service.WechatOrderPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +22,13 @@ public class RechargeController {
     private final RechargeService service;
     private final UmsMemberService members;
     private final WalletWithdrawalService withdrawals;
-    public RechargeController(RechargeService service,UmsMemberService members,WalletWithdrawalService withdrawals) { this.service=service; this.members=members; this.withdrawals=withdrawals; }
+    private final WechatMiniProgramService miniProgram;
+    private final WechatOrderPayService wechatPay;
+    public RechargeController(RechargeService service,UmsMemberService members,WalletWithdrawalService withdrawals,
+                              WechatMiniProgramService miniProgram,WechatOrderPayService wechatPay) {
+        this.service=service; this.members=members; this.withdrawals=withdrawals;
+        this.miniProgram=miniProgram; this.wechatPay=wechatPay;
+    }
     public record CreateRequest(String amount,String channel,String requestId) {}
     private long member() { return members.getCurrentMember().getId(); }
     private <T> CommonResult<T> result(Supplier<T> action) {
@@ -40,6 +48,8 @@ public class RechargeController {
     public CommonResult<?> ledger() { return result(()->service.ledger(member())); }
     @GetMapping("/payment-options")
     public CommonResult<?> paymentOptions() { member(); return result(service::paymentOptions); }
+    @GetMapping("/mini-payment-options")
+    public CommonResult<?> miniPaymentOptions() { member(); return result(()->service.miniPaymentOptions(wechatPay)); }
     @PostMapping("/orders/{no}/sandbox-confirm")
     public CommonResult<?> confirmSandbox(@PathVariable String no) { return result(()->service.confirmSandbox(member(),no)); }
     @GetMapping("/orders")
@@ -50,12 +60,42 @@ public class RechargeController {
     public CommonResult<?> create(@RequestBody CreateRequest request) {
         return result(()->service.create(member(),request.amount(),request.channel(),request.requestId()));
     }
+    @PostMapping("/mini-orders")
+    public CommonResult<?> createMini(@RequestBody CreateRequest request) {
+        return result(()->service.createMini(member(),request.amount(),request.channel(),request.requestId(),wechatPay));
+    }
     @PostMapping("/orders/{no}/pay")
     public CommonResult<?> pay(@PathVariable String no,@RequestParam(required = false) String mode,HttpServletRequest request) {
         String peer=request.getRemoteAddr();
         String forwarded=request.getHeader("X-Real-IP");
         String ip=("127.0.0.1".equals(peer)||"::1".equals(peer)) && forwarded!=null && forwarded.matches("[0-9a-fA-F:.]{3,45}")?forwarded:peer;
         return result(()->service.pay(member(),no,ip,mode));
+    }
+    public record MiniPayRequest(String paymentTicket) {}
+    @PostMapping("/orders/{no}/mini-pay")
+    public CommonResult<?> miniPay(@PathVariable String no,@RequestBody MiniPayRequest request) {
+        return result(()->{
+            long member=member();
+            if (request==null || request.paymentTicket()==null || request.paymentTicket().isBlank())
+                throw new IllegalArgumentException("微信支付授权已失效，请重试");
+            String openId=miniProgram.paymentOpenId(member,request.paymentTicket());
+            return service.payMini(member,no,openId,wechatPay);
+        });
+    }
+    @PostMapping("/orders/{no}/mini-status")
+    public CommonResult<?> miniStatus(@PathVariable String no) {
+        return result(()->{
+            long member=member();
+            Map<String,Object> order=service.order(member,no);
+            if (!"WECHAT".equals(order.get("channel"))) throw new IllegalArgumentException("该订单不是微信充值订单");
+            if (!"PAID".equals(order.get("status"))) {
+                var query=wechatPay.queryMiniPayment(no);
+                if (query.payment()!=null)
+                    service.accept(new com.macro.mall.portal.service.MembershipPaymentGateway.VerifiedPayment(
+                            query.payment().outTradeNo(),query.payment().transactionId(),"WECHAT",query.payment().amount()));
+            }
+            return service.order(member,no);
+        });
     }
     @PostMapping("/notify/alipay")
     public ResponseEntity<String> alipay(HttpServletRequest request) {

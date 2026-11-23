@@ -14,6 +14,8 @@ public interface WechatOrderPayService {
 
     Map<String, String> prepayMiniProgram(String outTradeNo, BigDecimal amount, String description, String openId);
 
+    boolean miniAvailable();
+
     VerifiedPayment verifyMiniNotify(String rawBody, String serial, String nonce, String signature, String timestamp);
 
     PaymentQuery queryMiniPayment(String outTradeNo);

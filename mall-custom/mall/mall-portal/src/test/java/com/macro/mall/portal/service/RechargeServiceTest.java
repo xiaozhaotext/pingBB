@@ -95,4 +95,21 @@ class RechargeServiceTest {
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_order",Integer.class));
         assertEquals("0.00",service.account(1).get("balance"));
     }
+    @Test void miniRechargeUsesOwnedOrderAndCreditsVerifiedPaymentOnlyOnce() {
+        var wechat=org.mockito.Mockito.mock(WechatOrderPayService.class);
+        org.mockito.Mockito.when(wechat.miniAvailable()).thenReturn(true);
+        var first=tx.execute(s->service.createMini(1,"0.01","WECHAT","mini-recharge-request-01",wechat));
+        String no=(String)first.get("orderNo");
+        assertEquals(no,tx.execute(s->service.createMini(1,"0.01","WECHAT","mini-recharge-request-01",wechat)).get("orderNo"));
+        assertThrows(Exception.class,()->service.payMini(2,no,"other-openid",wechat));
+        assertThrows(Exception.class,()->tx.execute(s->service.createMini(1,"0.01","ALIPAY","mini-recharge-request-02",wechat)));
+        service.payMini(1,no,"mini-openid",wechat);
+        org.mockito.Mockito.verify(wechat).prepayMiniProgram(no,new BigDecimal("0.01"),"账户充值 "+no,"mini-openid");
+        assertEquals("0.00",service.account(1).get("balance"));
+        post(no,"WX-MINI-1","0.01");
+        post(no,"WX-MINI-1","0.01");
+        assertEquals("0.01",service.account(1).get("balance"));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ums_recharge_ledger WHERE change_type='recharge'",Integer.class));
+        assertThrows(Exception.class,()->service.payMini(1,no,"mini-openid",wechat));
+    }
 }

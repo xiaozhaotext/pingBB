@@ -19,12 +19,9 @@ public class WalletWithdrawalService {
 
     @Transactional(rollbackFor = Exception.class)
     public Map<String,Object> apply(long member, Request request) {
-        if (request == null || request.amount() == null || !request.amount().matches("[1-9][0-9]*"))
-            throw new IllegalArgumentException("提现金额必须为100元的整数倍");
+        if (request == null || request.amount() == null || !request.amount().matches("(?:0|[1-9][0-9]{0,4})(?:\\.[0-9]{1,2})?"))
+            throw new IllegalArgumentException("请输入大于0、最多两位小数的提现金额");
         BigDecimal yuan = new BigDecimal(request.amount());
-        if (yuan.compareTo(new BigDecimal("100")) < 0 || yuan.compareTo(new BigDecimal("50000")) > 0
-                || yuan.remainder(new BigDecimal("100")).signum() != 0)
-            throw new IllegalArgumentException("单笔提现须为100至50000元之间的整百金额");
         if (request.requestId() == null || !request.requestId().matches("[A-Za-z0-9_-]{16,64}"))
             throw new IllegalArgumentException("提现请求编号无效");
         String name = clean(request.recipientName(), 2, 80, "真实姓名");
@@ -50,6 +47,8 @@ public class WalletWithdrawalService {
                 throw new IllegalArgumentException("同一请求编号不可更改提现信息");
             return view(member, ((Number)old.get("id")).longValue());
         }
+        String violation = new WithdrawalPolicy(jdbc).current().violation(yuan);
+        if (violation != null) throw new IllegalArgumentException(violation);
         jdbc.update("INSERT INTO ums_recharge_account(member_id,balance_cents) VALUES(?,0) ON DUPLICATE KEY UPDATE member_id=member_id",member);
         long balance = jdbc.queryForObject("SELECT balance_cents FROM ums_recharge_account WHERE member_id=? FOR UPDATE",Long.class,member);
         if (balance < cents) throw new IllegalArgumentException("账户余额不足");

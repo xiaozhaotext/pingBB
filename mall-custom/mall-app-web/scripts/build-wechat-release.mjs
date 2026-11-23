@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -41,9 +41,15 @@ for (const name of files(output)) {
   for (const image of remoteImages) {
     source = source.replaceAll(`/${image}`, `https://zhiyoumei.com.cn/${image}`)
   }
+  source = source.replace(/(["'`])\/static\/festive-home\//g, '$1https://zhiyoumei.com.cn/static/festive-home/')
+  if (name.endsWith('.wxss')) source = source.replace(/url\(([^)]+)\)/g, (match, raw) => {
+    const value=raw.trim().replace(/^["']|["']$/g,'')
+    const index=value.indexOf('static/')
+    return index>=0 && !/^(https?:|data:)/.test(value) ? `url("https://zhiyoumei.com.cn/${value.slice(index)}")` : match
+  })
   writeFileSync(name, source)
 }
-for (const image of remoteImages) unlinkSync(path.join(output, image))
+for (const image of remoteImages) if (existsSync(path.join(output, image))) unlinkSync(path.join(output, image))
 
 const configPath = path.join(output, 'project.config.json')
 const config = JSON.parse(readFileSync(configPath, 'utf8'))
