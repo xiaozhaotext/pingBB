@@ -55,7 +55,7 @@
       <text class="tit">设为默认</text>
       <switch
         :checked="addressData.defaultStatus === 1"
-        color="#fa436a"
+        color="#e85b36"
         @change="handleSwitchChange"
       />
     </view>
@@ -241,6 +241,6 @@ page {
   color: #fff;
   background-color: $base-color;
   border-radius: 10rpx;
-  box-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4);
+  box-shadow: 1px 2px 5px rgba(232, 91, 54, 0.24);
 }
 </style>

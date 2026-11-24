@@ -106,6 +106,8 @@ export type PmsProductCategory = {
 
 /** 商品分类树节点 */
 export type CategoryTreeNode = {
+  parentId?: number
+  icon?: string
   /** 分类ID */
   id: number
   /** 分类名称 */
@@ -116,6 +118,7 @@ export type CategoryTreeNode = {
 
 /** 商品列表搜索请求参数 */
 export type ProductListParam = PageParam & {
+  zone?: 'CONSUME' | 'REBUY'
   /** 商品分类ID */
   productCategoryId?: number
   /** 排序方式：0->综合排序；2->销量；3->价格从低到高；4->价格从高到低 */

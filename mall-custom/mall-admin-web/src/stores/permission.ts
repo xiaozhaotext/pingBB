@@ -90,11 +90,16 @@ export const usePermissionStore = defineStore('permission', () => {
     const hasNewConsole = ['pick', 'rebuy', 'consume', 'orderMgr', 'memberMgr', 'financeMgr', 'serviceMgr', 'systemSettings'].every(name => menus.some(menu => menu.name === name))
     const filterRouteTree = (routes: RouteRecordExt[]): RouteRecordExt[] => routes.filter(v => {
       // Keep legacy menu assignments for other roles; hide duplicates only for this new-console user.
-      if (hasNewConsole && ['pms', 'oms', 'p0', 'ums'].includes(String(v.name))) return false
+      if (hasNewConsole && ['oms', 'p0', 'ums'].includes(String(v.name))) return false
+      if (hasNewConsole && v.name === 'pms') {
+        v.children = v.children?.filter(child => child.name === 'mallCategoryDisplay')
+        v.redirect = '/pms/mall-category'
+      }
       // 测试模式下admin帐号直接返回所有菜单
       if (testMode && username === 'admin') return true
       if (hasPermission(menus, v)) {
         if (v.children?.length) v.children = filterRouteTree(v.children)
+        if (hasNewConsole && v.name === 'pms' && !v.children?.length) return false
         return true
       }
       return false

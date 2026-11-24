@@ -141,16 +141,16 @@ onShow(loadData)
 .app { padding: 20rpx; }
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
 .code-box { display: flex; align-items: center; gap: 16rpx; }
-.code { font-size: 40rpx; font-weight: 700; color: #285b40; letter-spacing: 4rpx; }
-.input { margin: 16rpx 0; height: 80rpx; border: 1rpx solid #dcdfe6; border-radius: 12rpx; padding: 0 20rpx; font-size: 28rpx; }
-.btn { background: #f4f4f5; color: #606266; }
-.btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
-.tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; }
+.code { font-size: 40rpx; font-weight: 700; color: #e85b36; letter-spacing: 4rpx; }
+.input { margin: 16rpx 0; height: 80rpx; border: 1rpx solid #e8deda; border-radius: 12rpx; padding: 0 20rpx; font-size: 28rpx; }
+.btn { background: #f4f4f5; color: #79665c; }
+.btn-primary { margin-top: 10rpx; background: #e85b36; color: #fff; border-radius: 12rpx; }
+.tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #9b887c; }
 .invite-link { overflow-wrap: anywhere; font-size: 20rpx; }
-.bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #eef7f3; color: #285b40; font-size: 26rpx; line-height: 1.6; }
+.bound-note { margin-top: 12rpx; padding: 20rpx; border-radius: 12rpx; background: #f7f1ee; color: #e85b36; font-size: 26rpx; line-height: 1.6; }
 .bind-error { display: block; margin-top: 12rpx; color: #b42318; font-size: 26rpx; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
+.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #503b32; }
+.list .item .sub { display: block; font-size: 22rpx; color: #9b887c; margin-top: 6rpx; }
 </style>

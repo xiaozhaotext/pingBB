@@ -6,7 +6,7 @@
         <text class="yticon icon-sousuo"></text>
         <text class="search-text">{{ currentKeyword || '请输入商品 如：手机' }}</text>
       </view>
-      <text class="cate-btn yticon icon-fenlei1" @click="handleToggleCateMask('show')"></text>
+      <button class="cate-btn" @click.stop="handleToggleCateMask('show')">分类筛选</button>
     </view>
 
     <!-- 顶部筛选导航栏 -->
@@ -58,42 +58,36 @@
 
     <!-- 加载状态 -->
     <view class="loading-more">
+      <text v-if="productError" @click="loadData('refresh')">{{ productError }}，点击重试</text>
       <text v-if="loadingType === 'loading'">加载中...</text>
       <text v-else-if="loadingType === 'nomore'">没有更多了</text>
     </view>
 
     <!-- 分类选择面板 -->
     <view
-      class="cate-mask"
-      :class="cateMaskState === 0 ? 'none' : cateMaskState === 1 ? 'show' : ''"
-      @click="handleToggleCateMask"
+      v-if="cateMaskVisible"
+      class="cate-mask show"
+      @click="handleToggleCateMask('hide')"
     >
       <view
         class="cate-content"
         @click.stop.prevent="stopPrevent"
-        @touchmove.stop.prevent="stopPrevent"
+        @touchmove.stop="stopPrevent"
       >
         <view class="cate-header">
           <text class="cate-title">分类筛选</text>
+          <text class="cate-close" @click="handleToggleCateMask('hide')">关闭</text>
           <text v-if="searchParam.productCategoryId" class="cate-clear" @click="handleClearCate">
             清空
           </text>
         </view>
-        <scroll-view scroll-y class="cate-list">
-          <view v-for="item in cateList" :key="item.id">
-            <!-- 一级分类 -->
-            <view class="cate-item b-b two">{{ item.name }}</view>
-            <!-- 二级分类 -->
-            <view
-              v-for="tItem in item.children"
-              :key="tItem.id"
-              class="cate-item b-b"
-              :class="{ active: tItem.id === searchParam.productCategoryId }"
-              @click="handleCateChange(tItem)"
-            >
-              {{ tItem.name }}
-            </view>
-          </view>
+        <scroll-view scroll-y enable-flex class="cate-list">
+          <view v-if="cateLoading" class="cate-item">正在加载分类…</view>
+          <view v-else-if="cateError" class="cate-item" @click="loadCateList">分类加载失败，点击重试</view>
+          <view v-else-if="!flatCategories.length" class="cate-item">暂无当前范围的分类</view>
+          <view v-for="item in flatCategories" :key="item.id" class="cate-item b-b"
+            :style="{paddingLeft:(15+item.depth*18)+'px'}"
+            :class="{ active:item.id===searchParam.productCategoryId }" @click="handleCateChange(item)">{{ item.name }}</view>
         </scroll-view>
       </view>
     </view>
@@ -102,9 +96,10 @@
 
 <script setup lang="ts">
 import { productImageUrl } from '@/utils/productImage'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onPageScroll, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import { getCategoryTreeAPI, searchProductListAPI } from '@/apis/product'
+import { getMallCategoryTreeAPI, searchProductListAPI } from '@/apis/product'
+import { flattenCategoryTree } from '@/utils/categoryTree'
 import type { CategoryTreeNode, ProductListParam, PmsProduct } from '@/types/product'
 import { addFirstAvailableSkuToCart } from '@/utils/cart'
 
@@ -114,7 +109,8 @@ const headerPosition = ref<'fixed' | 'absolute'>('fixed')
 // 导航栏顶部距离
 const headerTop = ref('0px')
 // 分类面板状态：0-隐藏，1-显示，2-过渡
-const cateMaskState = ref(0)
+const cateMaskVisible = ref(false)
+const cateLoading=ref(false),cateError=ref(false)
 // 筛选索引：0-综合排序，1-销量，2-价格
 const filterIndex = ref(0)
 // 价格排序：0-无，1-从低到高，2-从高到低
@@ -127,8 +123,10 @@ const loadingType = ref<'more' | 'loading' | 'nomore'>('more')
 const currentKeyword = ref('')
 // 分类树列表
 const cateList = ref<CategoryTreeNode[]>([])
+const flatCategories=computed(()=>flattenCategoryTree(cateList.value))
 // 商品列表
 const productList = ref<PmsProduct[]>([])
+const productError=ref('')
 // 搜索参数
 const searchParam = ref<ProductListParam>({
   productCategoryId: undefined,
@@ -140,25 +138,30 @@ const searchParam = ref<ProductListParam>({
 // ===== loadData =====
 // 加载分类树
 const loadCateList = async () => {
+  cateLoading.value=true;cateError.value=false
   try {
-    const res = await getCategoryTreeAPI()
-    cateList.value = res.data
+    const res = await getMallCategoryTreeAPI(searchParam.value.zone)
+    cateList.value = res.data || []
   } catch (e) {
-    console.error('加载分类树失败', e)
-  }
+    cateList.value=[];cateError.value=true
+  } finally {cateLoading.value=false}
 }
 
 // 加载商品列表
+let productGeneration=0
 const loadData = async (type: 'refresh' | 'add' = 'add') => {
   // 没有更多直接返回
   if (type === 'add' && loadingType.value === 'nomore') {
     return
   }
+  if(type==='refresh')productGeneration++
+  const generation=productGeneration
+  productError.value=''
 
   if (type === 'add') {
     loadingType.value = 'loading'
   } else {
-    loadingType.value = 'more'
+    loadingType.value = 'loading'
   }
 
   // 刷新时重置页码和列表
@@ -177,7 +180,8 @@ const loadData = async (type: 'refresh' | 'add' = 'add') => {
   }
 
   try {
-    const res = await searchProductListAPI(searchParam.value)
+    const res = await searchProductListAPI({...searchParam.value})
+    if(generation!==productGeneration)return
     const list = res.data.list
 
     if (list.length === 0) {
@@ -200,14 +204,19 @@ const loadData = async (type: 'refresh' | 'add' = 'add') => {
       uni.stopPullDownRefresh()
     }
   } catch (e) {
+    if(generation!==productGeneration)return
     console.error('加载商品列表失败', e)
+    productError.value='商品加载失败，请重新选择分类或重试'
     loadingType.value = 'more'
+  } finally {
+    if(generation===productGeneration && type==='refresh'){uni.hideLoading();uni.stopPullDownRefresh()}
   }
 }
 
 // ===== onLoad =====
 // 页面加载
 onLoad((options) => {
+  if(options?.zone==='CONSUME' || options?.zone==='REBUY')searchParam.value.zone=options.zone
   // #ifdef H5
   const pageHead = document.getElementsByTagName('uni-page-head')[0] as HTMLElement | undefined
   if (pageHead) {
@@ -251,6 +260,7 @@ onPullDownRefresh(() => {
 // ===== onReachBottom =====
 // 上拉加载
 onReachBottom(() => {
+  if(loadingType.value!=='more')return
   searchParam.value.pageNum++
   loadData()
 })
@@ -282,13 +292,8 @@ const handleTabClick = (index: number) => {
 
 // 切换分类面板
 const handleToggleCateMask = (type?: 'show' | 'hide') => {
-  const timer = type === 'show' ? 10 : 300
-  const state = type === 'show' ? 1 : 0
-
-  cateMaskState.value = 2
-  setTimeout(() => {
-    cateMaskState.value = state
-  }, timer)
+  cateMaskVisible.value=type==='show'
+  if(type==='show')void loadCateList()
 }
 
 // 分类点击
@@ -307,14 +312,14 @@ const handleCateChange = (item: CategoryTreeNode) => {
 // 跳转商品详情
 const handleNavToDetail = (item: PmsProduct) => {
   uni.navigateTo({
-    url: `/pages/product/product?id=${item.id}`,
+    url: `/pages/product/product?id=${item.id}${searchParam.value.zone?'&zone='+searchParam.value.zone:''}`,
   })
 }
 
 // 跳转到搜索页
 const handleNavToSearch = () => {
   uni.navigateTo({
-    url: '/pages/product/search',
+    url: '/pages/product/search'+(searchParam.value.zone?'?zone='+searchParam.value.zone:''),
   })
 }
 
@@ -334,7 +339,7 @@ const handleClearCate = () => {
 const stopPrevent = () => {}
 // 列表页快速加购：自动选取该商品第一个有货规格
 const handleAddCart = (item: PmsProduct) => {
-  addFirstAvailableSkuToCart(item.id)
+  addFirstAvailableSkuToCart(item.id,searchParam.value.zone)
 }
 </script>
 
@@ -387,7 +392,7 @@ page {
 
 .cate-btn {
   margin-left: 16rpx;
-  font-size: 44rpx;
+  flex-shrink:0;min-width:150rpx;margin-right:0;padding:0 18rpx;line-height:64rpx;height:64rpx;font-size:26rpx;background:#f6f0ee;border-radius:16rpx;
   color: $font-color-dark;
 }
 
@@ -459,11 +464,11 @@ page {
 .cate-mask {
   position: fixed;
   left: 0;
-  top: calc(var(--window-top) + 80rpx);
+  top: 0;
   bottom: 0;
   width: 100%;
   background: rgba(0, 0, 0, 0);
-  z-index: 95;
+  z-index: 999;
   transition: 0.3s;
 
   .cate-content {
@@ -499,11 +504,12 @@ page {
   padding: 0 30rpx;
   border-bottom: 1rpx solid #f0f0f0;
 }
+.cate-close{padding:18rpx;cursor:pointer;color:#e85b36;font-size:26rpx}
 
 .cate-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #303133;
+  color: #503b32;
 }
 
 .cate-clear {
@@ -532,7 +538,7 @@ page {
 
   .two {
     height: 64rpx;
-    color: #303133;
+    color: #503b32;
     font-size: 30rpx;
     background: #f8f8f8;
   }

@@ -297,7 +297,7 @@ page {
     content: '';
     width: 400rpx;
     height: 80rpx;
-    background: #b4f3e2;
+    background: #f3c7b4;
   }
 
   &:before {
@@ -319,7 +319,7 @@ page {
   position: absolute;
   left: -270rpx;
   bottom: -320rpx;
-  border: 100rpx solid #d0d1fd;
+  border: 100rpx solid #fadfd3;
   border-radius: 50%;
   padding: 180rpx;
 }
@@ -460,4 +460,4 @@ page {
 }
 </style>
 
-<style scoped>.registration-note{font-size:12px;color:#557f87;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}</style>
+<style scoped>.registration-note{font-size:12px;color:#8a6352;line-height:1.6;margin:12px 24px}.registration-error{font-size:14px;color:#b84242;background:#fff0f0;padding:12px;margin:12px 24px;border-radius:8px}</style>

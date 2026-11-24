@@ -14,8 +14,7 @@
 
 /* 颜色变量 */
 
-/* 行为相关颜色 */
-$uni-color-primary: #167a80;
+$uni-color-primary: #e85b36;
 $uni-color-success: #4cd964;
 $uni-color-warning: #f0ad4e;
 $uni-color-error: #dd524d;
@@ -68,18 +67,18 @@ $uni-spacing-col-lg: 12px;
 $uni-opacity-disabled: 0.3; // 组件禁用态的透明度
 
 /* 文章场景相关 */
-$uni-color-title: #2c405a; // 文章标题颜色
+$uni-color-title: #5a3a2c; // 文章标题颜色
 $uni-font-size-title: 20px;
 $uni-color-subtitle: #555; // 二级标题颜色
 $uni-font-size-subtitle: 18px;
-$uni-color-paragraph: #3f536e; // 文章段落颜色
+$uni-color-paragraph: #6e4d3f; // 文章段落颜色
 $uni-font-size-paragraph: 15px;
 
 /* 页面左右间距 */
 $page-row-spacing: 30rpx;
-$page-color-base: #f7f3eb;
-$page-color-light: #f8f6fc;
-$base-color: #b78235;
+$page-color-base: #fff8f2;
+$page-color-light: #fff4eb;
+$base-color: #e85b36;
 
 /* 文字尺寸 */
 $font-sm: 24rpx;
@@ -87,19 +86,16 @@ $font-base: 28rpx;
 $font-lg: 32rpx;
 
 /* 文字颜色 */
-$font-color-dark: #303133;
-$font-color-base: #606266;
-$font-color-light: #909399;
-$font-color-disabled: #c0c4cc;
-$font-color-spec: #4399fc;
+$font-color-dark: #503b32;
+$font-color-base: #79665c;
+$font-color-light: #9b887c;
+$font-color-disabled: #d4c0b8;
+$font-color-spec: #d95a36;
 
 /* 边框颜色 */
-$border-color-dark: #dce1e6;
-$border-color-base: #e4e7ed;
-$border-color-light: #ebeef5;
+$border-color-dark: #e8deda;
+$border-color-base: #eee6e3;
+$border-color-light: #f5eeeb;
 
 /* 图片加载中颜色 */
 $image-bg-color: #eee;
-
-/* 行为相关颜色 */
-$uni-color-primary: #fa436a;

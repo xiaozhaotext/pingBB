@@ -45,9 +45,9 @@ onShow(refreshActivePanel)
 <style scoped>
 .withdraw-shell { min-height: 100vh; background: #fff9f1; }
 .withdraw-content { width: 100%; max-width: 760px; box-sizing: border-box; margin: 0 auto; padding: 24rpx; }
-.withdraw-modes { display: flex; gap: 12rpx; padding: 8rpx; margin-bottom: 24rpx; border: 1px solid #e3e8df; border-radius: 18rpx; background: #fff; }
-.mode { flex: 1; margin: 0; border-radius: 12rpx; color: #426454; background: #f4f6f2; font-size: 28rpx; line-height: 80rpx; padding: 0 12rpx; }
+.withdraw-modes { display: flex; gap: 12rpx; padding: 8rpx; margin-bottom: 24rpx; border: 1px solid #eae1dd; border-radius: 18rpx; background: #fff; }
+.mode { flex: 1; margin: 0; border-radius: 12rpx; color: #644c42; background: #f7f3f1; font-size: 28rpx; line-height: 80rpx; padding: 0 12rpx; }
 .mode::after { border: none; }
-.mode.active { color: #fff; background: #285b45; }
+.mode.active { color: #fff; background: #e85b36; }
 .mode[disabled] { opacity: .7; }
 </style>

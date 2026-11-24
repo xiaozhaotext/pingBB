@@ -38,7 +38,7 @@ body:has(.main-navigation) .uni-page-wrapper{padding-bottom:0!important}
 /* #endif */
 /* #ifdef H5 */
 @media (min-width: 900px) {
-  body:has(.desktop-home, .desktop-site-header) { background: #f6f7f4; }
+  body:has(.desktop-home, .desktop-site-header) { background: #fff8f2; }
   body:has(.desktop-home, .desktop-site-header) .uni-page-head,
   body:has(.desktop-home, .desktop-site-header) .uni-tabbar { display: none !important; }
   body:has(.desktop-home, .desktop-site-header) .uni-page-wrapper { padding-bottom: 0 !important; }
@@ -101,7 +101,7 @@ image {
   height: 0;
   content: '';
   transform: scaleY(0.5);
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid #eee6e3;
 }
 
 .b-b:after {

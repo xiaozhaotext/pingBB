@@ -58,11 +58,11 @@ async function save() {
 </script>
 
 <style scoped>
-.profile-page { min-height: 100vh; padding: 24px 16px; background: #f3f7f6; box-sizing: border-box; }
+.profile-page { min-height: 100vh; padding: 24px 16px; background: #f7f4f2; box-sizing: border-box; }
 .card { padding: 28px 20px; border-radius: 18px; background: #fff; text-align: center; }
-.avatar { width: 82px; height: 82px; border-radius: 24px; background: #edf1ef; }
-.account { margin: 12px 0 28px; color: #687773; font-size: 14px; }
-.field-label { margin-bottom: 10px; text-align: left; color: #284c48; font-weight: 600; }
-.nickname-input { height: 46px; padding: 0 14px; border: 1px solid #d7e1de; border-radius: 10px; text-align: left; }
-.save-button { margin-top: 28px; color: #fff; background: #286251; border-radius: 10px; }
+.avatar { width: 82px; height: 82px; border-radius: 24px; background: #f3edeb; }
+.account { margin: 12px 0 28px; color: #8b6454; font-size: 14px; }
+.field-label { margin-bottom: 10px; text-align: left; color: #4c3328; font-weight: 600; }
+.nickname-input { height: 46px; padding: 0 14px; border: 1px solid #e5d9d3; border-radius: 10px; text-align: left; }
+.save-button { margin-top: 28px; color: #fff; background: #623928; border-radius: 10px; }
 </style>

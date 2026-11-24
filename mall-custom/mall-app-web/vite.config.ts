@@ -12,6 +12,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     // 本地开发代理 OSS 图片：转发时清空 Referer，绕过阿里云防盗链(403)
     proxy: {
+      '/portal': {
+        target: process.env.MALL_PORTAL_DEV_TARGET || 'http://127.0.0.1:8085',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/portal/, ''),
+      },
+      '/static/festive-home/': { target: 'https://zhiyoumei.com.cn', changeOrigin: true },
+      '/product-images/': { target: 'https://zhiyoumei.com.cn', changeOrigin: true },
       '/oss': {
         target: 'http://macro-oss.oss-cn-shenzhen.aliyuncs.com',
         changeOrigin: true,

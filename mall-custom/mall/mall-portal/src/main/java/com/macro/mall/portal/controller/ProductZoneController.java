@@ -60,8 +60,13 @@ public class ProductZoneController {
             params.add(pattern);
         }
         if (categoryId != null && categoryId > 0) {
-            sql.append(" AND p.product_category_id=?");
-            params.add(categoryId);
+            if("PICK".equals(zone)) {
+                sql.append(" AND p.product_category_id=?");params.add(categoryId);
+            } else {
+                var ids=new com.macro.mall.common.service.MallCategoryCatalog(jdbcTemplate,new com.fasterxml.jackson.databind.ObjectMapper()).categoryIds(zone,categoryId);
+                sql.append(" AND p.product_category_id IN (").append(String.join(",",java.util.Collections.nCopies(ids.size(),"?"))).append(")");
+                params.addAll(ids);
+            }
         }
         switch (sort) {
             case "sale" -> sql.append(" ORDER BY p.sale DESC,p.id DESC");

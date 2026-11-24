@@ -99,13 +99,13 @@ onUnload(() => {
 
 .success-icon {
   font-size: 160rpx;
-  color: #fa436a;
+  color: #e85b36;
   margin-top: 100rpx;
 }
 
 .tit {
   font-size: 38rpx;
-  color: #303133;
+  color: #503b32;
 }
 
 .btn-group {
@@ -126,7 +126,7 @@ onUnload(() => {
 
   &.hollow {
     background: #fff;
-    color: #303133;
+    color: #503b32;
     border: 1px solid #ccc;
   }
 }

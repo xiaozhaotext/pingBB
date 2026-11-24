@@ -45,10 +45,15 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
     private PmsCommentMapper commentMapper;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private com.macro.mall.common.service.MallCategoryCatalog mallCategories;
 
     @Override
     public List<PmsProduct> search(String keyword, Long brandId, Long productCategoryId, Integer pageNum, Integer pageSize, Integer sort) {
-        PageHelper.startPage(pageNum, pageSize);
+        return search(keyword,brandId,productCategoryId,pageNum,pageSize,sort,null);
+    }
+    @Override
+    public List<PmsProduct> search(String keyword, Long brandId, Long productCategoryId, Integer pageNum, Integer pageSize, Integer sort, String zone) {
         PmsProductExample example = new PmsProductExample();
         PmsProductExample.Criteria criteria = example.createCriteria();
         criteria.andDeleteStatusEqualTo(0);
@@ -60,7 +65,11 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
             criteria.andBrandIdEqualTo(brandId);
         }
         if (productCategoryId != null) {
-            criteria.andProductCategoryIdEqualTo(productCategoryId);
+            criteria.andProductCategoryIdIn(mallCategories.categoryIds(zone,productCategoryId));
+        }
+        if(zone!=null || productCategoryId!=null) {
+            List<Long> ids=mallCategories.productIds(zone);
+            criteria.andIdIn(ids.isEmpty()?List.of(-1L):ids);
         }
         //1->按新品；2->按销量；3->价格从低到高；4->价格从高到低
         if (sort == 1) {
@@ -72,6 +81,7 @@ public class PmsPortalProductServiceImpl implements PmsPortalProductService {
         } else if (sort == 4) {
             example.setOrderByClause("price desc");
         }
+        PageHelper.startPage(pageNum, pageSize);
         return productMapper.selectByExample(example);
     }
 

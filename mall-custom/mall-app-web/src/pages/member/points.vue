@@ -87,14 +87,14 @@ onLoad(loadData)
 .app { padding: 20rpx; }
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .tabs { display: flex; margin-bottom: 20rpx; background: #fff; border-radius: 16rpx; overflow: hidden; }
-.tabs .tab { flex: 1; text-align: center; padding: 24rpx 0; font-size: 28rpx; color: #606266; }
-.tabs .tab.active { color: #285b40; font-weight: 600; box-shadow: inset 0 -4rpx 0 #285b40; }
+.tabs .tab { flex: 1; text-align: center; padding: 24rpx 0; font-size: 28rpx; color: #79665c; }
+.tabs .tab.active { color: #e85b36; font-weight: 600; box-shadow: inset 0 -4rpx 0 #e85b36; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
-.tip { font-size: 24rpx; color: #909399; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
+.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #79665c; }
+.row .v { color: #503b32; font-weight: 600; }
+.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #503b32; }
+.list .item .sub { display: block; font-size: 22rpx; color: #9b887c; margin-top: 6rpx; }
+.tip { font-size: 24rpx; color: #9b887c; }
 .error { color: #b42318; }
 </style>

@@ -1,5 +1,8 @@
 <template>
+  <view class="category-page">
   <DesktopHeader />
+  <view v-if="error" class="category-status" @click="loadData">分类加载失败，点击重试</view>
+  <view v-else-if="!topCateList.length" class="category-status">{{ loading ? '正在加载分类…' : '暂无可展示的消费区、复购区分类' }}</view>
   <view class="content">
     <scroll-view scroll-y class="left-aside">
       <view
@@ -13,6 +16,7 @@
       </view>
     </scroll-view>
     <scroll-view scroll-with-animation scroll-y class="right-aside">
+      <view v-if="currentCateId" class="all-category" @click="handleNavToList(currentCateId)">查看当前分类全部商品 ›</view>
       <view class="s-list">
         <view
           @click="handleNavToList(item.id)"
@@ -20,72 +24,65 @@
           v-for="item in subCateList"
           :key="item.id"
         >
-          <image
-            :src="productImageUrl(item.icon || '/oss/mall/images/20190519/default.png')"
-          ></image>
+          <image v-if="item.icon && !failedIcons.has(item.id)" :src="productImageUrl(item.icon)" @error="failedIcons.add(item.id)" />
+          <view v-else class="category-symbol">{{ item.name.slice(0,1) }}</view>
           <text>{{ item.name }}</text>
         </view>
       </view>
     </scroll-view>
+  </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import DesktopHeader from '@/components/DesktopHeader.vue'
 import { productImageUrl } from '@/utils/productImage'
-import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { getProductCateListAPI } from '@/apis/home'
-import type { PmsProductCategory } from '@/types/product'
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMallCategoryTreeAPI } from '@/apis/product'
+import { flattenCategoryTree } from '@/utils/categoryTree'
+import type { CategoryTreeNode } from '@/types/product'
 
 // ===== 页面数据 =====
 // 当前分类id
 const currentCateId = ref(0)
+const failedIcons=ref(new Set<number>())
 // 一级分类列表
-const topCateList = ref<PmsProductCategory[]>([])
+const topCateList = ref<CategoryTreeNode[]>([])
 // 二级分类列表
-const subCateList = ref<PmsProductCategory[]>([])
+const subCateList = computed(() => {
+  const selected=topCateList.value.find(item=>item.id===currentCateId.value)
+  return selected ? selected.children?.length ? flattenCategoryTree(selected.children) : [selected] : []
+})
+const loading=ref(false),error=ref(false)
 
 // ===== 数据加载 =====
 // 加载分类数据
 const loadData = async () => {
+  loading.value=true;error.value=false
   try {
-    // 获取一级分类数据
-    const res = await getProductCateListAPI('0')
-    topCateList.value = res.data
-    if (topCateList.value.length > 0) {
-      currentCateId.value = topCateList.value[0].id
-      // 获取二级分类数据
-      const subRes = await getProductCateListAPI(String(currentCateId.value))
-      subCateList.value = subRes.data
-    }
+    const res = await getMallCategoryTreeAPI()
+    topCateList.value = res.data || []
+    if(!topCateList.value.some(item=>item.id===currentCateId.value))currentCateId.value=topCateList.value[0]?.id || 0
   } catch (e) {
-    console.error('加载分类数据失败', e)
-  }
+    topCateList.value=[];currentCateId.value=0;error.value=true
+  } finally {loading.value=false}
 }
 
 // ===== 生命周期 =====
 // 页面加载时执行
-onLoad(() => {
-  loadData()
-})
+onShow(loadData)
 
 // ===== 事件处理方法 =====
 // 一级分类点击
-const handleTabTap = async (item: PmsProductCategory) => {
+const handleTabTap = (item: CategoryTreeNode) => {
   currentCateId.value = item.id
-  try {
-    const res = await getProductCateListAPI(String(item.id))
-    subCateList.value = res.data
-  } catch (e) {
-    console.error('加载子分类失败', e)
-  }
 }
 
 // 导航到商品列表
 const handleNavToList = (sid: number) => {
   uni.navigateTo({
-    url: `/pages/product/list?fid=${currentCateId.value}&sid=${sid}`,
+    url: `/pages/product/list?sid=${sid}`,
   })
 }
 </script>
@@ -98,16 +95,18 @@ page {
 </style>
 
 <style lang="scss" scoped>
+.category-page{height:calc(100vh - var(--window-top,0px));display:flex;flex-direction:column}
+.category-status{padding:28px;text-align:center;color:#8d6554}.all-category{padding:16px;color:#e85b36;font-size:14px;cursor:pointer}
 .content {
-  height: 100%;
+  flex:1;min-height:0;width:100%;max-width:1280px;margin:0 auto;
   background-color: #f8f8f8;
   display: flex;
 }
 
 .left-aside {
   flex-shrink: 0;
-  width: 25%;
-  max-width: 120px;
+  width: 28%;
+  max-width: 240px;
   height: 100%;
   background-color: #fff;
 }
@@ -117,13 +116,13 @@ page {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100rpx;
+  min-height:100rpx;height:auto;padding:20rpx 24rpx;box-sizing:border-box;line-height:1.5;word-break:break-word;cursor:pointer;
   font-size: 28rpx;
-  color: #606266;
+  color: #79665c;
   position: relative;
 
   &.active {
-    color: #fa436a;
+    color: #e85b36;
     background: #f8f8f8;
 
     &::before {
@@ -134,7 +133,7 @@ page {
       transform: translateY(-50%);
       height: 36rpx;
       width: 8rpx;
-      background-color: #fa436a;
+      background-color: #e85b36;
       border-radius: 0 4px 4px 0;
       opacity: 0.8;
     }
@@ -149,14 +148,14 @@ page {
 
 .s-list {
   margin-top: 20rpx;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;
   width: 100%;
-  background: #fff;
+  background: transparent;
   padding-top: 12rpx;
 
   &::after {
-    content: '';
+    display:none;content: '';
     flex: 99;
     height: 0;
   }
@@ -168,7 +167,7 @@ page {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  width: 33%;
+  width:auto;min-height:150px;padding:18px 14px;box-sizing:border-box;background:white;border:1px solid #ece3df;border-radius:14px;gap:12px;cursor:pointer;text-align:center;word-break:break-word;
   font-size: 26rpx;
   color: #666;
   padding-bottom: 20rpx;
@@ -178,4 +177,5 @@ page {
     height: 140rpx;
   }
 }
+.category-symbol{width:64px;height:64px;line-height:64px;background:#f4efed;color:#e85b36;border-radius:16px;font-size:28px}
 </style>

@@ -146,16 +146,16 @@ const handleBuy = async () => {
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 32rpx; font-weight: 700; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
+.title { font-size: 32rpx; font-weight: 700; color: #503b32; display: block; margin-bottom: 16rpx; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #79665c; }
+.row .v { color: #503b32; font-weight: 600; }
 .pay-methods { display: flex; gap: 20rpx; margin: 8rpx 0 8rpx; }
-.pay-item { flex: 1; text-align: center; padding: 24rpx 0; border: 2rpx solid #e5e5e5; border-radius: 12rpx; font-size: 28rpx; color: #606266; }
-.pay-item.active { border-color: #285b40; color: #285b40; font-weight: 700; background: #f0f7f3; }
-.btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
+.pay-item { flex: 1; text-align: center; padding: 24rpx 0; border: 2rpx solid #e5e5e5; border-radius: 12rpx; font-size: 28rpx; color: #79665c; }
+.pay-item.active { border-color: #e85b36; color: #e85b36; font-weight: 700; background: #f7f2f0; }
+.btn-primary { background: #e85b36; color: #fff; border-radius: 12rpx; }
 .btn-primary[disabled] { opacity: 0.6; }
 .mt { margin-top: 16rpx; }
-.result { margin-top: 16rpx; font-size: 26rpx; color: #285b40; line-height: 1.6; }
-.hint { margin-top: 16rpx; font-size: 22rpx; color: #909399; line-height: 1.6; }
+.result { margin-top: 16rpx; font-size: 26rpx; color: #e85b36; line-height: 1.6; }
+.hint { margin-top: 16rpx; font-size: 22rpx; color: #9b887c; line-height: 1.6; }
 .error { color: #b42318; }
 </style>

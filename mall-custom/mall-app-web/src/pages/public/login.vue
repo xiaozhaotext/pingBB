@@ -156,7 +156,7 @@ page {
     content: '';
     width: 400rpx;
     height: 80rpx;
-    background: #b4f3e2;
+    background: #f3c7b4;
   }
 
   &:before {
@@ -179,7 +179,7 @@ page {
   position: absolute;
   left: -270rpx;
   bottom: -320rpx;
-  border: 100rpx solid #d0d1fd;
+  border: 100rpx solid #fadfd3;
   border-radius: 50%;
   padding: 180rpx;
 }

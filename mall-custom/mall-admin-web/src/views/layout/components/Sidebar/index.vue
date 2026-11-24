@@ -39,10 +39,20 @@ const routes = computed(() => {
     const children = names.map(take).filter((route): route is RouteRecordExt => !!route)
     return children.length ? [{ name, path: '', meta: { title, icon }, alwaysShow: true, children } as RouteRecordExt] : []
   }
+  const productGroups = group('sidebarProducts', '商品管理', 'product', ['pick', 'rebuy', 'consume', 'columnImagesMgr'])
+  const catalogParent = byName.get('pms')
+  const catalogChildren = (catalogParent?.children || []) as RouteRecordExt[]
+  const catalog = catalogChildren.find(child => child.name === 'mallCategoryDisplay' && !child.hidden)
+  if (catalog) {
+    if (!productGroups.length) productGroups.push({ name: 'sidebarProducts', path: '', meta: { title: '商品管理', icon: 'product' }, alwaysShow: true, children: [] } as RouteRecordExt)
+    productGroups[0]!.children!.push(catalog)
+    // The new console keeps only this leaf in pms; do not render a second product group.
+    if (catalogChildren.filter(child => !child.hidden).every(child => child.name === 'mallCategoryDisplay')) used.add('pms')
+  }
   const ordered = [
     take('serviceDesktop'),
     take('memberMgr'),
-    ...group('sidebarProducts', '商品管理', 'product', ['pick', 'rebuy', 'consume', 'columnImagesMgr']),
+    ...productGroups,
     take('orderMgr'),
     ...group('sidebarFinance', '财务管理', 'total-today', ['financeMgr', 'spendableWalletMgr', 'walletWithdrawal', 'withdrawalSettings', 'dividendPoolMgr']),
     take('sms'),

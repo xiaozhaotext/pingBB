@@ -11,5 +11,5 @@ onLoad(() => {
 </script>
 
 <style scoped>
-.opening { padding: 40rpx; text-align: center; color: #687a75; }
+.opening { padding: 40rpx; text-align: center; color: #8d6655; }
 </style>

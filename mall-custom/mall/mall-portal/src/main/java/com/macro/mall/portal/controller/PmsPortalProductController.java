@@ -35,6 +35,8 @@ public class PmsPortalProductController {
     private UmsMemberService memberService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private com.macro.mall.common.service.MallCategoryCatalog mallCategories;
 
     @Operation(summary = "综合搜索、筛选、排序")
     @Parameter(name = "sort", description = "排序字段:0->按相关度；1->按新品；2->按销量；3->价格从低到高；4->价格从高到低",
@@ -46,15 +48,19 @@ public class PmsPortalProductController {
                                                        @RequestParam(required = false) Long productCategoryId,
                                                        @RequestParam(required = false, defaultValue = "0") Integer pageNum,
                                                        @RequestParam(required = false, defaultValue = "5") Integer pageSize,
-                                                       @RequestParam(required = false, defaultValue = "0") Integer sort) {
-        List<PmsProduct> productList = portalProductService.search(keyword, brandId, productCategoryId, pageNum, pageSize, sort);
+                                                       @RequestParam(required = false, defaultValue = "0") Integer sort,
+                                                       @RequestParam(required = false) String zone) {
+        List<PmsProduct> productList = portalProductService.search(keyword, brandId, productCategoryId, pageNum, pageSize, sort, zone);
         return CommonResult.success(CommonPage.restPage(productList));
     }
 
     @Operation(summary = "以树形结构获取所有商品分类")
     @RequestMapping(value = "/categoryTreeList", method = RequestMethod.GET)
     @ResponseBody
-    public CommonResult<List<PmsProductCategoryNode>> categoryTreeList() {
+    public CommonResult<?> categoryTreeList(@RequestParam(required=false) String zone,
+                                           @RequestParam(defaultValue="legacy") String scope) {
+        if("mall".equals(scope) || zone!=null) return CommonResult.success(mallCategories.tree(zone));
+        if(!"legacy".equals(scope))throw new IllegalArgumentException("未知分类展示范围");
         List<PmsProductCategoryNode> list = portalProductService.categoryTreeList();
         return CommonResult.success(list);
     }
