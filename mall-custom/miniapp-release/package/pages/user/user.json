@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "我的",
+  "usingComponents": {
+    "desktop-header": "../../components/DesktopHeader",
+    "main-navigation": "../../components/MainNavigation",
+    "dividend-quota": "../../components/DividendQuota"
+  }
+}

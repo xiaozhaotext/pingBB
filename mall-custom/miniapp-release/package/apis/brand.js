@@ -1,0 +1,1 @@
+"use strict";const t=require("../utils/http.js");exports.getBrandDetailAPI=r=>t.http({method:"GET",url:`/brand/detail/${r}`}),exports.getBrandProductListAPI=r=>t.http({method:"GET",url:"/brand/productList",params:r}),exports.getBrandRecommendListAPI=r=>t.http({method:"GET",url:"/brand/recommendList",params:r});

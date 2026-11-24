@@ -1,0 +1,1 @@
+"use strict";exports.isOrderPaid=r=>[1,2,3].includes(Number(r)),exports.orderPromotionRules=r=>Array.from(new Set((r.orderItemList||[]).map(r=>{var e;return null==(e=r.promotionName)?void 0:e.trim()}).filter(r=>Boolean(r&&"无优惠"!==r))));

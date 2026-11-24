@@ -1,0 +1,1 @@
+"use strict";const e=require("../../common/vendor.js"),g=require("../../utils/miniWithdrawalGuard.js");const p=e.defineComponent({__name:"earnings",setup:function(){e.onLoad(g.home);e.onShow(g.home);return function(){return {};};}});wx.createPage(p);

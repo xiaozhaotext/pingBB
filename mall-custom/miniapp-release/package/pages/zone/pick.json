@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "自选区",
+  "usingComponents": {
+    "desktop-header": "../../components/DesktopHeader",
+    "main-navigation": "../../components/MainNavigation"
+  }
+}

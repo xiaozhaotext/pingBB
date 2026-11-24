@@ -1,0 +1,1 @@
+<view wx:if="{{a}}" class="{{['watermark', 'data-v-f41b36ea', d]}}" style="{{e}}"><text wx:for="{{b}}" wx:for-item="index" wx:for-index="i0" wx:key="a" class="wm-text data-v-f41b36ea">{{c}}</text></view>

@@ -1,0 +1,3 @@
+"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const e=require("./common/vendor.js"),o=require("./utils/theme.js");require("./stores/member.js"),Math;const p=e.defineComponent({__name:"App",setup:p=>(e.onLaunch(()=>{o.applyTheme(o.getTheme()),console.log("App Launch")}),e.onShow(()=>{console.log("App Show")}),e.onHide(()=>{console.log("App Hide")}),()=>{})});function t(){const o=e.createSSRApp(p),t=e.createPinia();return t.use(e.src_default),o.use(t),{app:o}}t().app.mount("#app"),exports.createApp=t;
+
+require("./utils/miniWithdrawalGuard.js").install(require("./common/vendor.js").index);
