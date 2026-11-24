@@ -8,7 +8,16 @@
         <text class="code">{{ myCode || '—' }}</text>
         <button class="btn" size="mini" @click="copyCode">复制</button>
       </view>
+      <!-- #ifdef H5 -->
       <image v-if="qrImage" :src="qrImage" mode="aspectFit" style="width:240px;height:240px;display:block;margin:16px auto" />
+      <text v-if="qrError" class="bind-error" @click="generateQr">{{ qrError }}，点击重试</text>
+      <!-- #endif -->
+      <!-- #ifdef MP-WEIXIN -->
+      <view v-if="inviteLink" class="invite-qr">
+        <canvas canvas-id="invite-qr" class="invite-qr-canvas" />
+        <text v-if="qrError" class="bind-error" @click="generateQr">{{ qrError }}，点击重试</text>
+      </view>
+      <!-- #endif -->
       <button v-if="inviteLink" class="btn" @click="copyInviteLink">复制邀请链接</button>
       <text v-if="inviteLink" class="tip invite-link">{{ inviteLink }}</text>
       <text class="tip" v-if="detail">已邀请下级：{{ inviteeCount }} 人</text>
@@ -42,9 +51,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick, getCurrentInstance } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+// #ifdef H5
 import QRCode from 'qrcode'
+import { invitationQrData } from '@/utils/invitationQr'
+// #endif
+// #ifdef MP-WEIXIN
+import { drawInvitationQr } from '@/utils/invitationQr'
+// #endif
 import { sandboxMode } from '@/utils/sandbox'
 import {
   getMyInviteCodeAPI,
@@ -54,7 +69,23 @@ import {
   getMyInviteesAPI,
 } from '@/apis/member'
 
+const qrError = ref('')
 const qrImage = ref('')
+const instance = getCurrentInstance()
+async function generateQr() {
+  qrError.value = ''
+  if (!inviteLink.value) return
+  await nextTick()
+  try {
+    // #ifdef H5
+    qrImage.value = await QRCode.toDataURL(invitationQrData(inviteLink.value), { width: 240, margin: 2 })
+    // #endif
+    // #ifdef MP-WEIXIN
+    await drawInvitationQr(inviteLink.value, 'invite-qr', instance?.proxy)
+    // #endif
+  }
+  catch { qrError.value = '二维码生成失败' }
+}
 const myCode = ref('')
 const detail = ref<any>(null)
 const inviteLink = ref('')
@@ -88,6 +119,7 @@ const loadInviter = async () => {
 }
 
 const loadData = async () => {
+  qrError.value = ''
   qrImage.value = ''
   inviteLink.value = ''
   myCode.value = ''
@@ -98,7 +130,7 @@ const loadData = async () => {
   const code = String(myCode.value || detail.value?.code || '').trim().toUpperCase()
   if (code) {
     inviteLink.value = registrationLink(code)
-    try { qrImage.value = await QRCode.toDataURL(inviteLink.value, { width: 240, margin: 2 }) } catch (e) {}
+    await generateQr()
   }
   try { const r = await getMyInviteesAPI(); invitees.value = r.data || []; inviteeCount.value = invitees.value.length } catch (e) { invitees.value = []; inviteeCount.value = 0 }
 }
@@ -139,6 +171,8 @@ onShow(loadData)
 
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
+.invite-qr { margin: 16px auto; width: 240px; max-width: 100%; }
+.invite-qr-canvas { width: 240px; height: 240px; }
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
