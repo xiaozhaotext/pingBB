@@ -3,7 +3,7 @@
   <view class="container" :class="'theme-' + theme" @touchstart="edgeStart" @touchmove="edgeMove" @touchend="edgeEnd">
     <view v-if="isSandboxDemo" class="demo-product-note">本地演示数据：商品与促销内容来自官方示例库，请勿作为真实经营信息。</view>
     <!-- 自定义导航栏 -->
-    <view class="custom-navbar" :style="{ background: navBgColor }">
+    <view class="custom-navbar product-detail-navbar" :style="{ background: navBgColor }">
       <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="navbar-content">
         <view class="nav-back" @click="handleGoBack">
@@ -25,9 +25,9 @@
       <view v-else-if="activityError" class="activity-state" @click="loadActivity">{{ activityError }}，点击重试</view>
       <template v-else-if="activity">
         <view class="activity-rules"><text class="activity-title">{{ activity.title }}</text><text class="activity-label">活动规则</text><text class="activity-rule-text">{{ activity.rules }}</text></view>
-        <view class="activity-selection"><text class="activity-label">选择{{ tourismLabel }}</text>
+        <view class="activity-selection"><text class="activity-label">选择商品</text>
           <view v-if="!activity.products?.length" class="activity-state">本活动暂无可售正品</view>
-          <view v-else class="activity-products"><button v-for="(item, index) in activity.products.slice(0, 4)" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ tourismNames[index] }}</button></view>
+          <view v-else class="activity-products"><button v-for="item in activity.products" :key="item.id" class="activity-option" role="button" :aria-pressed="requestedProductId === item.id" :class="{ selected: requestedProductId === item.id }" :disabled="switchingProduct" @click="selectActivityProduct(item.id)">{{ item.name }}</button></view>
           <text v-if="selectedActivityProduct" class="activity-product-name">{{ selectedActivityProduct.name }}</text>
         </view>
       </template>
@@ -397,12 +397,25 @@ const recommendLoading=ref(false)
 const recommendError=ref(false)
 async function loadRecommendations(){
  recommendLoading.value=true;recommendError.value=false
- try{const response=await searchProductListAPI({pageNum:1,pageSize:9,sort:0,productCategoryId:product.value.productCategoryId});recommendProducts.value=(response.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8);recommendationLabel.value='同类商品';if(!recommendProducts.value.length){const other=await searchProductListAPI({pageNum:1,pageSize:9,sort:0});recommendProducts.value=(other.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8);recommendationLabel.value='商城好物'}}
- catch{recommendError.value=true;recommendProducts.value=[]}
+ try{
+  const zone=zoneCode.value || (membershipRoute ? 'PICK' : undefined)
+  const tree=(await getMallCategoryTreeAPI(zone)).data || []
+  const containsCategory=(nodes:CategoryTreeNode[]):boolean=>nodes.some(node=>node.id===product.value.productCategoryId || containsCategory(node.children||[]))
+  const category=containsCategory(tree)?product.value.productCategoryId:undefined
+  const params={pageNum:1,pageSize:9,sort:0,zone}
+  const response=await searchProductListAPI({...params,productCategoryId:category})
+  recommendProducts.value=(response.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8)
+  recommendationLabel.value=category?'同类商品':zone?'专区好物':'商城好物'
+  if(category && !recommendProducts.value.length){
+   const other=await searchProductListAPI(params)
+   recommendProducts.value=(other.data?.list||[]).filter(item=>item.id!==product.value.id&&item.publishStatus===1).slice(0,8)
+   recommendationLabel.value=zone?'专区好物':'商城好物'
+  }
+ }catch{recommendError.value=true;recommendProducts.value=[]}
  finally{recommendLoading.value=false}
 }
 const openProductSearch=()=>uni.navigateTo({url:'/pages/product/search'})
-const openRecommended=(id:number)=>uni.navigateTo({url:'/pages/product/product?id='+id})
+const openRecommended=(id:number)=>uni.navigateTo({url:'/pages/product/product?id='+id+(zoneCode.value?'&zone='+zoneCode.value:'')})
 
 const openConsultation = () => uni.navigateTo({ url: '/pages/consultation/consultation?productId=' + product.value.id })
 
@@ -415,6 +428,8 @@ import { getProductDetailAPI, searchProductListAPI, getProductCommentListAPI, cr
 import { getSiteInfoAPI } from '@/apis/home'
 import { addCartAPI, getCartListAPI } from '@/apis/cart'
 import type { ZoneCode } from '@/apis/zone'
+import { getMallCategoryTreeAPI } from '@/apis/product'
+import type { CategoryTreeNode } from '@/types/product'
 import { getProductCouponListAPI, addMemberCouponAPI } from '@/apis/coupon'
 import { createReadHistoryAPI } from '@/apis/memberReadHistory'
 import {
@@ -500,22 +515,6 @@ const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
 const requestedProductId = ref(0)
 const activityId = ref(0)
-const tourismLabel = ref('旅游正品')
-const tourismNames = ref(['旅游正品1', '旅游正品2', '旅游正品3', '旅游正品4'])
-const loadTourismLabel = async () => {
-  try {
-    const response = await fetch(`/static/festive-home/tourism-label.json?t=${Date.now()}`, { cache: 'no-store' })
-    if (response.ok) {
-      const data = await response.json()
-      const value = data?.label
-      if (typeof value === 'string' && value.trim()) tourismLabel.value = value.trim()
-      tourismNames.value = [0, 1, 2, 3].map(index => {
-        const name = data?.names?.[index]
-        return typeof name === 'string' && name.trim() ? name.trim() : `${tourismLabel.value}${index + 1}`
-      })
-    }
-  } catch { /* Keep the built-in label when settings are unavailable. */ }
-}
 const activity = ref<PickActivity>()
 const selectedActivityProduct = computed(() => activity.value?.products?.find(item => item.id === requestedProductId.value) || activity.value?.products?.[0])
 const activityLoading = ref(false)
@@ -676,7 +675,6 @@ const loadData = async (id: number) => {
 // 页面显示时刷新主题（从设置页切换主题后返回本页即生效）
 onShow(() => {
   theme.value = getTheme()
-  void loadTourismLabel()
 })
 
 // 页面加载
@@ -2239,4 +2237,10 @@ page {
 <style scoped>
 .travel-activity{background:#fff8f2;grid-column:1/-1;grid-row:2}.activity-rules,.activity-selection{padding:24rpx 32rpx;background:white;margin-bottom:16rpx}.activity-title,.activity-label,.activity-rule-text{display:block}.activity-title{font-size:38rpx;font-weight:700;margin-bottom:20rpx}.activity-label{font-size:30rpx;font-weight:600;margin-bottom:16rpx}.activity-rule-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#655b56;font-size:28rpx}.activity-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16rpx}.activity-option{width:100%;min-width:0;min-height:76rpx;margin:0;padding:12rpx 16rpx;border:1px solid #e8ddd9;border-radius:20rpx;background:white;font-size:26rpx;line-height:1.5}.activity-option.selected{border-color:#e85b36;color:#e85b36;background:#f5efed}.activity-option::after{border:0}.activity-state{padding:40rpx;text-align:center;color:#8c6554}
 .activity-product-name{display:block;margin:24rpx 0 12rpx;font-size:30rpx;font-weight:600}
+</style>
+
+<style scoped>
+/* #ifdef H5 */
+.product-detail-navbar{position:fixed!important;top:0!important;z-index:999}
+/* #endif */
 </style>
