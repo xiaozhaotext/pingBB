@@ -513,6 +513,7 @@ watch([specClass,attrClass,couponState],([spec,attr,coupon])=>{
 // 商品数据
 const membershipOffer = ref<string | undefined>()
 const product = ref<PmsProduct>({} as PmsProduct)
+// #ifdef H5
 const tourismLabel = ref('旅游正品')
 const tourismNames = ref(['旅游正品1', '旅游正品2', '旅游正品3', '旅游正品4'])
 async function loadTourismLabel() {
@@ -527,6 +528,11 @@ async function loadTourismLabel() {
     })
   } catch { /* Keep the built-in names when settings are unavailable. */ }
 }
+// #endif
+// #ifndef H5
+const tourismLabel = ref('商品')
+const tourismNames = ref<string[]>([])
+// #endif
 const requestedProductId = ref(0)
 const activityId = ref(0)
 const activity = ref<PickActivity>()
@@ -689,7 +695,9 @@ const loadData = async (id: number) => {
 // 页面显示时刷新主题（从设置页切换主题后返回本页即生效）
 onShow(() => {
   theme.value = getTheme()
+  // #ifdef H5
   void loadTourismLabel()
+  // #endif
 })
 
 // 页面加载
