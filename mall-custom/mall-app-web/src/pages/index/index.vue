@@ -79,6 +79,8 @@ import { addFirstAvailableSkuToCart } from '@/utils/cart'
 import {
   onLoad,
   onShow,
+  onHide,
+  onUnload,
   onPullDownRefresh,
   onReachBottom,
   onPageScroll,
@@ -186,38 +188,61 @@ const loadData = async () => { void loadBanner(); await Promise.all([loadPick(),
 onLoad(() => {
   loadData()
 })
-const originalHero = '/static/festive-home/hero.jpg'
+let originalHero = '/static/festive-home/hero.jpg'
+// #ifdef MP-WEIXIN
+originalHero = 'https://zhiyoumei.com.cn/static/festive-home/hero.jpg'
+// #endif
 const heroImages = ref([originalHero])
 const heroCurrent = ref(0)
 function restoreHero() {
   if (heroImages.value[0] !== originalHero) heroImages.value = [originalHero]
 }
-onShow(() => {
-  void loadAnnouncement()
+async function refreshHomePresentation() {
   // #ifdef MP-WEIXIN
   miniLayout.value=miniPresentation.layout()
-  void miniPresentation.load(false).then((data:{captions:Record<string,{text:string;style:string}[]>;images:string[]})=>{
+  await miniPresentation.load(true).then((data:{captions:Record<string,{text:string;style:string}[]>;images:string[]})=>{
     miniCaptions.value=data.captions
     if(heroImages.value.join()!==data.images.join()){heroCurrent.value=0;heroImages.value=data.images}
   })
   // #endif
   // #ifdef H5
-  void fetch('/static/festive-home/hero-carousel.json', { cache: 'no-store' })
-    .then(response => response.ok ? response.json() : null)
-    .then((data: unknown) => {
+  await fetch('/static/festive-home/hero-carousel.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(async response => ({data:response.ok ? await response.json() : null,version:response.headers.get('etag') || response.headers.get('last-modified') || ''}))
+    .then(({data,version}: {data:unknown;version:string}) => {
       const images = Array.isArray(data) ? data.filter((url): url is string =>
         typeof url === 'string' && (url === originalHero || /^\/static\/festive-home\/hero-[a-z0-9-]+\.jpg$/.test(url))) : []
-      const next = Array.isArray(data) ? images : [originalHero]
+      const next = Array.isArray(data) ? images.map(url=>url+(version?'?v='+encodeURIComponent(version):'')) : heroImages.value
       if (next.join() !== heroImages.value.join()) {
         heroCurrent.value = 0
         heroImages.value = next
       }
     }).catch(() => {})
   // #endif
+}
+let presentationTimer: ReturnType<typeof setInterval> | undefined
+let presentationLoading = false
+async function refreshPresentation() {
+  if (presentationLoading) return
+  // #ifdef H5
+  if (document.hidden) return
+  // #endif
+  presentationLoading = true
+  try { await Promise.all([refreshHomePresentation(), loadBanner()]) }
+  finally { presentationLoading = false }
+}
+function stopPresentationRefresh() { if (presentationTimer) clearInterval(presentationTimer); presentationTimer = undefined }
+onShow(() => {
+  void loadAnnouncement()
+  void refreshPresentation()
+  stopPresentationRefresh()
+  presentationTimer = setInterval(() => { void refreshPresentation() }, 15000)
 })
+onHide(stopPresentationRefresh)
+onUnload(stopPresentationRefresh)
 
 // 下拉刷新时执行
 onPullDownRefresh(() => {
+  void refreshPresentation()
   void loadAnnouncement()
   recommendPageParam.value.pageNum = 1
   loadData()

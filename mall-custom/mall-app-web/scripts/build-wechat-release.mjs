@@ -40,7 +40,6 @@ for (const name of files(output)) {
     const escaped = image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     source = source.replace(new RegExp(`(["'\x60])/${escaped}`, 'g'), `$1https://zhiyoumei.com.cn/${image}`)
   }
-  source = source.replace(/(["'`])\/static\/festive-home\//g, '$1https://zhiyoumei.com.cn/static/festive-home/')
   if (name.endsWith('.wxss')) source = source.replace(/url\(([^)]+)\)/g, (match, raw) => {
     const value=raw.trim().replace(/^["']|["']$/g,'')
     const index=value.indexOf('static/')
@@ -57,4 +56,7 @@ config.projectname = 'zhiyoumei-official'
 config.miniprogramRoot = './'
 config.setting = { ...config.setting, urlCheck: true, es6: true, minified: true }
 writeFileSync(configPath, JSON.stringify(config, null, 2))
+const check = spawnSync(process.execPath, ['scripts/test-built-home.cjs'], { cwd: root, stdio: 'inherit' })
+if (check.error) throw check.error
+if (check.status !== 0) process.exit(check.status ?? 1)
 console.log('WeChat release prepared with official API and hosted product images.')
