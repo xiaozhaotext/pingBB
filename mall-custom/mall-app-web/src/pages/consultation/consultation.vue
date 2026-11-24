@@ -88,7 +88,7 @@ onMounted(() => loadList())
 .item-subject { font-size: 30rpx; font-weight: bold; }
 .status { font-size: 24rpx; padding: 4rpx 12rpx; border-radius: 20rpx; }
 .s0 { background: #fef0e0; color: #e6a23c; }
-.s1 { background: #e0f5e9; color: #67c23a; }
+.s1 { background: #f5e6e0; color: #67c23a; }
 .s2 { background: #f0f0f0; color: #999; }
 .item-content { font-size: 28rpx; color: #333; margin: 12rpx 0; }
 .item-time { font-size: 24rpx; color: #999; }

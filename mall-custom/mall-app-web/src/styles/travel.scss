@@ -1,48 +1,48 @@
 /* 旅游视觉主题：业务数据和操作仍由原 API 提供。 */
-page, body, .zone-page { background: #f7f3eb; color: #30483e; }
+page, body, .zone-page { background: #fff8f2; color: #483730; }
 .travel-intro { margin: 24rpx; padding: 32rpx; border-radius: 28rpx; background: #f6e6bb; }
 .travel-intro { margin: 0; padding: 32rpx 28rpx 38rpx; border-radius: 0 0 40rpx 40rpx; background: linear-gradient(135deg,#fff4cf,#f3d482); }
-.travel-hero { position: relative; margin-top: -10rpx; box-shadow: 0 18rpx 36rpx #6e795825; border: 2rpx solid #fff9e7; }
+.travel-hero { position: relative; margin-top: -10rpx; box-shadow: 0 18rpx 36rpx #835e4e25; border: 2rpx solid #fff9e7; }
 .travel-hero-title { max-width: 420rpx; line-height: 1.4; letter-spacing: 2rpx; }
 .travel-entry-grid { position: relative; margin-top: 28rpx; }
 .travel-entry { box-shadow: 0 8rpx 20rpx #a8916610; padding: 32rpx; }
-.travel-entry:first-child { padding: 38rpx 32rpx; background: linear-gradient(100deg,#edf1e3,#dde8d3); border-left: 8rpx solid #6d947b; }
+.travel-entry:first-child { padding: 38rpx 32rpx; background: linear-gradient(100deg,#f1e7e3,#e8d9d3); border-left: 8rpx solid #a07461; }
 .travel-entry:nth-child(2) { background: linear-gradient(135deg,#fffaf0,#f6e6c7); }
-.travel-entry:nth-child(3) { background: linear-gradient(135deg,#fffaf0,#e6efe4); }
+.travel-entry:nth-child(3) { background: linear-gradient(135deg,#fffaf0,#efe7e4); }
 .mobile-home .f-header .tit { font-weight: 700; font-size: 34rpx; }
 .mobile-home .f-header .tit2 { color: #9a8b73; margin-top: 8rpx; }
 .mobile-home .image-wrapper, .mobile-home .floor-item image { border-radius: 18rpx !important; }
 .mobile-home .demo-note { margin: 20rpx 28rpx; padding: 12rpx 18rpx; border-radius: 12rpx; font-size: 21rpx; background: #eee8db; color: #877a64; }
-.cover-container { background: #f7f3eb !important; }
+.cover-container { background: #fff8f2 !important; }
 .tj-sction, .order-section, .history-section { box-shadow: 0 10rpx 30rpx #9478490c; border: 1px solid #efe5d6; }
-.user-info-box .username { color: #304d40; font-weight: 700; }
-.travel-brand { font-size: 36rpx; font-weight: 700; color: #36584b; display: block; }
+.user-info-box .username { color: #4d3930; font-weight: 700; }
+.travel-brand { font-size: 36rpx; font-weight: 700; color: #584036; display: block; }
 .travel-search { margin-top: 22rpx; padding: 20rpx 28rpx; background: #fffdf5; border-radius: 48rpx; color: #8b8b77; font-size: 26rpx; }
-.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: linear-gradient(90deg,#142b36a0,#142b3620), url('/static/travel-photo/alpine-lake.jpg') center/cover; }
-.travel-hero-title { display: block; color: #2d5041; font-size: 46rpx; font-weight: 700; }
-.travel-hero-sub { display: block; color: #586d58; font-size: 25rpx; margin-top: 14rpx; }
+.travel-hero { margin: 0 24rpx; padding: 38rpx 32rpx; min-height: 290rpx; border-radius: 28rpx; background: linear-gradient(90deg,#361e14a0,#361e1420), url('/static/travel-photo/alpine-lake.jpg') center/cover; }
+.travel-hero-title { display: block; color: #50382d; font-size: 46rpx; font-weight: 700; }
+.travel-hero-sub { display: block; color: #7b594a; font-size: 25rpx; margin-top: 14rpx; }
 .travel-entry-grid { margin: 22rpx 24rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
 .travel-entry { border-radius: 24rpx; padding: 28rpx; background: #fffaf0; border: 1px solid #eee1c5; }
-.travel-entry:first-child { grid-column: 1 / -1; background: #ecf0e3; }
-.travel-entry text { display: block; font-size: 32rpx; font-weight: 700; color: #3d5d4d; }
-.travel-entry small { display: block; font-size: 23rpx; color: #8c816b; margin-top: 8rpx; }
+.travel-entry:first-child { grid-column: 1 / -1; background: #f0e7e3; }
+.travel-entry text { display: block; font-size: 32rpx; font-weight: 700; color: #5d473d; }
+.travel-entry .caption-small { display: block; font-size: 23rpx; color: #8c816b; margin-top: 8rpx; }
 .mobile-home .carousel-section, .mobile-home .cate-section { display: none; }
 .mobile-home .f-header, .mobile-home .guess-section, .mobile-home .hot-section, .mobile-home .seckill-section { margin-left: 24rpx; margin-right: 24rpx; background: #fffdf8; }
 .mobile-home .f-header { margin-top: 24rpx; border-radius: 24rpx 24rpx 0 0; }
 .mobile-home .guess-section, .mobile-home .hot-section, .mobile-home .seckill-section { border-radius: 0 0 24rpx 24rpx; }
 .user-section .bg { object-fit: cover; }
-.vip-card-box { background: linear-gradient(115deg, #365d50, #78967c) !important; border-radius: 24rpx !important; }
+.vip-card-box { background: linear-gradient(115deg, #5d4236, #a57b69) !important; border-radius: 24rpx !important; }
 .vip-card-box .card-bg { opacity: 0 !important; }
 .tj-sction, .order-section, .history-section { border-radius: 24rpx !important; background: #fffdf8 !important; }
-.order-section .yticon { color: #b78235 !important; }
+.order-section .yticon { color: #e85b36 !important; }
 .uni-tabbar { border-top: 1px solid #e7dcc7 !important; background: #fffdf8 !important; }
-.zone-head { background: linear-gradient(90deg,#203c36c9,#203c3625), url('/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
+.zone-head { background: linear-gradient(90deg,#3c2820c9,#3c282025), url('/static/travel-photo/coastal-retreat.jpg') center/cover !important; }
 .zone-card { border-radius: 18px !important; box-shadow: 0 7px 22px #806f4b0a; }
 /* #ifdef H5 */
 @media(min-width:900px) {
-  body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #f7f3eb !important; }
-  .desktop-topline { background: #365d50 !important; }
-  .desktop-hero { height: 370px !important; background: linear-gradient(90deg,#142b36aa,#142b3615), url('/static/travel-photo/alpine-lake.jpg') center/cover !important; border-radius: 24px !important; }
+  body:has(.desktop-home, .desktop-site-header), .desktop-home { background: #fff8f2 !important; }
+  .desktop-topline { background: #5d4236 !important; }
+  .desktop-hero { height: 370px !important; background: linear-gradient(90deg,#361e14aa,#361e1415), url('/static/travel-photo/alpine-lake.jpg') center/cover !important; border-radius: 24px !important; }
   .desktop-hero-copy { width: 68% !important; background: linear-gradient(90deg,#fff5dded,transparent); }
   .desktop-hero-media { display:none; }
   .desktop-hero-title { font-weight: 700 !important; }
@@ -58,19 +58,19 @@ body:has(.travel-intro) .uni-page-head { display: none !important; }
 .mobile-home .price { color: #a57932 !important; font-weight: 600; }
 
 /* 真实旅行摄影，覆盖原插画主题。 */
-page,body,.zone-page{background:#f5f2eb;color:#263b34}
+page,body,.zone-page{background:#f5f2eb;color:#3b2c26}
 .zone-head .zone-title,.zone-head .zone-description,.zone-head .zone-kicker{color:#fff!important}
-.zone-head .zone-actions text{color:#254a34!important;background:#fff!important;border:1px solid #ffffff80;font-weight:600}
-.zone-head{min-height:190px;box-shadow:0 10px 30px #263a3020}
+.zone-head .zone-actions text{color:#4a3025!important;background:#fff!important;border:1px solid #ffffff80;font-weight:600}
+.zone-head{min-height:190px;box-shadow:0 10px 30px #3a2c2620}
 .zone-title{font-family:"Songti SC","Noto Serif SC",serif;letter-spacing:3px}
-.user-section{background:#284a43;height:auto!important;padding-bottom:30rpx!important}
+.user-section{background:#4a3228;height:auto!important;padding-bottom:30rpx!important}
 .cover-container{margin-top:0!important;padding-top:24rpx!important}
 .cover-container .arc{display:none}
 .vip-card-box{height:auto!important;min-height:190rpx}
 .user-section .bg{filter:brightness(.72)}
-.user-info-box .username{color:#fff!important;text-shadow:0 2px 10px #102a36aa}
-.vip-card-box{background:linear-gradient(115deg,#233e34ed,#4b6553ef)!important;border:1px solid #e8d6a160;box-shadow:0 10px 25px #102a362b}
+.user-info-box .username{color:#fff!important;text-shadow:0 2px 10px #361b10aa}
+.vip-card-box{background:linear-gradient(115deg,#e85b36,#f98b47)!important;border:1px solid #e8d6a160;box-shadow:0 10px 25px #361b102b}
 .tj-sction,.order-section,.history-section{box-shadow:0 5px 20px #6b5c3f08;border:1px solid #ebe5d9}
 
-/* 海岸与森林色系：覆盖早期金黄色主题。 */
-page,body,.zone-page{background:#f2f6f5!important;color:#284b51}.cover-container{background:#f2f6f5!important}.uni-tabbar{background:#fff!important;border-color:#dce8e5!important}.uni-tabbar .uni-tabbar__item img{filter:grayscale(1)}.uni-tabbar .uni-tabbar__item.uni-tabbar__item--active img{filter:grayscale(1) sepia(.7) hue-rotate(125deg) saturate(2)}.order-section .yticon{color:#278786!important}.desktop-topline{background:#286f67!important}.reserved{background:#edf4f1!important}.reserved-tag{color:#347e75!important}.zone-card{border-color:#dce8e1!important}
+/* 统一暖白底色与红橙强调色。 */
+page,body,.zone-page{background:#fff8f2!important;color:#513428}.cover-container{background:#fff8f2!important}.uni-tabbar{background:#fff!important;border-color:#e9dfdb!important}.uni-tabbar .uni-tabbar__item img{filter:grayscale(1)}.uni-tabbar .uni-tabbar__item.uni-tabbar__item--active img{filter:grayscale(1) sepia(.7) hue-rotate(335deg) saturate(2)}.order-section .yticon{color:#874427!important}.desktop-topline{background:#d94f2e!important}.reserved{background:#f4efed!important}.reserved-tag{color:#7e4a34!important}.zone-card{border-color:#e9dfdb!important}

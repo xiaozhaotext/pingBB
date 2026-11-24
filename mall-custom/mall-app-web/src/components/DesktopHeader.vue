@@ -34,7 +34,7 @@ const goSearch = () => uni.navigateTo({ url: '/pages/product/search' })
 <style scoped>
 .desktop-site-header { display: none; }
 @media (min-width: 900px) {
-  .desktop-site-header { display: block; width: 100%; background: #fff; border-bottom: 1px solid #e1e9df; color: #254a34; }
+  .desktop-site-header { display: block; width: 100%; background: #fff; border-bottom: 1px solid #ebe1dd; color: #4a3025; }
   .desktop-header-inner { max-width: 1240px; height: 78px; margin: 0 auto; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; }
   .desktop-brand { font-size: 27px; font-weight: 800; letter-spacing: 2px; cursor: pointer; }
   .desktop-brand span { color: #c17a3c; }

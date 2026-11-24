@@ -44,12 +44,12 @@ onLoad(async (options?: Record<string, string>) => {
 .title {
   font-size: 40rpx;
   font-weight: 600;
-  color: #285a62;
+  color: #623928;
 }
 .meta {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #9aa8a8;
+  color: #b8988a;
 }
 .body {
   margin-top: 28rpx;
@@ -57,7 +57,7 @@ onLoad(async (options?: Record<string, string>) => {
 .text {
   font-size: 28rpx;
   line-height: 1.8;
-  color: #40484a;
+  color: #4a4340;
   white-space: pre-wrap;
   word-break: break-word;
 }

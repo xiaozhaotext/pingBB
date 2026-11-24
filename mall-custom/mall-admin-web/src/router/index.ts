@@ -227,8 +227,9 @@ export const asyncRouterMap: RouteRecordExt[] = [
     component: Layout,
     redirect: '/pms/product',
     name: 'pms',
-    meta: { title: '商品', icon: 'product' },
+    meta: { title: '商品管理', icon: 'product' },
     children: [
+      { path:'mall-category',name:'mallCategoryDisplay',component:()=>import('@/views/pms/MallCategoryDisplay.vue'),meta:{title:'商城分类筛选',icon:'product-cate'} },
       {
         path: 'product',
         name: 'product',

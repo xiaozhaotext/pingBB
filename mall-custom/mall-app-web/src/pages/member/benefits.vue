@@ -9,4 +9,4 @@ const labels: Record<string,string> = { PENDING: '待人工审核', APPROVED: '�
 async function load() { error.value = ''; try { records.value = (await http<Benefit[]>({ method: 'GET', url: '/member/benefits' })).data } catch { error.value = '权益记录加载失败' } }
 onShow(load)
 </script>
-<style scoped>.benefits{padding:24px;display:flex;flex-direction:column;gap:20px}.title{font-size:24px;font-weight:700}.note{font-size:14px;color:#66756d;line-height:1.8}.card{background:white;border-radius:12px;padding:20px;display:flex;justify-content:space-between;gap:15px}</style>
+<style scoped>.benefits{padding:24px;display:flex;flex-direction:column;gap:20px}.title{font-size:24px;font-weight:700}.note{font-size:14px;color:#896352;line-height:1.8}.card{background:white;border-radius:12px;padding:20px;display:flex;justify-content:space-between;gap:15px}</style>

@@ -20,7 +20,7 @@
               "borderRadius": "16px",
               "placeholder": "请输入商品 如：手机",
               "disabled": true,
-              "placeholderColor": "#606266"
+              "placeholderColor": "#79665c"
             },
             "buttons": [
               {
@@ -298,7 +298,7 @@
               {
                 "text": "清空",
                 "fontSize": "16",
-                "color": "#303133",
+                "color": "#503b32",
                 "width": "46px",
                 "background": "rgba(0,0,0,0)"
               }
@@ -318,7 +318,7 @@
               {
                 "text": "清空",
                 "fontSize": "16",
-                "color": "#303133",
+                "color": "#503b32",
                 "width": "46px",
                 "background": "rgba(0,0,0,0)"
               }
@@ -338,7 +338,7 @@
               {
                 "text": "清空",
                 "fontSize": "16",
-                "color": "#303133",
+                "color": "#503b32",
                 "width": "46px",
                 "background": "rgba(0,0,0,0)"
               }
@@ -440,8 +440,8 @@
     "backgroundColor": "#f8f8f8"
   },
   "tabBar": {
-    "color": "#C0C4CC",
-    "selectedColor": "#167a80",
+    "color": "#d4c0b8",
+    "selectedColor": "#d94f2e",
     "borderStyle": "black",
     "backgroundColor": "#ffffff",
     "list": [

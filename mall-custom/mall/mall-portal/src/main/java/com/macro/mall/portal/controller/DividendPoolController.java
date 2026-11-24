@@ -93,14 +93,6 @@ public class DividendPoolController {
         // 分红发放开关状态（仅展示，不在此修改）
         result.put("distributionEnabled", configBool("dividend.distribution.enabled", false));
 
-        // 分红池余额（公开信息）
-        try {
-            BigDecimal poolBalance = jdbc.queryForObject(
-                    "SELECT pool_balance FROM dividend_pool WHERE id=1", BigDecimal.class);
-            result.put("poolBalance", poolBalance == null ? BigDecimal.ZERO : poolBalance);
-        } catch (Exception e) {
-            result.put("poolBalance", BigDecimal.ZERO);
-        }
         return CommonResult.success(result);
     }
 
@@ -148,9 +140,7 @@ public class DividendPoolController {
     @Operation(summary = "查询分红池余额")
     @GetMapping("/pool")
     public CommonResult<Map<String, Object>> pool() {
-        Map<String, Object> info = jdbc.queryForMap(
-                "SELECT pool_balance,total_in,total_out,update_time FROM dividend_pool WHERE id=1");
-        return CommonResult.success(info);
+        return CommonResult.forbidden(null);
     }
 
     @Operation(summary = "记录贡献事件(可核验真实业务,幂等)")

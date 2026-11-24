@@ -14,7 +14,7 @@
     <view class="card">
       <text class="title">申请提现</text>
       <input class="input" v-model="withdrawAmount" placeholder="请输入提现金额" type="digit" />
-      <button class="btn-primary" :disabled="withdrawing || refreshing || !modeReady" @click="handleWithdraw">提现到消费余额</button>
+      <button class="btn-primary" :loading="withdrawing" :disabled="withdrawing || refreshing || !modeReady" @click="handleWithdraw">{{ refreshing ? '正在加载账户…' : '提现到消费余额' }}</button>
     </view>
 
     <view class="card">
@@ -27,11 +27,11 @@
         </view>
       </view>
       <text class="tip" v-else-if="!ledgerError">暂无收益明细</text>
-      <text class="error" v-else @click="loadData">{{ ledgerError }}，点击重试</text>
+      <text class="error" v-else @click="refresh">{{ ledgerError }}，点击重试</text>
     </view>
 
     <view class="card">收益来源：直属会员购买权益的直推奖励、每周分红、分享下单奖励。</view>
-    <view v-if="loadError" class="card error">{{ loadError }}</view>
+    <view v-if="loadError" class="card error" @click="refresh">{{ loadError }}，点击重试</view>
 
 
     <view class="card">
@@ -81,7 +81,7 @@ const loadData = async () => {
     const member = await getMemberInfoAPI()
     withdrawalStorageKey = (sandbox.value?'sandbox-':'')+'withdraw-request-' + member.data.id
     const pending = uni.getStorageSync(withdrawalStorageKey)
-    if (pending?.amount) withdrawAmount.value = pending.amount
+    if (pending?.amount != null) withdrawAmount.value = String(pending.amount)
   } catch { /* Account requests below provide the visible login error. */ }
   try { const r = await getEarningsAccountAPI(); account.value = r.data }
   catch (e) { account.value = null; loadError.value = '收益账户加载失败，请登录后重试。' }
@@ -94,7 +94,7 @@ const loadData = async () => {
 const handleWithdraw = async () => {
   if (withdrawing.value || refreshing.value) return
   if(!modeReady.value) {uni.showToast({title:'提现环境尚未加载，请刷新后重试',icon:'none'});return}
-  const input = withdrawAmount.value.trim()
+  const input = String(withdrawAmount.value ?? '').trim()
   if (!policy.value) return
   const invalid = withdrawalError(input, policy.value)
   if (invalid) { showWithdrawalError(invalid); return }
@@ -157,14 +157,14 @@ defineExpose({ refresh, busy: withdrawing })
 .app { padding: 0; }
 .mock-banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
-.input { margin: 16rpx 0; height: 80rpx; border: 1rpx solid #dcdfe6; border-radius: 12rpx; padding: 0 20rpx; font-size: 28rpx; }
-.btn { background: #f4f4f5; color: #606266; border-radius: 12rpx; }
-.btn-primary { margin-top: 10rpx; background: #285b40; color: #fff; border-radius: 12rpx; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
-.tip { font-size: 24rpx; color: #909399; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
+.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #79665c; }
+.row .v { color: #503b32; font-weight: 600; }
+.input { margin: 16rpx 0; height: 80rpx; border: 1rpx solid #e8deda; border-radius: 12rpx; padding: 0 20rpx; font-size: 28rpx; }
+.btn { background: #f4f4f5; color: #79665c; border-radius: 12rpx; }
+.btn-primary { margin-top: 10rpx; background: #e85b36; color: #fff; border-radius: 12rpx; }
+.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #503b32; }
+.list .item .sub { display: block; font-size: 22rpx; color: #9b887c; margin-top: 6rpx; }
+.tip { font-size: 24rpx; color: #9b887c; }
 .error { color: #b42318; }
 </style>

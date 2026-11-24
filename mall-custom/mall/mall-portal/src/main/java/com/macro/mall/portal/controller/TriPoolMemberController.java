@@ -17,15 +17,7 @@ public class TriPoolMemberController {
     }
     @GetMapping
     public CommonResult<Map<String,Object>> summary() {
-        Map<String,Object> result = new LinkedHashMap<>(pools.memberSummary(members.getCurrentMember().getId()));
-        if (Boolean.TRUE.equals(result.get("enabled"))) {
-            Map<String,Object> balances = new HashMap<>();
-            for (Map<String,Object> row : jdbc.queryForList("SELECT code,balance FROM tri_pool WHERE code IN ('PARTNER','COFOUNDER')")) {
-                balances.put(String.valueOf(row.get("code")), row.get("balance"));
-            }
-            result.put("poolBalances", balances);
-        }
-        return CommonResult.success(result);
+        return CommonResult.success(pools.memberSummary(members.getCurrentMember().getId()));
     }
     @GetMapping("/records")
     public CommonResult<List<Map<String,Object>>> records(@RequestParam(defaultValue="1")int page) {

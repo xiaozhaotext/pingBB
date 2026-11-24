@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useSearchStore } from '@/stores/search'
 
 // ===== Store 相关 =====
@@ -63,6 +64,9 @@ const searchStore = useSearchStore()
 // ===== 页面数据 =====
 // 搜索关键字
 const keyword = ref('')
+const zone=ref<'CONSUME'|'REBUY'>()
+onLoad(options=>{if(options?.zone==='CONSUME'||options?.zone==='REBUY')zone.value=options.zone})
+const searchUrl=(value:string)=>'/pages/product/list?keyword='+encodeURIComponent(value)+(zone.value?'&zone='+zone.value:'')
 
 // ===== 事件处理方法 =====
 // 执行搜索
@@ -74,9 +78,7 @@ const handleSearch = () => {
   }
   // 跳转到商品列表页（空关键字搜索所有商品）
   uni.navigateTo({
-    url: trimmed
-      ? `/pages/product/list?keyword=${encodeURIComponent(trimmed)}`
-      : '/pages/product/list',
+    url: searchUrl(trimmed),
   })
 }
 
@@ -85,7 +87,7 @@ const handleHistoryClick = (item: string) => {
   keyword.value = item
   searchStore.addKeyword(item)
   uni.navigateTo({
-    url: `/pages/product/list?keyword=${encodeURIComponent(item)}`,
+    url: searchUrl(item),
   })
 }
 

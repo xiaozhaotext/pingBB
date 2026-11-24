@@ -10,6 +10,10 @@ export const getCategoryTreeAPI = () => {
     url: '/product/categoryTreeList',
   })
 }
+/** Global display metadata is independent of the original zone category settings. */
+export const getMallCategoryTreeAPI = (zone?: 'CONSUME' | 'REBUY' | 'PICK') => http<CategoryTreeNode[]>({
+  method: 'GET', url: '/product/categoryTreeList', params: { scope: 'mall', zone },
+})
 
 /** 商品列表搜索 */
 export const searchProductListAPI = (params: ProductListParam) => {

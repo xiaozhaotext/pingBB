@@ -125,13 +125,13 @@ onShow(async () => {
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; align-items: center; padding: 14rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 14rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 28rpx; color: #79665c; }
+.row .v { color: #503b32; font-weight: 600; }
 .row .v.highlight { color: #e65a3c; font-size: 32rpx; }
-.tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #909399; line-height: 1.6; }
+.tip { display: block; margin-top: 12rpx; font-size: 24rpx; color: #9b887c; line-height: 1.6; }
 .error { color: #b42318; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
-.btn { background: #f4f4f5; color: #606266; border-radius: 12rpx; margin-top: 12rpx; font-size: 26rpx; }
+.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #503b32; }
+.list .item .sub { display: block; font-size: 22rpx; color: #9b887c; margin-top: 6rpx; }
+.btn { background: #f4f4f5; color: #79665c; border-radius: 12rpx; margin-top: 12rpx; font-size: 26rpx; }
 </style>

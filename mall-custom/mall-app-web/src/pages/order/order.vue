@@ -21,15 +21,17 @@
     >
       <swiper-item v-for="(tabItem, tabIndex) in navList" :key="tabIndex" class="tab-content">
         <scroll-view class="list-scroll-content" scroll-y @scrolltolower="loadData('add')">
+          <view v-if="tabIndex === tabCurrentIndex">
+          <view v-if="loadError" class="order-load-error" @click="loadData('refresh')">{{ loadError }}，点击重试</view>
           <view v-if="!tabItem.afterSale">
             <!-- 空白页 -->
-          <empty v-if="orderList == null || orderList.length === 0"></empty>
+          <empty v-if="!loadError && loadingType !== 'loading' && orderList.length === 0"></empty>
 
           <!-- 订单列表 -->
           <view v-for="(item, index) in orderList" :key="index" class="order-item">
             <view class="i-top b-b">
               <text class="time">{{ formatDateTime(item.createTime) }}</text>
-              <text class="state" :style="{ color: '#fa436a' }">{{
+              <text class="state" :style="{ color: '#e85b36' }">{{
                 formatStatus(item.status)
               }}</text>
               <text
@@ -82,11 +84,11 @@
           </view>
           <view v-else>
             <!-- 退款/售后申请 -->
-            <empty v-if="afterSaleList.length === 0"></empty>
+            <empty v-if="!loadError && loadingType !== 'loading' && afterSaleList.length === 0"></empty>
             <view v-for="(item, index) in afterSaleList" :key="index" class="order-item">
               <view class="i-top b-b">
                 <text class="time">{{ formatDateTime(item.create_time) }}</text>
-                <text class="state" :style="{ color: '#fa436a' }">{{ formatAfterSaleStatus(item.status) }}</text>
+                <text class="state" :style="{ color: '#e85b36' }">{{ formatAfterSaleStatus(item.status) }}</text>
               </view>
               <view class="goods-box-single" @click="handleShowOrderDetail(item.order_id)">
                 <image class="goods-img" :src="productImageUrl(item.product_pic)" mode="aspectFill"></image>
@@ -103,6 +105,7 @@
             </view>
           </view>
           <uni-load-more :status="loadingType"></uni-load-more>
+          </view>
         </scroll-view>
       </swiper-item>
     </swiper>
@@ -145,6 +148,7 @@ const tabCurrentIndex = ref(0)
 const orderList = ref<OmsOrderDetail[]>([])
 // 加载状态：more-加载更多 / loading-加载中 / nomore-没有更多
 const loadingType = ref<'more' | 'loading' | 'noMore'>('more')
+const loadError = ref('')
 let loadRevision = 0
 // 分页请求参数
 const searchParam = ref<PageParam & { status: number }>({
@@ -194,11 +198,12 @@ const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
       searchParam.value.pageNum--
       loadingType.value = 'noMore'
     } else {
-      loadingType.value = 'more'
+      loadingType.value = list.length < 10 ? 'noMore' : 'more'
     }
   } catch (e) {
     if (revision !== loadRevision) return
     console.error('加载退款/售后失败', e)
+    loadError.value = '售后列表加载失败'
     uni.showToast({ title: '售后列表加载失败，请重试', icon: 'none' })
     if (type === 'add') searchParam.value.pageNum--
     loadingType.value = 'more'
@@ -213,6 +218,7 @@ const loadAfterSale = async (type: 'refresh' | 'add', revision: number) => {
 const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
   if (type === 'add' && loadingType.value !== 'more') return
   const revision = ++loadRevision
+  loadError.value = ''
   if (type === 'refresh') { orderList.value = []; afterSaleList.value = [] }
   if (navList[tabCurrentIndex.value]?.afterSale) {
     await loadAfterSale(type, revision)
@@ -233,14 +239,14 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
   try {
     const res = await getOrderListAPI({ ...searchParam.value })
     if (revision !== loadRevision) return
-    const list = res.data.list
+    const list = Array.isArray(res.data?.list) ? res.data.list : []
     if (type === 'refresh') {
       orderList.value = list
-      loadingType.value = 'more'
+      loadingType.value = list.length < searchParam.value.pageSize || searchParam.value.pageNum >= res.data.totalPage ? 'noMore' : 'more'
     } else {
       if (list != null && list.length > 0) {
         orderList.value = orderList.value.concat(list)
-        loadingType.value = 'more'
+        loadingType.value = list.length < searchParam.value.pageSize || searchParam.value.pageNum >= res.data.totalPage ? 'noMore' : 'more'
       } else {
         searchParam.value.pageNum--
         loadingType.value = 'noMore'
@@ -249,6 +255,7 @@ const loadData = async (type: 'refresh' | 'add' = 'refresh') => {
   } catch (e) {
     if (revision !== loadRevision) return
     console.error('加载订单列表失败', e)
+    loadError.value = '订单列表加载失败'
     uni.showToast({ title: '订单列表加载失败，请重试', icon: 'none' })
     if (type === 'add') searchParam.value.pageNum--
     loadingType.value = 'more'
@@ -667,4 +674,8 @@ page {
   align-items: center;
   justify-content: center;
 }
+</style>
+
+<style scoped>
+.order-load-error{padding:28rpx;text-align:center;color:#c94728;background:#fff0e6;cursor:pointer}
 </style>

@@ -397,10 +397,10 @@ const calcTotal = () => {
     .empty-tips {
       display: flex;
       font-size: 26rpx;
-      color: #c0c4cc;
+      color: #d4c0b8;
 
       .navigator {
-        color: #fa436a;
+        color: #e85b36;
         margin-left: 16rpx;
       }
     }
@@ -434,7 +434,7 @@ const calcTotal = () => {
     font-size: 44rpx;
     line-height: 1;
     padding: 4rpx;
-    color: #c0c4cc;
+    color: #d4c0b8;
     background: #fff;
     border-radius: 50px;
   }
@@ -457,14 +457,14 @@ const calcTotal = () => {
     .title,
     .price {
       font-size: 30rpx;
-      color: #303133;
+      color: #503b32;
       height: 40rpx;
       line-height: 40rpx;
     }
 
     .attr {
       font-size: 26rpx;
-      color: #909399;
+      color: #9b887c;
       height: 50rpx;
       line-height: 50rpx;
     }
@@ -479,7 +479,7 @@ const calcTotal = () => {
     padding: 4rpx 10rpx;
     font-size: 34rpx;
     height: 50rpx;
-    color: #909399;
+    color: #9b887c;
   }
 }
 
@@ -517,7 +517,7 @@ const calcTotal = () => {
 
   .clear-btn {
     position: absolute; left: 40rpx; top: 0; height: 52rpx; line-height: 52rpx;
-    padding: 0 12rpx; font-size: 22rpx; color: #707782; white-space: nowrap; display: none;
+    padding: 0 12rpx; font-size: 22rpx; color: #976d5b; white-space: nowrap; display: none;
     &.show { display: block; }
   }
 
@@ -533,7 +533,7 @@ const calcTotal = () => {
 
     .price {
       font-size: 32rpx;
-      color: #303133;
+      color: #503b32;
     }
   }
 
@@ -548,38 +548,38 @@ const calcTotal = () => {
     position: relative;
     z-index: 1;
     font-size: 30rpx;
-    background: #fa436a;
-    box-shadow: 1px 2px 5px rgba(217, 60, 93, 0.72);
+    background: #e85b36;
+    box-shadow: 1px 2px 5px rgba(232, 91, 54, 0.3);
   }
 }
 
 .action-section .checkbox.checked,
 .cart-item .checkbox.checked {
-  color: #fa436a;
+  color: #e85b36;
 }
 </style>
 
 <style scoped>.action-section{bottom:calc(76px + env(safe-area-inset-bottom));margin-bottom:8px;z-index:98}</style>
 
 <style scoped>
-.zone-group-head{display:flex;align-items:center;gap:16rpx;padding:16rpx 30rpx;background:#f7f8f6;flex-wrap:wrap}
-.zone-group-title{font-size:26rpx;font-weight:600;color:#303133}
-.zone-group-rule{font-size:22rpx;color:#909399}
-.summary-amount{font-size:26rpx;line-height:36rpx;color:#303133}
+.zone-group-head{display:flex;align-items:center;gap:16rpx;padding:16rpx 30rpx;background:#f9f6f5;flex-wrap:wrap}
+.zone-group-title{font-size:26rpx;font-weight:600;color:#503b32}
+.zone-group-rule{font-size:22rpx;color:#9b887c}
+.summary-amount{font-size:26rpx;line-height:36rpx;color:#503b32}
 .settlement-total{display:flex;flex-direction:column;min-width:0;text-align:left;line-height:32rpx}
-.settlement-total-label{font-size:22rpx;color:#707782}
+.settlement-total-label{font-size:22rpx;color:#976d5b}
 .settlement-total-value{font-size:30rpx;font-weight:600;color:#b84432;overflow-wrap:anywhere}
 .summary-details{flex-shrink:0}
-.detail-toggle{display:flex;justify-content:flex-end;align-items:center;gap:12rpx;font-size:24rpx;color:#707782;min-height:40rpx}
+.detail-toggle{display:flex;justify-content:flex-end;align-items:center;gap:12rpx;font-size:24rpx;color:#976d5b;min-height:40rpx}
 .detail-arrow{display:inline-block;transition:transform .2s;font-size:30rpx}
 .detail-arrow.expanded{transform:rotate(180deg)}
 .settlement-details{position:absolute;bottom:calc(100% + 12rpx);left:0;right:0;box-sizing:border-box;padding:24rpx;background:#fff;border-radius:16rpx;box-shadow:0 0 16rpx #0002;max-height:40vh;overflow-y:auto;overflow-wrap:anywhere}
 .details-title{display:block;font-size:26rpx;font-weight:600;margin-bottom:12rpx}
 .zone-total-line{display:flex;justify-content:space-between;gap:16rpx;font-size:24rpx;line-height:38rpx;flex-wrap:wrap}
-.zone-total-name{color:#707782}
-.zone-total-value{color:#303133}
-.zone-total-value.points{color:#b78235;font-weight:600}
-.zone-total-hint{display:block;font-size:22rpx;line-height:32rpx;color:#707782;margin-top:12rpx}
+.zone-total-name{color:#976d5b}
+.zone-total-value{color:#503b32}
+.zone-total-value.points{color:#e85b36;font-weight:600}
+.zone-total-hint{display:block;font-size:22rpx;line-height:32rpx;color:#976d5b;margin-top:12rpx}
 </style>
 
 

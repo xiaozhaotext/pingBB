@@ -155,7 +155,7 @@ onShow(() => { if (initialized) void loadData() })
 </script>
 
 <style scoped>
-.area { padding: 24rpx; background: #f6f7f8; min-height: 100vh; color: #333; font-size: 28rpx; }
+.area { padding: 24rpx; background: #f9f6f5; min-height: 100vh; color: #333; font-size: 28rpx; }
 .summary, .notice, .candidate, .order-note { margin-bottom: 24rpx; padding: 28rpx; background: white; border-radius: 16rpx; line-height: 1.8; }
 .summary text, .order-note text, .candidate-info text { display: block; }
 .title { font-weight: 600; font-size: 32rpx; }

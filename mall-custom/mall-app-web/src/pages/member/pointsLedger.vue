@@ -92,14 +92,14 @@ onShow(loadData)
 <style lang="scss" scoped>
 .app { padding: 20rpx; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #606266; }
-.row .v { color: #303133; font-weight: 600; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
+.row { display: flex; justify-content: space-between; padding: 14rpx 0; font-size: 28rpx; color: #79665c; }
+.row .v { color: #503b32; font-weight: 600; }
 .tabs { display: flex; gap: 16rpx; margin-bottom: 16rpx; }
-.tab { padding: 10rpx 24rpx; border-radius: 999rpx; background: #f4f4f5; color: #606266; font-size: 24rpx; }
-.tab.active { background: #285b40; color: #fff; }
-.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #303133; }
-.list .item .sub { display: block; font-size: 22rpx; color: #909399; margin-top: 6rpx; }
-.tip { font-size: 24rpx; color: #909399; }
+.tab { padding: 10rpx 24rpx; border-radius: 999rpx; background: #f4f4f5; color: #79665c; font-size: 24rpx; }
+.tab.active { background: #e85b36; color: #fff; }
+.list .item { padding: 16rpx 0; border-bottom: 1rpx solid #f2f2f2; font-size: 26rpx; color: #503b32; }
+.list .item .sub { display: block; font-size: 22rpx; color: #9b887c; margin-top: 6rpx; }
+.tip { font-size: 24rpx; color: #9b887c; }
 .error { color: #b42318; }
 </style>

@@ -4,14 +4,14 @@
     <view class="account-top"><text>我的</text></view>
     <view class="account-profile" @click="handleNavTo(hasLogin ? '/pages/user/profile' : '/pages/public/login')"><image :src="memberInfo?.icon || '/static/missing-face.png'"/><view><view class="account-name">{{ memberInfo?.nickname || memberInfo?.username || '点击登录' }}<text>{{ identityLabel }}</text></view><text class="account-id">{{ hasLogin ? '会员 ID：' + memberInfo?.id + ' · 点击修改昵称' : '登录后查看您的账户与订单' }}</text></view></view>
     <view class="account-panels">
-      <view class="account-panel" @click="handleNavTo('/pages/member/benefits')"><view class="account-section-title">奖励与旅游权益<small>审核与核销记录 ›</small></view></view>
-      <view class="account-panel" @click="handleNavTo('/pages/member/recharge')"><view class="account-section-title">账户余额：¥ {{spendableBalance}}<small>充值 / 自选区余额支付 ›</small></view></view>
-      <view class="account-panel"><view class="account-section-title">我的钱包<small>账户实际数据</small></view><view class="account-assets"><view><text>{{walletAvailable}}</text><small>可提现余额</small></view><view @click="handleNavTo('/pages/member/dividend')"><text>{{dividendCap}}</text><small>分红额度 ›</small></view><view @click="handleNavTo('/pages/member/walletWithdraw?mode=earnings')"><text class="yticon icon-lishijilu"></text><small>余额明细 ›</small></view></view></view>
+      <view class="account-panel" @click="handleNavTo('/pages/member/benefits')"><view class="account-section-title">奖励与旅游权益<text class="caption-small">审核与核销记录 ›</text></view></view>
+      <view class="account-panel" @click="handleNavTo('/pages/member/recharge')"><view class="account-section-title">账户余额：¥ {{spendableBalance}}<text class="caption-small">充值 / 自选区余额支付 ›</text></view></view>
+      <view class="account-panel"><view class="account-section-title">我的钱包<text class="caption-small">账户实际数据</text></view><view class="account-assets"><view><text>{{walletAvailable}}</text><text class="caption-small">可提现余额</text></view><view @click="handleNavTo('/pages/member/dividend')"><text>{{dividendCap}}</text><text class="caption-small">分红额度 ›</text></view><view @click="handleNavTo('/pages/member/walletWithdraw?mode=earnings')"><text class="yticon icon-lishijilu"></text><text class="caption-small">余额明细 ›</text></view></view></view>
       <DividendQuota :active="quotaActive" />
-      <view class="account-panel"><view class="account-section-title">商品智豆<small>可用智豆</small></view><view class="account-assets points-summary"><view><text>{{productBalance}}</text><small>可用商品智豆</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=1')"><text class="yticon icon-lishijilu"></text><small>智豆明细 ›</small></view></view></view>
-      <view class="account-panel"><view class="account-section-title">复购智豆<small>可用智豆</small></view><view class="account-assets points-summary"><view><text>{{rebuyBalance}}</text><small>可用复购智豆</small></view><view @click="handleNavTo('/pages/member/pointsLedger?type=2')"><text class="yticon icon-lishijilu"></text><small>智豆明细 ›</small></view></view></view>
-      <view class="account-panel"><view class="account-section-title">我的订单<small @click="handleNavTo('/pages/order/order?state=0')">查看全部 »</small></view><view class="account-services"><view v-for="item in orderEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
-      <view class="account-panel"><view class="account-section-title">我的服务</view><view class="account-services service-grid"><view v-for="item in serviceEntries" :key="item.label" @click="handleNavTo(item.url)"><svg v-if="item.icon === 'service-chat'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="12" width="4" height="7" rx="2"/><rect x="17" y="12" width="4" height="7" rx="2"/><path d="M17 19c-.8 1.3-2.2 2-4 2h-1"/></svg><svg v-else-if="item.icon === 'service-bell'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><svg v-else-if="item.icon === 'service-privacy'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6z"/><rect x="9" y="10" width="6" height="5" rx="1"/><path d="M10 10V8.5a2 2 0 0 1 4 0V10"/></svg><svg v-else-if="item.icon === 'service-wallet'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 9h18M16 13h5v4h-5a2 2 0 0 1 0-4Z"/><path d="M6 5V3h12"/></svg><svg v-else-if="item.icon === 'service-earnings'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18M5 16l5-5 3 3 6-7M15 7h4v4"/><path d="M6 19v-2M11 19v-3M16 19v-4"/></svg><svg v-else-if="item.icon === 'service-dividend'" class="service-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.5c-.5-1.5-4.5-1.5-5 0-.5 1.5 1 2 2.5 2.5s3 1 2.5 2.5-4.5 1.5-5 0M12 7.5v9"/><path d="m17.5 4.5 2.5 2.5-2.5 2.5"/></svg><text v-else class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
+      <view class="account-panel"><view class="account-section-title">商品智豆<text class="caption-small">可用智豆</text></view><view class="account-assets points-summary"><view><text>{{productBalance}}</text><text class="caption-small">可用商品智豆</text></view><view @click="handleNavTo('/pages/member/pointsLedger?type=1')"><text class="yticon icon-lishijilu"></text><text class="caption-small">智豆明细 ›</text></view></view></view>
+      <view class="account-panel"><view class="account-section-title">复购智豆<text class="caption-small">可用智豆</text></view><view class="account-assets points-summary"><view><text>{{rebuyBalance}}</text><text class="caption-small">可用复购智豆</text></view><view @click="handleNavTo('/pages/member/pointsLedger?type=2')"><text class="yticon icon-lishijilu"></text><text class="caption-small">智豆明细 ›</text></view></view></view>
+      <view class="account-panel"><view class="account-section-title">我的订单<text class="caption-small" @click="handleNavTo('/pages/order/order?state=0')">查看全部 »</text></view><view class="account-services"><view v-for="item in orderEntries" :key="item.label" @click="handleNavTo(item.url)"><text class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
+      <view class="account-panel"><view class="account-section-title">我的服务</view><view class="account-services service-grid"><view v-for="item in serviceEntries" :key="item.label" @click="handleNavTo(item.url)"><image v-if="item.icon.startsWith('service-')" class="service-icon" :src="'/static/services/' + item.icon + '.png'" mode="aspectFit" /><text v-else class="yticon" :class="item.icon"></text><text>{{item.label}}</text></view></view></view>
       <view v-if="accountError" class="account-error" @click="loadData">{{accountError}}，点击重试</view>
     </view>
   </view>
@@ -253,7 +253,7 @@ const handleCoverTouchend = () => {
 
   .username {
     font-size: 38rpx;
-    color: #303133;
+    color: #503b32;
     margin-left: 20rpx;
   }
 }
@@ -286,7 +286,7 @@ const handleCoverTouchend = () => {
     text-align: center;
     line-height: 40rpx;
     font-size: 22rpx;
-    color: #36343c;
+    color: #3c3634;
     border-radius: 20px;
     background: linear-gradient(to right, #f9e6af, #ffd465);
     z-index: 1;
@@ -340,7 +340,7 @@ const handleCoverTouchend = () => {
 
   .num {
     font-size: 32rpx;
-    color: #303133;
+    color: #503b32;
     margin-bottom: 8rpx;
   }
 }
@@ -356,13 +356,13 @@ const handleCoverTouchend = () => {
     height: 120rpx;
     border-radius: 10rpx;
     font-size: 24rpx;
-    color: #303133;
+    color: #503b32;
   }
 
   .yticon {
     font-size: 48rpx;
     margin-bottom: 18rpx;
-    color: #fa436a;
+    color: #e85b36;
   }
 
   .icon-shouhoutuikuan {
@@ -379,7 +379,7 @@ const handleCoverTouchend = () => {
 </style>
 
 <style scoped>
-.account-reference{background:#f8f5f0;min-height:100vh;padding-bottom:85px}.account-top{position:sticky;top:0;z-index:10;text-align:center;padding:13px;color:#fff;background:#d8ad50;font-size:18px;font-weight:600}.account-settings{position:absolute;right:18px;font-size:12px;top:16px}.account-profile{height:153px;background:linear-gradient(90deg,#244b36cc,#9f865e44),url('/static/travel-photo/alpine-lake.jpg') center/cover;display:flex;align-items:flex-start;padding:26px 22px;gap:14px;color:#fff}.account-profile image{width:66px;height:66px;border-radius:22px;background:#fff;border:2px solid #ffffffa0}.account-name{font-size:20px;font-weight:700;padding-top:6px}.account-name text{font-size:10px;margin-left:8px;background:#fff3c85c;border-radius:12px;padding:3px 7px;font-weight:400}.account-id{display:block;font-size:11px;margin-top:12px;color:#fff3d8}.account-panels{position:relative;margin:-29px 12px 0}.account-panel{background:#fffefb;border-radius:18px;padding:17px 13px;margin-bottom:13px;box-shadow:0 6px 20px #9e895c06}.account-section-title{display:flex;justify-content:space-between;align-items:center;font-size:17px;font-weight:700;color:#39372f;padding-left:8px;border-left:3px solid #c99455;margin-bottom:17px}.account-section-title small{font-size:10px;color:#a19c92;font-weight:400}.account-assets{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:9px 0 5px}.account-assets text{display:block;font-size:19px;color:#b45e35;font-weight:700}.account-assets small{display:block;font-size:11px;color:#89857c;margin-top:7px}.account-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.account-stat-grid>view{background:#fcfaf3;border-radius:7px;padding:13px 10px}.account-stat-grid text{display:block;font-size:16px;font-weight:700;color:#887240}.account-stat-grid small{display:block;font-size:11px;color:#a19a8a;margin-top:8px}.recommend-layout{display:grid;grid-template-columns:repeat(3,1fr) .9fr;gap:5px;text-align:center}.recommend-stage{background:#fcfbf7;border-radius:10px;padding:9px 3px}.stage-dot{width:29px;height:29px;border-radius:50%;background:#f0ede4;color:#979184;margin:0 auto 10px;line-height:29px;font-size:13px}.recommend-stage text{display:block;font-size:11px;font-weight:600;color:#45413a}.recommend-stage small{display:block;font-size:9px;color:#b0a99b;margin-top:8px}.recommend-count{background:#f6f2e9;border-radius:10px;padding:21px 0}.recommend-count text{display:block;font-size:20px;font-weight:700;color:#887240}.recommend-count small{font-size:9px;color:#938a7a}.account-section-footer{display:flex;justify-content:space-between;margin-top:15px;font-size:10px;color:#a8a18f;gap:7px}.account-section-footer text:last-child{color:#b36a3c;cursor:pointer}.account-services{display:grid;grid-template-columns:repeat(4,1fr);row-gap:22px;text-align:center}.account-services>view{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:11px;color:#514c43}.account-services .yticon{font-size:23px;color:#bb8b58}.service-grid{padding:5px 0 10px}.account-error{font-size:12px;color:#ae5c32;padding:12px;text-align:center}
+.account-reference{background:#f8f5f0;min-height:100vh;padding-bottom:85px}.account-top{position:sticky;top:0;z-index:10;text-align:center;padding:13px;color:#fff;background:#d8ad50;font-size:18px;font-weight:600}.account-settings{position:absolute;right:18px;font-size:12px;top:16px}.account-profile{height:153px;background:linear-gradient(90deg,#4b3024cc,#9f865e44),url('/static/travel-photo/alpine-lake.jpg') center/cover;display:flex;align-items:flex-start;padding:26px 22px;gap:14px;color:#fff}.account-profile image{width:66px;height:66px;border-radius:22px;background:#fff;border:2px solid #ffffffa0}.account-name{font-size:20px;font-weight:700;padding-top:6px}.account-name text{font-size:10px;margin-left:8px;background:#fff3c85c;border-radius:12px;padding:3px 7px;font-weight:400}.account-id{display:block;font-size:11px;margin-top:12px;color:#fff3d8}.account-panels{position:relative;margin:-29px 12px 0}.account-panel{background:#fffefb;border-radius:18px;padding:17px 13px;margin-bottom:13px;box-shadow:0 6px 20px #9e895c06}.account-section-title{display:flex;justify-content:space-between;align-items:center;font-size:17px;font-weight:700;color:#39372f;padding-left:8px;border-left:3px solid #c99455;margin-bottom:17px}.account-section-title .caption-small{font-size:10px;color:#a19c92;font-weight:400}.account-assets{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:9px 0 5px}.account-assets text{display:block;font-size:19px;color:#b45e35;font-weight:700}.account-assets .caption-small{display:block;font-size:11px;color:#89857c;margin-top:7px;font-weight:400;}.account-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.account-stat-grid>view{background:#fcfaf3;border-radius:7px;padding:13px 10px}.account-stat-grid text{display:block;font-size:16px;font-weight:700;color:#887240}.account-stat-grid .caption-small{display:block;font-size:11px;color:#a19a8a;margin-top:8px;font-weight:400;}.recommend-layout{display:grid;grid-template-columns:repeat(3,1fr) .9fr;gap:5px;text-align:center}.recommend-stage{background:#fcfbf7;border-radius:10px;padding:9px 3px}.stage-dot{width:29px;height:29px;border-radius:50%;background:#f0ede4;color:#979184;margin:0 auto 10px;line-height:29px;font-size:13px}.recommend-stage text{display:block;font-size:11px;font-weight:600;color:#45413a}.recommend-stage .caption-small{display:block;font-size:9px;color:#b0a99b;margin-top:8px;font-weight:400;}.recommend-count{background:#f6f2e9;border-radius:10px;padding:21px 0}.recommend-count text{display:block;font-size:20px;font-weight:700;color:#887240}.recommend-count .caption-small{font-size:9px;color:#938a7a;font-weight:400;}.account-section-footer{display:flex;justify-content:space-between;margin-top:15px;font-size:10px;color:#a8a18f;gap:7px}.account-section-footer text:last-child{color:#b36a3c;cursor:pointer}.account-services{display:grid;grid-template-columns:repeat(4,1fr);row-gap:22px;text-align:center}.account-services>view{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:11px;color:#514c43}.account-services .yticon{font-size:23px;color:#bb8b58}.service-grid{padding:5px 0 10px}.account-error{font-size:12px;color:#ae5c32;padding:12px;text-align:center}
 @media(min-width:900px){.account-reference{width:min(100%,1080px);margin:auto}.account-profile{height:176px;padding:30px}.account-profile image{width:72px;height:72px}.account-name{font-size:23px}.account-panels{margin:-28px 20px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.account-panel{min-width:0;margin:0;padding:20px}.account-panel:last-of-type{grid-column:1/-1}.account-section-title{font-size:18px}.account-stat-grid>view{padding:15px}.account-services{padding:8px}.account-assets{padding:12px}.account-error{grid-column:1/-1}}
 @media(min-width:900px) and (max-width:1100px){.account-reference{width:100%}.account-panels{margin-left:16px;margin-right:16px}}
 @media(max-width:899px){.account-reference{width:100%;overflow-x:hidden}.account-panels{max-width:100%}.account-panel{min-width:0}.account-services{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -387,13 +387,13 @@ const handleCoverTouchend = () => {
 </style>
 
 <style scoped>
-.account-reference{background:#f2f6f5}.account-top{position:static;background:#e5f0ef;color:#245660;border-bottom:1px solid #d7e6e5}.account-panel{background:#fff;border:1px solid #e7eeeb;box-shadow:0 5px 20px #315c4f05}.account-section-title{border-color:#2a8a88;color:#284b51}.account-assets text{color:#167a80}.account-assets small,.account-section-title small{color:#819599}.account-stat-grid>view{background:#f3f8f6}.account-stat-grid text,.recommend-count text{color:#326f62}.account-stat-grid small{color:#7e9890}.recommend-stage{background:#f7faf9}.stage-dot{background:#e7f0ec;color:#628c7c}.recommend-count{background:#eaf3ef}.account-section-footer text:last-child,.account-services .yticon{color:#288784}.account-services>view{color:#405e62}.account-section-footer{color:#829896}.account-error{color:#386c73}
-.account-services .service-svg{width:23px;height:23px;fill:none;stroke:#288784;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.account-reference{background:#fff8f2}.account-top{position:static;background:#fff0e6;color:#bd4529;border-bottom:1px solid #e7dbd6}.account-panel{background:#fff;border:1px solid #f0e8e5;box-shadow:0 5px 20px #5c3e3105}.account-section-title{border-color:#e85b36;color:#513428}.account-assets text{color:#d94f2e}.account-assets .caption-small,.account-section-title .caption-small{color:#aa8270;font-weight:400;}.account-stat-grid>view{background:#f8f4f3}.account-stat-grid text,.recommend-count text{color:#6f4432}.account-stat-grid .caption-small{color:#a87f6e;font-weight:400;}.recommend-stage{background:#faf8f7}.stage-dot{background:#f0eae7;color:#956b59}.recommend-count{background:#f3edea}.account-section-footer text:last-child,.account-services .yticon{color:#874428}.account-services>view{color:#624a40}.account-section-footer{color:#aa8270}.account-error{color:#734a38}
+.account-services .service-icon{width:23px;height:23px}
 </style>
 
 <style scoped>
 .account-wallet-action{display:flex;justify-content:flex-end;margin-top:10px}
-.account-wallet-action text{font-size:12px;color:#fff;background:#288784;border-radius:999px;padding:8px 18px;cursor:pointer}
+.account-wallet-action text{font-size:12px;color:#fff;background:#874428;border-radius:999px;padding:8px 18px;cursor:pointer}
 </style>
 
 <style scoped>.points-summary{grid-template-columns:1fr 1fr}</style>

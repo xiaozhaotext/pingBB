@@ -8,7 +8,15 @@ export const formatDate = (date: Date, fmt: string, timeZone?: string): string =
   let result = fmt
 
   const zonedParts: Record<string, number> = {}
-  if (timeZone) {
+  // 微信真机 JS 环境可能没有 Intl，商城的北京时间直接由 UTC+8 计算。
+  if (timeZone === 'Asia/Shanghai') {
+    const beijing = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+    Object.assign(zonedParts, {
+      year: beijing.getUTCFullYear(), month: beijing.getUTCMonth() + 1,
+      day: beijing.getUTCDate(), hour: beijing.getUTCHours(),
+      minute: beijing.getUTCMinutes(), second: beijing.getUTCSeconds(),
+    })
+  } else if (timeZone && typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
     for (const part of new Intl.DateTimeFormat('en-US', {
       timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',

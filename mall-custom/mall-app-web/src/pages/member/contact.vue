@@ -28,4 +28,4 @@ async function save() {
 onShow(load)
 onBackPress(() => { uni.reLaunch({ url: '/pages/user/user' }); return true })
 </script>
-<style scoped>.contact{padding:24px;display:flex;flex-direction:column;gap:20px}.title{font-size:24px;font-weight:bold}input{padding:16px;background:white;border-radius:8px}text{color:#51625b;font-size:14px}</style>
+<style scoped>.contact{padding:24px;display:flex;flex-direction:column;gap:20px}.title{font-size:24px;font-weight:bold}input{padding:16px;background:white;border-radius:8px}text{color:#625651;font-size:14px}</style>

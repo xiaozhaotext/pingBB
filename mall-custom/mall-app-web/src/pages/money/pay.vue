@@ -27,7 +27,7 @@
           <text>推荐使用支付宝支付</text>
         </view>
         <label class="radio">
-          <radio name="payType" value="" color="#fa436a" :checked="payType == 1" />
+          <radio name="payType" value="" color="#e85b36" :checked="payType == 1" />
         </label>
       </view>
       <view class="type-item b-b" v-if="USE_WECHAT_PAY" @click="handleChangePayType(2)">
@@ -36,7 +36,7 @@
           <text class="tit">微信支付</text>
         </view>
         <label class="radio">
-          <radio name="payType" value="" color="#fa436a" :checked="payType == 2" />
+          <radio name="payType" value="" color="#e85b36" :checked="payType == 2" />
         </label>
       </view>
     </view>
@@ -303,7 +303,7 @@ const handleConfirmPay = async () => {
 .discount-summary .actual-pay { border-top: 1px solid #eee; padding-top: 22rpx; font-weight: bold; color: #c23c35; }
 .discount-note { font-size: 23rpx; line-height: 1.6; color: #777; }
 .payment-status { margin: 28rpx; padding: 24rpx; border-radius: 12rpx; background: #fff7e6; color: #714d13; display: flex; flex-direction: column; gap: 22rpx; line-height: 1.6; }
-.status-action { color: #286da8; text-decoration: underline; }
+.status-action { color: #a84e28; text-decoration: underline; }
 .mock-notice { margin: 20rpx; padding: 22rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 26rpx; line-height: 1.5; }
 .app {
   width: 100%;
@@ -317,11 +317,11 @@ const handleConfirmPay = async () => {
   justify-content: center;
   align-items: center;
   font-size: 28rpx;
-  color: #909399;
+  color: #9b887c;
 
   .price {
     font-size: 50rpx;
-    color: #303133;
+    color: #503b32;
     margin-top: 12rpx;
 
     &:before {
@@ -390,6 +390,6 @@ const handleConfirmPay = async () => {
   color: #fff;
   background-color: $base-color;
   border-radius: 10rpx;
-  box-shadow: 1px 2px 5px rgba(219, 63, 96, 0.4);
+  box-shadow: 1px 2px 5px rgba(232, 91, 54, 0.24);
 }
 </style>

@@ -112,18 +112,18 @@ onLoad((options) => {
 .app { padding: 20rpx; }
 .banner { margin-bottom: 20rpx; padding: 20rpx; border-radius: 12rpx; background: #fff3d8; color: #805b1d; font-size: 24rpx; line-height: 1.6; }
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.title { font-size: 30rpx; font-weight: 600; color: #303133; display: block; margin-bottom: 16rpx; }
-.tip { font-size: 24rpx; color: #909399; }
+.title { font-size: 30rpx; font-weight: 600; color: #503b32; display: block; margin-bottom: 16rpx; }
+.tip { font-size: 24rpx; color: #9b887c; }
 .pending-item { display: flex; align-items: center; padding: 16rpx; border: 1rpx solid #eee; border-radius: 12rpx; margin-bottom: 14rpx; }
-.pending-item.active { border-color: #285b40; background: #f2f8f4; }
+.pending-item.active { border-color: #e85b36; background: #f8f4f2; }
 .pending-item .pic { width: 90rpx; height: 90rpx; border-radius: 10rpx; margin-right: 16rpx; background: #f3f3f3; }
 .pending-item .info { flex: 1; display: flex; flex-direction: column; }
-.pending-item .name { font-size: 28rpx; color: #303133; }
-.pending-item .sub { font-size: 22rpx; color: #909399; margin-top: 4rpx; }
+.pending-item .name { font-size: 28rpx; color: #503b32; }
+.pending-item .sub { font-size: 22rpx; color: #9b887c; margin-top: 4rpx; }
 .star-row { display: flex; align-items: center; margin-bottom: 20rpx; }
 .star-row .star { font-size: 48rpx; color: #ddd; margin-right: 14rpx; }
 .star-row .star.active { color: #ffb400; }
-.star-row .star-tip { font-size: 26rpx; color: #909399; margin-left: 8rpx; }
+.star-row .star-tip { font-size: 26rpx; color: #9b887c; margin-left: 8rpx; }
 .input { width: 100%; box-sizing: border-box; min-height: 180rpx; padding: 16rpx; background: #f7f7f7; border-radius: 12rpx; font-size: 26rpx; }
-.btn-primary { background: #285b40; color: #fff; border-radius: 12rpx; }
+.btn-primary { background: #e85b36; color: #fff; border-radius: 12rpx; }
 </style>
