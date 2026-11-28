@@ -234,11 +234,11 @@ const handleReceiveOrder = (id: number) => {
 // 设置订单状态信息
 const setOrderStatus = (status: number) => {
   const statusMap: Record<number, { text: string; image: string }> = {
-    0: { text: '等待付款', image: '/static/icon_wait.png' },
-    1: { text: '等待发货', image: '/static/icon_deliver.png' },
-    2: { text: '等待收货', image: '/static/icon_receive.png' },
-    3: { text: '交易完成', image: '/static/icon_finish.png' },
-    4: { text: '交易关闭', image: '/static/icon_close.png' },
+    0: { text: '等待付款', image: 'https://zhiyoumei.com.cn/static/icon_wait.png' },
+    1: { text: '等待发货', image: 'https://zhiyoumei.com.cn/static/icon_deliver.png' },
+    2: { text: '等待收货', image: 'https://zhiyoumei.com.cn/static/icon_receive.png' },
+    3: { text: '交易完成', image: 'https://zhiyoumei.com.cn/static/icon_finish.png' },
+    4: { text: '交易关闭', image: 'https://zhiyoumei.com.cn/static/icon_close.png' },
   }
   orderStatus.value = statusMap[status] || { text: '', image: '' }
 }

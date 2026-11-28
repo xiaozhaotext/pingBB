@@ -27,7 +27,7 @@ function go(url:string){
  <view class="main-navigation-space" />
  <view class="main-navigation" role="navigation" aria-label="商城主导航">
   <view v-for="item in items" :key="item.key" class="main-nav-item" :class="{selected:active===item.key}" role="button" tabindex="0" :aria-label="item.label" :aria-current="active===item.key?'page':undefined" @keydown.enter="go(item.url)" @click="go(item.url)">
-   <image :src="`/static/main-nav/${item.icon}.svg`" class="nav-icon" mode="aspectFit" />
+   <image :src="`https://zhiyoumei.com.cn/static/main-nav/${item.icon}.svg`" class="nav-icon" mode="aspectFit" />
    <text>{{item.label}}</text>
   </view>
  </view>

@@ -120,7 +120,7 @@
       <view v-else class="eva-list">
         <view class="eva-item" v-for="c in commentList" :key="c.id">
           <view class="eva-item-head">
-            <image class="eva-avatar" :src="c.memberIcon || '/static/missing-face.png'" mode="aspectFill"></image>
+            <image class="eva-avatar" :src="c.memberIcon || 'https://zhiyoumei.com.cn/static/missing-face.png'" mode="aspectFill"></image>
             <view class="eva-item-meta">
               <text class="eva-nick">{{ c.memberNickName || '匿名用户' }}</text>
               <text class="eva-stars">{{ formatStars(c.star) }}</text>
@@ -485,10 +485,10 @@ const defaultServiceList: ServiceItem[] = [
 
 // 默认分享列表
 const defaultShareList: ShareItem[] = [
-  { type: 1, icon: '/static/temp/share_wechat.png', text: '微信好友' },
-  { type: 2, icon: '/static/temp/share_moment.png', text: '朋友圈' },
-  { type: 3, icon: '/static/temp/share_qq.png', text: 'QQ好友' },
-  { type: 4, icon: '/static/temp/share_qqzone.png', text: 'QQ空间' },
+  { type: 1, icon: 'https://zhiyoumei.com.cn/static/temp/share_wechat.png', text: '微信好友' },
+  { type: 2, icon: 'https://zhiyoumei.com.cn/static/temp/share_moment.png', text: '朋友圈' },
+  { type: 3, icon: 'https://zhiyoumei.com.cn/static/temp/share_qq.png', text: 'QQ好友' },
+  { type: 4, icon: 'https://zhiyoumei.com.cn/static/temp/share_qqzone.png', text: 'QQ空间' },
 ]
 
 // ===== 状态变量 =====
@@ -2230,7 +2230,7 @@ page {
 @media(min-width:900px){body:has(.detail-tabs) .custom-navbar{display:block!important}body:has(.detail-tabs) .desktop-site-header{display:none!important}}
 </style>
 <style scoped>
-.product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#492617cc,#49261733),url('/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
+.product-travel-note{margin:0 10px 10px;padding:14px 18px;border-radius:14px;background:linear-gradient(90deg,#492617cc,#49261733),url('https://zhiyoumei.com.cn/static/travel-photo/coastal-retreat.jpg') center 55%/cover;color:white;display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}.product-travel-note text:last-child{font-size:10px;opacity:.85;font-weight:400}
 @media(min-width:900px){.product-travel-note{grid-column:1/-1;margin:0 0 14px;grid-row:2}.carousel{grid-row:3/span 4}.introduce-section{grid-row:3}.share-section{grid-row:4}.c-list{grid-row:5}.page-bottom{grid-row:6}.eva-section{grid-row:7}.brand-info{grid-row:8}.detail-desc{grid-row:9}.recommend-section{grid-row:10}}
 </style>
 

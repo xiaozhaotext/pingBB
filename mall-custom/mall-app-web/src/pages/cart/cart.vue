@@ -3,7 +3,7 @@
   <view class="container">
     <!-- 空白页 -->
     <view v-if="!hasLogin || empty === true" class="empty">
-      <image src="/static/emptyCart.jpg" mode="aspectFit"></image>
+      <image src="https://zhiyoumei.com.cn/static/emptyCart.jpg" mode="aspectFit"></image>
       <view v-if="hasLogin" class="empty-tips">
         空空如也
         <navigator class="navigator" url="../index/index" open-type="switchTab"
@@ -64,7 +64,7 @@
       <view class="action-section">
         <view class="checkbox">
           <image
-            :src="allChecked ? '/static/selected.png' : '/static/select.png'"
+            :src="allChecked ? 'https://zhiyoumei.com.cn/static/selected.png' : 'https://zhiyoumei.com.cn/static/select.png'"
             mode="aspectFit"
             @click="handleCheckAll"
           ></image>
@@ -198,7 +198,7 @@ const handleImageLoad = (index: number) => {
 
 // 图片加载失败
 const handleImageError = (index: number) => {
-  cartList.value[index].productPic = '/static/errorImage.jpg'
+  cartList.value[index].productPic = 'https://zhiyoumei.com.cn/static/errorImage.jpg'
 }
 
 // 跳转登录

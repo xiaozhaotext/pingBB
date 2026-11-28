@@ -1,7 +1,7 @@
 <template>
   <view class="profile-page">
     <view class="card">
-      <image class="avatar" :src="memberStore.memberInfo?.icon || '/static/missing-face.png'" mode="aspectFill" />
+      <image class="avatar" :src="memberStore.memberInfo?.icon || 'https://zhiyoumei.com.cn/static/missing-face.png'" mode="aspectFill" />
       <view class="account">账号：{{ memberStore.memberInfo?.username || '—' }}</view>
       <view class="field-label">昵称</view>
       <input v-model="nickname" class="nickname-input" :maxlength="24" placeholder="输入 2 至 24 个字符" />

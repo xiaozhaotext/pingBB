@@ -1,7 +1,7 @@
 <template>
   <view class="content">
     <!-- 顶部 Banner -->
-    <image src="/static/recommend_brand_banner.png" mode="widthFix" class="banner-image"></image>
+    <image src="https://zhiyoumei.com.cn/static/recommend_brand_banner.png" mode="widthFix" class="banner-image"></image>
     <!-- 板块标题 -->
     <view class="section-tit">相关品牌</view>
     <!-- 品牌列表 -->
