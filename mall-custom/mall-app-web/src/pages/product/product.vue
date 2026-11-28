@@ -36,7 +36,7 @@
     <view v-if="detailLoading" class="product-load-state">正在加载商品详情…</view>
     <view v-else-if="detailError" class="product-load-state product-load-error" @click="loadData(requestedProductId)">{{ detailError }}，点击重试</view>
     <!-- 轮播图 -->
-    <view v-if="product.id" class="carousel" @touchstart.stop @touchmove.stop @touchend.stop>
+    <view v-if="product.id" class="carousel">
       <swiper circular :duration="400">
         <swiper-item class="swiper-item" v-for="(item, index) in imgList" :key="index">
           <view class="image-wrapper">
@@ -56,12 +56,12 @@
         <text class="shop-label">商家</text>
         <text class="shop-name">{{ shopName }}</text>
       </view>
-      <view class="price-box">
+      <view v-if="zoneCode !== 'CONSUME'" class="price-box">
         <text class="price-tip">¥</text>
         <text class="price">{{ product.price }}</text>
         <text class="m-price">¥{{ product.originalPrice }}</text>
       </view>
-      <view class="bot-row">
+      <view v-if="zoneCode !== 'CONSUME'" class="bot-row">
         <text>销量: {{ product.sale }}</text>
         <text>库存: {{ product.stock }}</text>
       </view>
@@ -89,7 +89,7 @@
         </view>
         <text class="yticon icon-you"></text>
       </view>
-      <view class="c-row b-b" @click="handleToggleCoupon('show')">
+      <view v-if="zoneCode !== 'CONSUME'" class="c-row b-b" @click="handleToggleCoupon('show')">
         <text class="tit">优惠券</text>
         <text class="con t-r red">领取优惠券</text>
         <text class="yticon icon-you"></text>
@@ -182,7 +182,7 @@
         <text>收藏</text>
       </view>
 
-      <view class="action-btn-group">
+      <view v-if="zoneCode !== 'CONSUME'" class="action-btn-group">
         <button type="primary" class="action-btn no-border add-cart-btn" @click="handleAddToCart">加入购物车</button>
         <button type="primary" class="action-btn no-border buy-now-btn" @click="handleBuy">立即购买</button>
       </view>
@@ -195,8 +195,8 @@
         <view class="a-t">
           <image :src="productImageUrl(product.pic)"></image>
           <view class="right">
-            <text class="price">¥{{ product.price }}</text>
-            <text class="stock">库存：{{ product.stock }}件</text>
+            <text v-if="zoneCode !== 'CONSUME'" class="price">¥{{ product.price }}</text>
+            <text v-if="zoneCode !== 'CONSUME'" class="stock">库存：{{ product.stock }}件</text>
             <view class="selected">
               已选：
               <text class="selected-text" v-for="(sItem, sIndex) in specSelected" :key="sIndex">

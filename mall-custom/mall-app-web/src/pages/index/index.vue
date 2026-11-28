@@ -1000,13 +1000,20 @@ page {
 
 <style scoped>
 .home-add-cart{margin-left:auto;padding:4px 10px;border-radius:14px;background:#e85b36;color:#fff !important;font-size:12px;line-height:1.5;white-space:nowrap}
-.travel-hero > text,.home-zone > text{display:none}
-.travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden}
+.travel-hero,.home-zone{padding:0!important;min-height:0!important;aspect-ratio:auto!important;background-image:none!important;overflow:hidden;position:relative}
 .column-photo{display:block;width:100%;height:auto}
 @media(max-width:899px){.home-zones{grid-template-columns:repeat(2,minmax(0,1fr))}.home-zones .brand-zone{grid-column:1/-1;aspect-ratio:2!important}.home-zones .rebuy-zone,.home-zones .consume-zone{grid-column:auto;aspect-ratio:1.84!important}.home-zones .column-photo{width:100%;height:100%;object-fit:cover}.home-zones .brand-zone .column-photo{object-position:left center}}
-.travel-hero{position:relative}
-.hero-carousel{position:absolute;inset:0;width:100%;height:100%;background:#fff}
-.travel-hero > text{z-index:1}
+/* 图片上叠加文字标题：加半透明遮罩保证可读性 */
+.travel-hero{position:relative;display:flex;flex-direction:column;justify-content:flex-end}
+.travel-hero:after,.home-zone:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.45) 100%);pointer-events:none;z-index:1}
+.travel-hero > text,.home-zone > text{position:relative;z-index:2;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.travel-hero-title{font-size:24px;font-weight:700;letter-spacing:2px;padding:0 20px 4px}
+.travel-hero-sub{font-size:12px;letter-spacing:2px;padding:0 20px 18px;color:#f5e9c7}
+.home-zone-title{position:absolute;left:16px;top:14px;font-size:22px;font-weight:700;color:#fff!important;text-shadow:0 2px 8px rgba(0,0,0,.55)}
+.home-zone-caption{position:absolute;left:16px;bottom:14px;font-size:11px;color:#fff!important;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.zone-eyebrow{position:absolute;left:16px;top:42px;font-size:10px;color:#ffe9c9!important;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.zone-arrow{position:absolute;right:14px;bottom:12px;color:#fff!important;z-index:2}
+.hero-carousel{position:absolute;inset:0;width:100%;height:100%;background:#fff;z-index:0}
 .hero-slide{display:block;width:100%;height:100%}
 .hero-pagination{gap:6px}
 .hero-pagination .hero-active{background:#b98d36}

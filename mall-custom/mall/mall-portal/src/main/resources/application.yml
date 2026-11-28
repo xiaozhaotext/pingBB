@@ -125,6 +125,7 @@ secure:
       - /product/zone/**
       - /product/pickActivity
       - /product/pickActivity/*
+      - /product/consumeRoute/**
       - /brand/**
       - /alipay/notify
       - /member/recharge/notify/alipay

@@ -396,6 +396,18 @@
       }
     },
     {
+      "path": "pages/zone/consumeRoutes",
+      "style": {
+        "navigationBarTitleText": "旅游路线"
+      }
+    },
+    {
+      "path": "pages/zone/consumeProducts",
+      "style": {
+        "navigationBarTitleText": "目的地"
+      }
+    },
+    {
       "path": "pages/member/dividend",
       "style": {
         "navigationBarTitleText": "每日分红池"

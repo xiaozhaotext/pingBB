@@ -93,7 +93,7 @@ public class MallCategoryCatalog {
     public List<Long> categoryIds(String zone,long selected) {
         var ids=new ArrayList<Long>();
         collect(tree(zone),selected,false,ids);
-        if(ids.isEmpty()) throw new IllegalArgumentException("所选分类不属于当前范围或已隐藏，请重新选择");
+        if(ids.isEmpty()) return java.util.List.of(-1L); // 分类不可见时返回空结果哨兵，避免搜索接口500
         return ids;
     }
     private void collect(List<Node> nodes,long selected,boolean inside,List<Long> ids) {

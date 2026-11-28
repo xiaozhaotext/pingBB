@@ -66,7 +66,7 @@ export const asyncRouterMap: RouteRecordExt[] = [
     path: '/consume', component: Layout, redirect: '/consume/category', name: 'consume', alwaysShow: true,
     meta: { title: '消费区商品管理', icon: 'product-list' },
     children: [
-      { path: 'category', name: 'consumeCategory', component: () => import('@/views/pms/productCate/index.vue'), meta: { title: '分类管理', icon: 'product-cate' } },
+      { path: 'category', name: 'consumeCategory', component: () => import('@/views/zone/ConsumeRoutes.vue'), meta: { title: '目的地与线路', icon: 'product-cate' } },
       { path: 'product', name: 'consumeProduct', component: () => import('@/views/zone/ZoneProductList.vue'), meta: { title: '商品列表', icon: 'product-list' } },
       { path: 'trash', name: 'consumeTrash', component: () => import('@/views/zone/ZoneProductTrash.vue'), meta: { title: '商品回收站', icon: 'product-list' } },
       { path: 'add-category', name: 'consumeAddCategory', component: () => import('@/views/pms/productCate/add.vue'), meta: { title: '添加商品分类' }, hidden: true },
