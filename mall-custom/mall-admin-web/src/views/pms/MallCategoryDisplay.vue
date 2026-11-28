@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getP0, postP0 } from '@/apis/p0'
 type Row={id:number;parentId:number;name:string;sourceName:string;icon?:string;sort:number;visible:boolean;sourceVisible:boolean;zones:string[]}
 type Snapshot={revision:number;categories:Row[]}
-const rows=ref<Row[]>([]),revision=ref(0),loading=ref(false),saving=ref(false),keyword=ref(''),zone=ref('')
+const rows=ref<Row[]>([]),revision=ref(0),loading=ref(false),saving=ref(false),keyword=ref(''),zone=ref('REBUY')
 const editing=ref(false),draft=ref<Row>()
 const zoneName=(value:string)=>value==='CONSUME'?'消费区':'复购区'
 const filtered=computed(()=>rows.value.filter(row=>(!zone.value||row.zones.includes(zone.value))&&(!keyword.value.trim()||(row.name+' '+row.sourceName).includes(keyword.value.trim()))))
@@ -35,14 +35,14 @@ onMounted(load)
 <template>
   <main class="catalog-page">
     <h1>商城分类筛选管理</h1>
-    <el-alert title="自动汇总消费区、复购区的分类。本页只调整商城“商品分类”和全站搜索中的分类展示，不改变原专区分类、商品归属和专区筛选。新增分类自动同步。" type="info" :closable="false" />
+    <el-alert title="自动汇总复购区的分类。本页只调整商城“商品分类”和全站搜索中的分类展示，不改变原专区分类、商品归属和专区筛选。新增分类自动同步。" type="info" :closable="false" />
     <div class="filters">
       <el-input v-model="keyword" placeholder="搜索展示名称或原分类名称" clearable style="width:280px" />
-      <el-select v-model="zone" placeholder="全部来源" clearable style="width:160px"><el-option label="消费区" value="CONSUME"/><el-option label="复购区" value="REBUY"/></el-select>
+      <el-select v-model="zone" placeholder="全部来源" clearable style="width:160px"><el-option label="复购区" value="REBUY"/></el-select>
       <el-button :loading="loading" :disabled="saving" @click="load">刷新同步</el-button>
       <span>共 {{ filtered.length }} 个分类</span>
     </div>
-    <el-table v-loading="loading" :data="filtered" row-key="id" empty-text="暂无消费区、复购区分类">
+    <el-table v-loading="loading" :data="filtered" row-key="id" empty-text="暂无复购区分类">
       <el-table-column prop="id" label="分类ID" width="90" />
       <el-table-column prop="name" label="商城展示名称" min-width="150" />
       <el-table-column prop="sourceName" label="原分类名称" min-width="150" />

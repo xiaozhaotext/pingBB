@@ -157,6 +157,7 @@
       <view class="d-header">
         <text>图文详情</text>
       </view>
+      <image v-for="(url, index) in detailImages" :key="index" :src="productImageUrl(url)" mode="widthFix" style="display:block;width:100%;height:auto" />
       <rich-text :nodes="desc"></rich-text>
     </view>
 
@@ -841,8 +842,18 @@ const initPromotionTipList = (data: any) => {
 }
 
 // 初始化商品详情HTML
+const detailImages = ref<string[]>([])
 const initProductDesc = () => {
   let rawhtml = product.value.detailMobileHtml || ''
+  detailImages.value = []
+  rawhtml = rawhtml.replace(/<!--ZYM_DETAIL_IMAGES:([\s\S]*?)-->/g, (_marker, payload: string) => {
+    try {
+      const images: unknown = JSON.parse(payload)
+      if (Array.isArray(images)) detailImages.value = images.filter((url): url is string =>
+        typeof url === 'string' && !!url.trim()).map(url => url.trim())
+    } catch { /* Keep the remaining description available when old metadata is invalid. */ }
+    return ''
+  })
 
   // #ifdef H5
   const tempNode = document.createElement('div')

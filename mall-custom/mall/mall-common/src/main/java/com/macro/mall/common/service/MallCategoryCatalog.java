@@ -26,7 +26,7 @@ public class MallCategoryCatalog {
         if(zone!=null && !Set.of("CONSUME","REBUY","PICK").contains(zone)) throw new IllegalArgumentException("未知商品专区");
         var rows=jdbc.queryForList("SELECT c.id,c.parent_id,c.name,c.icon,c.sort,c.show_status,z.zone_code "
                 +"FROM pms_product_category c JOIN pms_category_zone z ON z.category_id=c.id WHERE "
-                +(zone==null?"z.zone_code IN ('CONSUME','REBUY')":"z.zone_code=?")+" ORDER BY c.sort DESC,c.id",zone==null?new Object[]{}:new Object[]{zone});
+                +(zone==null?"z.zone_code='REBUY'":"z.zone_code=?")+" ORDER BY c.sort DESC,c.id",zone==null?new Object[]{}:new Object[]{zone});
         var result=new LinkedHashMap<Long,Source>();
         for(var row:rows) {
             long id=((Number)row.get("id")).longValue();
@@ -71,7 +71,7 @@ public class MallCategoryCatalog {
         State state=readState();return new Snapshot(state.revision(),entries(sources(null),state));
     }
     public List<Node> tree(String zone) {
-        var entries=entries(sources(zone),zone==null?readState():new State(0,List.of()));
+        var entries=entries(sources(zone),readState());
         var byId=new HashMap<Long,Entry>();entries.forEach(e->byId.put(e.id(),e));
         Set<Long> visible=new HashSet<>();
         for(Entry e:entries) {
